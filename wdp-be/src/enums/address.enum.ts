@@ -1,0 +1,4 @@
+export enum ADDRESS_TYPES {
+  BILLING,
+  SHIPPING,
+}
