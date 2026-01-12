@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { ADDRESS_TYPES } from 'src/enums/address.enum';
 
 @Schema({ _id: false })
 export class Address {
+  _id: Types.ObjectId;
+
   @Prop({
     type: String,
     enum: ADDRESS_TYPES,
