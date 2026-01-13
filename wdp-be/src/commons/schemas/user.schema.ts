@@ -1,23 +1,25 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { ROLES } from 'src/enums/role.enum';
-import validator from 'validator';
+import { ROLES } from 'src/commons/enums/role.enum';
 import { Address, AddressSchema } from './address.schema';
+import { userValidation } from 'src/commons/validations/user.validation';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
-  _id: Types.ObjectId;
-
-  @Prop({ required: true })
+  @Prop({
+    required: userValidation.fullName.presence,
+    minLength: userValidation.fullName.length.min,
+    maxLength: userValidation.fullName.length.max,
+  })
   fullName: string;
 
   @Prop({
-    required: [true, 'Email is required'],
-    unique: true,
+    required: [userValidation.email.presence, 'Email is required'],
+    unique: userValidation.email.unique,
     validate: {
-      validator: (str: string) => validator.isEmail(str),
+      validator: userValidation.email.validator,
       message: 'Email is invalid',
     },
   })
@@ -36,7 +38,7 @@ export class User {
 
   @Prop({
     validate: {
-      validator: (str: string) => validator.isURL(str),
+      validator: userValidation.avatar.validator,
       message: 'Avatar url is invalid',
     },
   })
