@@ -8,6 +8,11 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
+  _id: Types.ObjectId;
+
+  createdAt: Date;
+  updatedAt: Date;
+
   @Prop({
     required: userValidation.fullName.presence,
     minLength: userValidation.fullName.length.min,

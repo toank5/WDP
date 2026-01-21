@@ -3,6 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { JwtService } from '@nestjs/jwt';
+import { AuthController } from './controllers/auth.controller';
+import { AuthService } from './services/auth.service';
+import { User, UserSchema } from './commons/schemas/user.schema';
+import { Address, AddressSchema } from './commons/schemas/address.schema';
 
 @Module({
   imports: [
@@ -19,8 +24,15 @@ import { MongooseModule } from '@nestjs/mongoose';
       }),
       inject: [ConfigService],
     }),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      {
+        name: Address.name,
+        schema: AddressSchema,
+      },
+    ]),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, AuthController],
+  providers: [AppService, JwtService, AuthService],
 })
 export class AppModule {}
