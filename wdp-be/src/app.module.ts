@@ -8,6 +8,8 @@ import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 import { User, UserSchema } from './commons/schemas/user.schema';
 import { Address, AddressSchema } from './commons/schemas/address.schema';
+import { UserController } from './controllers/user.controller';
+import { UserService } from './services/user.service';
 
 @Module({
   imports: [
@@ -32,7 +34,7 @@ import { Address, AddressSchema } from './commons/schemas/address.schema';
       },
     ]),
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService, JwtService, AuthService],
+  controllers: [AppController, AuthController, UserController],
+  providers: [AppService, JwtService, AuthService, UserService],
 })
 export class AppModule {}

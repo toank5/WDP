@@ -6,8 +6,8 @@ import {
   Scope,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import {
   LoginRequestDto,
   LoginResponseDto,
@@ -25,15 +25,15 @@ export class AuthService {
   constructor(
     @Inject(REQUEST)
     private readonly request: customApiRequestInterface.ICustomApiRequest,
-    @InjectConnection() private readonly connection: Connection,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   async login(
     data: LoginRequestDto,
   ): Promise<CustomApiResponse<LoginResponseDto>> {
-    const user = (await this.connection.model(User.name).findOne({
+    const user = (await this.userModel.findOne({
       email: data.email,
     })) as User;
     if (!user) throw new BadRequestException('User not found');
@@ -47,8 +47,8 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(
       { id: user._id },
       {
-        expiresIn: this.configService.get<any>('JWT_ACCESS_TOKEN_EXPIRATION'),
-        secret: this.configService.get<any>('JWT_ACCESS_TOKEN_SECRET'),
+        expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
+        secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
     );
 
@@ -59,15 +59,14 @@ export class AuthService {
   }
 
   async register(data: RegisterRequestDto) {
-    const user = (await this.connection.model(User.name).findOne({
+    const user = (await this.userModel.findOne({
       email: data.email,
     })) as User;
     if (user) throw new BadRequestException('User already exists');
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    const UserModel = this.connection.model(User.name);
-    const newUser = new UserModel({
+    const newUser = new this.userModel({
       ...data,
       passwordHash: hashedPassword,
     });
@@ -77,8 +76,8 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(
       { id: newUser._id },
       {
-        expiresIn: this.configService.get<any>('JWT_ACCESS_TOKEN_EXPIRATION'),
-        secret: this.configService.get<any>('JWT_ACCESS_TOKEN_SECRET'),
+        expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
+        secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
     );
 

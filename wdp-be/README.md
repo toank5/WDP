@@ -23,8 +23,35 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## DTO Validation Instructions
 
+All DTOs must use `class-validator` decorators to enforce validation rules. For example, use `@IsString()`, `@IsEmail()`, `@MinLength()`, `@MaxLength()`, and `@IsOptional()` as appropriate for each field. This ensures data integrity and consistency throughout the application.
+
+Example:
+
+```typescript
+import { IsString, IsEmail, MinLength, MaxLength, IsOptional } from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  @MinLength(5)
+  @MaxLength(100)
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+}
+```
+
+---
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 ## Project setup
 
 ```bash

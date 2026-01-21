@@ -8,10 +8,16 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
+  save() {
+    throw new Error('Method not implemented.');
+  }
   _id: Types.ObjectId;
 
   createdAt: Date;
   updatedAt: Date;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
 
   @Prop({
     required: userValidation.fullName.presence,
