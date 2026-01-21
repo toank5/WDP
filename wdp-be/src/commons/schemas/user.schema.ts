@@ -16,11 +16,11 @@ export class User {
   fullName: string;
 
   @Prop({
-    required: [userValidation.email.presence, 'Email is required'],
+    required: [userValidation.email.presence, userValidation.email.errorMsg],
     unique: userValidation.email.unique,
     validate: {
       validator: userValidation.email.validator,
-      message: 'Email is invalid',
+      message: userValidation.email.errorMsg,
     },
   })
   email: string;
@@ -34,12 +34,12 @@ export class User {
     default: ROLES.CUSTOMER,
     required: true,
   })
-  role: string;
+  role: ROLES;
 
   @Prop({
     validate: {
       validator: userValidation.avatar.validator,
-      message: 'Avatar url is invalid',
+      message: userValidation.avatar.errorMsg,
     },
   })
   avatar: string;

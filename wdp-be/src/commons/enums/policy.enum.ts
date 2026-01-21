@@ -1,0 +1,5 @@
+export enum POLICY_TYPES {
+  RETURN,
+  WARRANTY,
+  PROMOTION,
+}

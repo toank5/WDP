@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as multer from 'multer';
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
-import { CustomApiRequest } from '../interfaces/custom-api-request.interface';
+import { ICustomApiRequest } from '../interfaces/custom-api-request.interface';
 
 export class FileUtils {
   static logger = new Logger(FileUtils.name);
@@ -43,20 +43,20 @@ export class FileUtils {
 
   static fileStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-      const customReq = req as unknown as CustomApiRequest;
+      const customReq = req as unknown as ICustomApiRequest;
 
       let destination = '/uploads';
 
       switch (file.fieldname) {
         case 'avatar':
-          destination = `uploads/users/${customReq.user?._id}/avatar`;
+          destination = `uploads/users/${customReq?._id}/avatar`;
           break;
         case 'video':
         case 'videos':
           destination = `uploads/videos`;
           break;
         case 'video_thumbnail':
-          destination = `uploads/users/${customReq.user?._id}/videos/thumbnails`;
+          destination = `uploads/users/${customReq?._id}/videos/thumbnails`;
           break;
         case 'credential_image':
           destination = `uploads/credentials/images`;

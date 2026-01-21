@@ -1,0 +1,10 @@
+export enum PRODUCT_CATEGORIES {
+  FRAMES,
+  LENSES,
+  SERVICES,
+}
+
+export enum PRODUCT_VARIANT_TYPES {
+  AVIATOR,
+  ROUND,
+}
