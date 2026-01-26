@@ -33,8 +33,10 @@ export class UpdateUserDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(ROLES)
-  role: ROLES;
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsEnum(ROLES)
+  role?: ROLES;
 }

@@ -8,34 +8,7 @@
 ## Project-Specific Notes
 # Copilot Instructions: Eyeglasses E-Commerce App
 
-## Business Requirements & Roles
 
-**CUSTOMER:**
-- Browse catalog (frames, lenses, services) with filtering/search
-- View product details: style, size, color, price, 2D/3D images
-- Place 3 order types: Ready stock, Pre-order, Prescription (frame + Rx lenses)
-- Manage cart, checkout, payment
-- Account management: orders, returns/exchanges
-
-**SALES/SUPPORT STAFF:**
-- Process incoming orders, validate prescriptions, contact customers
-- Confirm orders, assign to Operations
-- Handle pre-orders, complaints, returns, warranty, refunds
-
-**OPERATIONS STAFF:**
-- Package products, create shipping labels, update tracking
-- Pre-order: receive stock, update inventory, ship
-- Prescription: lens grinding/assembly, quality check, ship
-- Real-time order status updates
-
-**MANAGER:**
-- Configure business rules (return policy, warranty, pricing)
-- Product management: variants, pricing, promotions
-- Staff/user management
-- Revenue reporting/dashboards
-
-**SYSTEM ADMIN:**
-- System configuration and maintenance
 
 ## Technical Specifications
 
@@ -77,3 +50,31 @@
 - Enums: [`src/commons/enums/`](wdp-be/src/commons/enums/)
 
 ---
+## Business Requirements & Roles
+
+**CUSTOMER:**
+- Browse catalog (frames, lenses, services) with filtering/search
+- View product details: style, size, color, price, 2D/3D images
+- Place 3 order types: Ready stock, Pre-order, Prescription (frame + Rx lenses)
+- Manage cart, checkout, payment
+- Account management: orders, returns/exchanges
+
+**SALES/SUPPORT STAFF:**
+- Process incoming orders, validate prescriptions, contact customers
+- Confirm orders, assign to Operations
+- Handle pre-orders, complaints, returns, warranty, refunds
+
+**OPERATIONS STAFF:**
+- Package products, create shipping labels, update tracking
+- Pre-order: receive stock, update inventory, ship
+- Prescription: lens grinding/assembly, quality check, ship
+- Real-time order status updates
+
+**MANAGER:**
+- Configure business rules (return policy, warranty, pricing)
+- Product management: variants, pricing, promotions
+- Staff/user management
+- Revenue reporting/dashboards
+
+**SYSTEM ADMIN:**
+- System configuration and maintenance
