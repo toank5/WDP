@@ -10,7 +10,7 @@ export class Policy {
   })
   type: POLICY_TYPES;
 
-  config: Object;
+  config: object;
 }
 
 export const PolicySchema = SchemaFactory.createForClass(Policy);

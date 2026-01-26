@@ -43,6 +43,12 @@ export class Product {
     default: true,
   })
   isActive: boolean;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isDeleted: boolean;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

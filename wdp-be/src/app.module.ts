@@ -10,6 +10,9 @@ import { User, UserSchema } from './commons/schemas/user.schema';
 import { Address, AddressSchema } from './commons/schemas/address.schema';
 import { UserController } from './controllers/user.controller';
 import { UserService } from './services/user.service';
+import { PolicyController } from './controllers/policy.controller';
+import { PolicyService } from './services/policy.service';
+import { Policy, PolicySchema } from './commons/schemas/policy.schema';
 
 @Module({
   imports: [
@@ -32,9 +35,13 @@ import { UserService } from './services/user.service';
         name: Address.name,
         schema: AddressSchema,
       },
+      {
+        name: Policy.name,
+        schema: PolicySchema,
+      },
     ]),
   ],
-  controllers: [AppController, AuthController, UserController],
-  providers: [AppService, JwtService, AuthService, UserService],
+  controllers: [AppController, AuthController, UserController, PolicyController],
+  providers: [AppService, JwtService, AuthService, UserService, PolicyService],
 })
 export class AppModule {}
