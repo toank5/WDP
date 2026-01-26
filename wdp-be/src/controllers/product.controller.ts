@@ -1,14 +1,61 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  Delete,
+  Patch,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ProductService } from '../services/product.service';
-import { CreateProductDto, UpdateProductDto } from '../commons/dtos/product.dto';
+import { CloudinaryService } from '../commons/services/cloudinary.service';
+import { FileUploadService } from '../commons/services/file-upload.service';
+import {
+  CreateProductDto,
+  UpdateProductDto,
+} from '../commons/dtos/product.dto';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
 
   @Post()
-  async create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
+  @UseInterceptors(
+    FilesInterceptor('images', 10, new FileUploadService().getMulterOptions()),
+  )
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    // Parse variants if it's a JSON string (from FormData)
+    let dto = createProductDto;
+    if (typeof dto.variants === 'string') {
+      try {
+        dto = { ...dto, variants: JSON.parse(dto.variants) };
+      } catch (e) {
+        throw new BadRequestException('Invalid variants format');
+      }
+    }
+
+    // Upload images to Cloudinary if provided
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      imageUrls = await this.cloudinaryService.uploadMultipleFiles(
+        files,
+        'wdp/products',
+      );
+    }
+
+    return this.productService.create(dto, imageUrls);
   }
 
   @Get()
@@ -22,8 +69,34 @@ export class ProductController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(id, updateProductDto);
+  @UseInterceptors(
+    FilesInterceptor('images', 10, new FileUploadService().getMulterOptions()),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    // Parse variants if it's a JSON string (from FormData)
+    let dto = updateProductDto;
+    if (typeof dto.variants === 'string') {
+      try {
+        dto = { ...dto, variants: JSON.parse(dto.variants) };
+      } catch (e) {
+        throw new BadRequestException('Invalid variants format');
+      }
+    }
+
+    // Upload new images to Cloudinary if provided
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      imageUrls = await this.cloudinaryService.uploadMultipleFiles(
+        files,
+        'wdp/products',
+      );
+    }
+
+    return this.productService.update(id, dto, imageUrls);
   }
 
   @Delete(':id')

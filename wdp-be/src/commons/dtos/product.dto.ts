@@ -1,5 +1,36 @@
-import { IsString, MinLength, MaxLength, IsEnum, IsNumber, IsOptional } from 'class-validator';
-import { PRODUCT_CATEGORIES } from '../enums/product.enum';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_VARIANT_TYPES,
+} from '../enums/product.enum';
+
+export class ProductVariantDto {
+  @IsString()
+  sku: string;
+
+  @IsEnum(PRODUCT_VARIANT_TYPES)
+  type: PRODUCT_VARIANT_TYPES;
+
+  @IsString()
+  size: string;
+
+  @IsString()
+  color: string;
+
+  @IsOptional()
+  @IsArray()
+  images?: string[]; // File paths stored after upload
+}
 
 export class CreateProductDto {
   @IsString()
@@ -17,6 +48,12 @@ export class CreateProductDto {
 
   @IsNumber()
   basePrice: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
 }
 
 export class UpdateProductDto {
@@ -39,4 +76,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsNumber()
   basePrice?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
 }

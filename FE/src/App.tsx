@@ -8,6 +8,7 @@ import { AdminDashboardLayout } from './pages/admin/AdminDashboardLayout';
 import { DashboardOverview } from './pages/admin/DashboardOverview';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { PolicyManagementPage } from './pages/admin/PolicyManagementPage';
+import { ProductManagementPage } from './pages/admin/ProductManagementPage';
 
 function App() {
   return (
@@ -32,6 +33,10 @@ function App() {
           <Route
             path="policies"
             element={<PolicyManagementPage />}
+          />
+          <Route
+            path="products"
+            element={<ProductManagementPage />}
           />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

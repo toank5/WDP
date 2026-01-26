@@ -13,8 +13,36 @@ export class ProductService {
     @InjectModel(Product.name) private productModel: Model<Product>,
   ) {}
 
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const createdProduct = new this.productModel(createProductDto);
+  async create(
+    createProductDto: CreateProductDto,
+    imageUrls?: string[],
+  ): Promise<Product> {
+    // If images are provided, assign them to variants
+    // If multiple variants exist, distribute images sequentially
+    const dto = { ...createProductDto };
+
+    if (imageUrls && imageUrls.length > 0) {
+      if (dto.variants && dto.variants.length > 0) {
+        // Distribute images to variants
+        const imagesPerVariant = Math.ceil(
+          imageUrls.length / dto.variants.length,
+        );
+        let imageIndex = 0;
+
+        dto.variants.forEach((variant) => {
+          const variantImages = imageUrls.slice(
+            imageIndex,
+            imageIndex + imagesPerVariant,
+          );
+          if (variantImages.length > 0) {
+            variant.images = variantImages;
+            imageIndex += variantImages.length;
+          }
+        });
+      }
+    }
+
+    const createdProduct = new this.productModel(dto);
     return createdProduct.save();
   }
 
@@ -29,9 +57,34 @@ export class ProductService {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
+    imageUrls?: string[],
   ): Promise<Product | null> {
+    // If images are provided, assign them to variants
+    const dto = { ...updateProductDto };
+
+    if (imageUrls && imageUrls.length > 0) {
+      if (dto.variants && dto.variants.length > 0) {
+        // Distribute images to variants
+        const imagesPerVariant = Math.ceil(
+          imageUrls.length / dto.variants.length,
+        );
+        let imageIndex = 0;
+
+        dto.variants.forEach((variant) => {
+          const variantImages = imageUrls.slice(
+            imageIndex,
+            imageIndex + imagesPerVariant,
+          );
+          if (variantImages.length > 0) {
+            variant.images = variantImages;
+            imageIndex += variantImages.length;
+          }
+        });
+      }
+    }
+
     return this.productModel
-      .findByIdAndUpdate(id, updateProductDto, { new: true })
+      .findByIdAndUpdate(id, dto, { new: true })
       .exec();
   }
 

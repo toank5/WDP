@@ -13,6 +13,11 @@ import { UserService } from './services/user.service';
 import { PolicyController } from './controllers/policy.controller';
 import { PolicyService } from './services/policy.service';
 import { Policy, PolicySchema } from './commons/schemas/policy.schema';
+import { ProductController } from './controllers/product.controller';
+import { ProductService } from './services/product.service';
+import { Product, ProductSchema } from './commons/schemas/product.schema';
+import { CloudinaryService } from './commons/services/cloudinary.service';
+import { FileUploadService } from './commons/services/file-upload.service';
 
 @Module({
   imports: [
@@ -39,9 +44,13 @@ import { Policy, PolicySchema } from './commons/schemas/policy.schema';
         name: Policy.name,
         schema: PolicySchema,
       },
+      {
+        name: Product.name,
+        schema: ProductSchema,
+      },
     ]),
   ],
-  controllers: [AppController, AuthController, UserController, PolicyController],
-  providers: [AppService, JwtService, AuthService, UserService, PolicyService],
+  controllers: [AppController, AuthController, UserController, PolicyController, ProductController],
+  providers: [AppService, JwtService, AuthService, UserService, PolicyService, ProductService, CloudinaryService, FileUploadService],
 })
 export class AppModule {}

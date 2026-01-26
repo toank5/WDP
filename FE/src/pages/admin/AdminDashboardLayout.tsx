@@ -26,7 +26,7 @@ import {
   Gavel,
   Logout,
 } from '@mui/icons-material'
-import { roleLabels, ADMIN_ROLE } from '@/lib/constants'
+import { roleLabels, ADMIN_ROLE, MANAGER_ROLE } from '@/lib/constants'
 
 const drawerWidth = 260
 
@@ -66,12 +66,13 @@ export function AdminDashboardLayout() {
       title: 'Policy Management',
       icon: <Gavel />,
       url: '/dashboard/policies',
-      adminOnly: true,
+      managerOnly: true,
     },
     {
       title: 'Products',
       icon: <Inventory />,
       url: '/dashboard/products',
+      managerOnly: true,
     },
     {
       title: 'Settings',
@@ -81,6 +82,7 @@ export function AdminDashboardLayout() {
   ]
 
   const isAdmin = user.role === ADMIN_ROLE || Number(user.role) === ADMIN_ROLE
+  const isManager = user.role === MANAGER_ROLE || Number(user.role) === MANAGER_ROLE
 
   const drawer = (
     <Box>
@@ -104,8 +106,8 @@ export function AdminDashboardLayout() {
       <Divider />
       <List>
         {menuItems.map((item) => {
-          const shouldShow = !item.adminOnly || isAdmin
-          console.log(`Item: ${item.title}, adminOnly: ${item.adminOnly}, isAdmin: ${isAdmin}, show: ${shouldShow}`)
+          const shouldShow = (!item.adminOnly || isAdmin) && (!item.managerOnly || isManager)
+          console.log(`Item: ${item.title}, adminOnly: ${item.adminOnly}, managerOnly: ${item.managerOnly}, isAdmin: ${isAdmin}, isManager: ${isManager}, show: ${shouldShow}`)
           return shouldShow ? (
             <ListItem key={item.title} disablePadding>
               <ListItemButton
