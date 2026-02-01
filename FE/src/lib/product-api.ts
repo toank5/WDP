@@ -3,23 +3,38 @@ import axios from 'axios'
 type ApiResponse<T> = {
   statusCode: number
   message: string
-  metadata: T
+  data?: T
+  metadata?: T
+  errors?: Array<{ path: string; message: string }>
 }
 
 export type ProductVariant = {
   sku: string
-  type: 'AVIATOR' | 'ROUND'
   size: string
   color: string
-  images: string[]
+  price?: number
+  weight?: number
+  images2D?: string[]
+  images3D?: string[]
+  isActive?: boolean
 }
 
-export type Product = {
+// Frame-specific types
+export type FrameProduct = {
   _id: string
   name: string
-  category: 'FRAMES' | 'LENSES' | 'SERVICES'
+  slug: string
+  category: 'frame'
   description: string
   basePrice: number
+  images2D: string[]
+  images3D?: string[]
+  tags: string[]
+  frameType: 'full-rim' | 'half-rim' | 'rimless'
+  shape: 'round' | 'square' | 'oval' | 'cat-eye' | 'aviator'
+  material: 'metal' | 'plastic' | 'mixed'
+  gender?: 'men' | 'women' | 'unisex'
+  bridgeFit?: 'standard' | 'asian-fit'
   variants: ProductVariant[]
   isActive: boolean
   isDeleted: boolean
@@ -27,26 +42,110 @@ export type Product = {
   updatedAt: string
 }
 
-export type CreateProductPayload = {
+// Lens-specific types
+export type LensProduct = {
+  _id: string
   name: string
-  category: 'FRAMES' | 'LENSES' | 'SERVICES'
+  slug: string
+  category: 'lens'
   description: string
   basePrice: number
-  variants?: ProductVariant[]
+  images2D: string[]
+  images3D?: string[]
+  tags: string[]
+  lensType: 'single-vision' | 'bifocal' | 'progressive' | 'photochromic'
+  index: number
+  coatings?: string[]
+  suitableForPrescriptionRange?: {
+    minSPH?: number
+    maxSPH?: number
+    minCYL?: number
+    maxCYL?: number
+  }
+  isPrescriptionRequired: boolean
+  isActive: boolean
+  isDeleted: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-export type CreateProductWithFilesPayload = {
-  product: CreateProductPayload
-  files: File[]
+// Service-specific types
+export type ServiceProduct = {
+  _id: string
+  name: string
+  slug: string
+  category: 'service'
+  description: string
+  basePrice: number
+  images2D: string[]
+  images3D?: string[]
+  tags: string[]
+  serviceType: 'eye-test' | 'lens-cutting' | 'frame-adjustment' | 'cleaning'
+  durationMinutes: number
+  serviceNotes?: string
+  isActive: boolean
+  isDeleted: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-export type UpdateProductPayload = {
-  name?: string
-  category?: 'FRAMES' | 'LENSES' | 'SERVICES'
-  description?: string
-  basePrice?: number
-  variants?: ProductVariant[]
+export type Product = FrameProduct | LensProduct | ServiceProduct
+
+export type CreateFrameProductPayload = {
+  name: string
+  category: 'frame'
+  description: string
+  basePrice: number
+  images2D: string[]
+  images3D?: string[]
+  tags?: string[]
+  frameType: 'full-rim' | 'half-rim' | 'rimless'
+  shape: 'round' | 'square' | 'oval' | 'cat-eye' | 'aviator'
+  material: 'metal' | 'plastic' | 'mixed'
+  gender?: 'men' | 'women' | 'unisex'
+  bridgeFit?: 'standard' | 'asian-fit'
+  variants: ProductVariant[]
 }
+
+export type CreateLensProductPayload = {
+  name: string
+  category: 'lens'
+  description: string
+  basePrice: number
+  images2D: string[]
+  images3D?: string[]
+  tags?: string[]
+  lensType: 'single-vision' | 'bifocal' | 'progressive' | 'photochromic'
+  index: number
+  coatings?: string[]
+  suitableForPrescriptionRange?: {
+    minSPH?: number
+    maxSPH?: number
+    minCYL?: number
+    maxCYL?: number
+  }
+  isPrescriptionRequired: boolean
+}
+
+export type CreateServiceProductPayload = {
+  name: string
+  category: 'service'
+  description: string
+  basePrice: number
+  images2D: string[]
+  images3D?: string[]
+  tags?: string[]
+  serviceType: 'eye-test' | 'lens-cutting' | 'frame-adjustment' | 'cleaning'
+  durationMinutes: number
+  serviceNotes?: string
+}
+
+export type CreateProductPayload =
+  | CreateFrameProductPayload
+  | CreateLensProductPayload
+  | CreateServiceProductPayload
+
+export type UpdateProductPayload = Partial<CreateProductPayload>
 
 const api = axios.create({
   baseURL: 'http://localhost:3000',
@@ -71,18 +170,24 @@ api.interceptors.request.use((config) => {
 
 function extractApiMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: string }
+    const data = error.response?.data as { message?: string; errors?: any[] }
+    if (data?.errors && Array.isArray(data.errors)) {
+      return data.errors.map((e) => `${e.path}: ${e.message}`).join(', ')
+    }
     if (data?.message) return data.message
     if (error.message) return error.message
   }
   return 'Request failed'
 }
 
-async function handleRequest<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
+async function handleRequest<T>(
+  promise: Promise<{ data: ApiResponse<T> }>,
+): Promise<T> {
   try {
     const response = await promise
-    if (!response.data?.metadata) throw new Error('Missing response payload')
-    return response.data.metadata
+    const data = response.data?.data || response.data?.metadata
+    if (!data) throw new Error('Missing response payload')
+    return data
   } catch (error) {
     const message = extractApiMessage(error)
     throw new Error(message)
@@ -93,20 +198,20 @@ export async function getAllProducts() {
   return handleRequest<Product[]>(api.get('/products'))
 }
 
-export async function createProduct(
-  payload: CreateProductPayload,
-  files?: File[],
-) {
+export async function createProduct(payload: CreateProductPayload, files?: File[]) {
   // If files are provided, use FormData
   if (files && files.length > 0) {
     const formData = new FormData()
-    formData.append('name', payload.name)
-    formData.append('category', payload.category)
-    formData.append('description', payload.description)
-    formData.append('basePrice', payload.basePrice.toString())
 
-    if (payload.variants) {
-      formData.append('variants', JSON.stringify(payload.variants))
+    // Add all string fields
+    for (const [key, value] of Object.entries(payload)) {
+      if (key === 'variants' || key === 'coatings' || key === 'tags') {
+        formData.append(key, JSON.stringify(value))
+      } else if (key === 'suitableForPrescriptionRange') {
+        formData.append(key, JSON.stringify(value))
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        formData.append(key, String(value))
+      }
     }
 
     // Append all files
@@ -134,14 +239,15 @@ export async function updateProduct(
   if (files && files.length > 0) {
     const formData = new FormData()
 
-    if (payload.name) formData.append('name', payload.name)
-    if (payload.category) formData.append('category', payload.category)
-    if (payload.description) formData.append('description', payload.description)
-    if (payload.basePrice !== undefined)
-      formData.append('basePrice', payload.basePrice.toString())
-
-    if (payload.variants) {
-      formData.append('variants', JSON.stringify(payload.variants))
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === undefined || value === null) continue
+      if (key === 'variants' || key === 'coatings' || key === 'tags') {
+        formData.append(key, JSON.stringify(value))
+      } else if (key === 'suitableForPrescriptionRange') {
+        formData.append(key, JSON.stringify(value))
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        formData.append(key, String(value))
+      }
     }
 
     // Append all files
@@ -162,4 +268,8 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string) {
   return handleRequest<Product>(api.delete(`/products/${id}`))
+}
+
+export async function restoreProduct(id: string) {
+  return handleRequest<Product>(api.patch(`/products/${id}/restore`))
 }

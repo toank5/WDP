@@ -1,62 +1,66 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { PRODUCT_VARIANT_TYPES } from '../enums/product.enum';
-import { productValidation } from '../validations/product.validation';
+import { Document } from 'mongoose';
 
-@Schema({ _id: false })
-export class ProductVariant {
-  @Prop()
+@Schema({ _id: false, timestamps: true })
+export class ProductVariant extends Document {
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    uppercase: true,
+    index: true,
+  })
   sku: string;
 
   @Prop({
     type: String,
-    enum: PRODUCT_VARIANT_TYPES,
-    default: PRODUCT_VARIANT_TYPES.AVIATOR,
     required: true,
-  })
-  type: PRODUCT_VARIANT_TYPES;
-
-  @Prop({
-    type: String,
-    required: productValidation.variants.size.presence,
-    validate: {
-      validator: productValidation.variants.size.validator,
-      message: productValidation.variants.size.errorMsg,
-    },
+    trim: true,
   })
   size: string;
 
   @Prop({
     type: String,
-    required: productValidation.variants.color.presence,
-    validate: {
-      validator: productValidation.variants.color.validator,
-      message: productValidation.variants.color.errorMsg,
-    },
+    required: true,
+    trim: true,
+    lowercase: true,
   })
   color: string;
 
-  @Prop()
-  images: string[];
-
   @Prop({
     type: Number,
-    required: productValidation.variants.price.presence,
-    validate: {
-      validator: productValidation.variants.price.validator,
-      message: productValidation.variants.price.errorMsg,
-    },
+    required: true,
+    min: 0,
   })
   price: number;
 
   @Prop({
     type: Number,
-    required: productValidation.variants.weightInGrams.presence,
-    validate: {
-      validator: productValidation.variants.weightInGrams.validator,
-      message: productValidation.variants.weightInGrams.errorMsg,
-    },
+    min: 0,
   })
-  weightInGrams: number;
+  weight?: number;
+
+  @Prop({
+    type: [String],
+    default: [],
+  })
+  images2D?: string[];
+
+  @Prop({
+    type: [String],
+    default: [],
+  })
+  images3D?: string[];
+
+  @Prop({
+    type: Boolean,
+    default: true,
+  })
+  isActive: boolean;
+
+  @Prop({ type: Date, default: Date.now })
+  createdAt?: Date;
 }
 
 export const ProductVariantSchema =
