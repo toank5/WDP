@@ -4,26 +4,33 @@ import {
   ExecutionContext,
   ForbiddenException,
   UnauthorizedException,
+  SetMetadata,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 
 export enum UserRole {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  OPERATIONS = 'operations',
-  SALES = 'sales',
-  CUSTOMER = 'customer',
+  ADMIN = 0,
+  MANAGER = 1,
+  OPERATION = 2,
+  SALE = 3,
+  CUSTOMER = 4,
 }
 
 @Injectable()
 export class RbacGuard implements CanActivate {
-  private requiredRoles: UserRole[] = [];
+  constructor(private reflector: Reflector) {}
 
-  setRequiredRoles(roles: UserRole[]): void {
-    this.requiredRoles = roles;
-  }
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      'roles',
+      [context.getHandler(), context.getClass()],
+    );
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+    if (!requiredRoles) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
@@ -33,13 +40,18 @@ export class RbacGuard implements CanActivate {
     }
 
     // Check if user has required role
-    if (this.requiredRoles.length > 0) {
-      const hasRole = this.requiredRoles.includes(user.role);
-      if (!hasRole) {
-        throw new ForbiddenException(
-          `User role '${user.role}' is not authorized. Required roles: ${this.requiredRoles.join(', ')}`,
-        );
-      }
+    console.log('User role:', user.role, 'Type:', typeof user.role);
+    console.log(
+      'Required roles:',
+      requiredRoles,
+      'Types:',
+      requiredRoles.map((r) => typeof r),
+    );
+    const hasRole = requiredRoles.includes(user.role);
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `User role '${user.role}' is not authorized. Required roles: ${requiredRoles.join(', ')}`,
+      );
     }
 
     return true;
@@ -47,12 +59,7 @@ export class RbacGuard implements CanActivate {
 }
 
 // Decorator to specify required roles
-export function Roles(...roles: UserRole[]) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    Reflect.defineMetadata('roles', roles, descriptor.value);
-    return descriptor;
-  };
-}
+export const Roles = (...roles: UserRole[]) => SetMetadata('roles', roles);
 
 // Manager and Admin only
 export const MANAGER_OR_ADMIN = [UserRole.MANAGER, UserRole.ADMIN];

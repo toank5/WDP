@@ -53,7 +53,18 @@ const FRAME_GENDERS = ['men', 'women', 'unisex'] as const
 const BRIDGE_FITS = ['standard', 'asian-fit'] as const
 const LENS_TYPES = ['single-vision', 'bifocal', 'progressive', 'photochromic'] as const
 const SERVICE_TYPES = ['eye-test', 'lens-cutting', 'frame-adjustment', 'cleaning'] as const
-const VARIANT_COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Gray', 'Brown', 'Gold', 'Silver'] as const
+const VARIANT_COLORS = [
+  'Black',
+  'White',
+  'Red',
+  'Blue',
+  'Green',
+  'Yellow',
+  'Gray',
+  'Brown',
+  'Gold',
+  'Silver',
+] as const
 
 const formatVNPrice = (price: number): string => {
   return new Intl.NumberFormat('vi-VN', {
@@ -205,7 +216,12 @@ export function ProductManagementPage() {
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.description || formData.basePrice <= 0 || variants.length === 0) {
+    if (
+      !formData.name ||
+      !formData.description ||
+      formData.basePrice <= 0 ||
+      variants.length === 0
+    ) {
       toast.error('Please fill all required fields and add at least one variant')
       return
     }
@@ -217,7 +233,7 @@ export function ProductManagementPage() {
         description: formData.description,
         basePrice: formData.basePrice,
         images2D: [],
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+        tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()) : [],
         variants,
       }
 
@@ -235,7 +251,7 @@ export function ProductManagementPage() {
           ...payload,
           lensType: lensData.lensType,
           index: lensData.index,
-          coatings: lensData.coatings ? lensData.coatings.split(',').map(c => c.trim()) : [],
+          coatings: lensData.coatings ? lensData.coatings.split(',').map((c) => c.trim()) : [],
           isPrescriptionRequired: lensData.isPrescriptionRequired,
           suitableForPrescriptionRange: {
             minSPH: lensData.minSPH || undefined,
@@ -343,8 +359,8 @@ export function ProductManagementPage() {
     }
   }
 
-  const activeProducts = products.filter(p => !p.isDeleted)
-  const deletedProducts = products.filter(p => p.isDeleted)
+  const activeProducts = products.filter((p) => !p.isDeleted)
+  const deletedProducts = products.filter((p) => p.isDeleted)
 
   if (loading) {
     return (
@@ -366,45 +382,86 @@ export function ProductManagementPage() {
           </Typography>
         </Box>
         {!isCreating && (
-          <Button variant="contained" onClick={() => { setIsCreating(true); setEditingId(null) }}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setIsCreating(true)
+              setEditingId(null)
+            }}
+          >
             Create New Product
           </Button>
         )}
       </Box>
 
       {isCreating && (
-        <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Box>
-                <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-                  {editingId ? '✏️ Edit Product' : '✨ Create New Product'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {editingId ? 'Update your product information' : 'Add a new product to your optical shop'}
-                </Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  setIsCreating(false)
-                  setEditingId(null)
-                  resetForms()
+        <Box
+          sx={{
+            mb: 4,
+            bgcolor: 'white',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+          }}
+        >
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: 'grey.100',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>
+                {editingId ? 'EDIT PRODUCT' : 'CREATE NEW PRODUCT'}
+              </Typography>
+            </Box>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => {
+                setIsCreating(false)
+                setEditingId(null)
+                resetForms()
+              }}
+            >
+              Close
+            </Button>
+          </Box>
+          <Box sx={{ p: 4 }}>
+            <Box
+              component="form"
+              onSubmit={handleCreateOrUpdate}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
+            >
+              {/* Step 1: Category Selection */}
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: 'white',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
                 }}
               >
-                ✕ Close
-              </Button>
-            </Box>
-
-            <Box component="form" onSubmit={handleCreateOrUpdate} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* Step 1: Category Selection */}
-              <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2, border: '2px solid #e3f2fd' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <span style={{ fontSize: '20px' }}>1️⃣</span> Product Category
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{ mb: 2, display: 'block', textTransform: 'uppercase' }}
+                >
+                  1. Product Category
                 </Typography>
                 <FormControl fullWidth disabled={!!editingId}>
-                  <Select value={category} onChange={(e) => setCategory(e.target.value as any)}>
+                  <Select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as any)}
+                    size="small"
+                  >
                     {CATEGORIES.map((cat) => (
                       <MenuItem key={cat} value={cat}>
                         {cat === 'frame' && '👓 Frames (Eyeglasses)'}
@@ -418,56 +475,154 @@ export function ProductManagementPage() {
 
               {/* Step 2: Basic Information */}
               <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2, border: '2px solid #f3e5f5' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                >
                   <span style={{ fontSize: '20px' }}>2️⃣</span> Basic Information
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TextField label="Product Name" required fullWidth value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                  <TextField label="Description" required multiline rows={3} fullWidth value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                    <TextField label="Base Price (VND)" type="number" required fullWidth value={formData.basePrice} onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })} />
-                    <TextField label="Tags (comma-separated)" fullWidth value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} />
+                  <TextField
+                    label="Product Name"
+                    required
+                    fullWidth
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                  <TextField
+                    label="Description"
+                    required
+                    multiline
+                    rows={3}
+                    fullWidth
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  />
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2,
+                    }}
+                  >
+                    <TextField
+                      label="Base Price (VND)"
+                      type="number"
+                      required
+                      fullWidth
+                      value={formData.basePrice}
+                      onChange={(e) =>
+                        setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })
+                      }
+                    />
+                    <TextField
+                      label="Tags (comma-separated)"
+                      fullWidth
+                      value={formData.tags}
+                      onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                    />
                   </Box>
                 </Box>
               </Box>
 
               {/* Step 3: Category-Specific Fields */}
               <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2, border: '2px solid #e8f5e9' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                >
                   <span style={{ fontSize: '20px' }}>3️⃣</span> Category Details
                 </Typography>
 
                 {category === 'frame' && (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2,
+                    }}
+                  >
                     <FormControl fullWidth size="small">
                       <InputLabel>Frame Type</InputLabel>
-                      <Select value={frameData.frameType} onChange={(e) => setFrameData({ ...frameData, frameType: e.target.value as any })} label="Frame Type">
-                        {FRAME_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                      <Select
+                        value={frameData.frameType}
+                        onChange={(e) =>
+                          setFrameData({ ...frameData, frameType: e.target.value as any })
+                        }
+                        label="Frame Type"
+                      >
+                        {FRAME_TYPES.map((t) => (
+                          <MenuItem key={t} value={t}>
+                            {t}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                     <FormControl fullWidth size="small">
                       <InputLabel>Shape</InputLabel>
-                      <Select value={frameData.shape} onChange={(e) => setFrameData({ ...frameData, shape: e.target.value as any })} label="Shape">
-                        {FRAME_SHAPES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                      <Select
+                        value={frameData.shape}
+                        onChange={(e) =>
+                          setFrameData({ ...frameData, shape: e.target.value as any })
+                        }
+                        label="Shape"
+                      >
+                        {FRAME_SHAPES.map((s) => (
+                          <MenuItem key={s} value={s}>
+                            {s}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                     <FormControl fullWidth size="small">
                       <InputLabel>Material</InputLabel>
-                      <Select value={frameData.material} onChange={(e) => setFrameData({ ...frameData, material: e.target.value as any })} label="Material">
-                        {FRAME_MATERIALS.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                      <Select
+                        value={frameData.material}
+                        onChange={(e) =>
+                          setFrameData({ ...frameData, material: e.target.value as any })
+                        }
+                        label="Material"
+                      >
+                        {FRAME_MATERIALS.map((m) => (
+                          <MenuItem key={m} value={m}>
+                            {m}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                     <FormControl fullWidth size="small">
                       <InputLabel>Gender</InputLabel>
-                      <Select value={frameData.gender} onChange={(e) => setFrameData({ ...frameData, gender: e.target.value as any })} label="Gender">
-                        {FRAME_GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+                      <Select
+                        value={frameData.gender}
+                        onChange={(e) =>
+                          setFrameData({ ...frameData, gender: e.target.value as any })
+                        }
+                        label="Gender"
+                      >
+                        {FRAME_GENDERS.map((g) => (
+                          <MenuItem key={g} value={g}>
+                            {g}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                     <Box sx={{ gridColumn: { xs: 'auto', sm: '1 / -1' } }}>
                       <FormControl fullWidth size="small">
                         <InputLabel>Bridge Fit</InputLabel>
-                        <Select value={frameData.bridgeFit} onChange={(e) => setFrameData({ ...frameData, bridgeFit: e.target.value as any })} label="Bridge Fit">
-                          {BRIDGE_FITS.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+                        <Select
+                          value={frameData.bridgeFit}
+                          onChange={(e) =>
+                            setFrameData({ ...frameData, bridgeFit: e.target.value as any })
+                          }
+                          label="Bridge Fit"
+                        >
+                          {BRIDGE_FITS.map((b) => (
+                            <MenuItem key={b} value={b}>
+                              {b}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                     </Box>
@@ -476,96 +631,301 @@ export function ProductManagementPage() {
 
                 {category === 'lens' && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                        gap: 2,
+                      }}
+                    >
                       <FormControl fullWidth size="small">
                         <InputLabel>Lens Type</InputLabel>
-                        <Select value={lensData.lensType} onChange={(e) => setLensData({ ...lensData, lensType: e.target.value as any })} label="Lens Type">
-                          {LENS_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                        <Select
+                          value={lensData.lensType}
+                          onChange={(e) =>
+                            setLensData({ ...lensData, lensType: e.target.value as any })
+                          }
+                          label="Lens Type"
+                        >
+                          {LENS_TYPES.map((t) => (
+                            <MenuItem key={t} value={t}>
+                              {t}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
-                      <TextField label="Refractive Index" type="number" required fullWidth size="small" value={lensData.index} onChange={(e) => setLensData({ ...lensData, index: parseFloat(e.target.value) || 1.5 })} />
+                      <TextField
+                        label="Refractive Index"
+                        type="number"
+                        required
+                        fullWidth
+                        size="small"
+                        value={lensData.index}
+                        onChange={(e) =>
+                          setLensData({ ...lensData, index: parseFloat(e.target.value) || 1.5 })
+                        }
+                      />
                     </Box>
-                    <TextField label="Coatings (comma-separated)" fullWidth size="small" value={lensData.coatings} onChange={(e) => setLensData({ ...lensData, coatings: e.target.value })} />
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                    <TextField
+                      label="Coatings (comma-separated)"
+                      fullWidth
+                      size="small"
+                      value={lensData.coatings}
+                      onChange={(e) => setLensData({ ...lensData, coatings: e.target.value })}
+                    />
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                        gap: 2,
+                      }}
+                    >
                       <FormControl fullWidth size="small">
                         <InputLabel>Prescription Required</InputLabel>
-                        <Select value={lensData.isPrescriptionRequired ? 'yes' : 'no'} onChange={(e) => setLensData({ ...lensData, isPrescriptionRequired: e.target.value === 'yes' })} label="Prescription Required">
+                        <Select
+                          value={lensData.isPrescriptionRequired ? 'yes' : 'no'}
+                          onChange={(e) =>
+                            setLensData({
+                              ...lensData,
+                              isPrescriptionRequired: e.target.value === 'yes',
+                            })
+                          }
+                          label="Prescription Required"
+                        >
                           <MenuItem value="yes">Yes</MenuItem>
                           <MenuItem value="no">No</MenuItem>
                         </Select>
                       </FormControl>
                     </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                      <TextField label="Min SPH" type="number" fullWidth size="small" value={lensData.minSPH} onChange={(e) => setLensData({ ...lensData, minSPH: parseFloat(e.target.value) || 0 })} />
-                      <TextField label="Max SPH" type="number" fullWidth size="small" value={lensData.maxSPH} onChange={(e) => setLensData({ ...lensData, maxSPH: parseFloat(e.target.value) || 0 })} />
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                        gap: 2,
+                      }}
+                    >
+                      <TextField
+                        label="Min SPH"
+                        type="number"
+                        fullWidth
+                        size="small"
+                        value={lensData.minSPH}
+                        onChange={(e) =>
+                          setLensData({ ...lensData, minSPH: parseFloat(e.target.value) || 0 })
+                        }
+                      />
+                      <TextField
+                        label="Max SPH"
+                        type="number"
+                        fullWidth
+                        size="small"
+                        value={lensData.maxSPH}
+                        onChange={(e) =>
+                          setLensData({ ...lensData, maxSPH: parseFloat(e.target.value) || 0 })
+                        }
+                      />
                     </Box>
                   </Box>
                 )}
 
                 {category === 'service' && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                        gap: 2,
+                      }}
+                    >
                       <FormControl fullWidth size="small">
                         <InputLabel>Service Type</InputLabel>
-                        <Select value={serviceData.serviceType} onChange={(e) => setServiceData({ ...serviceData, serviceType: e.target.value as any })} label="Service Type">
-                          {SERVICE_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                        <Select
+                          value={serviceData.serviceType}
+                          onChange={(e) =>
+                            setServiceData({ ...serviceData, serviceType: e.target.value as any })
+                          }
+                          label="Service Type"
+                        >
+                          {SERVICE_TYPES.map((t) => (
+                            <MenuItem key={t} value={t}>
+                              {t}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
-                      <TextField label="Duration (minutes)" type="number" required fullWidth size="small" value={serviceData.durationMinutes} onChange={(e) => setServiceData({ ...serviceData, durationMinutes: parseInt(e.target.value) || 30 })} />
+                      <TextField
+                        label="Duration (minutes)"
+                        type="number"
+                        required
+                        fullWidth
+                        size="small"
+                        value={serviceData.durationMinutes}
+                        onChange={(e) =>
+                          setServiceData({
+                            ...serviceData,
+                            durationMinutes: parseInt(e.target.value) || 30,
+                          })
+                        }
+                      />
                     </Box>
-                    <TextField label="Service Notes" multiline rows={2} fullWidth size="small" value={serviceData.serviceNotes} onChange={(e) => setServiceData({ ...serviceData, serviceNotes: e.target.value })} />
+                    <TextField
+                      label="Service Notes"
+                      multiline
+                      rows={2}
+                      fullWidth
+                      size="small"
+                      value={serviceData.serviceNotes}
+                      onChange={(e) =>
+                        setServiceData({ ...serviceData, serviceNotes: e.target.value })
+                      }
+                    />
                   </Box>
                 )}
               </Box>
 
               {/* Step 4: Images */}
               <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2, border: '2px solid #fce4ec' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                >
                   <span style={{ fontSize: '20px' }}>4️⃣</span> Product Images
                 </Typography>
-                <Box sx={{ p: 3, border: '2px dashed #ec407a', borderRadius: 2, textAlign: 'center', bgcolor: '#fcebf0' }}>
-                  <input type="file" multiple accept="image/*" onChange={(e) => setFiles(Array.from(e.currentTarget.files || []))} style={{ display: 'none' }} id="image-upload" />
-                  <label htmlFor="image-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    p: 3,
+                    border: '2px dashed #ec407a',
+                    borderRadius: 2,
+                    textAlign: 'center',
+                    bgcolor: '#fcebf0',
+                  }}
+                >
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => setFiles(Array.from(e.currentTarget.files || []))}
+                    style={{ display: 'none' }}
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    style={{ cursor: 'pointer', width: '100%', display: 'block' }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
                       <PhotoCameraIcon sx={{ fontSize: 40, color: '#ec407a' }} />
                       <Typography variant="h6">Click to upload</Typography>
                     </Box>
-                    <Typography variant="body2" color="textSecondary">PNG, JPG, GIF</Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      PNG, JPG, GIF
+                    </Typography>
                   </label>
                 </Box>
                 {files.length > 0 && (
                   <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {files.map((file, idx) => <Chip key={idx} label={file.name} onDelete={() => setFiles(files.filter((_, i) => i !== idx))} />)}
+                    {files.map((file, idx) => (
+                      <Chip
+                        key={idx}
+                        label={file.name}
+                        onDelete={() => setFiles(files.filter((_, i) => i !== idx))}
+                      />
+                    ))}
                   </Box>
                 )}
               </Box>
 
               {/* Step 5: Variants */}
               <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2, border: '2px solid #e1bee7' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                >
                   <span style={{ fontSize: '20px' }}>5️⃣</span> Variants
-                  {variants.length > 0 && <Chip label={`${variants.length}`} size="small" color="primary" />}
+                  {variants.length > 0 && (
+                    <Chip label={`${variants.length}`} size="small" color="primary" />
+                  )}
                 </Typography>
 
                 <Box sx={{ p: 2, bgcolor: '#f3e5f5', borderRadius: 2, mb: 2 }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 2 }}>
-                    <TextField label="SKU" size="small" fullWidth value={variantForm.sku} onChange={(e) => setVariantForm({ ...variantForm, sku: e.target.value })} />
-                    <TextField label="Size" size="small" fullWidth value={variantForm.size} onChange={(e) => setVariantForm({ ...variantForm, size: e.target.value })} />
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <TextField
+                      label="SKU"
+                      size="small"
+                      fullWidth
+                      value={variantForm.sku}
+                      onChange={(e) => setVariantForm({ ...variantForm, sku: e.target.value })}
+                    />
+                    <TextField
+                      label="Size"
+                      size="small"
+                      fullWidth
+                      value={variantForm.size}
+                      onChange={(e) => setVariantForm({ ...variantForm, size: e.target.value })}
+                    />
                     <FormControl fullWidth size="small">
                       <InputLabel>Color</InputLabel>
-                      <Select value={variantForm.color} onChange={(e) => setVariantForm({ ...variantForm, color: e.target.value })} label="Color">
-                        {VARIANT_COLORS.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                      <Select
+                        value={variantForm.color}
+                        onChange={(e) => setVariantForm({ ...variantForm, color: e.target.value })}
+                        label="Color"
+                      >
+                        {VARIANT_COLORS.map((c) => (
+                          <MenuItem key={c} value={c}>
+                            {c}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
-                    <TextField label="Price (VND)" type="number" size="small" fullWidth value={variantForm.price} onChange={(e) => setVariantForm({ ...variantForm, price: parseFloat(e.target.value) || 0 })} />
-                    <TextField label="Weight (g)" type="number" size="small" fullWidth value={variantForm.weight} onChange={(e) => setVariantForm({ ...variantForm, weight: parseFloat(e.target.value) || 0 })} />
+                    <TextField
+                      label="Price (VND)"
+                      type="number"
+                      size="small"
+                      fullWidth
+                      value={variantForm.price}
+                      onChange={(e) =>
+                        setVariantForm({ ...variantForm, price: parseFloat(e.target.value) || 0 })
+                      }
+                    />
+                    <TextField
+                      label="Weight (g)"
+                      type="number"
+                      size="small"
+                      fullWidth
+                      value={variantForm.weight}
+                      onChange={(e) =>
+                        setVariantForm({ ...variantForm, weight: parseFloat(e.target.value) || 0 })
+                      }
+                    />
                   </Box>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button variant="contained" onClick={handleAddVariant} size="small">
                       {editingVariantIndex !== null ? 'Update' : 'Add'} Variant
                     </Button>
                     {editingVariantIndex !== null && (
-                      <Button variant="outlined" size="small" onClick={() => { setEditingVariantIndex(null); setVariantForm({ sku: '', size: '', color: '', price: 0, weight: 0 }) }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          setEditingVariantIndex(null)
+                          setVariantForm({ sku: '', size: '', color: '', price: 0, weight: 0 })
+                        }}
+                      >
                         Cancel
                       </Button>
                     )}
@@ -576,20 +936,24 @@ export function ProductManagementPage() {
                   <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                     {variants.map((v, i) => {
                       const colorMap: Record<string, string> = {
-                        'black': '#000000',
-                        'white': '#ffffff',
-                        'red': '#f44336',
-                        'blue': '#2196f3',
-                        'green': '#4caf50',
-                        'yellow': '#fdd835',
-                        'gray': '#9e9e9e',
-                        'brown': '#795548',
-                        'gold': '#ffd700',
-                        'silver': '#c0c0c0',
+                        black: '#000000',
+                        white: '#ffffff',
+                        red: '#f44336',
+                        blue: '#2196f3',
+                        green: '#4caf50',
+                        yellow: '#fdd835',
+                        gray: '#9e9e9e',
+                        brown: '#795548',
+                        gold: '#ffd700',
+                        silver: '#c0c0c0',
                       }
                       const bgColor = colorMap[v.color.toLowerCase()] || '#cccccc'
-                      const textColor = ['white', 'yellow', 'gold', 'silver'].includes(v.color.toLowerCase()) ? '#000' : '#fff'
-                      
+                      const textColor = ['white', 'yellow', 'gold', 'silver'].includes(
+                        v.color.toLowerCase()
+                      )
+                        ? '#000'
+                        : '#fff'
+
                       return (
                         <Box
                           key={i}
@@ -612,7 +976,13 @@ export function ProductManagementPage() {
                             gap: 0.8,
                           }}
                         >
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
                             <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
                               {v.sku}
                             </Typography>
@@ -642,7 +1012,11 @@ export function ProductManagementPage() {
                               {v.color}
                             </Typography>
                           </Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '11px' }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: '11px' }}
+                          >
                             Size: {v.size}
                           </Typography>
                         </Box>
@@ -657,13 +1031,21 @@ export function ProductManagementPage() {
                 <Button type="submit" variant="contained" size="large">
                   {editingId ? 'Update' : 'Create'}
                 </Button>
-                <Button variant="outlined" size="large" onClick={() => { setIsCreating(false); setEditingId(null); resetForms() }}>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={() => {
+                    setIsCreating(false)
+                    setEditingId(null)
+                    resetForms()
+                  }}
+                >
                   Cancel
                 </Button>
               </Box>
             </Box>
-          </CardContent>
-        </Card>
+          </Box>
+        </Box>
       )}
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
@@ -674,11 +1056,21 @@ export function ProductManagementPage() {
       </Box>
 
       {tabValue === 0 && (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1 }}>
+          <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.100' }}>
-                <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+              <TableRow
+                sx={{
+                  bgcolor: 'grey.100',
+                  '& th': {
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                  },
+                }}
+              >
+                <TableCell>Name</TableCell>
                 <TableCell>Category</TableCell>
                 <TableCell>Price</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -694,7 +1086,11 @@ export function ProductManagementPage() {
                     <IconButton size="small" onClick={() => startEdit(product)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDeleteClick(product._id)}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteClick(product._id)}
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -739,7 +1135,9 @@ export function ProductManagementPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">Delete</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

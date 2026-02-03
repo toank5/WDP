@@ -1,31 +1,33 @@
 import axios from 'axios'
 
-type ApiResponse<T> = {
-  statusCode: number
-  message: string
-  metadata: T
-}
+export type PolicyType =
+  | 'return'
+  | 'refund'
+  | 'warranty'
+  | 'shipping'
+  | 'prescription'
+  | 'cancellation'
+  | 'privacy'
+  | 'terms'
 
 export type Policy = {
   _id: string
-  type: 'RETURN' | 'WARRANTY' | 'PROMOTION'
+  type: PolicyType
+  version: number
+  title: string
+  summary: string
+  bodyPlainText: string
+  bodyRichTextJson?: any
   config: Record<string, any>
+  isActive: boolean
+  effectiveFrom: string
+  createdBy: string
   createdAt: string
   updatedAt: string
 }
 
-export type CreatePolicyPayload = {
-  type: 'RETURN' | 'WARRANTY' | 'PROMOTION'
-  config: Record<string, any>
-}
-
-export type UpdatePolicyPayload = {
-  type?: 'RETURN' | 'WARRANTY' | 'PROMOTION'
-  config?: Record<string, any>
-}
-
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -45,38 +47,44 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-function extractApiMessage(error: unknown) {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: string }
-    if (data?.message) return data.message
-    if (error.message) return error.message
-  }
-  return 'Request failed'
+// Management Endpoints
+export async function getPolicies(params?: { type?: PolicyType; active?: boolean }) {
+  const res = await api.get<Policy[]>('/policies', { params })
+  return res.data
 }
 
-async function handleRequest<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-  try {
-    const response = await promise
-    if (!response.data?.metadata) throw new Error('Missing response payload')
-    return response.data.metadata
-  } catch (error) {
-    const message = extractApiMessage(error)
-    throw new Error(message)
-  }
+export async function createPolicy(payload: Partial<Policy>) {
+  const res = await api.post<Policy>('/policies', payload)
+  return res.data
 }
 
-export async function getAllPolicies() {
-  return handleRequest<Policy[]>(api.get('/policies'))
+export async function updatePolicy(id: string, payload: Partial<Policy>) {
+  const res = await api.patch<Policy>(`/policies/${id}`, payload)
+  return res.data
 }
 
-export async function createPolicy(payload: CreatePolicyPayload) {
-  return handleRequest<Policy>(api.post('/policies', payload))
+export async function activatePolicy(id: string) {
+  const res = await api.patch<Policy>(`/policies/${id}/activate`)
+  return res.data
 }
 
-export async function updatePolicy(id: string, payload: UpdatePolicyPayload) {
-  return handleRequest<Policy>(api.put(`/policies/${id}`, payload))
+export async function deactivatePolicy(id: string) {
+  const res = await api.patch<Policy>(`/policies/${id}/deactivate`)
+  return res.data
 }
 
-export async function deletePolicy(id: string) {
-  return handleRequest<Policy>(api.delete(`/policies/${id}`))
+// Public/Read Endpoints
+export async function getCurrentPolicies() {
+  const res = await api.get<Record<PolicyType, Policy>>('/policies/current')
+  return res.data
+}
+
+export async function getPolicyByType(type: PolicyType) {
+  const res = await api.get<Policy>(`/policies/${type}`)
+  return res.data
+}
+
+export async function getPolicyHistory(type: PolicyType) {
+  const res = await api.get<Policy[]>(`/policies/${type}/history`)
+  return res.data
 }

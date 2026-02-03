@@ -20,6 +20,7 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Grid,
 } from '@mui/material'
 import { createUser, getAllUsers, type CreateUserPayload, type User } from '@/lib/user-api'
 import { roleLabels, ADMIN_ROLE } from '@/lib/constants'
@@ -31,6 +32,8 @@ type UserFormData = {
   role: number
   password: string
 }
+
+import { People, Add, PersonAdd, Mail, Lock, Shield } from '@mui/icons-material'
 
 export function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -126,119 +129,227 @@ export function UserManagementPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            User Management
-          </Typography>
-          <Typography color="text.secondary">Manage all users in the system</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <People color="secondary" sx={{ fontSize: 28 }} />
+          <Box>
+            <Typography variant="h1">User Directory</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Managing secure access for {users.length} active members
+            </Typography>
+          </Box>
         </Box>
         {!isCreating && (
-          <Button variant="contained" onClick={() => setIsCreating(true)}>
-            Create New User
+          <Button variant="contained" onClick={() => setIsCreating(true)} startIcon={<Add />}>
+            Provision User
           </Button>
         )}
       </Box>
 
       {isCreating && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-              Create New User
-            </Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            mb: 4,
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            sx={{
+              p: 1.5,
+              bgcolor: 'grey.100',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <PersonAdd sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography variant="subtitle2">USER PROVISIONING FORM</Typography>
+          </Box>
+          <Box sx={{ p: 4 }}>
             <Box
               component="form"
               onSubmit={handleCreate}
-              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}
             >
-              <TextField
-                label="Full Name"
-                required
-                value={formData.name}
-                onChange={(e) => {
-                  setFormData({ ...formData, name: e.target.value })
-                  setFieldErrors({ ...fieldErrors, name: null })
-                }}
-                error={!!fieldErrors.name}
-                helperText={fieldErrors.name}
-                placeholder="John Doe"
-                fullWidth
-              />
-              <TextField
-                label="Email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => {
-                  setFormData({ ...formData, email: e.target.value })
-                  setFieldErrors({ ...fieldErrors, email: null })
-                }}
-                error={!!fieldErrors.email}
-                helperText={fieldErrors.email}
-                placeholder="john@example.com"
-                fullWidth
-              />
-              <FormControl fullWidth required>
-                <InputLabel>Role</InputLabel>
-                <Select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) })}
-                  label="Role"
-                >
-                  {Object.entries(ROLES).map(([label, value]) => (
-                    <MenuItem key={value} value={value}>
-                      {roleLabels[value]}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => {
-                  setFormData({ ...formData, password: e.target.value })
-                  setFieldErrors({ ...fieldErrors, password: null })
-                }}
-                error={!!fieldErrors.password}
-                helperText={fieldErrors.password}
-                placeholder="••••••••"
-                inputProps={{ minLength: 6 }}
-                fullWidth
-              />
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button type="submit" variant="contained">
-                  Create User
+              <Grid container spacing={4}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      display: 'block',
+                      mb: 1,
+                    }}
+                  >
+                    Official Full Name
+                  </Typography>
+                  <TextField
+                    required
+                    value={formData.name}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value })
+                      setFieldErrors({ ...fieldErrors, name: null })
+                    }}
+                    error={!!fieldErrors.name}
+                    helperText={fieldErrors.name}
+                    placeholder="e.g. John Fitzgerald Kennedy"
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      display: 'block',
+                      mb: 1,
+                    }}
+                  >
+                    System Access Email
+                  </Typography>
+                  <TextField
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value })
+                      setFieldErrors({ ...fieldErrors, email: null })
+                    }}
+                    error={!!fieldErrors.email}
+                    helperText={fieldErrors.email}
+                    placeholder="name@company.com"
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      display: 'block',
+                      mb: 1,
+                    }}
+                  >
+                    Assigned Authorization Level
+                  </Typography>
+                  <FormControl fullWidth required size="small">
+                    <Select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) })}
+                    >
+                      {Object.entries(ROLES).map(([label, value]) => (
+                        <MenuItem key={value} value={value}>
+                          {roleLabels[value]}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      display: 'block',
+                      mb: 1,
+                    }}
+                  >
+                    Initial Security Password
+                  </Typography>
+                  <TextField
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => {
+                      setFormData({ ...formData, password: e.target.value })
+                      setFieldErrors({ ...fieldErrors, password: null })
+                    }}
+                    error={!!fieldErrors.password}
+                    helperText={fieldErrors.password}
+                    placeholder="••••••••"
+                    inputProps={{ minLength: 6 }}
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Button variant="outlined" onClick={cancelForm} color="secondary">
+                  Dismiss
                 </Button>
-                <Button variant="outlined" onClick={cancelForm}>
-                  Cancel
+                <Button type="submit" variant="contained">
+                  Provision Account
                 </Button>
               </Box>
             </Box>
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Created</TableCell>
+              <TableCell>Personnel Name</TableCell>
+              <TableCell>System Identifier (Email)</TableCell>
+              <TableCell>Access Level</TableCell>
+              <TableCell>Registration Date</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {users.map((user) => (
               <TableRow key={user._id} hover>
                 <TableCell>
-                  <Typography fontWeight={600}>{user.fullName}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        bgcolor: 'grey.200',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {user.fullName.charAt(0)}
+                    </Box>
+                    <Typography fontWeight={600} fontSize="0.875rem">
+                      {user.fullName}
+                    </Typography>
+                  </Box>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  <Chip label={roleLabels[user.role] ?? 'Unknown'} color="primary" size="small" />
+                  <Chip
+                    label={roleLabels[user.role] ?? 'Unknown'}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 700,
+                      fontSize: '0.65rem',
+                      textTransform: 'uppercase',
+                      bgcolor: 'grey.50',
+                    }}
+                  />
                 </TableCell>
                 <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
               </TableRow>
@@ -247,7 +358,9 @@ export function UserManagementPage() {
         </Table>
         {users.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography color="text.secondary">No users found</Typography>
+            <Typography color="text.secondary" variant="body2">
+              No registered personnel found in system
+            </Typography>
           </Box>
         )}
       </TableContainer>

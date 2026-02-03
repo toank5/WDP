@@ -1,12 +1,35 @@
 ﻿import React from 'react'
-import { Zap, Gift } from 'lucide-react'
+import { Box, Typography, Paper } from '@mui/material'
+import { Campaign, CardGiftcard } from '@mui/icons-material'
 
 const PromotionsPage: React.FC = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Quản lý Khuyến mãi</h1>
-      <div className="p-4 border rounded">Placeholder: tạo/sửa chương trình khuyến mãi, combo, giá.</div>
-    </div>
+    <Box>
+      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Campaign sx={{ color: 'text.secondary' }} />
+        <Typography
+          variant="h1"
+          sx={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Promotion Management
+        </Typography>
+      </Box>
+
+      <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', bgcolor: 'grey.50' }}>
+        <CardGiftcard sx={{ fontSize: 48, color: 'divider', mb: 2 }} />
+        <Typography variant="h3" gutterBottom>
+          No Active Campaigns
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Configure discount rules, product bundles, and special offers here.
+        </Typography>
+      </Paper>
+    </Box>
   )
 }
 

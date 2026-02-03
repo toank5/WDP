@@ -1,193 +1,251 @@
-﻿import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft } from "lucide-react";
+﻿import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  FiShoppingCart,
+  FiTrash2,
+  FiPlus,
+  FiMinus,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiLock,
+  FiInfo,
+} from 'react-icons/fi'
 
 const CartPage: React.FC = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [notification, setNotification] = useState<string>("");
+  const [items, setItems] = useState<any[]>([])
+  const [notification, setNotification] = useState<string>('')
 
   useEffect(() => {
-    loadCart();
-    // Listen for cart updates from other components
-    window.addEventListener('cartUpdated', loadCart);
-    return () => window.removeEventListener('cartUpdated', loadCart);
-  }, []);
+    loadCart()
+    window.addEventListener('cartUpdated', loadCart)
+    return () => window.removeEventListener('cartUpdated', loadCart)
+  }, [])
 
   const loadCart = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    setItems(cart);
-  };
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
+    setItems(cart)
+  }
 
   const handleUpdateQty = (itemId: string, newQty: number) => {
     if (newQty < 1) {
-      handleRemove(itemId);
-      return;
+      handleRemove(itemId)
+      return
     }
 
-    const updatedCart = items.map(item =>
-      item.id === itemId ? { ...item, qty: newQty } : item
-    );
-    setItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
+    const updatedCart = items.map((item) => (item.id === itemId ? { ...item, qty: newQty } : item))
+    setItems(updatedCart)
+    localStorage.setItem('cart', JSON.stringify(updatedCart))
+    window.dispatchEvent(new CustomEvent('cartUpdated'))
+  }
 
   const handleRemove = (itemId: string) => {
-    const updatedCart = items.filter(item => item.id !== itemId);
-    setItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-    setNotification("Item removed from cart");
-    setTimeout(() => setNotification(""), 2000);
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
+    const updatedCart = items.filter((item) => item.id !== itemId)
+    setItems(updatedCart)
+    localStorage.setItem('cart', JSON.stringify(updatedCart))
+    setNotification('Item removed from cart')
+    setTimeout(() => setNotification(''), 3000)
+    window.dispatchEvent(new CustomEvent('cartUpdated'))
+  }
 
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+      {/* Header Bar */}
+      <div className="bg-slate-100 border-b border-slate-300">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link
+            to="/products"
+            className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 text-sm font-semibold"
+          >
+            <FiArrowLeft /> Continue Shopping
+          </Link>
+          <h1 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+            Shopping Bag
+          </h1>
+        </div>
+      </div>
+
       {/* Notification */}
       {notification && (
-        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse z-50">
-          ✓ {notification}
+        <div className="fixed top-20 right-4 bg-white border border-slate-300 shadow-md p-4 z-50 flex items-center gap-3 border-l-4 border-l-emerald-500 animate-in slide-in-from-right-4">
+          <FiCheckCircle className="text-emerald-500 w-5 h-5" />
+          <span className="text-sm font-bold text-slate-700">{notification}</span>
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Link to="/products" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
-            <ArrowLeft size={20} /> Back to Shopping
-          </Link>
-        </div>
-
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">Shopping Cart</h1>
-
-        {items.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <ShoppingCart size={48} className="mx-auto mb-4 text-slate-300" />
-            <p className="text-slate-600 text-lg mb-4">Your cart is empty</p>
-            <Link to="/products" className="text-blue-600 hover:underline font-semibold">
-              Continue Shopping
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Cart Items */}
-            <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 pb-4 border-b last:border-b-0 last:pb-0"
-                  >
-                    {/* Product Image Placeholder */}
-                    <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center text-3xl flex-shrink-0">
-                      {item.image || '📦'}
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="flex-1">
-                      <Link
-                        to={`/products/${item.id}`}
-                        className="font-semibold text-slate-900 hover:text-blue-600 block mb-1"
-                      >
-                        {item.name}
-                      </Link>
-                      <p className="text-sm text-slate-600 capitalize mb-2">
-                        {item.type} {item.variantName && `• ${item.variantName}`}
-                      </p>
-                      <p className="text-lg font-bold text-blue-600">${item.price}</p>
-                    </div>
-
-                    {/* Quantity Control */}
-                    <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-2">
-                      <button
-                        onClick={() => handleUpdateQty(item.id, item.qty - 1)}
-                        className="p-1 hover:bg-slate-200 rounded transition"
-                        title="Decrease quantity"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="px-3 font-semibold">{item.qty}</span>
-                      <button
-                        onClick={() => handleUpdateQty(item.id, item.qty + 1)}
-                        className="p-1 hover:bg-slate-200 rounded transition"
-                        title="Increase quantity"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-
-                    {/* Subtotal */}
-                    <div className="text-right">
-                      <p className="text-sm text-slate-600 mb-2">Subtotal</p>
-                      <p className="text-lg font-bold text-slate-900">
-                        ${(item.price * item.qty).toFixed(2)}
-                      </p>
-                    </div>
-
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => handleRemove(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                      title="Remove item"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                ))}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Main Content */}
+          <div className="flex-1 space-y-6">
+            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+              <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <FiShoppingCart className="text-slate-400" /> Items in Bag ({items.length})
+                </h2>
               </div>
+
+              {items.length === 0 ? (
+                <div className="p-16 text-center space-y-4">
+                  <FiShoppingCart className="mx-auto w-16 h-16 text-slate-200" />
+                  <p className="text-slate-500 font-medium">
+                    Your shopping bag is currently empty.
+                  </p>
+                  <Link
+                    to="/products"
+                    className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-[2px] transition-colors"
+                  >
+                    Go to Shop
+                  </Link>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                      <tr>
+                        <th className="px-6 py-3">Product</th>
+                        <th className="px-6 py-3">Price</th>
+                        <th className="px-6 py-3">Quantity</th>
+                        <th className="px-6 py-3">Total</th>
+                        <th className="px-6 py-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center text-3xl">
+                                {item.image || '📦'}
+                              </div>
+                              <div>
+                                <Link
+                                  to={`/products/${item.id}`}
+                                  className="text-sm font-bold text-slate-900 hover:text-blue-600 block"
+                                >
+                                  {item.name}
+                                </Link>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold">
+                                  {item.variantName || 'Standard'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-slate-700">${item.price}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden">
+                              <button
+                                onClick={() => handleUpdateQty(item.id, item.qty - 1)}
+                                className="p-1.5 hover:bg-slate-100 border-r border-slate-300 text-slate-600"
+                              >
+                                <FiMinus size={12} />
+                              </button>
+                              <span className="w-8 text-center text-xs font-bold">{item.qty}</span>
+                              <button
+                                onClick={() => handleUpdateQty(item.id, item.qty + 1)}
+                                className="p-1.5 hover:bg-slate-100 border-l border-slate-300 text-slate-600"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-slate-900">
+                              ${(item.price * item.qty).toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => handleRemove(item.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-[2px]"
+                              title="Remove item"
+                            >
+                              <FiTrash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            {/* Order Summary */}
-            <div className="bg-white rounded-lg shadow-sm p-6 h-fit sticky top-20">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Order Summary</h2>
+            {items.length > 0 && (
+              <div className="flex justify-between items-center p-4 bg-blue-50/50 border border-blue-100 rounded-[2px] text-xs">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <FiInfo />
+                  <span className="font-semibold italic">
+                    Free shipping applied to all orders over $100.00
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
 
-              <div className="space-y-3 pb-4 border-b mb-4">
-                <div className="flex justify-between text-slate-600">
-                  <span>Subtotal</span>
+          {/* Sidebar Area */}
+          <div className="w-full lg:w-80 space-y-6">
+            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden sticky top-20">
+              <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
+                  Order Summary
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span className="uppercase">Subtotal</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Shipping</span>
-                  <span className="text-green-600 font-semibold">Free</span>
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span className="uppercase">Shipping</span>
+                  <span className="text-emerald-600">FREE</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Tax</span>
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span className="uppercase">Est. Tax (10%)</span>
                   <span>${(total * 0.1).toFixed(2)}</span>
                 </div>
+                <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
+                  <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">
+                    Total
+                  </span>
+                  <span className="text-xl font-bold text-blue-700">
+                    ${(total * 1.1).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="pt-6 space-y-3">
+                  <Link
+                    to="/checkout"
+                    className={`w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-[2px] transition-all shadow-sm ${
+                      items.length === 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+                    }`}
+                  >
+                    <FiLock size={14} /> Checkout
+                  </Link>
+                  <Link
+                    to="/products"
+                    className="w-full h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 font-bold text-xs uppercase tracking-[0.1em] rounded-[2px] transition-all"
+                  >
+                    Shop More
+                  </Link>
+                </div>
               </div>
 
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-lg font-bold text-slate-900">Total</span>
-                <span className="text-2xl font-bold text-blue-600">
-                  ${(total * 1.1).toFixed(2)}
-                </span>
-              </div>
-
-              <Link
-                to="/checkout"
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 mb-3"
-              >
-                <ShoppingCart size={20} /> Proceed to Checkout
-              </Link>
-
-              <Link
-                to="/products"
-                className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition text-center"
-              >
-                Continue Shopping
-              </Link>
-
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-900">
-                <p className="font-semibold mb-1">💳 Secure Checkout</p>
-                <p>Free shipping on orders over $100</p>
+              <div className="bg-slate-50 p-4 border-t border-slate-200">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-loose">
+                  <FiCheckCircle className="text-slate-300" /> Secure Payment
+                  <br />
+                  <FiCheckCircle className="text-slate-300" /> SSL Encrypted
+                </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CartPage;
+export default CartPage
