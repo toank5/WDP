@@ -1,4 +1,4 @@
-export class CustomApiResponse<T = any> {
+export class CustomApiResponse<T = unknown> {
   public readonly statusCode: number;
 
   public message: string;

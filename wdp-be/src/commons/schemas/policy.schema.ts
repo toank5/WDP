@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 import { POLICY_TYPES, PolicyType } from '../enums/policy.enum';
+import { PolicyConfig } from '../types/policy.types';
 
 export type PolicyDocument = HydratedDocument<Policy>;
 
@@ -9,6 +10,16 @@ export class Policy {
   @Prop({
     type: String,
     required: true,
+    enum: [
+      'return',
+      'refund',
+      'warranty',
+      'shipping',
+      'prescription',
+      'cancellation',
+      'privacy',
+      'terms',
+    ],
   })
   type: POLICY_TYPES;
 
@@ -25,10 +36,10 @@ export class Policy {
   bodyPlainText: string;
 
   @Prop({ type: MongooseSchema.Types.Mixed })
-  bodyRichTextJson: any;
+  bodyRichTextJson?: Record<string, unknown>; // Rich text editor JSON output
 
   @Prop({ type: Object, required: true })
-  config: Record<string, any>;
+  config: PolicyConfig;
 
   @Prop({ default: false })
   isActive: boolean;
@@ -42,5 +53,6 @@ export class Policy {
 
 export const PolicySchema = SchemaFactory.createForClass(Policy);
 
-// Indexes
+// Indexes for efficient querying
 PolicySchema.index({ type: 1, isActive: 1, effectiveFrom: -1 });
+PolicySchema.index({ type: 1, version: -1 });

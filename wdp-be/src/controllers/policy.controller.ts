@@ -18,6 +18,11 @@ import {
   UpdatePolicySchema,
 } from '../commons/validations/policy.validation';
 import { ZodValidationPipe } from '../commons/pipes/zod-validation.pipe';
+import { AuthenticatedRequest } from '../commons/types/express.types';
+import type {
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from '../commons/validations/policy.validation';
 
 @Controller('policies')
 export class PolicyController {
@@ -40,9 +45,10 @@ export class PolicyController {
   }
 
   // Debug endpoint to check user authentication
+  // Note: This route must come before the :type route to avoid conflict
   @Get('debug/me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@Req() req: any) {
+  async getMe(@Req() req: AuthenticatedRequest) {
     return {
       user: req.user,
       role: req.user?.role,
@@ -66,10 +72,10 @@ export class PolicyController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   async create(
-    @Body(new ZodValidationPipe(CreatePolicySchema)) payload: any,
-    @Req() req: any,
+    @Body(new ZodValidationPipe(CreatePolicySchema)) payload: CreatePolicyInput,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.policyService.create(payload, req.user.id);
+    return this.policyService.create(payload, req.user!.id);
   }
 
   @Patch(':id')
@@ -77,7 +83,7 @@ export class PolicyController {
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   async update(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdatePolicySchema)) payload: any,
+    @Body(new ZodValidationPipe(UpdatePolicySchema)) payload: UpdatePolicyInput,
   ) {
     return this.policyService.update(id, payload);
   }

@@ -15,10 +15,19 @@ import {
 } from '@mui/material'
 import { Assignment, Build, ChevronRight } from '@mui/icons-material'
 
+type Task = {
+  id: string
+  type: 'PACKING' | 'QUALITY_CHECK' | 'SHIPPING' | 'ASSEMBLY'
+  orderId: string
+  priority: 'high' | 'medium' | 'low'
+  operator: string
+}
+
 const OperationsDashboard: React.FC = () => {
-  const [tasks, setTasks] = useState<any[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
 
   useEffect(() => {
+    // TODO: Replace with actual API call
     setTasks([
       {
         id: 'TSK-001',

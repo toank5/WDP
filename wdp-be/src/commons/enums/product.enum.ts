@@ -62,4 +62,3 @@ export enum SERVICE_TYPE {
   LENS_REPLACEMENT = 'lens-replacement',
   ADJUSTMENT = 'adjustment',
 }
-

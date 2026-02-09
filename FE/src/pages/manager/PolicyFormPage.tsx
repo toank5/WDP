@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { getPolicies, createPolicy, updatePolicy, Policy, PolicyType } from '../../lib/policy-api'
+import { getPolicies, createPolicy, updatePolicy, AnyPolicy, PolicyType, ApiError } from '../../lib/policy-api'
 import {
   FiFileText,
   FiSettings,
@@ -14,6 +14,22 @@ import {
   FiPlus,
 } from 'react-icons/fi'
 import { toast } from 'sonner'
+import ChipsInput from '../../components/ui/ChipsInput'
+import type {
+  ReturnPolicyConfig,
+  WarrantyPolicyConfig,
+  ShippingPolicyConfig,
+  PrescriptionPolicyConfig,
+  CancellationPolicyConfig,
+  RefundPolicyConfig,
+} from '../../types/policy.types'
+
+/**
+ * Form validation error state
+ */
+interface ValidationErrors {
+  [key: string]: string
+}
 
 const PolicyFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -23,11 +39,12 @@ const PolicyFormPage: React.FC = () => {
   const initialType = (queryParams.get('type') as PolicyType) || 'return'
 
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<Partial<Policy>>({
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
+  const [formData, setFormData] = useState<Partial<AnyPolicy>>({
     type: initialType,
     summary: '',
     bodyPlainText: '',
-    bodyRichTextJson: null,
+    bodyRichTextJson: undefined,
     effectiveFrom: new Date().toISOString().split('T')[0],
     config: {},
   })
@@ -49,8 +66,175 @@ const PolicyFormPage: React.FC = () => {
     }
   }, [id])
 
+  /**
+   * Validate form data before submission
+   * Frontend validation matching backend rules
+   */
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {}
+    const { type, config = {} } = formData
+
+    // Common field validation
+    if (!formData.title?.trim()) {
+      errors.title = 'Title is required'
+    }
+
+    if (!formData.summary?.trim()) {
+      errors.summary = 'Summary is required'
+    } else if (formData.summary.length > 300) {
+      errors.summary = 'Summary must be at most 300 characters'
+    }
+
+    if (!formData.bodyPlainText?.trim()) {
+      errors.bodyPlainText = 'Body text is required'
+    }
+
+    if (!formData.effectiveFrom) {
+      errors.effectiveFrom = 'Effective date is required'
+    }
+
+    // Config validation based on type
+    if (type === 'return') {
+      const c = config as Partial<ReturnPolicyConfig>
+
+      if (!c.returnWindowDays?.framesOnly || c.returnWindowDays.framesOnly <= 0) {
+        errors['returnWindowDays.framesOnly'] = 'Frames return window must be greater than 0'
+      }
+      if (!c.returnWindowDays?.prescriptionGlasses || c.returnWindowDays.prescriptionGlasses <= 0) {
+        errors['returnWindowDays.prescriptionGlasses'] = 'Prescription glasses return window must be greater than 0'
+      }
+      if (!c.returnWindowDays?.contactLenses || c.returnWindowDays.contactLenses <= 0) {
+        errors['returnWindowDays.contactLenses'] = 'Contact lenses return window must be greater than 0'
+      }
+
+      if (c.restockingFeePercent === undefined || c.restockingFeePercent < 0 || c.restockingFeePercent > 100) {
+        errors.restockingFeePercent = 'Restocking fee must be between 0 and 100'
+      }
+
+      if (c.customerPaysReturnShipping === undefined) {
+        errors.customerPaysReturnShipping = 'Customer pays return shipping is required'
+      }
+
+      if (!Array.isArray(c.nonReturnableCategories)) {
+        errors.nonReturnableCategories = 'Non-returnable categories must be an array'
+      }
+    }
+
+    if (type === 'warranty') {
+      const c = config as Partial<WarrantyPolicyConfig>
+
+      if (!c.framesMonths || c.framesMonths <= 0) {
+        errors.framesMonths = 'Frames warranty must be greater than 0 months'
+      }
+      if (!c.lensesMonths || c.lensesMonths <= 0) {
+        errors.lensesMonths = 'Lenses warranty must be greater than 0 months'
+      }
+      if (c.coversManufacturingDefects === undefined) {
+        errors.coversManufacturingDefects = 'Covers manufacturing defects is required'
+      }
+      if (c.excludesScratchesFromWear === undefined) {
+        errors.excludesScratchesFromWear = 'Excludes scratches from wear is required'
+      }
+    }
+
+    if (type === 'shipping') {
+      const c = config as Partial<ShippingPolicyConfig>
+
+      if (!c.defaultCarrier?.trim()) {
+        errors.defaultCarrier = 'Default carrier is required'
+      }
+      if (!c.standardDaysMin || c.standardDaysMin <= 0) {
+        errors.standardDaysMin = 'Standard shipping minimum days must be greater than 0'
+      }
+      if (!c.standardDaysMax || c.standardDaysMax <= 0) {
+        errors.standardDaysMax = 'Standard shipping maximum days must be greater than 0'
+      }
+      if (c.standardDaysMin && c.standardDaysMax && c.standardDaysMin > c.standardDaysMax) {
+        errors.standardDaysMax = 'Standard shipping minimum days cannot be greater than maximum days'
+      }
+      if (!c.expressDaysMin || c.expressDaysMin <= 0) {
+        errors.expressDaysMin = 'Express shipping minimum days must be greater than 0'
+      }
+      if (!c.expressDaysMax || c.expressDaysMax <= 0) {
+        errors.expressDaysMax = 'Express shipping maximum days must be greater than 0'
+      }
+      if (c.expressDaysMin && c.expressDaysMax && c.expressDaysMin > c.expressDaysMax) {
+        errors.expressDaysMax = 'Express shipping minimum days cannot be greater than maximum days'
+      }
+      if (c.freeShippingMinAmount === undefined || c.freeShippingMinAmount < 0) {
+        errors.freeShippingMinAmount = 'Free shipping minimum amount must be at least 0'
+      }
+    }
+
+    if (type === 'prescription') {
+      const c = config as Partial<PrescriptionPolicyConfig>
+
+      if (!c.maxPrescriptionAgeMonths || c.maxPrescriptionAgeMonths <= 0) {
+        errors.maxPrescriptionAgeMonths = 'Max prescription age must be greater than 0 months'
+      }
+      if (c.requirePD === undefined) {
+        errors.requirePD = 'Require PD is required'
+      }
+      if (c.allowHighPowerRange === undefined) {
+        errors.allowHighPowerRange = 'Allow high power range is required'
+      }
+    }
+
+    if (type === 'cancellation') {
+      const c = config as Partial<CancellationPolicyConfig>
+
+      if (c.allowCancelReadyBeforeShip === undefined) {
+        errors.allowCancelReadyBeforeShip = 'Allow cancel ready before ship is required'
+      }
+      if (c.allowCancelPrescriptionBeforeProduction === undefined) {
+        errors.allowCancelPrescriptionBeforeProduction = 'Allow cancel prescription before production is required'
+      }
+      if (c.allowCancelPreorderBeforeSupplierConfirm === undefined) {
+        errors.allowCancelPreorderBeforeSupplierConfirm = 'Allow cancel preorder before supplier confirm is required'
+      }
+    }
+
+    if (type === 'refund') {
+      const c = config as Partial<RefundPolicyConfig>
+
+      if (c.refundToOriginalMethodOnly === undefined) {
+        errors.refundToOriginalMethodOnly = 'Refund to original method only is required'
+      }
+      if (!c.expectedProcessingDaysMin || c.expectedProcessingDaysMin <= 0) {
+        errors.expectedProcessingDaysMin = 'Expected processing minimum days must be greater than 0'
+      }
+      if (!c.expectedProcessingDaysMax || c.expectedProcessingDaysMax <= 0) {
+        errors.expectedProcessingDaysMax = 'Expected processing maximum days must be greater than 0'
+      }
+      if (c.expectedProcessingDaysMin && c.expectedProcessingDaysMax && c.expectedProcessingDaysMin > c.expectedProcessingDaysMax) {
+        errors.expectedProcessingDaysMax = 'Expected processing minimum days cannot be greater than maximum days'
+      }
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  /**
+   * Clear validation error for a specific field
+   */
+  const clearFieldError = (fieldName: string) => {
+    setValidationErrors((prev) => {
+      const newErrors = { ...prev }
+      delete newErrors[fieldName]
+      return newErrors
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate form first
+    if (!validateForm()) {
+      toast.error('Please fix the validation errors before submitting')
+      return
+    }
+
     setLoading(true)
     try {
       if (id) {
@@ -61,9 +245,17 @@ const PolicyFormPage: React.FC = () => {
         toast.success('New policy version created')
       }
       navigate('/dashboard/policies')
-    } catch (err) {
+    } catch (err: unknown) {
+      const apiError = err as ApiError
       console.error('Failed to save policy', err)
-      toast.error('Failed to save policy. Please try again.')
+
+      // Handle validation errors from backend
+      if (apiError.errors && Object.keys(apiError.errors).length > 0) {
+        setValidationErrors(apiError.errors)
+        toast.error(apiError.message || 'Please fix the validation errors')
+      } else {
+        toast.error(apiError.message || 'Failed to save policy. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -74,6 +266,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Return Policy Config
     if (type === 'return') {
+      const c = config as Partial<ReturnPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -89,21 +282,28 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.returnWindowDays?.framesOnly ?? ''}
-                onChange={(e) =>
+                value={c.returnWindowDays?.framesOnly ?? ''}
+                onChange={(e) => {
+                  clearFieldError('returnWindowDays.framesOnly')
                   setFormData({
                     ...formData,
                     config: {
                       ...config,
                       returnWindowDays: {
-                        ...(config.returnWindowDays || {}),
+                        ...(c.returnWindowDays || {}),
                         framesOnly: parseInt(e.target.value) || 0,
                       },
                     },
                   })
-                }
+                }}
               />
+              {validationErrors['returnWindowDays.framesOnly'] && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors['returnWindowDays.framesOnly']}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -111,21 +311,28 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.returnWindowDays?.prescriptionGlasses ?? ''}
-                onChange={(e) =>
+                value={c.returnWindowDays?.prescriptionGlasses ?? ''}
+                onChange={(e) => {
+                  clearFieldError('returnWindowDays.prescriptionGlasses')
                   setFormData({
                     ...formData,
                     config: {
                       ...config,
                       returnWindowDays: {
-                        ...(config.returnWindowDays || {}),
+                        ...(c.returnWindowDays || {}),
                         prescriptionGlasses: parseInt(e.target.value) || 0,
                       },
                     },
                   })
-                }
+                }}
               />
+              {validationErrors['returnWindowDays.prescriptionGlasses'] && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors['returnWindowDays.prescriptionGlasses']}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -133,47 +340,56 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.returnWindowDays?.contactLenses ?? ''}
-                onChange={(e) =>
+                value={c.returnWindowDays?.contactLenses ?? ''}
+                onChange={(e) => {
+                  clearFieldError('returnWindowDays.contactLenses')
                   setFormData({
                     ...formData,
                     config: {
                       ...config,
                       returnWindowDays: {
-                        ...(config.returnWindowDays || {}),
+                        ...(c.returnWindowDays || {}),
                         contactLenses: parseInt(e.target.value) || 0,
                       },
                     },
                   })
-                }
+                }}
               />
+              {validationErrors['returnWindowDays.contactLenses'] && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors['returnWindowDays.contactLenses']}
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-2 text-left">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
               Non-Returnable Categories
             </label>
-            <input
-              type="text"
-              className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-              value={config.nonReturnableCategories?.join(', ') ?? ''}
-              onChange={(e) =>
+            <ChipsInput
+              value={c.nonReturnableCategories ?? []}
+              onChange={(value) => {
+                clearFieldError('nonReturnableCategories')
                 setFormData({
                   ...formData,
                   config: {
                     ...config,
-                    nonReturnableCategories: e.target.value
-                      .split(',')
-                      .map((s: string) => s.trim())
-                      .filter(Boolean),
+                    nonReturnableCategories: value,
                   },
                 })
-              }
-              placeholder="e.g. Gift Cards, Clearance Items"
+              }}
+              placeholder="Type a category and press Enter (e.g. used-contact-lenses)"
+              className="w-full"
             />
+            {validationErrors.nonReturnableCategories && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.nonReturnableCategories}
+              </p>
+            )}
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
-              Separate categories with commas.
+              Add categories that cannot be returned. Press Enter or click outside to add.
             </p>
           </div>
           <div className="space-y-2 text-left">
@@ -182,17 +398,25 @@ const PolicyFormPage: React.FC = () => {
             </label>
             <input
               type="number"
+              min="0"
+              max="100"
               className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-              value={config.restockingFeePercent ?? ''}
-              onChange={(e) =>
+              value={c.restockingFeePercent ?? ''}
+              onChange={(e) => {
+                clearFieldError('restockingFeePercent')
                 setFormData({
                   ...formData,
                   config: { ...config, restockingFeePercent: parseInt(e.target.value) || 0 },
                 })
-              }
+              }}
             />
+            {validationErrors.restockingFeePercent && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.restockingFeePercent}
+              </p>
+            )}
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
-              Fee applied to the total refund amount for quality checks.
+              Fee applied to the total refund amount for quality checks (0-100%).
             </p>
           </div>
           <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
@@ -201,13 +425,14 @@ const PolicyFormPage: React.FC = () => {
                 type="checkbox"
                 id="returnShipping"
                 className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                checked={!!config.customerPaysReturnShipping}
-                onChange={(e) =>
+                checked={!!c.customerPaysReturnShipping}
+                onChange={(e) => {
+                  clearFieldError('customerPaysReturnShipping')
                   setFormData({
                     ...formData,
                     config: { ...config, customerPaysReturnShipping: e.target.checked },
                   })
-                }
+                }}
               />
               <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
             </div>
@@ -224,6 +449,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Warranty Policy Config
     if (type === 'warranty') {
+      const c = config as Partial<WarrantyPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -239,15 +465,22 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.framesMonths ?? ''}
-                onChange={(e) =>
+                value={c.framesMonths ?? ''}
+                onChange={(e) => {
+                  clearFieldError('framesMonths')
                   setFormData({
                     ...formData,
                     config: { ...config, framesMonths: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.framesMonths && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.framesMonths}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -255,15 +488,22 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.lensesMonths ?? ''}
-                onChange={(e) =>
+                value={c.lensesMonths ?? ''}
+                onChange={(e) => {
+                  clearFieldError('lensesMonths')
                   setFormData({
                     ...formData,
                     config: { ...config, lensesMonths: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.lensesMonths && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.lensesMonths}
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-3">
@@ -273,13 +513,14 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="coversDefects"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.coversManufacturingDefects}
-                  onChange={(e) =>
+                  checked={!!c.coversManufacturingDefects}
+                  onChange={(e) => {
+                    clearFieldError('coversManufacturingDefects')
                     setFormData({
                       ...formData,
                       config: { ...config, coversManufacturingDefects: e.target.checked },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -296,13 +537,14 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="excludesScratches"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.excludesScratchesFromWear}
-                  onChange={(e) =>
+                  checked={!!c.excludesScratchesFromWear}
+                  onChange={(e) => {
+                    clearFieldError('excludesScratchesFromWear')
                     setFormData({
                       ...formData,
                       config: { ...config, excludesScratchesFromWear: e.target.checked },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -320,6 +562,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Shipping Policy Config
     if (type === 'shipping') {
+      const c = config as Partial<ShippingPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -335,15 +578,21 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="text"
               className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-              value={config.defaultCarrier ?? ''}
-              onChange={(e) =>
+              value={c.defaultCarrier ?? ''}
+              onChange={(e) => {
+                clearFieldError('defaultCarrier')
                 setFormData({
                   ...formData,
                   config: { ...config, defaultCarrier: e.target.value },
                 })
-              }
+              }}
               placeholder="e.g., FedEx, UPS, USPS"
             />
+            {validationErrors.defaultCarrier && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.defaultCarrier}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
             <div className="space-y-2">
@@ -352,15 +601,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.standardDaysMin ?? ''}
-                onChange={(e) =>
+                value={c.standardDaysMin ?? ''}
+                onChange={(e) => {
+                  clearFieldError('standardDaysMin')
+                  clearFieldError('standardDaysMax')
                   setFormData({
                     ...formData,
                     config: { ...config, standardDaysMin: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.standardDaysMin && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.standardDaysMin}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -368,15 +625,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.standardDaysMax ?? ''}
-                onChange={(e) =>
+                value={c.standardDaysMax ?? ''}
+                onChange={(e) => {
+                  clearFieldError('standardDaysMax')
+                  clearFieldError('standardDaysMin')
                   setFormData({
                     ...formData,
                     config: { ...config, standardDaysMax: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.standardDaysMax && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.standardDaysMax}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -384,15 +649,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.expressDaysMin ?? ''}
-                onChange={(e) =>
+                value={c.expressDaysMin ?? ''}
+                onChange={(e) => {
+                  clearFieldError('expressDaysMin')
+                  clearFieldError('expressDaysMax')
                   setFormData({
                     ...formData,
                     config: { ...config, expressDaysMin: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.expressDaysMin && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.expressDaysMin}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -400,15 +673,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.expressDaysMax ?? ''}
-                onChange={(e) =>
+                value={c.expressDaysMax ?? ''}
+                onChange={(e) => {
+                  clearFieldError('expressDaysMax')
+                  clearFieldError('expressDaysMin')
                   setFormData({
                     ...formData,
                     config: { ...config, expressDaysMax: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.expressDaysMax && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.expressDaysMax}
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-2 text-left">
@@ -417,15 +698,22 @@ const PolicyFormPage: React.FC = () => {
             </label>
             <input
               type="number"
+              min="0"
               className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-              value={config.freeShippingMinAmount ?? ''}
-              onChange={(e) =>
+              value={c.freeShippingMinAmount ?? ''}
+              onChange={(e) => {
+                clearFieldError('freeShippingMinAmount')
                 setFormData({
                   ...formData,
                   config: { ...config, freeShippingMinAmount: parseInt(e.target.value) || 0 },
                 })
-              }
+              }}
             />
+            {validationErrors.freeShippingMinAmount && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.freeShippingMinAmount}
+              </p>
+            )}
           </div>
         </div>
       )
@@ -433,6 +721,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Prescription Policy Config
     if (type === 'prescription') {
+      const c = config as Partial<PrescriptionPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -447,15 +736,22 @@ const PolicyFormPage: React.FC = () => {
             </label>
             <input
               type="number"
+              min="1"
               className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-              value={config.maxPrescriptionAgeMonths ?? ''}
-              onChange={(e) =>
+              value={c.maxPrescriptionAgeMonths ?? ''}
+              onChange={(e) => {
+                clearFieldError('maxPrescriptionAgeMonths')
                 setFormData({
                   ...formData,
                   config: { ...config, maxPrescriptionAgeMonths: parseInt(e.target.value) || 0 },
                 })
-              }
+              }}
             />
+            {validationErrors.maxPrescriptionAgeMonths && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.maxPrescriptionAgeMonths}
+              </p>
+            )}
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
               How old a prescription can be before it's considered expired
             </p>
@@ -467,13 +763,14 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="requirePD"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.requirePD}
-                  onChange={(e) =>
+                  checked={!!c.requirePD}
+                  onChange={(e) => {
+                    clearFieldError('requirePD')
                     setFormData({
                       ...formData,
                       config: { ...config, requirePD: e.target.checked },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -490,13 +787,14 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="allowHighPower"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.allowHighPowerRange}
-                  onChange={(e) =>
+                  checked={!!c.allowHighPowerRange}
+                  onChange={(e) => {
+                    clearFieldError('allowHighPowerRange')
                     setFormData({
                       ...formData,
                       config: { ...config, allowHighPowerRange: e.target.checked },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -514,6 +812,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Cancellation Policy Config
     if (type === 'cancellation') {
+      const c = config as Partial<CancellationPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -529,13 +828,14 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="cancelReady"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.allowCancelReadyBeforeShip}
-                  onChange={(e) =>
+                  checked={!!c.allowCancelReadyBeforeShip}
+                  onChange={(e) => {
+                    clearFieldError('allowCancelReadyBeforeShip')
                     setFormData({
                       ...formData,
                       config: { ...config, allowCancelReadyBeforeShip: e.target.checked },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -552,8 +852,9 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="cancelPrescription"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.allowCancelPrescriptionBeforeProduction}
-                  onChange={(e) =>
+                  checked={!!c.allowCancelPrescriptionBeforeProduction}
+                  onChange={(e) => {
+                    clearFieldError('allowCancelPrescriptionBeforeProduction')
                     setFormData({
                       ...formData,
                       config: {
@@ -561,7 +862,7 @@ const PolicyFormPage: React.FC = () => {
                         allowCancelPrescriptionBeforeProduction: e.target.checked,
                       },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -578,8 +879,9 @@ const PolicyFormPage: React.FC = () => {
                   type="checkbox"
                   id="cancelPreorder"
                   className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                  checked={!!config.allowCancelPreorderBeforeSupplierConfirm}
-                  onChange={(e) =>
+                  checked={!!c.allowCancelPreorderBeforeSupplierConfirm}
+                  onChange={(e) => {
+                    clearFieldError('allowCancelPreorderBeforeSupplierConfirm')
                     setFormData({
                       ...formData,
                       config: {
@@ -587,7 +889,7 @@ const PolicyFormPage: React.FC = () => {
                         allowCancelPreorderBeforeSupplierConfirm: e.target.checked,
                       },
                     })
-                  }
+                  }}
                 />
                 <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
               </div>
@@ -605,6 +907,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Refund Policy Config
     if (type === 'refund') {
+      const c = config as Partial<RefundPolicyConfig>
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -619,13 +922,14 @@ const PolicyFormPage: React.FC = () => {
                 type="checkbox"
                 id="refundOriginal"
                 className="peer h-6 w-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer appearance-none bg-slate-50 border-2 checked:bg-blue-600 checked:border-blue-600"
-                checked={!!config.refundToOriginalMethodOnly}
-                onChange={(e) =>
+                checked={!!c.refundToOriginalMethodOnly}
+                onChange={(e) => {
+                  clearFieldError('refundToOriginalMethodOnly')
                   setFormData({
                     ...formData,
                     config: { ...config, refundToOriginalMethodOnly: e.target.checked },
                   })
-                }
+                }}
               />
               <FiPlus className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-white w-4 h-4 left-1 transition-opacity rotate-45" />
             </div>
@@ -643,15 +947,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.expectedProcessingDaysMin ?? ''}
-                onChange={(e) =>
+                value={c.expectedProcessingDaysMin ?? ''}
+                onChange={(e) => {
+                  clearFieldError('expectedProcessingDaysMin')
+                  clearFieldError('expectedProcessingDaysMax')
                   setFormData({
                     ...formData,
                     config: { ...config, expectedProcessingDaysMin: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.expectedProcessingDaysMin && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.expectedProcessingDaysMin}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -659,15 +971,23 @@ const PolicyFormPage: React.FC = () => {
               </label>
               <input
                 type="number"
+                min="1"
                 className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
-                value={config.expectedProcessingDaysMax ?? ''}
-                onChange={(e) =>
+                value={c.expectedProcessingDaysMax ?? ''}
+                onChange={(e) => {
+                  clearFieldError('expectedProcessingDaysMax')
+                  clearFieldError('expectedProcessingDaysMin')
                   setFormData({
                     ...formData,
                     config: { ...config, expectedProcessingDaysMax: parseInt(e.target.value) || 0 },
                   })
-                }
+                }}
               />
+              {validationErrors.expectedProcessingDaysMax && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.expectedProcessingDaysMax}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -755,7 +1075,7 @@ const PolicyFormPage: React.FC = () => {
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50 cursor-pointer appearance-none"
                       value={formData.type}
                       onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value as PolicyType })
+                        setFormData({ ...formData, type: e.target.value as PolicyType, config: {} })
                       }
                     >
                       <option value="return">Return</option>
@@ -784,8 +1104,17 @@ const PolicyFormPage: React.FC = () => {
                     type="date"
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
                     value={formData.effectiveFrom}
-                    onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      clearFieldError('effectiveFrom')
+                      setFormData({ ...formData, effectiveFrom: e.target.value })
+                    }}
                   />
+                  {validationErrors.effectiveFrom && (
+                    <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                      {validationErrors.effectiveFrom}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -803,8 +1132,16 @@ const PolicyFormPage: React.FC = () => {
                   placeholder="e.g., Transparency in Digital Commerce"
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 text-xl font-black text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) => {
+                    clearFieldError('title')
+                    setFormData({ ...formData, title: e.target.value })
+                  }}
                 />
+                {validationErrors.title && (
+                  <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                    {validationErrors.title}
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
                   This title is visible to all customers on the legal pages.
                 </p>
@@ -822,8 +1159,16 @@ const PolicyFormPage: React.FC = () => {
                   placeholder="Provide a high-level overview that customers can quickly scan..."
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none placeholder:text-slate-300 leading-relaxed"
                   value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                  onChange={(e) => {
+                    clearFieldError('summary')
+                    setFormData({ ...formData, summary: e.target.value })
+                  }}
                 />
+                {validationErrors.summary && (
+                  <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                    {validationErrors.summary}
+                  </p>
+                )}
                 <div className="flex justify-between items-center px-1">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                     A brief TL;DR for mobile users.
@@ -858,8 +1203,16 @@ const PolicyFormPage: React.FC = () => {
                     placeholder="Draft the complete policy content. Use clear, unambiguous language..."
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-6 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300 leading-relaxed min-h-[320px]"
                     value={formData.bodyPlainText}
-                    onChange={(e) => setFormData({ ...formData, bodyPlainText: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError('bodyPlainText')
+                      setFormData({ ...formData, bodyPlainText: e.target.value })
+                    }}
                   />
+                  {validationErrors.bodyPlainText && (
+                    <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                      {validationErrors.bodyPlainText}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
                     <FiCheckCircle className="w-4 h-4 text-emerald-500" />
                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">

@@ -227,7 +227,7 @@ export function ProductManagementPage() {
     }
 
     try {
-      let payload: any = {
+      const payload: Record<string, unknown> = {
         name: formData.name,
         category,
         description: formData.description,
@@ -319,7 +319,7 @@ export function ProductManagementPage() {
   const startEdit = (product: Product) => {
     setEditingId(product._id)
     setIsCreating(true)
-    setCategory(product.category as any)
+    setCategory(product.category as 'frame' | 'lens' | 'service')
 
     setFormData({
       name: product.name,
@@ -328,21 +328,33 @@ export function ProductManagementPage() {
       tags: (product.tags || []).join(', '),
     })
 
-    setVariants((product as any).variants || [])
+    setVariants((product as Product & { variants?: ProductVariant[] }).variants || [])
 
     if (product.category === 'frame') {
-      const p = product as any
+      const p = product as Product & {
+        frameType: string
+        shape: string
+        material: string
+        gender?: string
+        bridgeFit?: string
+      }
       setFrameData({
-        frameType: p.frameType,
-        shape: p.shape,
-        material: p.material,
-        gender: p.gender || 'unisex',
-        bridgeFit: p.bridgeFit || 'standard',
+        frameType: p.frameType as typeof FRAME_TYPES[number],
+        shape: p.shape as typeof FRAME_SHAPES[number],
+        material: p.material as typeof FRAME_MATERIALS[number],
+        gender: (p.gender || 'unisex') as typeof FRAME_GENDERS[number],
+        bridgeFit: (p.bridgeFit || 'standard') as typeof BRIDGE_FITS[number],
       })
     } else if (product.category === 'lens') {
-      const p = product as any
+      const p = product as Product & {
+        lensType: string
+        index: number
+        coatings?: string[]
+        isPrescriptionRequired: boolean
+        suitableForPrescriptionRange?: { minSPH?: number; maxSPH?: number }
+      }
       setLensData({
-        lensType: p.lensType,
+        lensType: p.lensType as typeof LENS_TYPES[number],
         index: p.index,
         coatings: p.coatings?.join(', ') || '',
         isPrescriptionRequired: p.isPrescriptionRequired,
@@ -350,9 +362,13 @@ export function ProductManagementPage() {
         maxSPH: p.suitableForPrescriptionRange?.maxSPH || 0,
       })
     } else if (product.category === 'service') {
-      const p = product as any
+      const p = product as Product & {
+        serviceType: string
+        durationMinutes: number
+        serviceNotes?: string
+      }
       setServiceData({
-        serviceType: p.serviceType,
+        serviceType: p.serviceType as typeof SERVICE_TYPES[number],
         durationMinutes: p.durationMinutes,
         serviceNotes: p.serviceNotes || '',
       })
@@ -459,7 +475,7 @@ export function ProductManagementPage() {
                 <FormControl fullWidth disabled={!!editingId}>
                   <Select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => setCategory(e.target.value as 'frame' | 'lens' | 'service')}
                     size="small"
                   >
                     {CATEGORIES.map((cat) => (
@@ -549,7 +565,7 @@ export function ProductManagementPage() {
                       <Select
                         value={frameData.frameType}
                         onChange={(e) =>
-                          setFrameData({ ...frameData, frameType: e.target.value as any })
+                          setFrameData({ ...frameData, frameType: e.target.value as typeof FRAME_TYPES[number] })
                         }
                         label="Frame Type"
                       >
@@ -565,7 +581,7 @@ export function ProductManagementPage() {
                       <Select
                         value={frameData.shape}
                         onChange={(e) =>
-                          setFrameData({ ...frameData, shape: e.target.value as any })
+                          setFrameData({ ...frameData, shape: e.target.value as typeof FRAME_SHAPES[number] })
                         }
                         label="Shape"
                       >
@@ -581,7 +597,7 @@ export function ProductManagementPage() {
                       <Select
                         value={frameData.material}
                         onChange={(e) =>
-                          setFrameData({ ...frameData, material: e.target.value as any })
+                          setFrameData({ ...frameData, material: e.target.value as typeof FRAME_MATERIALS[number] })
                         }
                         label="Material"
                       >
@@ -597,7 +613,7 @@ export function ProductManagementPage() {
                       <Select
                         value={frameData.gender}
                         onChange={(e) =>
-                          setFrameData({ ...frameData, gender: e.target.value as any })
+                          setFrameData({ ...frameData, gender: e.target.value as typeof FRAME_GENDERS[number] })
                         }
                         label="Gender"
                       >
@@ -614,7 +630,7 @@ export function ProductManagementPage() {
                         <Select
                           value={frameData.bridgeFit}
                           onChange={(e) =>
-                            setFrameData({ ...frameData, bridgeFit: e.target.value as any })
+                            setFrameData({ ...frameData, bridgeFit: e.target.value as typeof BRIDGE_FITS[number] })
                           }
                           label="Bridge Fit"
                         >
@@ -643,7 +659,7 @@ export function ProductManagementPage() {
                         <Select
                           value={lensData.lensType}
                           onChange={(e) =>
-                            setLensData({ ...lensData, lensType: e.target.value as any })
+                            setLensData({ ...lensData, lensType: e.target.value as typeof LENS_TYPES[number] })
                           }
                           label="Lens Type"
                         >
@@ -742,7 +758,7 @@ export function ProductManagementPage() {
                         <Select
                           value={serviceData.serviceType}
                           onChange={(e) =>
-                            setServiceData({ ...serviceData, serviceType: e.target.value as any })
+                            setServiceData({ ...serviceData, serviceType: e.target.value as typeof SERVICE_TYPES[number] })
                           }
                           label="Service Type"
                         >

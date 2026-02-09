@@ -14,6 +14,10 @@ import {
 } from '../commons/dtos/product.dto';
 import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
 import { CloudinaryService } from '../commons/services/cloudinary.service';
+import type {
+  CreateProductInput,
+  VariantInput,
+} from '../commons/validations/product-validation.zod';
 
 @Injectable()
 export class ProductService {
@@ -55,7 +59,7 @@ export class ProductService {
    * Validate category-specific required fields
    */
   private validateCategorySpecificFields(
-    data: any,
+    data: Partial<CreateProductDto>,
     category: PRODUCT_CATEGORIES,
   ): string[] {
     const errors: string[] = [];
@@ -123,7 +127,7 @@ export class ProductService {
     imageUrls?: string[],
   ): Promise<Product> {
     // Validate with DTO and category-specific fields
-    const validatedData = createProductDto as any;
+    const validatedData = createProductDto as CreateProductInput;
 
     // Validate category-specific fields
     const categoryErrors = this.validateCategorySpecificFields(
@@ -138,7 +142,11 @@ export class ProductService {
     }
 
     // Check SKU uniqueness if variants exist
-    if (validatedData.variants && validatedData.variants.length > 0) {
+    if (
+      'variants' in validatedData &&
+      validatedData.variants &&
+      validatedData.variants.length > 0
+    ) {
       const skus = validatedData.variants.map((v) => v.sku);
       const duplicateSkus = new Set<string>();
 
@@ -168,13 +176,18 @@ export class ProductService {
 
     // Distribute images to variants if provided
     const productData = { ...validatedData };
-    if (imageUrls && imageUrls.length > 0 && productData.variants) {
+    if (
+      imageUrls &&
+      imageUrls.length > 0 &&
+      'variants' in productData &&
+      productData.variants
+    ) {
       const imagesPerVariant = Math.ceil(
         imageUrls.length / productData.variants.length,
       );
       let imageIndex = 0;
 
-      productData.variants.forEach((variant: any) => {
+      productData.variants.forEach((variant: VariantInput) => {
         const variantImages = imageUrls.slice(
           imageIndex,
           imageIndex + imagesPerVariant,
@@ -270,7 +283,7 @@ export class ProductService {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
 
-    const validatedData = updateProductDto as any;
+    const validatedData = updateProductDto as Partial<CreateProductInput>;
 
     // If category is being updated, validate category-specific fields
     if (validatedData && Object.keys(validatedData).length > 0) {
@@ -287,7 +300,11 @@ export class ProductService {
     }
 
     // Check SKU uniqueness for new or updated variants
-    if (validatedData.variants && validatedData.variants.length > 0) {
+    if (
+      'variants' in validatedData &&
+      validatedData.variants &&
+      validatedData.variants.length > 0
+    ) {
       const newSkus = validatedData.variants.map((v) => v.sku);
       const existingSkus = product.variants?.map((v) => v.sku) || [];
 
@@ -305,13 +322,18 @@ export class ProductService {
     }
 
     // Distribute images if provided
-    if (imageUrls && imageUrls.length > 0 && validatedData.variants) {
+    if (
+      imageUrls &&
+      imageUrls.length > 0 &&
+      'variants' in validatedData &&
+      validatedData.variants
+    ) {
       const imagesPerVariant = Math.ceil(
         imageUrls.length / validatedData.variants.length,
       );
       let imageIndex = 0;
 
-      validatedData.variants.forEach((variant: any) => {
+      validatedData.variants.forEach((variant: VariantInput) => {
         const variantImages = imageUrls.slice(
           imageIndex,
           imageIndex + imagesPerVariant,
@@ -363,7 +385,7 @@ export class ProductService {
     tags?: string[];
     isActive?: boolean;
   }): Promise<Product[]> {
-    const query: any = { isDeleted: false };
+    const query: Record<string, unknown> = { isDeleted: false };
 
     if (filters.category) query.category = filters.category;
     if (filters.shape) query.shape = filters.shape;
@@ -376,11 +398,10 @@ export class ProductService {
     }
 
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-      query.basePrice = {};
-      if (filters.minPrice !== undefined)
-        query.basePrice.$gte = filters.minPrice;
-      if (filters.maxPrice !== undefined)
-        query.basePrice.$lte = filters.maxPrice;
+      const priceRange: Record<string, unknown> = {};
+      if (filters.minPrice !== undefined) priceRange.$gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) priceRange.$lte = filters.maxPrice;
+      query.basePrice = priceRange;
     }
 
     return this.productModel.find(query).select('-__v').exec();

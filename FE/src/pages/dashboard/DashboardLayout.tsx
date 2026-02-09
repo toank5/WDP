@@ -36,8 +36,19 @@ import {
   Build,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
+import { ReactNode } from 'react'
 
 const drawerWidth = 260
+
+type MenuItem = {
+  title: string
+  icon: ReactNode
+  url: string
+  adminOnly?: boolean
+  managerOnly?: boolean
+  operationOnly?: boolean
+  staffOnly?: boolean
+}
 
 export function DashboardLayout() {
   const navigate = useNavigate()
@@ -159,7 +170,7 @@ export function DashboardLayout() {
       </Box>
       <Divider />
       <List>
-        {menuItems.map((item: any) => {
+        {menuItems.map((item: MenuItem) => {
           const shouldShow =
             (item.adminOnly && isAdmin) ||
             (item.managerOnly && isManager) ||

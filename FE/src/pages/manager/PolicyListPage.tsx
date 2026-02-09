@@ -3,14 +3,14 @@ import {
   getPolicies,
   activatePolicy,
   deactivatePolicy,
-  Policy,
+  AnyPolicy,
   PolicyType,
 } from '../../lib/policy-api'
 import { Link } from 'react-router-dom'
 import { FiPlus, FiEdit2, FiToggleLeft, FiToggleRight, FiInfo } from 'react-icons/fi'
 
 const PolicyListPage: React.FC = () => {
-  const [policies, setPolicies] = useState<Policy[]>([])
+  const [policies, setPolicies] = useState<AnyPolicy[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<PolicyType | ''>('')
 

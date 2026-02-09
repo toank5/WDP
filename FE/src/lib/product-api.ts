@@ -170,7 +170,7 @@ api.interceptors.request.use((config) => {
 
 function extractApiMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: string; errors?: any[] }
+    const data = error.response?.data as { message?: string; errors?: Array<{ path: string; message: string }> }
     if (data?.errors && Array.isArray(data.errors)) {
       return data.errors.map((e) => `${e.path}: ${e.message}`).join(', ')
     }

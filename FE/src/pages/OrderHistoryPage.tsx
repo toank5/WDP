@@ -1,11 +1,13 @@
 ﻿import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import type { Order } from '../types/api.types'
 
 const OrderHistoryPage: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
 
   useEffect(() => {
-    setOrders([{ id: 'o1', status: 'delivered', total: 200 }])
+    // TODO: Replace with actual API call
+    setOrders([{ id: 'o1', status: 'delivered', total: 200 } as Order])
   }, [])
 
   return (

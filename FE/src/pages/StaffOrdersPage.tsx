@@ -15,10 +15,19 @@ import {
 } from '@mui/material'
 import { ShoppingCart, Visibility } from '@mui/icons-material'
 
+type StaffOrder = {
+  id: string
+  customer: string
+  date: string
+  total: string
+  status: 'pending' | 'processing' | 'shipped' | 'delivered'
+}
+
 const StaffOrdersPage: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState<StaffOrder[]>([])
 
   useEffect(() => {
+    // TODO: Replace with actual API call
     setOrders([
       {
         id: 'ORD-001',

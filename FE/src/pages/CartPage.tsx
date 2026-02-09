@@ -11,8 +11,18 @@ import {
   FiInfo,
 } from 'react-icons/fi'
 
+// Local cart item type (not the same as API CartItem)
+type LocalCartItem = {
+  id: string
+  name: string
+  price: number
+  qty: number
+  image?: string
+  variantName?: string
+}
+
 const CartPage: React.FC = () => {
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<LocalCartItem[]>([])
   const [notification, setNotification] = useState<string>('')
 
   useEffect(() => {
