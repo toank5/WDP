@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { Address } from './api.types'
 
 export type AuthUser = {
   fullName: string
   email: string
   role: number
   avatar?: string
-  addresses?: unknown[]
+  addresses?: Address[]
 }
 
 export type AuthPayload = {

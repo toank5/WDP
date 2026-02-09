@@ -1,316 +1,327 @@
 ﻿import React, { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth-store'
-import { ShoppingCart, Eye, Search, Sliders, RotateCcw, LogIn } from 'lucide-react'
-import { Star } from 'lucide-react'
+import {
+  FiShoppingCart,
+  FiEye,
+  FiSearch,
+  FiSliders,
+  FiRotateCcw,
+  FiLogIn,
+  FiStar,
+  FiFilter,
+  FiArrowRight,
+  FiX,
+  FiGrid,
+} from 'react-icons/fi'
 
 const mockProducts = [
-  { id: 'p1', name: 'Classic Black Frame', type: 'frame', category: 'frames', price: 120, image: '👓', rating: 4.5, reviews: 24 },
-  { id: 'p2', name: 'UV Protection Lens', type: 'lens', category: 'lenses', price: 80, image: '🔍', rating: 4.8, reviews: 156 },
-  { id: 'p3', name: 'Rose Gold Frame', type: 'frame', category: 'frames', price: 150, image: '👓', rating: 4.6, reviews: 42 },
-  { id: 'p4', name: 'Blue Light Blocking', type: 'lens', category: 'lenses', price: 95, image: '🔍', rating: 4.7, reviews: 89 },
-  { id: 'p5', name: 'Vintage Tortoise', type: 'frame', category: 'frames', price: 180, image: '👓', rating: 4.9, reviews: 67 },
-  { id: 'p6', name: 'Progressive Lens Pro', type: 'lens', category: 'lenses', price: 200, image: '🔍', rating: 5.0, reviews: 103 },
-  { id: 'p7', name: 'Sporty Wrap Frame', type: 'frame', category: 'frames', price: 140, image: '👓', rating: 4.4, reviews: 31 },
-  { id: 'p8', name: 'Anti-Glare Coating', type: 'service', category: 'services', price: 45, image: '✨', rating: 4.6, reviews: 58 },
+  {
+    id: 'p1',
+    name: 'Classic Black Frame',
+    type: 'frame',
+    price: 120,
+    rating: 4.5,
+    reviews: 24,
+    image: '👓',
+  },
+  {
+    id: 'p2',
+    name: 'UV Protection Lens',
+    type: 'lens',
+    price: 80,
+    rating: 4.8,
+    reviews: 156,
+    image: '🔍',
+  },
+  {
+    id: 'p3',
+    name: 'Golden Aviator',
+    type: 'frame',
+    price: 250,
+    rating: 4.9,
+    reviews: 89,
+    image: '🕶️',
+  },
+  {
+    id: 'p4',
+    name: 'Blue Light Filter',
+    type: 'lens',
+    price: 60,
+    rating: 4.2,
+    reviews: 210,
+    image: '💎',
+  },
+  {
+    id: 'p5',
+    name: 'Retro Tortoise',
+    type: 'frame',
+    price: 180,
+    rating: 4.6,
+    reviews: 45,
+    image: '👓',
+  },
+  {
+    id: 'p6',
+    name: 'Progressive Lens',
+    type: 'lens',
+    price: 150,
+    rating: 4.4,
+    reviews: 67,
+    image: '🔍',
+  },
 ]
 
 const ProductsPage: React.FC = () => {
-  const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
-  const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 300])
-  const [sortBy, setSortBy] = useState<'name' | 'price' | 'rating'>('name')
-  const [notification, setNotification] = useState<string>('')
-  const [addingIds, setAddingIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedType, setSelectedType] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const { isAuthenticated } = useAuthStore()
+  const navigate = useNavigate()
 
-  const filtered = useMemo(() => {
-    let result = mockProducts
+  const filteredProducts = useMemo(() => {
+    return mockProducts
+      .filter((p) => {
+        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesType = selectedType === 'all' || p.type === selectedType
+        return matchesSearch && matchesType
+      })
+      .sort((a, b) => {
+        if (sortBy === 'price-low') return a.price - b.price
+        if (sortBy === 'price-high') return b.price - a.price
+        if (sortBy === 'rating') return b.rating - a.rating
+        return a.name.localeCompare(b.name)
+      })
+  }, [searchQuery, selectedType, sortBy])
 
-    if (query) {
-      result = result.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
-    }
-
-    if (typeFilter !== 'all') {
-      result = result.filter(p => p.type === typeFilter)
-    }
-
-    result = result.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1])
-
-    if (sortBy === 'price') {
-      result.sort((a, b) => a.price - b.price)
-    } else if (sortBy === 'rating') {
-      result.sort((a, b) => b.rating - a.rating)
-    } else {
-      result.sort((a, b) => a.name.localeCompare(b.name))
-    }
-
-    return result
-  }, [query, typeFilter, priceRange, sortBy])
-
-  const handleAddToCart = async (product: any) => {
+  const handleAddToCart = (e: React.MouseEvent, product: any) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (!isAuthenticated) {
       setShowLoginPrompt(true)
       return
     }
 
-    setAddingIds(prev => new Set(prev).add(product.id))
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 400))
-
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-
-      const existingItem = cart.find((item: any) => item.id === product.id)
-      if (existingItem) {
-        existingItem.qty += 1
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          qty: 1,
-          image: product.image,
-          type: product.type,
-        })
-      }
-
-      localStorage.setItem('cart', JSON.stringify(cart))
-
-      // Dispatch custom event to update Navbar cart count
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
-
-      setNotification(`${product.name} added to cart!`)
-
-      setTimeout(() => {
-        setNotification('')
-      }, 2000)
-    } finally {
-      setAddingIds(prev => {
-        const next = new Set(prev)
-        next.delete(product.id)
-        return next
-      })
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
+    const existingItem = cart.find((item: any) => item.id === product.id)
+    if (existingItem) {
+      existingItem.qty += 1
+    } else {
+      cart.push({ ...product, qty: 1 })
     }
+    localStorage.setItem('cart', JSON.stringify(cart))
+    window.dispatchEvent(new CustomEvent('cartUpdated'))
+    navigate('/cart')
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Notification */}
-      {notification && (
-        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse z-50 flex items-center gap-2">
-          <span className="w-5 h-5">✓</span>
-          {notification}
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+      {/* Page Header */}
+      <div className="bg-slate-100 border-b border-slate-300">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <FiGrid className="text-slate-400" />
+            <h1 className="text-sm font-bold uppercase tracking-widest text-slate-600">
+              Product Inventory
+            </h1>
+          </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">Products & Services</h1>
-
-        <div className="grid gap-6 lg:grid-cols-4">
-          {/* Sidebar Filters */}
-          <aside className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 space-y-6 sticky top-20">
-              {/* Search */}
-              <div>
-                <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
-                  <Search size={16} />
-                  Search
-                </label>
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Type Filter */}
-              <div>
-                <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
-                  <Sliders size={16} />
-                  Type
-                </label>
-                <div className="space-y-2">
-                  {['all', 'frame', 'lens', 'service'].map(t => (
-                    <label key={t} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="type"
-                        value={t}
-                        checked={typeFilter === t}
-                        onChange={e => setTypeFilter(e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm capitalize">{t === 'all' ? 'All Products' : t + 's'}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">Price Range</label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="300"
-                      value={priceRange[0]}
-                      onChange={e => setPriceRange([Number(e.target.value), priceRange[1]])}
-                      className="w-20 border border-slate-300 rounded px-2 py-1 text-sm"
-                    />
-                    <span>—</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="300"
-                      value={priceRange[1]}
-                      onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])}
-                      className="w-20 border border-slate-300 rounded px-2 py-1 text-sm"
-                    />
-                  </div>
-                  <div className="text-xs text-slate-600">${priceRange[0]} — ${priceRange[1]}</div>
-                </div>
-              </div>
-
-              {/* Sort */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as 'name' | 'price' | 'rating')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-[2px] text-xs focus:outline-none focus:border-blue-500 w-64 placeholder:text-slate-300 transition-all font-medium"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
                 >
-                  <option value="name">Name (A-Z)</option>
-                  <option value="price">Price (Low to High)</option>
-                  <option value="rating">Rating (High to Low)</option>
-                </select>
+                  <FiX size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <aside className="w-full md:w-64 space-y-6">
+            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm">
+              <div className="bg-slate-100 border-b border-slate-300 px-4 py-2.5 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                  <FiFilter /> Filter Controls
+                </span>
+                {(selectedType !== 'all' || sortBy !== 'name') && (
+                  <button
+                    onClick={() => {
+                      setSelectedType('all')
+                      setSortBy('name')
+                    }}
+                    className="text-[9px] font-bold text-blue-600 hover:underline flex items-center gap-1 uppercase"
+                  >
+                    <FiRotateCcw size={10} /> Reset
+                  </button>
+                )}
               </div>
 
-              {/* Reset */}
-              <button
-                onClick={() => {
-                  setQuery('')
-                  setTypeFilter('all')
-                  setPriceRange([0, 300])
-                  setSortBy('name')
-                }}
-                className="w-full px-4 py-2 bg-slate-200 text-slate-800 rounded-lg font-semibold hover:bg-slate-300 transition flex items-center justify-center gap-2"
-              >
-                <RotateCcw size={16} />
-                Reset Filters
-              </button>
+              <div className="p-4 space-y-6">
+                {/* Category */}
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Category Selection
+                  </label>
+                  <div className="space-y-1">
+                    {['all', 'frame', 'lens'].map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedType(type)}
+                        className={`w-full text-left px-3 py-1.5 rounded-[2px] text-xs font-semibold transition-colors ${
+                          selectedType === type
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)} Products
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sort */}
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Sorting Order
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-[2px] px-2 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="name">Alphabetical (A-Z)</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="rating">Highest Rated</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border-t border-slate-200 p-4">
+                <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed italic">
+                  Showing {filteredProducts.length} results
+                </p>
+              </div>
             </div>
           </aside>
 
           {/* Product Grid */}
-          <main className="lg:col-span-3">
-            <div className="mb-4 text-sm text-slate-600">
-              Showing <strong>{filtered.length}</strong> product{filtered.length !== 1 ? 's' : ''}
-            </div>
-
-            {filtered.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg">
-                <Search size={48} className="mx-auto mb-2 text-slate-400" />
-                <p className="text-slate-600">No products found matching your criteria.</p>
+          <div className="flex-1">
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white border border-slate-300 rounded-[2px] p-20 text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center">
+                  <FiSearch size={24} className="text-slate-200" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">No Inventory Found</h3>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                  Adjust your search or filters to find what you are looking for.
+                </p>
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {filtered.map(product => (
-                  <div
-                    key={product.id}
-                    className="bg-white rounded-lg shadow-sm hover:shadow-lg transition overflow-hidden border border-slate-200 hover:border-blue-400 flex flex-col"
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((p) => (
+                  <Link
+                    key={p.id}
+                    to={`/products/${p.id}`}
+                    className="group bg-white border border-slate-300 rounded-[2px] shadow-sm hover:shadow-md hover:border-blue-400 transition-all overflow-hidden flex flex-col"
                   >
                     {/* Product Image */}
-                    <Link
-                      to={`/products/${product.id}`}
-                      className="h-40 bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-6xl hover:opacity-80 transition"
-                    >
-                      {product.image}
-                    </Link>
-
-                    {/* Product Info */}
-                    <div className="p-4 flex-1 flex flex-col">
-                      <Link
-                        to={`/products/${product.id}`}
-                        className="font-semibold text-slate-900 mb-1 line-clamp-2 hover:text-blue-600 transition"
-                      >
-                        {product.name}
-                      </Link>
-
-                      <div className="flex items-center gap-1 mb-3">
-                        <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-medium">{product.rating}</span>
-                        <span className="text-xs text-slate-500">({product.reviews})</span>
+                    <div className="aspect-[4/3] bg-slate-50 border-b border-slate-200 flex items-center justify-center text-6xl relative group-hover:bg-white transition-colors">
+                      {p.image}
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-white border border-slate-200 shadow-sm p-1.5 rounded-[2px]">
+                          <FiEye size={14} className="text-blue-600" />
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="flex justify-between items-center mb-3 flex-grow">
-                        <div>
-                          <p className="text-xs text-slate-500 capitalize mb-1">{product.type}</p>
-                          <p className="text-lg font-bold text-blue-600">${product.price}</p>
+                    {/* Content */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-[2px]">
+                          {p.type}
+                        </span>
+                        <div className="flex items-center gap-1 text-yellow-500">
+                          <FiStar size={10} className="fill-current" />
+                          <span className="text-[10px] font-bold text-slate-600">{p.rating}</span>
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 pt-3 border-t">
+                      <h3 className="text-sm font-black text-slate-800 mb-4 group-hover:text-blue-700 transition-colors uppercase tracking-tight leading-tight">
+                        {p.name}
+                      </h3>
+
+                      <div className="mt-auto flex items-center justify-between gap-4 pt-4 border-t border-slate-50">
+                        <span className="text-lg font-bold text-blue-700">${p.price}</span>
+
                         <button
-                          onClick={() => handleAddToCart(product)}
-                          disabled={addingIds.has(product.id)}
-                          className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-1"
+                          onClick={(e) => handleAddToCart(e, p)}
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-[2px] flex items-center gap-2 transition-colors shadow-sm active:translate-y-0.5"
                         >
-                          {addingIds.has(product.id) ? (
-                            <>
-                              <span className="animate-spin">⏳</span>
-                            </>
-                          ) : (
-                            <>
-                              <ShoppingCart size={16} />
-                              Add
-                            </>
-                          )}
+                          <FiShoppingCart size={12} /> Add
                         </button>
-                        <Link
-                          to={`/products/${product.id}`}
-                          className="flex-1 py-2 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition text-sm flex items-center justify-center gap-1"
-                        >
-                          <Eye size={16} />
-                          View
-                        </Link>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
-          </main>
+          </div>
         </div>
-      </div>
+      </main>
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 text-center">
-            <LogIn size={48} className="mx-auto mb-4 text-blue-600" />
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Login Required</h2>
-            <p className="text-slate-600 mb-6">You must be logged in to add items to your cart.</p>
-            <div className="flex gap-3">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white border border-slate-300 shadow-2xl max-w-sm w-full relative">
+            <div className="bg-slate-100 border-b border-slate-300 px-6 py-3 flex justify-between items-center">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-600">
+                Login Required
+              </h2>
               <button
                 onClick={() => setShowLoginPrompt(false)}
-                className="flex-1 px-4 py-2 border border-slate-300 text-slate-800 rounded-lg hover:bg-slate-50 font-semibold transition"
+                className="text-slate-400 hover:text-slate-600"
               >
-                Continue Shopping
+                <FiX />
               </button>
-              <button
-                onClick={() => navigate('/login')}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center justify-center gap-2"
-              >
-                <LogIn size={18} /> Login
-              </button>
+            </div>
+            <div className="p-6 text-center space-y-6">
+              <div className="mx-auto w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center">
+                <FiLogIn className="w-8 h-8 text-blue-600" />
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                Please sign in to your account to add items to your shopping bag.
+              </p>
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest rounded-[2px] transition-colors"
+                >
+                  Login Now
+                </button>
+                <button
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="w-full py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-500 font-bold text-xs uppercase tracking-widest rounded-[2px] transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
         </div>

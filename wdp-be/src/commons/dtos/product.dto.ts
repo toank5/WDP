@@ -398,4 +398,3 @@ export class UpdateProductDto {
   @IsString()
   serviceNotes?: string;
 }
-

@@ -1,42 +1,41 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { ProtectedRoute } from './routes/ProtectedRoute';
-import { AdminDashboardLayout } from './pages/admin/AdminDashboardLayout';
-import { DashboardOverview } from './pages/admin/DashboardOverview';
-import { UserManagementPage } from './pages/admin/UserManagementPage';
-import { PolicyManagementPage } from './pages/admin/PolicyManagementPage';
-import { ProductManagementPage } from './pages/admin/ProductManagementPage';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HomePage } from './pages/HomePage'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { ProtectedRoute } from './routes/ProtectedRoute'
+import { DashboardLayout } from './pages/dashboard/DashboardLayout'
+import { DashboardOverview } from './pages/dashboard/DashboardOverview'
+import { UserManagementPage } from './pages/admin/UserManagementPage'
+import { ProductManagementPage } from './pages/manager/ProductManagementPage'
+import PolicyListPage from './pages/manager/PolicyListPage'
+import PolicyFormPage from './pages/manager/PolicyFormPage'
+import PolicyDetailPage from './pages/PolicyDetailPage'
 
 // Customer pages
-import ProductsPage from './pages/ProductsPage';
-import ProductDetailPage from './pages/ProductDetailPage';
-import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import AccountPage from './pages/AccountPage';
-import OrderHistoryPage from './pages/OrderHistoryPage';
-import OrderDetailPage from './pages/OrderDetailPage';
-import PrescriptionUploadPage from './pages/PrescriptionUploadPage';
-import VirtualTryOnPage from './pages/VirtualTryOnPage';
+import ProductsPage from './pages/ProductsPage'
+import ProductDetailPage from './pages/ProductDetailPage'
+import CartPage from './pages/CartPage'
+import CheckoutPage from './pages/CheckoutPage'
+import AccountPage from './pages/AccountPage'
+import OrderHistoryPage from './pages/OrderHistoryPage'
+import OrderDetailPage from './pages/OrderDetailPage'
+import PrescriptionUploadPage from './pages/PrescriptionUploadPage'
+import VirtualTryOnPage from './pages/VirtualTryOnPage'
 
 // Staff pages
-import StaffOrdersPage from './pages/StaffOrdersPage';
+import StaffOrdersPage from './pages/StaffOrdersPage'
 
 // Operations pages
-import OperationsDashboard from './pages/OperationsDashboard';
-import ShippingPage from './pages/ShippingPage';
+import OperationsDashboard from './pages/OperationsDashboard'
+import ShippingPage from './pages/ShippingPage'
 
 // Manager pages
-import PromotionsPage from './pages/PromotionsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-
-// System Admin pages
-import SystemConfigPage from './pages/SystemConfigPage';
+import PromotionsPage from './pages/PromotionsPage'
+import AnalyticsPage from './pages/AnalyticsPage'
 
 // Components
-import { Navbar } from './components/Navbar';
+import { Navbar } from './components/Navbar'
 
 function App() {
   return (
@@ -59,42 +58,36 @@ function App() {
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/prescription/upload" element={<PrescriptionUploadPage />} />
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
+          <Route path="/policies/:type" element={<PolicyDetailPage />} />
 
           {/* Admin/Staff/Operations routes */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <AdminDashboardLayout />
+                <DashboardLayout />
               </ProtectedRoute>
             }
           >
             <Route index element={<DashboardOverview />} />
             <Route path="users" element={<UserManagementPage />} />
-            <Route path="policies" element={<PolicyManagementPage />} />
+            <Route path="policies" element={<PolicyListPage />} />
+            <Route path="policies/new" element={<PolicyFormPage />} />
+            <Route path="policies/:id/edit" element={<PolicyFormPage />} />
             <Route path="products" element={<ProductManagementPage />} />
+            <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="operations" element={<OperationsDashboard />} />
+            <Route path="shipping" element={<ShippingPage />} />
+            <Route path="promotions" element={<PromotionsPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
           </Route>
-
-          {/* Staff routes */}
-          <Route path="/admin/orders" element={<StaffOrdersPage />} />
-
-          {/* Operations routes */}
-          <Route path="/admin/operations" element={<OperationsDashboard />} />
-          <Route path="/admin/shipping" element={<ShippingPage />} />
-
-          {/* Manager routes */}
-          <Route path="/admin/promotions" element={<PromotionsPage />} />
-          <Route path="/admin/analytics" element={<AnalyticsPage />} />
-
-          {/* System Admin routes */}
-          <Route path="/admin/system-config" element={<SystemConfigPage />} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

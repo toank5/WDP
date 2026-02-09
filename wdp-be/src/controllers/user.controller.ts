@@ -1,14 +1,32 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 import { UserService } from '../services/user.service';
-import { CreateUserDto } from 'src/commons/dtos/user.dto';
+import {
+  CreateUserSchema,
+  UpdateUserSchema,
+  AddAddressSchema,
+  type CreateUserInput,
+  type UpdateUserInput,
+  type AddAddressInput,
+} from 'src/commons/validations/user.validation.zod';
+import { ZodValidationPipe } from 'src/commons/pipes/zod-validation.pipe';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  async create(
+    @Body(new ZodValidationPipe(CreateUserSchema)) userData: CreateUserInput,
+  ) {
+    return this.userService.create(userData);
   }
 
   @Get()
@@ -19,5 +37,26 @@ export class UserController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateUserSchema)) updateData: UpdateUserInput,
+  ) {
+    return this.userService.update(id, updateData);
+  }
+
+  @Post(':id/addresses')
+  async addAddress(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(AddAddressSchema)) addressData: AddAddressInput,
+  ) {
+    return this.userService.addAddress(id, addressData);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return this.userService.remove(id);
   }
 }

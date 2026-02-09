@@ -1,12 +1,13 @@
 import { IsString, IsEnum, IsObject, IsOptional } from 'class-validator';
 import { POLICY_TYPES } from '../enums/policy.enum';
+import { PolicyConfig } from '../types/policy.types';
 
 export class CreatePolicyDto {
   @IsEnum(POLICY_TYPES)
   type: POLICY_TYPES;
 
   @IsObject()
-  config: Record<string, any>;
+  config: PolicyConfig;
 }
 
 export class UpdatePolicyDto {
@@ -16,5 +17,5 @@ export class UpdatePolicyDto {
 
   @IsOptional()
   @IsObject()
-  config?: Record<string, any>;
+  config?: Partial<PolicyConfig>;
 }

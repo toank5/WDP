@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Model } from 'mongoose';
 import {
   PRODUCT_CATEGORIES,
   FRAME_TYPE,
@@ -28,9 +28,8 @@ export class PrescriptionRange {
   maxCYL?: number;
 }
 
-export const PrescriptionRangeSchema = SchemaFactory.createForClass(
-  PrescriptionRange,
-);
+export const PrescriptionRangeSchema =
+  SchemaFactory.createForClass(PrescriptionRange);
 
 @Schema({ timestamps: true })
 export class Product extends Document {
@@ -212,7 +211,7 @@ ProductSchema.index({ lensType: 1 });
 ProductSchema.index({ serviceType: 1 });
 
 // Pre-save hook to generate slug if missing
-ProductSchema.pre('save', async function (next) {
+ProductSchema.pre('save', async function () {
   if (!this.slug) {
     let baseSlug = this.name
       .toLowerCase()
@@ -222,13 +221,13 @@ ProductSchema.pre('save', async function (next) {
       .replace(/\-+/g, '-');
 
     let slug = baseSlug;
-    const existingProduct = await this.constructor.findOne({ slug });
+    const existingProduct = await (this.constructor as Model<Product>).findOne({
+      slug,
+    });
     if (existingProduct) {
       const timestamp = Date.now().toString().slice(-6);
       slug = `${baseSlug}-${timestamp}`;
     }
     this.slug = slug;
   }
-  next();
 });
-
