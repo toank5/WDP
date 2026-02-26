@@ -1,15 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
 
-@Schema({ _id: false, timestamps: true })
-export class ProductVariant extends Document {
+@Schema({ _id: false })
+export class ProductVariant {
   @Prop({
     type: String,
     required: true,
-    unique: true,
     trim: true,
     uppercase: true,
-    index: true,
   })
   sku: string;
 

@@ -24,7 +24,7 @@ import {
   Menu as MenuIcon,
   Dashboard,
   People,
-  Inventory,
+  Inventory as InventoryIcon,
   Settings,
   Gavel,
   Logout,
@@ -34,6 +34,7 @@ import {
   Campaign,
   Assessment,
   Build,
+  Warehouse,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -93,8 +94,14 @@ export function DashboardLayout() {
     },
     {
       title: 'Products',
-      icon: <Inventory />,
+      icon: <Build />,
       url: '/dashboard/products',
+      managerOnly: true,
+    },
+    {
+      title: 'Inventory',
+      icon: <Warehouse />,
+      url: '/dashboard/inventory',
       managerOnly: true,
     },
     {

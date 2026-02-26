@@ -14,6 +14,7 @@ import {
   HttpStatus,
   HttpCode,
   Res,
+  Query,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -24,6 +25,7 @@ import {
   UpdateProductDto,
 } from '../commons/dtos/product.dto';
 import { RbacGuard } from '../commons/guards/rbac.guard';
+import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
 
 @Controller('products')
 export class ProductController {
@@ -184,5 +186,70 @@ export class ProductController {
   @UseGuards(RbacGuard)
   async restore(@Param('id') id: string) {
     return this.productService.restore(id);
+  }
+
+  /**
+   * Variant management endpoints
+   */
+
+  /**
+   * Add variant to product (manager/admin only)
+   * POST /products/:id/variants
+   */
+  @Post(':id/variants')
+  @UseGuards(RbacGuard)
+  async addVariant(
+    @Param('id') id: string,
+    @Body()
+    variantData: import('../commons/dtos/product.dto').ProductVariantDto,
+  ) {
+    return this.productService.addVariant(id, variantData);
+  }
+
+  /**
+   * Update variant in product (manager/admin only)
+   * PATCH /products/:id/variants/:variantId
+   */
+  @Patch(':id/variants/:variantId')
+  @UseGuards(RbacGuard)
+  async updateVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body()
+    variantData: Partial<
+      import('../commons/dtos/product.dto').ProductVariantDto
+    >,
+  ) {
+    return this.productService.updateVariant(id, variantId, variantData);
+  }
+
+  /**
+   * Delete variant from product (manager/admin only)
+   * DELETE /products/:id/variants/:variantId
+   */
+  @Delete(':id/variants/:variantId')
+  @UseGuards(RbacGuard)
+  async removeVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+  ) {
+    return this.productService.removeVariant(id, variantId);
+  }
+
+  /**
+   * Get manager products with filters (manager/admin only)
+   * GET /manager/products
+   */
+  @Get('manager/list')
+  @UseGuards(RbacGuard)
+  async getManagerProducts(
+    @Query('category') category?: PRODUCT_CATEGORIES,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.productService.findWithFilters({
+      category,
+      isActive:
+        isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+    });
   }
 }

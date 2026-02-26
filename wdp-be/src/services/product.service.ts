@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product } from '../commons/schemas/product.schema';
+import { ProductVariant } from '../commons/schemas/product-variant.schema';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -404,5 +405,194 @@ export class ProductService {
     }
 
     return this.productModel.find(query).select('-__v').exec();
+  }
+
+  /**
+   * Helper: Normalize and validate SKU
+   */
+  private normalizeSku(sku: string): string {
+    return sku.trim().toUpperCase();
+  }
+
+  /**
+   * Helper: Clean image URLs array
+   */
+  private cleanImageUrls(urls: string[]): string[] {
+    if (!Array.isArray(urls)) return [];
+    return urls
+      .map((url) => url.trim())
+      .filter(
+        (url) =>
+          url.length > 0 &&
+          (url.startsWith('http://') || url.startsWith('https://')),
+      );
+  }
+
+  /**
+   * Add variant to product
+   */
+  async addVariant(
+    productId: string,
+    variantData: import('../commons/dtos/product.dto').ProductVariantDto,
+  ): Promise<Product | null> {
+    const product = await this.productModel.findOne({
+      _id: productId,
+      isDeleted: false,
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${productId} not found`);
+    }
+
+    // Normalize SKU
+    const normalizedSku = this.normalizeSku(variantData.sku);
+
+    // Check if SKU already exists in this product
+    if (product.variants?.some((v) => v.sku === normalizedSku)) {
+      throw new ConflictException(
+        `Variant with SKU ${normalizedSku} already exists in this product`,
+      );
+    }
+
+    // Check SKU uniqueness across all products
+    const existingSKUs = await this.checkSkuUniqueness([normalizedSku]);
+    if (existingSKUs.has(normalizedSku)) {
+      throw new ConflictException(
+        `Variant with SKU ${normalizedSku} already exists in another product`,
+      );
+    }
+
+    // Clean images if provided
+    const cleanedVariant: ProductVariant = {
+      sku: normalizedSku,
+      size: variantData.size,
+      color: variantData.color,
+      price: variantData.price,
+      weight: variantData.weight,
+      images2D: variantData.images2D
+        ? this.cleanImageUrls(variantData.images2D)
+        : [],
+      images3D: variantData.images3D
+        ? this.cleanImageUrls(variantData.images3D)
+        : [],
+      isActive: variantData.isActive ?? true,
+    };
+
+    if (!product.variants) {
+      product.variants = [];
+    }
+
+    product.variants.push(cleanedVariant);
+    return product.save();
+  }
+
+  /**
+   * Update variant in product
+   */
+  async updateVariant(
+    productId: string,
+    variantId: string,
+    variantData: Partial<
+      import('../commons/dtos/product.dto').ProductVariantDto
+    >,
+  ): Promise<Product | null> {
+    const product = await this.productModel.findOne({
+      _id: productId,
+      isDeleted: false,
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${productId} not found`);
+    }
+
+    const variantIndex = product.variants?.findIndex(
+      (v) => v.sku === variantId,
+    );
+    if (variantIndex === undefined || variantIndex === -1) {
+      throw new NotFoundException(
+        `Variant with SKU ${variantId} not found in product`,
+      );
+    }
+
+    // If SKU is being updated, validate uniqueness
+    if (variantData.sku && variantData.sku !== variantId) {
+      const normalizedSku = this.normalizeSku(variantData.sku);
+
+      // Check within same product
+      if (
+        product.variants?.some(
+          (v, i) => i !== variantIndex && v.sku === normalizedSku,
+        )
+      ) {
+        throw new ConflictException(
+          `Variant with SKU ${normalizedSku} already exists in this product`,
+        );
+      }
+
+      // Check across all products
+      const existingSKUs = await this.checkSkuUniqueness([normalizedSku]);
+      if (existingSKUs.has(normalizedSku)) {
+        throw new ConflictException(
+          `Variant with SKU ${normalizedSku} already exists in another product`,
+        );
+      }
+
+      product.variants[variantIndex].sku = normalizedSku;
+    }
+
+    // Update other fields
+    if (variantData.size !== undefined) {
+      product.variants[variantIndex].size = variantData.size;
+    }
+    if (variantData.color !== undefined) {
+      product.variants[variantIndex].color = variantData.color;
+    }
+    if (variantData.price !== undefined) {
+      product.variants[variantIndex].price = variantData.price;
+    }
+    if (variantData.weight !== undefined) {
+      product.variants[variantIndex].weight = variantData.weight;
+    }
+    if (variantData.isActive !== undefined) {
+      product.variants[variantIndex].isActive = variantData.isActive;
+    }
+    if (variantData.images2D !== undefined) {
+      product.variants[variantIndex].images2D = this.cleanImageUrls(
+        variantData.images2D,
+      );
+    }
+    if (variantData.images3D !== undefined) {
+      product.variants[variantIndex].images3D = this.cleanImageUrls(
+        variantData.images3D,
+      );
+    }
+
+    return product.save();
+  }
+
+  /**
+   * Remove variant from product
+   */
+  async removeVariant(
+    productId: string,
+    variantId: string,
+  ): Promise<Product | null> {
+    const product = await this.productModel.findOne({
+      _id: productId,
+      isDeleted: false,
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${productId} not found`);
+    }
+
+    const initialLength = product.variants?.length || 0;
+    product.variants =
+      product.variants?.filter((v) => v.sku !== variantId) || [];
+
+    if (product.variants.length === initialLength) {
+      throw new NotFoundException(
+        `Variant with SKU ${variantId} not found in product`,
+      );
+    }
+
+    return product.save();
   }
 }

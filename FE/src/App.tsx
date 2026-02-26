@@ -33,6 +33,8 @@ import ShippingPage from './pages/ShippingPage'
 // Manager pages
 import PromotionsPage from './pages/PromotionsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
+import { InventoryManagementPage } from './pages/manager/InventoryManagementPage'
+import { InventoryDetailPage } from './pages/manager/InventoryDetailPage'
 
 // Components
 import { Navbar } from './components/Navbar'
@@ -80,7 +82,18 @@ function App() {
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="inventory" element={<InventoryManagementPage />} />
           </Route>
+
+          {/* Inventory detail route (outside dashboard layout for standalone access from product variants) */}
+          <Route
+            path="/manager/inventory/:sku"
+            element={
+              <ProtectedRoute>
+                <InventoryDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

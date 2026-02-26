@@ -1,0 +1,534 @@
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Inventory } from '../commons/schemas/inventory.schema';
+import { Product } from '../commons/schemas/product.schema';
+import {
+  CreateInventoryDto,
+  UpdateInventoryDto,
+  StockAdjustmentDto,
+  BulkStockUpdateDto,
+  ReserveInventoryDto,
+  ReleaseReservationDto,
+} from '../commons/dtos/inventory.dto';
+import { ProductVariant } from 'src/commons/schemas/product-variant.schema';
+
+/**
+ * Enriched inventory item with product/variant information
+ */
+export interface InventoryItemEnriched extends Inventory {
+  productName?: string;
+  productCategory?: string;
+  variantSize?: string;
+  variantColor?: string;
+  variantPrice?: number;
+  variantIsActive?: boolean;
+  productIsActive?: boolean;
+  productId?: string;
+}
+
+/**
+ * Query parameters for inventory list
+ */
+export interface InventoryQueryParams {
+  sku?: string;
+  lowStock?: boolean;
+  activeOnly?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+@Injectable()
+export class InventoryService {
+  constructor(
+    @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
+    @InjectModel(Product.name) private productModel: Model<Product>,
+  ) {}
+
+  /**
+   * Get all inventory items with optional filtering and enrichment
+   */
+  async findAll(params: InventoryQueryParams = {}): Promise<{
+    items: InventoryItemEnriched[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const {
+      sku,
+      lowStock = false,
+      activeOnly = false,
+      page = 1,
+      limit = 50,
+    } = params;
+
+    // Build query
+    const query: Record<string, unknown> = {};
+
+    // SKU search (partial match, case-insensitive)
+    if (sku) {
+      query.sku = { $regex: sku, $options: 'i' };
+    }
+
+    // Note: Low stock filter is applied after fetching (see post-filtering below)
+    // Cannot use direct query comparison since reorderLevel varies per item
+
+    const skip = (page - 1) * limit;
+
+    // Get inventory items
+    const inventoryItems = await this.inventoryModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .sort({ sku: 1 })
+      .lean();
+
+    // Filter for low stock after query if needed
+    let filteredItems = inventoryItems;
+    if (lowStock) {
+      filteredItems = inventoryItems.filter(
+        (item) => item.stockQuantity <= item.reorderLevel,
+      );
+    }
+
+    // Get all SKUs to fetch product information
+    const skus = filteredItems.map((item) => item.sku);
+
+    // Find products containing these SKUs in their variants
+    const products = await this.productModel
+      .find({ 'variants.sku': { $in: skus }, isDeleted: false })
+      .lean();
+
+    // Create a map of SKU to product/variant info
+    const skuInfoMap = new Map<
+      string,
+      {
+        productName: string;
+        productCategory: string;
+        variantSize?: string;
+        variantColor?: string;
+        variantPrice?: number;
+        variantIsActive?: boolean;
+        productIsActive: boolean;
+        productId: string;
+      }
+    >();
+
+    for (const product of products) {
+      if (product.variants) {
+        for (const variant of product.variants) {
+          if (skus.includes(variant.sku)) {
+            skuInfoMap.set(variant.sku, {
+              productName: product.name,
+              productCategory: product.category,
+              variantSize: variant.size,
+              variantColor: variant.color,
+              variantPrice: variant.price,
+              variantIsActive: variant.isActive,
+              productIsActive: product.isActive ?? true,
+              productId: product._id.toString(),
+            });
+          }
+        }
+      }
+    }
+
+    // Enrich inventory items with product information
+    let enrichedItems: InventoryItemEnriched[] = filteredItems.map((item) => {
+      const info = skuInfoMap.get(item.sku);
+      return {
+        ...item,
+        productName: info?.productName,
+        productCategory: info?.productCategory,
+        variantSize: info?.variantSize,
+        variantColor: info?.variantColor,
+        variantPrice: info?.variantPrice,
+        variantIsActive: info?.variantIsActive,
+        productIsActive: info?.productIsActive ?? true,
+        productId: info?.productId,
+      };
+    });
+
+    // Filter for active variants only if requested
+    if (activeOnly) {
+      enrichedItems = enrichedItems.filter(
+        (item) =>
+          item.variantIsActive !== false && item.productIsActive !== false,
+      );
+    }
+
+    // Get total count
+    const total = await this.inventoryModel.countDocuments(query);
+
+    return {
+      items: enrichedItems,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Get inventory item by SKU with enriched product information
+   */
+  async findBySku(sku: string): Promise<InventoryItemEnriched | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku }).lean();
+    if (!inventoryItem) {
+      return null;
+    }
+
+    // Find product containing this SKU
+    const product = await this.productModel
+      .findOne({ 'variants.sku': sku, isDeleted: false })
+      .lean();
+
+    let enrichedItem: InventoryItemEnriched = { ...inventoryItem };
+
+    if (product) {
+      const variant = product.variants?.find((v) => v.sku === sku);
+      enrichedItem = {
+        ...inventoryItem,
+        productName: product.name,
+        productCategory: product.category,
+        variantSize: variant?.size,
+        variantColor: variant?.color,
+        variantPrice: variant?.price,
+        variantIsActive: variant?.isActive,
+        productIsActive: product.isActive ?? true,
+        productId: product._id.toString(),
+      };
+    }
+
+    return enrichedItem;
+  }
+
+  /**
+   * Create a new inventory item
+   */
+  async create(createInventoryDto: CreateInventoryDto): Promise<Inventory> {
+    // Check if SKU already exists
+    const existing = await this.inventoryModel.findOne({
+      sku: createInventoryDto.sku,
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Inventory item with SKU ${createInventoryDto.sku} already exists`,
+      );
+    }
+
+    // Validate reserved quantity doesn't exceed stock
+    if (
+      createInventoryDto.reservedQuantity > createInventoryDto.stockQuantity
+    ) {
+      throw new BadRequestException(
+        'Reserved quantity cannot exceed stock quantity',
+      );
+    }
+
+    // Calculate available quantity
+    const availableQuantity =
+      createInventoryDto.stockQuantity - createInventoryDto.reservedQuantity;
+
+    const inventoryItem = new this.inventoryModel({
+      ...createInventoryDto,
+      availableQuantity,
+    });
+
+    return inventoryItem.save();
+  }
+
+  /**
+   * Auto-create inventory item for new variant SKU
+   * Called when a new product variant is created
+   */
+  async autoCreateForVariant(variant: ProductVariant): Promise<Inventory> {
+    // Check if inventory already exists
+    const existing = await this.inventoryModel.findOne({ sku: variant.sku });
+    if (existing) {
+      return existing;
+    }
+
+    // Create with default values
+    return this.create({
+      sku: variant.sku,
+      stockQuantity: 0,
+      reservedQuantity: 0,
+      reorderLevel: 0,
+      supplierInfo: {
+        name: 'Default Supplier',
+      },
+    });
+  }
+
+  /**
+   * Update inventory item by SKU
+   */
+  async updateBySku(
+    sku: string,
+    updateInventoryDto: UpdateInventoryDto,
+  ): Promise<Inventory | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku });
+    if (!inventoryItem) {
+      throw new NotFoundException(`Inventory item with SKU ${sku} not found`);
+    }
+
+    // Build update object
+    const updateData: Partial<Inventory> = {};
+
+    if (updateInventoryDto.stockQuantity !== undefined) {
+      updateData.stockQuantity = updateInventoryDto.stockQuantity;
+    }
+
+    if (updateInventoryDto.reservedQuantity !== undefined) {
+      updateData.reservedQuantity = updateInventoryDto.reservedQuantity;
+    }
+
+    if (updateInventoryDto.reorderLevel !== undefined) {
+      updateData.reorderLevel = updateInventoryDto.reorderLevel;
+    }
+
+    if (updateInventoryDto.supplierInfo !== undefined) {
+      updateData.supplierInfo = updateInventoryDto.supplierInfo;
+    }
+
+    // Recalculate available quantity
+    const newStockQuantity =
+      updateData.stockQuantity ?? inventoryItem.stockQuantity;
+    const newReservedQuantity =
+      updateData.reservedQuantity ?? inventoryItem.reservedQuantity;
+
+    if (newReservedQuantity > newStockQuantity) {
+      throw new BadRequestException(
+        'Reserved quantity cannot exceed stock quantity',
+      );
+    }
+
+    updateData.availableQuantity = newStockQuantity - newReservedQuantity;
+
+    return this.inventoryModel
+      .findOneAndUpdate({ sku }, updateData, { new: true })
+      .exec();
+  }
+
+  /**
+   * Adjust stock quantity by delta
+   */
+  async adjustStock(
+    sku: string,
+    adjustmentDto: StockAdjustmentDto,
+  ): Promise<Inventory | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku });
+    if (!inventoryItem) {
+      throw new NotFoundException(`Inventory item with SKU ${sku} not found`);
+    }
+
+    const newStockQuantity = inventoryItem.stockQuantity + adjustmentDto.delta;
+
+    if (newStockQuantity < 0) {
+      throw new BadRequestException(
+        'Stock quantity cannot be negative. Current: ' +
+          inventoryItem.stockQuantity +
+          ', Adjustment: ' +
+          adjustmentDto.delta,
+      );
+    }
+
+    if (newStockQuantity < inventoryItem.reservedQuantity) {
+      throw new BadRequestException(
+        'Stock quantity cannot be less than reserved quantity',
+      );
+    }
+
+    const availableQuantity = newStockQuantity - inventoryItem.reservedQuantity;
+
+    return this.inventoryModel
+      .findOneAndUpdate(
+        { sku },
+        {
+          stockQuantity: newStockQuantity,
+          availableQuantity,
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Bulk update stock for multiple SKUs
+   */
+  async bulkUpdateStock(bulkUpdateDto: BulkStockUpdateDto): Promise<{
+    success: string[];
+    failed: Array<{ sku: string; error: string }>;
+  }> {
+    const success: string[] = [];
+    const failed: Array<{ sku: string; error: string }> = [];
+
+    for (const item of bulkUpdateDto.items) {
+      try {
+        await this.updateBySku(item.sku, {
+          stockQuantity: item.stockQuantity,
+          reservedQuantity: item.reservedQuantity,
+        });
+        success.push(item.sku);
+      } catch (error) {
+        failed.push({
+          sku: item.sku,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return { success, failed };
+  }
+
+  /**
+   * Reserve inventory for an order
+   */
+  async reserve(
+    sku: string,
+    reserveDto: ReserveInventoryDto,
+  ): Promise<Inventory | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku });
+    if (!inventoryItem) {
+      throw new NotFoundException(`Inventory item with SKU ${sku} not found`);
+    }
+
+    if (inventoryItem.availableQuantity < reserveDto.quantity) {
+      throw new BadRequestException(
+        `Insufficient stock. Available: ${inventoryItem.availableQuantity}, Requested: ${reserveDto.quantity}`,
+      );
+    }
+
+    const newReservedQuantity =
+      inventoryItem.reservedQuantity + reserveDto.quantity;
+    const availableQuantity = newReservedQuantity - inventoryItem.stockQuantity;
+
+    return this.inventoryModel
+      .findOneAndUpdate(
+        { sku },
+        {
+          reservedQuantity: newReservedQuantity,
+          availableQuantity,
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Release reserved inventory
+   */
+  async releaseReservation(
+    sku: string,
+    releaseDto: ReleaseReservationDto,
+  ): Promise<Inventory | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku });
+    if (!inventoryItem) {
+      throw new NotFoundException(`Inventory item with SKU ${sku} not found`);
+    }
+
+    const newReservedQuantity =
+      inventoryItem.reservedQuantity - releaseDto.quantity;
+
+    if (newReservedQuantity < 0) {
+      throw new BadRequestException(
+        'Cannot release more than reserved quantity',
+      );
+    }
+
+    const availableQuantity = inventoryItem.stockQuantity - newReservedQuantity;
+
+    return this.inventoryModel
+      .findOneAndUpdate(
+        { sku },
+        {
+          reservedQuantity: newReservedQuantity,
+          availableQuantity,
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Confirm reserved stock (convert reserved to actual stock reduction)
+   * Called when an order is confirmed/shipped
+   */
+  async confirmReservation(
+    sku: string,
+    quantity: number,
+  ): Promise<Inventory | null> {
+    const inventoryItem = await this.inventoryModel.findOne({ sku });
+    if (!inventoryItem) {
+      throw new NotFoundException(`Inventory item with SKU ${sku} not found`);
+    }
+
+    if (inventoryItem.reservedQuantity < quantity) {
+      throw new BadRequestException(
+        'Cannot confirm more than reserved quantity',
+      );
+    }
+
+    const newReservedQuantity = inventoryItem.reservedQuantity - quantity;
+    const newStockQuantity = inventoryItem.stockQuantity - quantity;
+    const availableQuantity = newStockQuantity - newReservedQuantity;
+
+    if (newStockQuantity < 0) {
+      throw new BadRequestException('Stock quantity cannot be negative');
+    }
+
+    return this.inventoryModel
+      .findOneAndUpdate(
+        { sku },
+        {
+          stockQuantity: newStockQuantity,
+          reservedQuantity: newReservedQuantity,
+          availableQuantity,
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Check if items are available (for checkout validation)
+   */
+  async checkAvailability(
+    items: Array<{ sku: string; quantity: number }>,
+  ): Promise<
+    Array<{ sku: string; available: boolean; availableQuantity: number }>
+  > {
+    const results = await Promise.all(
+      items.map(async (item) => {
+        const inventory = await this.inventoryModel.findOne({ sku: item.sku });
+        if (!inventory) {
+          return {
+            sku: item.sku,
+            available: false,
+            availableQuantity: 0,
+          };
+        }
+        return {
+          sku: item.sku,
+          available: inventory.availableQuantity >= item.quantity,
+          availableQuantity: inventory.availableQuantity,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  /**
+   * Get low stock items
+   */
+  async getLowStockItems(): Promise<InventoryItemEnriched[]> {
+    const result = await this.findAll({ lowStock: true, activeOnly: true });
+    return result.items;
+  }
+}

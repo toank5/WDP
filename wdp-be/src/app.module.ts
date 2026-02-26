@@ -20,6 +20,9 @@ import { Product, ProductSchema } from './commons/schemas/product.schema';
 import { CloudinaryService } from './commons/services/cloudinary.service';
 import { FileUploadService } from './commons/services/file-upload.service';
 import { JwtStrategy } from './auth/jwt.strategy';
+import { InventoryController } from './controllers/inventory.controller';
+import { InventoryService } from './services/inventory.service';
+import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
 
 @Module({
   imports: [
@@ -60,6 +63,10 @@ import { JwtStrategy } from './auth/jwt.strategy';
         name: Product.name,
         schema: ProductSchema,
       },
+      {
+        name: Inventory.name,
+        schema: InventorySchema,
+      },
     ]),
   ],
   controllers: [
@@ -68,6 +75,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
     UserController,
     PolicyController,
     ProductController,
+    InventoryController,
   ],
   providers: [
     AppService,
@@ -77,6 +85,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
     UserService,
     PolicyService,
     ProductService,
+    InventoryService,
     CloudinaryService,
     FileUploadService,
   ],
