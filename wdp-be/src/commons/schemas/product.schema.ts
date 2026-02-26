@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Model } from 'mongoose';
+import { HydratedDocument, Model } from 'mongoose';
 import {
   PRODUCT_CATEGORIES,
   FRAME_TYPE,
@@ -11,6 +11,8 @@ import {
   SERVICE_TYPE,
 } from '../enums/product.enum';
 import { ProductVariant, ProductVariantSchema } from './product-variant.schema';
+
+export type ProductDocument = HydratedDocument<Product>;
 
 // Prescription range sub-schema
 @Schema({ _id: false })
@@ -32,7 +34,9 @@ export const PrescriptionRangeSchema =
   SchemaFactory.createForClass(PrescriptionRange);
 
 @Schema({ timestamps: true })
-export class Product extends Document {
+export class Product {
+  _id: string;
+
   @Prop({
     type: String,
     required: true,
@@ -146,7 +150,6 @@ export class Product extends Document {
   @Prop({
     type: String,
     enum: Object.values(LENS_TYPE),
-    index: true,
   })
   lensType?: LENS_TYPE;
 
@@ -177,7 +180,6 @@ export class Product extends Document {
   @Prop({
     type: String,
     enum: Object.values(SERVICE_TYPE),
-    index: true,
   })
   serviceType?: SERVICE_TYPE;
 
@@ -194,10 +196,7 @@ export class Product extends Document {
   serviceNotes?: string;
 
   @Prop({ type: Date, default: Date.now })
-  createdAt: Date;
-
-  @Prop({ type: Date, default: Date.now })
-  updatedAt: Date;
+  createdAt?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
@@ -213,12 +212,12 @@ ProductSchema.index({ serviceType: 1 });
 // Pre-save hook to generate slug if missing
 ProductSchema.pre('save', async function () {
   if (!this.slug) {
-    let baseSlug = this.name
+    const baseSlug = this.name
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\-]/g, '')
-      .replace(/\-+/g, '-');
+      .replace(/[^\w-]/g, '')
+      .replace(/-+/g, '-');
 
     let slug = baseSlug;
     const existingProduct = await (this.constructor as Model<Product>).findOne({

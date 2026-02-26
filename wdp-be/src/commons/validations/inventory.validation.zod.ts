@@ -35,7 +35,10 @@ export const SupplierInfoSchema = z
       .refine((date) => date >= new Date(), {
         message: 'Expected arrival date must be today or in the future',
       }),
-    notes: z.string().max(500, 'Notes must not exceed 500 characters').optional(),
+    notes: z
+      .string()
+      .max(500, 'Notes must not exceed 500 characters')
+      .optional(),
   })
   .strict();
 

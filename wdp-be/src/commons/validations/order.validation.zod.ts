@@ -32,74 +32,78 @@ export const SHIPPING_CARRIER = {
  * - No extra fields allowed (strict mode)
  * - Quantity and price must be positive
  */
-export const OrderItemSchema = z.object({
-  productId: z
-    .string()
-    .min(1, 'Product ID is required')
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID format'),
-  variantSku: z
-    .string()
-    .min(3, 'Variant SKU must be at least 3 characters')
-    .max(50, 'Variant SKU must not exceed 50 characters')
-    .trim(),
-  quantity: z
-    .number()
-    .int('Quantity must be an integer')
-    .positive('Quantity must be greater than 0')
-    .max(999, 'Quantity cannot exceed 999'),
-  priceAtOrder: z
-    .number()
-    .positive('Price at order must be greater than 0')
-    .refine((val) => val.toFixed(2).length <= 15, {
-      message: 'Price value exceeds maximum allowed',
-    }),
-}).strict();
+export const OrderItemSchema = z
+  .object({
+    productId: z
+      .string()
+      .min(1, 'Product ID is required')
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID format'),
+    variantSku: z
+      .string()
+      .min(3, 'Variant SKU must be at least 3 characters')
+      .max(50, 'Variant SKU must not exceed 50 characters')
+      .trim(),
+    quantity: z
+      .number()
+      .int('Quantity must be an integer')
+      .positive('Quantity must be greater than 0')
+      .max(999, 'Quantity cannot exceed 999'),
+    priceAtOrder: z
+      .number()
+      .positive('Price at order must be greater than 0')
+      .refine((val) => val.toFixed(2).length <= 15, {
+        message: 'Price value exceeds maximum allowed',
+      }),
+  })
+  .strict();
 
 /**
  * Strict Shipping Address Schema
  * - For order shipping address
  */
-export const ShippingAddressSchema = z.object({
-  type: z.nativeEnum(ADDRESS_TYPES).optional(),
-  fullName: z
-    .string()
-    .min(1, 'Full name is required')
-    .max(100, 'Full name must not exceed 100 characters')
-    .trim(),
-  phone: z
-    .string()
-    .min(10, 'Phone number must be at least 10 digits')
-    .max(15, 'Phone number must not exceed 15 digits')
-    .regex(/^[0-9+\-\s()]*$/, 'Invalid phone number format'),
-  street: z
-    .string()
-    .min(1, 'Street address is required')
-    .max(200, 'Street address must not exceed 200 characters')
-    .trim(),
-  city: z
-    .string()
-    .min(1, 'City is required')
-    .max(100, 'City must not exceed 100 characters')
-    .trim(),
-  district: z
-    .string()
-    .min(1, 'District is required')
-    .max(100, 'District must not exceed 100 characters')
-    .trim(),
-  ward: z
-    .string()
-    .max(100, 'Ward must not exceed 100 characters')
-    .trim()
-    .optional(),
-  zipCode: z
-    .string()
-    .max(20, 'Zip code must not exceed 20 characters')
-    .optional(),
-  notes: z
-    .string()
-    .max(500, 'Delivery notes must not exceed 500 characters')
-    .optional(),
-}).strict();
+export const ShippingAddressSchema = z
+  .object({
+    type: z.nativeEnum(ADDRESS_TYPES).optional(),
+    fullName: z
+      .string()
+      .min(1, 'Full name is required')
+      .max(100, 'Full name must not exceed 100 characters')
+      .trim(),
+    phone: z
+      .string()
+      .min(10, 'Phone number must be at least 10 digits')
+      .max(15, 'Phone number must not exceed 15 digits')
+      .regex(/^[0-9+\-\s()]*$/, 'Invalid phone number format'),
+    street: z
+      .string()
+      .min(1, 'Street address is required')
+      .max(200, 'Street address must not exceed 200 characters')
+      .trim(),
+    city: z
+      .string()
+      .min(1, 'City is required')
+      .max(100, 'City must not exceed 100 characters')
+      .trim(),
+    district: z
+      .string()
+      .min(1, 'District is required')
+      .max(100, 'District must not exceed 100 characters')
+      .trim(),
+    ward: z
+      .string()
+      .max(100, 'Ward must not exceed 100 characters')
+      .trim()
+      .optional(),
+    zipCode: z
+      .string()
+      .max(20, 'Zip code must not exceed 20 characters')
+      .optional(),
+    notes: z
+      .string()
+      .max(500, 'Delivery notes must not exceed 500 characters')
+      .optional(),
+  })
+  .strict();
 
 /**
  * Strict Order Payment Schema
@@ -126,7 +130,8 @@ export const OrderPaymentSchema = z
       .refine((date) => !isNaN(date.getTime()), {
         message: 'Invalid payment date',
       }),
-}).strict();
+  })
+  .strict();
 
 /**
  * Strict Order Tracking Schema
@@ -136,69 +141,76 @@ export const OrderTrackingSchema = z
   .object({
     carrier: z.nativeEnum(SHIPPING_CARRIER),
     trackingNumber: z
-    .string()
-    .min(1, 'Tracking number is required')
-    .max(100, 'Tracking number must not exceed 100 characters')
-    .trim(),
-}).strict();
+      .string()
+      .min(1, 'Tracking number is required')
+      .max(100, 'Tracking number must not exceed 100 characters')
+      .trim(),
+  })
+  .strict();
 
 /**
  * Strict Eye Prescription Schema
  * - For individual eye measurements
  */
-const EyePrescriptionSchema = z.object({
-  right: z.number().refine((val) => val >= -30 && val <= 30, {
-    message: 'Value must be between -30 and +30',
-  }),
-  left: z.number().refine((val) => val >= -30 && val <= 30, {
-    message: 'Value must be between -30 and +30',
-  }),
-}).strict();
+const EyePrescriptionSchema = z
+  .object({
+    right: z.number().refine((val) => val >= -30 && val <= 30, {
+      message: 'Value must be between -30 and +30',
+    }),
+    left: z.number().refine((val) => val >= -30 && val <= 30, {
+      message: 'Value must be between -30 and +30',
+    }),
+  })
+  .strict();
 
 /**
  * Strict Axis Prescription Schema
  * - For axis values (0-180 degrees)
  */
-const AxisPrescriptionSchema = z.object({
-  right: z
-    .number()
-    .int('Axis must be an integer')
-    .min(0, 'Axis must be at least 0')
-    .max(180, 'Axis must be at most 180'),
-  left: z
-    .number()
-    .int('Axis must be an integer')
-    .min(0, 'Axis must be at least 0')
-    .max(180, 'Axis must be at most 180'),
-}).strict();
+const AxisPrescriptionSchema = z
+  .object({
+    right: z
+      .number()
+      .int('Axis must be an integer')
+      .min(0, 'Axis must be at least 0')
+      .max(180, 'Axis must be at most 180'),
+    left: z
+      .number()
+      .int('Axis must be an integer')
+      .min(0, 'Axis must be at least 0')
+      .max(180, 'Axis must be at most 180'),
+  })
+  .strict();
 
 /**
  * Strict Order Prescription Schema
  * - For prescription glasses orders
  * - All numeric values have valid ranges
  */
-export const OrderPrescriptionSchema = z.object({
-  pd: z
-    .number()
-    .positive('PD (Pupillary Distance) must be greater than 0')
-    .max(80, 'PD (Pupillary Distance) must not exceed 80mm'),
-  sph: EyePrescriptionSchema,
-  cyl: EyePrescriptionSchema,
-  axis: AxisPrescriptionSchema,
-  add: z
-    .object({
-      right: z
-        .number()
-        .min(0, 'Add power must be at least 0')
-        .max(4, 'Add power must not exceed 4'),
-      left: z
-        .number()
-        .min(0, 'Add power must be at least 0')
-        .max(4, 'Add power must not exceed 4'),
-    })
-    .strict()
-    .optional(),
-}).strict();
+export const OrderPrescriptionSchema = z
+  .object({
+    pd: z
+      .number()
+      .positive('PD (Pupillary Distance) must be greater than 0')
+      .max(80, 'PD (Pupillary Distance) must not exceed 80mm'),
+    sph: EyePrescriptionSchema,
+    cyl: EyePrescriptionSchema,
+    axis: AxisPrescriptionSchema,
+    add: z
+      .object({
+        right: z
+          .number()
+          .min(0, 'Add power must be at least 0')
+          .max(4, 'Add power must not exceed 4'),
+        left: z
+          .number()
+          .min(0, 'Add power must be at least 0')
+          .max(4, 'Add power must not exceed 4'),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
 
 /**
  * Strict Order History Schema

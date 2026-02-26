@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import * as multer from 'multer';
 import { memoryStorage } from 'multer';
 
 @Injectable()

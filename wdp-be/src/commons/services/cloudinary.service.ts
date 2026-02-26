@@ -23,8 +23,11 @@ export class CloudinaryService {
           resource_type: 'auto',
         },
         (error, result) => {
-          if (error) reject(error);
-          else resolve(result?.secure_url || '');
+          if (error) {
+            reject(new Error(error.message || 'Upload failed'));
+          } else {
+            resolve(result?.secure_url || '');
+          }
         },
       );
 
@@ -42,9 +45,16 @@ export class CloudinaryService {
 
   async deleteFile(publicId: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(publicId, (error) => {
-        if (error) reject(error);
-        else resolve();
+      void cloudinary.uploader.destroy(publicId, (error: unknown) => {
+        if (error) {
+          const errorMessage =
+            error && typeof error === 'object' && 'message' in error
+              ? String(error.message)
+              : 'Delete failed';
+          reject(new Error(errorMessage));
+        } else {
+          resolve();
+        }
       });
     });
   }

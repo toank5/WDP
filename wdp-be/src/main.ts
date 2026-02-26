@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,10 +22,13 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, swagger);
   SwaggerModule.setup('api', app, documentFactory);
 
-  app.use(new LoggerMiddleware().use);
+  const loggerMiddleware = new LoggerMiddleware();
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    loggerMiddleware.use(req, res, next),
+  );
 
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

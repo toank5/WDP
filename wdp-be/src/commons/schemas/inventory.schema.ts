@@ -22,7 +22,9 @@ export class Inventory {
     required: inventoryValidation.reservedQuantity.presence,
     min: 0,
     validate: {
-      validator: inventoryValidation.reservedQuantity.validator,
+      validator: function (this: void, value: number) {
+        return inventoryValidation.reservedQuantity.validator(value);
+      },
       message: inventoryValidation.reservedQuantity.errorMsg,
     },
   })
@@ -33,7 +35,9 @@ export class Inventory {
     required: inventoryValidation.availableQuantity.presence,
     min: inventoryValidation.availableQuantity.min,
     validate: {
-      validator: inventoryValidation.availableQuantity.validator,
+      validator: function (this: void, value: number) {
+        return inventoryValidation.availableQuantity.validator(value);
+      },
       message: inventoryValidation.availableQuantity.errorMsg,
     },
   })

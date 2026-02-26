@@ -9,6 +9,8 @@ import {
   ValidateNested,
   IsBoolean,
   Min,
+  Max,
+  ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -21,6 +23,12 @@ import {
   LENS_TYPE,
   SERVICE_TYPE,
 } from '../enums/product.enum';
+import {
+  CategoryRequiredFields,
+  Images2DNotEmpty,
+  Valid3DUrls,
+  UniqueSkusInArray,
+} from '../validators/category-validator';
 
 export class ProductVariantDto {
   @IsString()
@@ -222,7 +230,12 @@ export class CreateProductDto {
   @IsEnum(PRODUCT_CATEGORIES)
   category: PRODUCT_CATEGORIES;
 
+  @CategoryRequiredFields({
+    message: 'Missing required fields for the specified category',
+  })
+
   @IsString()
+  @MinLength(10)
   @MaxLength(2000)
   description: string;
 
@@ -231,15 +244,22 @@ export class CreateProductDto {
   basePrice: number;
 
   @IsArray()
+  @ArrayNotEmpty({ message: 'At least one 2D image is required' })
+  @Images2DNotEmpty({ message: 'images2D must contain valid URLs' })
   images2D: string[];
 
   @IsOptional()
   @IsArray()
+  @Valid3DUrls({ message: 'images3D must contain valid URLs' })
   images3D?: string[];
 
   @IsOptional()
   @IsArray()
   tags?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   // Frame-specific
   @IsOptional()
@@ -269,6 +289,8 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(1.5, { message: 'Lens index must be at least 1.5' })
+  @Max(2.0, { message: 'Lens index must not exceed 2.0' })
   index?: number;
 
   @IsOptional()
@@ -291,6 +313,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(1, { message: 'Duration must be at least 1 minute' })
   durationMinutes?: number;
 
   @IsOptional()
@@ -300,6 +323,7 @@ export class CreateProductDto {
   // Variants
   @IsOptional()
   @IsArray()
+  @UniqueSkusInArray({ message: 'All variant SKUs must be unique' })
   @ValidateNested({ each: true })
   @Type(() => ProductVariantDto)
   variants?: ProductVariantDto[];

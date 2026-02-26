@@ -64,15 +64,17 @@ export const RegisterUserSchema = z
  * - Email and password required
  * - No extra fields allowed
  */
-export const LoginSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'Email is required')
-    .email('Invalid email format')
-    .toLowerCase()
-    .trim(),
-  password: z.string().min(1, 'Password is required'),
-}).strict();
+export const LoginSchema = z
+  .object({
+    email: z
+      .string()
+      .min(1, 'Email is required')
+      .email('Invalid email format')
+      .toLowerCase()
+      .trim(),
+    password: z.string().min(1, 'Password is required'),
+  })
+  .strict();
 
 /**
  * Strict Create User Schema (for admin/staff creating users)

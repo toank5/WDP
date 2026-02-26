@@ -10,10 +10,34 @@ export class SupplierInfo {
   name: string;
 
   @Prop({
-    required: inventoryValidation.supplier.expectedArrival.presence,
+    required: false,
+    type: String,
+  })
+  contactEmail?: string;
+
+  @Prop({
+    required: false,
+    type: String,
+  })
+  contactPhone?: string;
+
+  @Prop({
+    required: false,
+    type: String,
+  })
+  code?: string;
+
+  @Prop({
+    required: false,
+    type: String,
+  })
+  notes?: string;
+
+  @Prop({
+    required: false,
     type: Date,
   })
-  expectedArrival: Date;
+  expectedArrival?: Date;
 }
 
 export const SupplierInfoSchema = SchemaFactory.createForClass(SupplierInfo);

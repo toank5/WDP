@@ -158,16 +158,6 @@ export function isPolicyType(value: unknown): value is PolicyType {
 }
 
 /**
- * Type guard to narrow a policy to a specific type
- */
-export function isPolicyType<T extends PolicyType>(
-  policy: BasePolicy,
-  type: T,
-): policy is Policy<T> {
-  return policy.type === type;
-}
-
-/**
  * Get the config type for a specific policy type
  */
 export type ConfigForType<T extends PolicyType> = StrictPolicyConfigMap[T];

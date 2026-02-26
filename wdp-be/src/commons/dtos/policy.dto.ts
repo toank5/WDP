@@ -1,6 +1,6 @@
-import { IsString, IsEnum, IsObject, IsOptional } from 'class-validator';
+import { IsEnum, IsObject, IsOptional } from 'class-validator';
 import { POLICY_TYPES } from '../enums/policy.enum';
-import { PolicyConfig } from '../types/policy.types';
+import type { PolicyConfig } from '../types/policy.types';
 
 export class CreatePolicyDto {
   @IsEnum(POLICY_TYPES)

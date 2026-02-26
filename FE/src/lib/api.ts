@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios'
-import { AuthPayload } from '../store/auth-store'
+import { AuthPayload, useAuthStore } from '../store/auth-store'
 
 type ApiResponse<T> = {
   statusCode: number
@@ -21,6 +21,32 @@ export type RegisterRequest = {
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
   headers: { 'Content-Type': 'application/json' },
+})
+
+// Response interceptor to handle 401 Unauthorized responses
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    // Check if the error is a 401 Unauthorized
+    if (error.response?.status === 401) {
+      // Auto logout on 401
+      const { logout } = useAuthStore.getState()
+      logout()
+
+      // Optionally redirect to login page
+      // window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+// Request interceptor to add auth token
+api.interceptors.request.use((config) => {
+  const { accessToken } = useAuthStore.getState()
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  return config
 })
 
 function extractApiMessage(error: unknown) {
@@ -50,3 +76,6 @@ export async function login(payload: LoginRequest) {
 export async function register(payload: RegisterRequest) {
   return postJson<RegisterRequest, AuthPayload>('/auth/register', payload)
 }
+
+// Export the api instance for use in other API files
+export { api }
