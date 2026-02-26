@@ -10,7 +10,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { PolicyService } from '../services/policy.service';
-import { POLICY_TYPES, PolicyType } from '../commons/enums/policy.enum';
+import { POLICY_TYPES } from '../commons/enums/policy.enum';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
@@ -18,7 +18,7 @@ import {
   UpdatePolicySchema,
 } from '../commons/validations/policy.validation';
 import { ZodValidationPipe } from '../commons/pipes/zod-validation.pipe';
-import { AuthenticatedRequest } from '../commons/types/express.types';
+import type { AuthenticatedRequest } from '../commons/types/express.types';
 import type {
   CreatePolicyInput,
   UpdatePolicyInput,
@@ -48,7 +48,7 @@ export class PolicyController {
   // Note: This route must come before the :type route to avoid conflict
   @Get('debug/me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@Req() req: AuthenticatedRequest) {
+  getMe(@Req() req: AuthenticatedRequest) {
     return {
       user: req.user,
       role: req.user?.role,

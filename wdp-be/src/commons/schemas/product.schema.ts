@@ -213,12 +213,12 @@ ProductSchema.index({ serviceType: 1 });
 // Pre-save hook to generate slug if missing
 ProductSchema.pre('save', async function () {
   if (!this.slug) {
-    let baseSlug = this.name
+    const baseSlug = this.name
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\-]/g, '')
-      .replace(/\-+/g, '-');
+      .replace(/[^\w-]/g, '')
+      .replace(/-+/g, '-');
 
     let slug = baseSlug;
     const existingProduct = await (this.constructor as Model<Product>).findOne({

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { z } from 'zod';
 import {
   PRODUCT_CATEGORIES,
@@ -17,27 +16,29 @@ import {
  * - No extra fields allowed (strict mode)
  * - SKU, size, color must meet format requirements
  */
-const variantSchema = z.object({
-  sku: z
-    .string()
-    .min(3, 'SKU must be at least 3 characters')
-    .max(50, 'SKU must not exceed 50 characters')
-    .toUpperCase(),
-  size: z
-    .string()
-    .min(1, 'Size is required')
-    .max(50, 'Size must not exceed 50 characters'),
-  color: z
-    .string()
-    .min(1, 'Color is required')
-    .max(50, 'Color must not exceed 50 characters')
-    .toLowerCase(),
-  price: z.number().positive('Price must be greater than 0'),
-  weight: z.number().nonnegative('Weight must be non-negative').optional(),
-  images2D: z.array(z.string().url()).optional(),
-  images3D: z.array(z.string().url()).optional(),
-  isActive: z.boolean().optional().default(true),
-}).strict();
+const variantSchema = z
+  .object({
+    sku: z
+      .string()
+      .min(3, 'SKU must be at least 3 characters')
+      .max(50, 'SKU must not exceed 50 characters')
+      .toUpperCase(),
+    size: z
+      .string()
+      .min(1, 'Size is required')
+      .max(50, 'Size must not exceed 50 characters'),
+    color: z
+      .string()
+      .min(1, 'Color is required')
+      .max(50, 'Color must not exceed 50 characters')
+      .toLowerCase(),
+    price: z.number().positive('Price must be greater than 0'),
+    weight: z.number().nonnegative('Weight must be non-negative').optional(),
+    images2D: z.array(z.string().url()).optional(),
+    images3D: z.array(z.string().url()).optional(),
+    isActive: z.boolean().optional().default(true),
+  })
+  .strict();
 
 /**
  * Prescription range schema - strict
@@ -55,22 +56,24 @@ const prescriptionRangeSchema = z
 /**
  * Base product schema (common fields) - strict
  */
-const baseProductSchema = z.object({
-  name: z
-    .string()
-    .min(3, 'Product name must be at least 3 characters')
-    .max(200, 'Product name must not exceed 200 characters'),
-  description: z
-    .string()
-    .min(10, 'Description must be at least 10 characters')
-    .max(2000, 'Description must not exceed 2000 characters'),
-  basePrice: z.number().positive('Base price must be greater than 0'),
-  images2D: z
-    .array(z.string().url('Invalid image URL'))
-    .min(1, 'At least one 2D image is required'),
-  images3D: z.array(z.string().url('Invalid 3D model URL')).optional(),
-  tags: z.array(z.string().max(50)).optional().default([]),
-}).strict();
+const baseProductSchema = z
+  .object({
+    name: z
+      .string()
+      .min(3, 'Product name must be at least 3 characters')
+      .max(200, 'Product name must not exceed 200 characters'),
+    description: z
+      .string()
+      .min(10, 'Description must be at least 10 characters')
+      .max(2000, 'Description must not exceed 2000 characters'),
+    basePrice: z.number().positive('Base price must be greater than 0'),
+    images2D: z
+      .array(z.string().url('Invalid image URL'))
+      .min(1, 'At least one 2D image is required'),
+    images3D: z.array(z.string().url('Invalid 3D model URL')).optional(),
+    tags: z.array(z.string().max(50)).optional().default([]),
+  })
+  .strict();
 
 /**
  * Frame product schema - strict

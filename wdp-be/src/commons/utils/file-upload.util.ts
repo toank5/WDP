@@ -2,13 +2,14 @@ import * as path from 'path';
 import * as multer from 'multer';
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
+import type { IncomingMessage } from 'http';
 import { ICustomApiRequest } from '../interfaces/custom-api-request.interface';
 
 export class FileUtils {
   static logger = new Logger(FileUtils.name);
 
   static fileFilter(
-    req: Request,
+    req: IncomingMessage,
     file: { fieldname: string; mimetype: string; originalname: string },
     cb: (arg0: Error | null, arg1: boolean) => void,
   ) {
@@ -181,14 +182,16 @@ export class FileUtils {
     });
   }
 
-  static extractFilenameFromPath = async (filePath: string) => {
+  static extractFilenameFromPath(filePath: string): string | null {
     try {
       // Use path.basename to get the filename from the given path
       const filename = path.basename(filePath);
       return filename;
     } catch (err) {
-      console.error(`Error extracting filename from path: ${err.message}`);
+      console.error(
+        `Error extracting filename from path: ${(err as Error).message}`,
+      );
       return null; // or handle error as needed
     }
-  };
+  }
 }

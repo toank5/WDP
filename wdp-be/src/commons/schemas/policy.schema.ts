@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
-import { POLICY_TYPES, PolicyType } from '../enums/policy.enum';
-import { PolicyConfig } from '../types/policy.types';
+import { POLICY_TYPES } from '../enums/policy.enum';
+import type { PolicyConfig } from '../types/policy.types';
 
 export type PolicyDocument = HydratedDocument<Policy>;
 

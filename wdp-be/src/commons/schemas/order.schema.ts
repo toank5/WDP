@@ -14,7 +14,9 @@ export class Order {
     required: orderValidation.number.presence,
     unique: orderValidation.number.uniqueness,
     validate: {
-      validator: orderValidation.number.validator,
+      validator: function (this: void, value: string) {
+        return orderValidation.number.validator(value);
+      },
       message: orderValidation.number.errorMsg,
     },
   })
@@ -32,7 +34,9 @@ export class Order {
     default: ORDER_TYPES.READY,
     required: orderValidation.type.presence,
     validate: {
-      validator: orderValidation.type.validator,
+      validator: function (this: void, value: string) {
+        return orderValidation.type.validator(value);
+      },
       message: orderValidation.type.errorMsg,
     },
   })
@@ -44,7 +48,9 @@ export class Order {
     default: ORDER_STATUS.PENDING,
     required: orderValidation.status.presence,
     validate: {
-      validator: orderValidation.status.validator,
+      validator: function (this: void, value: string) {
+        return orderValidation.status.validator(value);
+      },
       message: orderValidation.status.errorMsg,
     },
   })
@@ -66,7 +72,7 @@ export class Order {
     type: Object,
     required: true,
   })
-  shippingAddress: Object;
+  shippingAddress: object;
 
   @Prop({
     type: OrderPaymentSchema,

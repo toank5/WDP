@@ -7,7 +7,6 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
 
 export enum UserRole {
   ADMIN = 0,
@@ -15,6 +14,12 @@ export enum UserRole {
   OPERATION = 2,
   SALE = 3,
   CUSTOMER = 4,
+}
+
+interface RequestWithUser {
+  user?: {
+    role: UserRole;
+  };
 }
 
 @Injectable()
@@ -31,7 +36,7 @@ export class RbacGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
 
     // Check if user is authenticated

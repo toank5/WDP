@@ -1,4 +1,5 @@
-import axios from 'axios'
+import { api } from './api-client'
+import { extractApiMessage } from './api-client'
 
 type ApiResponse<T> = {
   statusCode: number
@@ -22,36 +23,6 @@ export type CreateUserPayload = {
   email: string
   role: number
   password: string
-}
-
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  headers: { 'Content-Type': 'application/json' },
-})
-
-// Add auth token interceptor
-api.interceptors.request.use((config) => {
-  const authStore = localStorage.getItem('wdp-auth')
-  if (authStore) {
-    try {
-      const { state } = JSON.parse(authStore)
-      if (state?.accessToken) {
-        config.headers.Authorization = `Bearer ${state.accessToken}`
-      }
-    } catch (err) {
-      console.error('Failed to parse auth store', err)
-    }
-  }
-  return config
-})
-
-function extractApiMessage(error: unknown) {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: string }
-    if (data?.message) return data.message
-    if (error.message) return error.message
-  }
-  return 'Request failed'
 }
 
 async function handleRequest<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {

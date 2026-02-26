@@ -30,12 +30,12 @@ export class UserController {
   }
 
   @Get()
-  async findAll() {
+  findAll() {
     return this.userService.findAll();
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
