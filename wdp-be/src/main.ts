@@ -15,9 +15,19 @@ async function bootstrap() {
   });
 
   const swagger = new DocumentBuilder()
-    .setTitle('WDP API')
-    .setDescription('WDP API description')
+    .setTitle('WDP Eyewear Admin API')
+    .setDescription(
+      'Admin and backend API for WDP Eyewear platform. ' +
+      'Manages products, variants, media uploads, inventory, policies, users, and orders.',
+    )
     .setVersion('1.0')
+    .addBearerAuth()
+    .addTag('Auth', 'Authentication and user session management')
+    .addTag('Users', 'User management and profile operations')
+    .addTag('Products', 'Product and variant CRUD operations')
+    .addTag('Media', 'Upload 2D images and 3D models')
+    .addTag('Inventory', 'Stock management per SKU')
+    .addTag('Policies', 'Company policies (return, refund, shipping, etc.)')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, swagger);
   SwaggerModule.setup('api', app, documentFactory);

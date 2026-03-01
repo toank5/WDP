@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx tsc --noEmit --skipLibCheck)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }

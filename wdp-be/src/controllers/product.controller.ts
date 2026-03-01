@@ -16,6 +16,20 @@ import {
   Res,
   Query,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiConflictResponse,
+  ApiConsumes,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ProductService } from '../services/product.service';
@@ -23,10 +37,13 @@ import { FileUploadService } from '../commons/services/file-upload.service';
 import {
   CreateProductDto,
   UpdateProductDto,
+  ProductVariantDto,
 } from '../commons/dtos/product.dto';
 import { RbacGuard } from '../commons/guards/rbac.guard';
 import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
+import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
+@ApiTags('Products')
 @Controller('products')
 export class ProductController {
   constructor(
@@ -45,6 +62,76 @@ export class ProductController {
     FilesInterceptor('images', 20, new FileUploadService().getMulterOptions()),
   )
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a new product',
+    description:
+      'Creates a new product with images. Supports frames, lenses, and services. Requires manager or admin role.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Product data with optional image files',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Designer Eyeglasses' },
+        category: {
+          enum: Object.values(PRODUCT_CATEGORIES),
+          example: PRODUCT_CATEGORIES.FRAMES,
+        },
+        description: { type: 'string', example: 'Premium designer frames' },
+        basePrice: { type: 'number', example: 199.99 },
+        images2D: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of existing image URLs',
+        },
+        variants: {
+          type: 'string',
+          description: 'JSON string of variants array',
+        },
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Image files to upload',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Product created successfully',
+    schema: {
+      example: {
+        statusCode: 201,
+        message: 'Product created successfully',
+        data: {
+          _id: 'product-id',
+          name: 'Designer Eyeglasses',
+          slug: 'designer-eyeglasses',
+          category: PRODUCT_CATEGORIES.FRAMES,
+          basePrice: 199.99,
+          variantsCount: 5,
+          isActive: true,
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiConflictResponse({
+    description: 'SKU already exists',
+    type: ErrorResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async create(
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles() files?: Express.Multer.File[],
@@ -120,6 +207,28 @@ export class ProductController {
    * Get all active products (public)
    */
   @Get()
+  @ApiOperation({
+    summary: 'List all active products',
+    description: 'Retrieves all active products for public viewing.',
+  })
+  @ApiOkResponse({
+    description: 'Products retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Products retrieved successfully',
+        data: [
+          {
+            _id: 'product-id',
+            name: 'Designer Eyeglasses',
+            category: 'frame',
+            basePrice: 199.99,
+            isActive: true,
+          },
+        ],
+      },
+    },
+  })
   async findAll() {
     return this.productService.findAll();
   }
@@ -128,6 +237,30 @@ export class ProductController {
    * Get product by ID (public)
    */
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get product by ID',
+    description: 'Retrieves detailed information about a specific product.',
+  })
+  @ApiOkResponse({
+    description: 'Product retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Product retrieved successfully',
+        data: {
+          _id: 'product-id',
+          name: 'Designer Eyeglasses',
+          category: 'frame',
+          basePrice: 199.99,
+          variants: [],
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
   async findOne(@Param('id') id: string) {
     return this.productService.findOne(id);
   }
@@ -140,6 +273,56 @@ export class ProductController {
   @UseInterceptors(
     FilesInterceptor('images', 20, new FileUploadService().getMulterOptions()),
   )
+  @ApiOperation({
+    summary: 'Update a product',
+    description:
+      'Updates an existing product. Supports partial updates and image uploads. Requires manager or admin role.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Partial product data with optional image files',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        basePrice: { type: 'number' },
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Product updated successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Product updated successfully',
+        data: {
+          _id: 'product-id',
+          name: 'Updated Designer Eyeglasses',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -175,6 +358,32 @@ export class ProductController {
    */
   @Delete(':id')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'Delete a product',
+    description: 'Soft deletes a product. Requires manager or admin role.',
+  })
+  @ApiOkResponse({
+    description: 'Product deleted successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Product deleted successfully',
+        data: { _id: 'product-id', deletedAt: '2024-01-01T00:00:00.000Z' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async remove(@Param('id') id: string) {
     return this.productService.remove(id);
   }
@@ -184,6 +393,33 @@ export class ProductController {
    */
   @Patch(':id/restore')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'Restore a deleted product',
+    description:
+      'Restores a soft-deleted product. Requires manager or admin role.',
+  })
+  @ApiOkResponse({
+    description: 'Product restored successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Product restored successfully',
+        data: { _id: 'product-id', isActive: true },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async restore(@Param('id') id: string) {
     return this.productService.restore(id);
   }
@@ -198,10 +434,45 @@ export class ProductController {
    */
   @Post(':id/variants')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'Add variant to product',
+    description:
+      'Adds a new variant to an existing product. Requires manager or admin role.',
+  })
+  @ApiCreatedResponse({
+    description: 'Variant added successfully',
+    schema: {
+      example: {
+        statusCode: 201,
+        message: 'Variant added successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          size: '52',
+          color: 'Black',
+          price: 199.99,
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error or duplicate SKU',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async addVariant(
     @Param('id') id: string,
-    @Body()
-    variantData: import('../commons/dtos/product.dto').ProductVariantDto,
+    @Body() variantData: ProductVariantDto,
   ) {
     return this.productService.addVariant(id, variantData);
   }
@@ -212,13 +483,44 @@ export class ProductController {
    */
   @Patch(':id/variants/:variantId')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'Update product variant',
+    description:
+      'Updates a specific variant of a product. Requires manager or admin role.',
+  })
+  @ApiOkResponse({
+    description: 'Variant updated successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Variant updated successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          price: 219.99,
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Product or variant not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async updateVariant(
     @Param('id') id: string,
     @Param('variantId') variantId: string,
-    @Body()
-    variantData: Partial<
-      import('../commons/dtos/product.dto').ProductVariantDto
-    >,
+    @Body() variantData: Partial<ProductVariantDto>,
   ) {
     return this.productService.updateVariant(id, variantId, variantData);
   }
@@ -229,6 +531,33 @@ export class ProductController {
    */
   @Delete(':id/variants/:variantId')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'Delete product variant',
+    description:
+      'Removes a variant from a product. Requires manager or admin role.',
+  })
+  @ApiOkResponse({
+    description: 'Variant deleted successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Variant deleted successfully',
+        data: { variantId: 'variant-id' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Product or variant not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async removeVariant(
     @Param('id') id: string,
     @Param('variantId') variantId: string,
@@ -242,6 +571,48 @@ export class ProductController {
    */
   @Get('manager/list')
   @UseGuards(RbacGuard)
+  @ApiOperation({
+    summary: 'List products with filters (manager/admin)',
+    description:
+      'Retrieves products with optional filtering by category and active status. Requires manager or admin role.',
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    enum: PRODUCT_CATEGORIES,
+    description: 'Filter by product category',
+  })
+  @ApiQuery({
+    name: 'isActive',
+    required: false,
+    type: Boolean,
+    description: 'Filter by active status',
+  })
+  @ApiOkResponse({
+    description: 'Products retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Products retrieved successfully',
+        data: [
+          {
+            _id: 'product-id',
+            name: 'Designer Eyeglasses',
+            category: 'frame',
+            isActive: true,
+          },
+        ],
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async getManagerProducts(
     @Query('category') category?: PRODUCT_CATEGORIES,
     @Query('isActive') isActive?: string,

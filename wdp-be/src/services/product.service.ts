@@ -199,6 +199,26 @@ export class ProductService {
       });
     }
 
+    // Deduplicate product-level images (images2D, images3D)
+    if ('images2D' in productData && productData.images2D) {
+      productData.images2D = this.deduplicateImageUrls(productData.images2D as string[]);
+    }
+    if ('images3D' in productData && productData.images3D) {
+      productData.images3D = this.deduplicateImageUrls(productData.images3D as string[]);
+    }
+
+    // Deduplicate variant images
+    if ('variants' in productData && productData.variants) {
+      productData.variants.forEach((variant: VariantInput) => {
+        if (variant.images2D) {
+          variant.images2D = this.deduplicateImageUrls(variant.images2D);
+        }
+        if (variant.images3D) {
+          variant.images3D = this.deduplicateImageUrls(variant.images3D);
+        }
+      });
+    }
+
     const createdProduct = new this.productModel(productData);
     return createdProduct.save();
   }
@@ -345,6 +365,26 @@ export class ProductService {
       });
     }
 
+    // Deduplicate product-level images (images2D, images3D)
+    if ('images2D' in validatedData && validatedData.images2D) {
+      validatedData.images2D = this.deduplicateImageUrls(validatedData.images2D as string[]);
+    }
+    if ('images3D' in validatedData && validatedData.images3D) {
+      validatedData.images3D = this.deduplicateImageUrls(validatedData.images3D as string[]);
+    }
+
+    // Deduplicate variant images
+    if ('variants' in validatedData && validatedData.variants) {
+      validatedData.variants.forEach((variant: VariantInput) => {
+        if (variant.images2D) {
+          variant.images2D = this.deduplicateImageUrls(variant.images2D);
+        }
+        if (variant.images3D) {
+          variant.images3D = this.deduplicateImageUrls(variant.images3D);
+        }
+      });
+    }
+
     return this.productModel
       .findByIdAndUpdate(id, validatedData, { new: true })
       .select('-__v')
@@ -426,6 +466,25 @@ export class ProductService {
           url.length > 0 &&
           (url.startsWith('http://') || url.startsWith('https://')),
       );
+  }
+
+  /**
+   * Helper: Deduplicate and clean image URLs array
+   * Removes duplicates and invalid URLs
+   */
+  private deduplicateImageUrls(urls: string[] | undefined): string[] {
+    if (!Array.isArray(urls)) return [];
+    return Array.from(
+      new Set(
+        urls
+          .map((url) => url.trim())
+          .filter(
+            (url) =>
+              url.length > 0 &&
+              (url.startsWith('http://') || url.startsWith('https://')),
+          ),
+      ),
+    );
   }
 
   /**

@@ -11,6 +11,18 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiConflictResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { InventoryService } from '../services/inventory.service';
 import {
@@ -22,7 +34,9 @@ import {
   ReleaseReservationDto,
 } from '../commons/dtos/inventory.dto';
 import { RbacGuard } from '../commons/guards/rbac.guard';
+import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
+@ApiTags('Inventory')
 @Controller('manager/inventory')
 @UseGuards(RbacGuard)
 export class InventoryController {
@@ -34,6 +48,23 @@ export class InventoryController {
    * Query params: sku, lowStock, activeOnly, page, limit
    */
   @Get()
+  @ApiOperation({
+    summary: 'List inventory items',
+    description: 'Get paginated list of inventory items with optional filtering by SKU, low stock, or active status.',
+  })
+  @ApiOkResponse({
+    description: 'Inventory items retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Inventory items retrieved successfully',
+        data: [],
+        metadata: { total: 100, page: 1, limit: 50 },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid query parameters', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async findAll(
     @Query('sku') sku?: string,
     @Query('lowStock') lowStock?: string,
@@ -71,6 +102,28 @@ export class InventoryController {
    * GET /manager/inventory/:sku
    */
   @Get(':sku')
+  @ApiOperation({
+    summary: 'Get inventory item by SKU',
+    description: 'Retrieve detailed inventory information for a specific SKU.',
+  })
+  @ApiOkResponse({
+    description: 'Inventory item retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Inventory item retrieved successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 120,
+          reservedQuantity: 5,
+          availableQuantity: 115,
+          reorderLevel: 20,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async findOne(@Param('sku') sku: string) {
     try {
       const inventoryItem = await this.inventoryService.findBySku(sku);
@@ -100,6 +153,29 @@ export class InventoryController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create inventory item',
+    description: 'Create a new inventory item for a product variant SKU.',
+  })
+  @ApiCreatedResponse({
+    description: 'Inventory item created successfully',
+    schema: {
+      example: {
+        statusCode: 201,
+        message: 'Inventory item created successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 100,
+          reservedQuantity: 0,
+          availableQuantity: 100,
+          reorderLevel: 20,
+        },
+      },
+    },
+  })
+  @ApiConflictResponse({ description: 'SKU already exists', type: ErrorResponseDto })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async create(
     @Body() createInventoryDto: CreateInventoryDto,
     @Res() res?: Response,
@@ -140,6 +216,29 @@ export class InventoryController {
    * PATCH /manager/inventory/:sku
    */
   @Patch(':sku')
+  @ApiOperation({
+    summary: 'Update inventory item',
+    description: 'Update stock quantities, reorder level, or supplier info for a specific SKU.',
+  })
+  @ApiOkResponse({
+    description: 'Inventory item updated successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Inventory item updated successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 150,
+          reservedQuantity: 5,
+          availableQuantity: 145,
+          reorderLevel: 25,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async updateBySku(
     @Param('sku') sku: string,
     @Body() updateInventoryDto: UpdateInventoryDto,
@@ -202,6 +301,29 @@ export class InventoryController {
    * POST /manager/inventory/:sku/adjust
    */
   @Post(':sku/adjust')
+  @ApiOperation({
+    summary: 'Adjust stock quantity',
+    description: 'Increase or decrease stock quantity for a specific SKU (e.g., for restocking or damage).',
+  })
+  @ApiOkResponse({
+    description: 'Stock adjusted successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Stock adjusted successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 130,
+          reservedQuantity: 5,
+          availableQuantity: 125,
+          reorderLevel: 20,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid adjustment', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async adjustStock(
     @Param('sku') sku: string,
     @Body() adjustmentDto: StockAdjustmentDto,
@@ -264,6 +386,22 @@ export class InventoryController {
    * POST /manager/inventory/bulk-update
    */
   @Post('bulk-update')
+  @ApiOperation({
+    summary: 'Bulk update stock levels',
+    description: 'Update stock quantities for multiple SKUs in a single request.',
+  })
+  @ApiOkResponse({
+    description: 'Bulk stock update completed',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Bulk stock update completed',
+        data: { updated: 3, failed: 0 },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid request', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async bulkUpdate(
     @Body() bulkUpdateDto: BulkStockUpdateDto,
     @Res() res?: Response,
@@ -291,6 +429,32 @@ export class InventoryController {
    * POST /manager/inventory/:sku/reserve
    */
   @Post(':sku/reserve')
+  @ApiOperation({
+    summary: 'Reserve inventory for an order',
+    description: 'Reserve a specific quantity of stock for an order (reduces available quantity).',
+  })
+  @ApiOkResponse({
+    description: 'Inventory reserved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Inventory reserved successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 120,
+          reservedQuantity: 7,
+          availableQuantity: 113,
+          reorderLevel: 20,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Insufficient stock or invalid quantity',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async reserve(
     @Param('sku') sku: string,
     @Body() reserveDto: ReserveInventoryDto,
@@ -350,6 +514,32 @@ export class InventoryController {
    * POST /manager/inventory/:sku/release
    */
   @Post(':sku/release')
+  @ApiOperation({
+    summary: 'Release reservation',
+    description: 'Release reserved inventory back to available stock (e.g., when order is cancelled).',
+  })
+  @ApiOkResponse({
+    description: 'Reservation released successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Reservation released successfully',
+        data: {
+          sku: 'FR-ROUND-52-BLK',
+          stockQuantity: 120,
+          reservedQuantity: 3,
+          availableQuantity: 117,
+          reorderLevel: 20,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid release quantity (exceeds reserved amount)',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async releaseReservation(
     @Param('sku') sku: string,
     @Body() releaseDto: ReleaseReservationDto,
@@ -409,6 +599,30 @@ export class InventoryController {
    * GET /manager/inventory/reports/low-stock
    */
   @Get('reports/low-stock')
+  @ApiOperation({
+    summary: 'Get low stock items',
+    description: 'Retrieve all inventory items where stock quantity is at or below the reorder level.',
+  })
+  @ApiOkResponse({
+    description: 'Low stock items retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Low stock items retrieved successfully',
+        data: [
+          {
+            sku: 'FR-ROUND-52-BLK',
+            stockQuantity: 18,
+            reservedQuantity: 2,
+            availableQuantity: 16,
+            reorderLevel: 20,
+          },
+        ],
+        total: 1,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
   async getLowStockItems() {
     try {
       const items = await this.inventoryService.getLowStockItems();

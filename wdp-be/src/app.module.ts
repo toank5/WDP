@@ -19,6 +19,8 @@ import { ProductService } from './services/product.service';
 import { Product, ProductSchema } from './commons/schemas/product.schema';
 import { CloudinaryService } from './commons/services/cloudinary.service';
 import { FileUploadService } from './commons/services/file-upload.service';
+import { MediaService } from './commons/services/media.service';
+import { MediaController } from './controllers/media.controller';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
 import { InventoryService } from './services/inventory.service';
@@ -76,6 +78,7 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyController,
     ProductController,
     InventoryController,
+    MediaController,
   ],
   providers: [
     AppService,
@@ -88,6 +91,7 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     InventoryService,
     CloudinaryService,
     FileUploadService,
+    MediaService,
   ],
 })
 export class AppModule {}

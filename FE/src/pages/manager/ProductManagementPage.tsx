@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -36,6 +36,8 @@ import {
   Card,
   CardContent,
   Chip,
+  CardMedia,
+  LinearProgress,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
@@ -47,6 +49,8 @@ import {
   Save as SaveIcon,
   Refresh as RefreshIcon,
   Inventory as InventoryIcon,
+  Image as ImageIcon,
+  ViewInAr as ModelIcon,
 } from '@mui/icons-material'
 import {
   createProduct,
@@ -57,6 +61,13 @@ import {
   type Product,
   type ProductVariant,
 } from '@/lib/product-api'
+import { uploadImages2D, uploadImages3D } from '@/lib/media-api'
+import {
+  useProductDraftStore,
+  type ProductDraft,
+  type DraftVariant,
+} from '@/store/productDraft.store'
+import { VariantMediaDialog } from '@/components/manager/VariantMediaDialog'
 
 // Constants
 const CATEGORIES = ['frame', 'lens', 'service'] as const
@@ -273,6 +284,20 @@ function PriceInputWithSlider({
 
 export function ProductManagementPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Draft store
+  const { draft, setDraft, clearDraft, hasDraft } = useProductDraftStore()
+
+  // Unsaved changes tracking
+  const [isDirty, setIsDirty] = useState(false)
+
+  // Variant media dialog state
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false)
+  const [currentVariantIndex, setCurrentVariantIndex] = useState<number | null>(null)
+
+  // Initial form values for dirty tracking
+  const initialFormValuesRef = useRef<FormData | null>(null)
 
   // List view state
   const [products, setProducts] = useState<Product[]>([])
@@ -349,6 +374,16 @@ export function ProductManagementPage() {
   // Validation
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
 
+  // Media file state (pending upload, stored until form submit)
+  const [pendingImage2DFiles, setPendingImage2DFiles] = useState<File[]>([])
+  const [pendingImage3DFiles, setPendingImage3DFiles] = useState<File[]>([])
+
+  // Upload state (during submission)
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
+
+  // Tags input state
+  const [tagInput, setTagInput] = useState('')
+
   // Show snackbar
   const showSnackbar = useCallback((message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity })
@@ -372,6 +407,218 @@ export function ProductManagementPage() {
     loadProducts()
   }, [loadProducts])
 
+  // ==================== UNSAVED CHANGES PROTECTION ====================
+
+  // Beforeunload event listener for browser close/reload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDirty || !isCreating) return
+
+      // Trigger browser's native confirmation dialog
+      e.preventDefault()
+      e.returnValue = '' // Required for Chrome
+      return ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty, isCreating])
+
+  // Store initial form values when starting create/edit
+  useEffect(() => {
+    if (isCreating) {
+      initialFormValuesRef.current = { ...formData }
+    }
+  }, [isCreating])
+
+  // Track dirty state by comparing current form values with initial values
+  useEffect(() => {
+    if (!isCreating || !initialFormValuesRef.current) {
+      setIsDirty(false)
+      return
+    }
+
+    const initial = initialFormValuesRef.current
+    const current = formData
+
+    const isFormDirty =
+      current.name !== initial.name ||
+      current.description !== initial.description ||
+      current.basePrice !== initial.basePrice ||
+      current.isActive !== initial.isActive ||
+      JSON.stringify(current.tags) !== JSON.stringify(initial.tags) ||
+      JSON.stringify(current.images2D) !== JSON.stringify(initial.images2D) ||
+      JSON.stringify(current.images3D) !== JSON.stringify(initial.images3D) ||
+      pendingImage2DFiles.length > 0 ||
+      pendingImage3DFiles.length > 0
+
+    setIsDirty(isFormDirty || variants.length > 0 || editingId !== null)
+  }, [formData, variants, isCreating, editingId, pendingImage2DFiles.length, pendingImage3DFiles.length])
+
+  // Restore draft on page load if exists
+  useEffect(() => {
+    if (!isCreating && hasDraft() && draft) {
+      // Ask user if they want to continue with draft
+      const shouldRestore = window.confirm(
+        'You have an unfinished product draft. Would you like to continue working on it?'
+      )
+
+      if (shouldRestore) {
+        // Restore form state from draft
+        setCategory(draft.category as 'frame' | 'lens' | 'service' || 'frame')
+        setFormData({
+          name: draft.name,
+          description: draft.description,
+          basePrice: draft.basePrice ?? 0,
+          tags: draft.tags,
+          isActive: draft.isActive,
+          images2D: draft.images2D,
+          images3D: draft.images3D,
+        })
+
+        // Restore category-specific data
+        if (draft.category === 'frame') {
+          setFrameData({
+            frameType: (draft.frameType || 'full-rim') as (typeof FRAME_TYPES)[number],
+            shape: (draft.shape || 'round') as (typeof FRAME_SHAPES)[number],
+            material: (draft.material || 'metal') as (typeof FRAME_MATERIALS)[number],
+            gender: (draft.gender || 'unisex') as (typeof FRAME_GENDERS)[number],
+            bridgeFit: (draft.bridgeFit || 'standard') as (typeof BRIDGE_FITS)[number],
+          })
+          setVariants(draft.variants as ProductVariant[])
+        } else if (draft.category === 'lens') {
+          setLensData({
+            lensType: (draft.lensType || 'single-vision') as (typeof LENS_TYPES)[number],
+            index: draft.index || 1.5,
+            coatings: draft.coatings?.join(', ') || '',
+            isPrescriptionRequired: draft.isPrescriptionRequired || false,
+            minSPH: draft.suitableForPrescriptionRange?.minSPH || 0,
+            maxSPH: draft.suitableForPrescriptionRange?.maxSPH || 0,
+            minCYL: draft.suitableForPrescriptionRange?.minCYL || 0,
+            maxCYL: draft.suitableForPrescriptionRange?.maxCYL || 0,
+          })
+          setVariants(draft.variants as ProductVariant[])
+        } else if (draft.category === 'service') {
+          setServiceData({
+            serviceType: (draft.serviceType || 'eye-test') as (typeof SERVICE_TYPES)[number],
+            durationMinutes: draft.durationMinutes || 30,
+            serviceNotes: draft.serviceNotes || '',
+          })
+        }
+
+        setIsCreating(true)
+        if (draft.isEditMode && draft.editProductId) {
+          setEditingId(draft.editProductId)
+        }
+      } else {
+        // Clear the draft if user doesn't want to restore
+        clearDraft()
+      }
+    }
+  }, []) // Run only on mount
+
+  // ==================== DRAFT SAVE FUNCTION ====================
+
+  /**
+   * Save current form state as draft
+   */
+  const saveDraft = useCallback(() => {
+    const currentDraft: ProductDraft = {
+      // Common fields
+      name: formData.name,
+      category: category,
+      description: formData.description,
+      basePrice: formData.basePrice,
+      images2D: formData.images2D,
+      images3D: formData.images3D,
+      tags: formData.tags,
+      isActive: formData.isActive,
+
+      // Frame-specific fields
+      frameType: frameData.frameType,
+      shape: frameData.shape,
+      material: frameData.material,
+      gender: frameData.gender,
+      bridgeFit: frameData.bridgeFit,
+      variants: variants.map((v) => ({
+        sku: v.sku,
+        size: v.size,
+        color: v.color,
+        price: v.price ?? 0,
+        weight: v.weight,
+        images2D: v.images2D || [],
+        images3D: v.images3D || [],
+        isActive: v.isActive ?? true,
+      })),
+
+      // Lens-specific fields
+      lensType: lensData.lensType,
+      index: lensData.index,
+      coatings: lensData.coatings.split(',').map((c) => c.trim()).filter(Boolean),
+      suitableForPrescriptionRange:
+        lensData.minSPH || lensData.maxSPH || lensData.minCYL || lensData.maxCYL
+          ? {
+              minSPH: lensData.minSPH || undefined,
+              maxSPH: lensData.maxSPH || undefined,
+              minCYL: lensData.minCYL || undefined,
+              maxCYL: lensData.maxCYL || undefined,
+            }
+          : undefined,
+      isPrescriptionRequired: lensData.isPrescriptionRequired,
+
+      // Service-specific fields
+      serviceType: serviceData.serviceType,
+      durationMinutes: serviceData.durationMinutes,
+      serviceNotes: serviceData.serviceNotes,
+
+      // Metadata
+      isEditMode: editingId !== null,
+      editProductId: editingId ?? undefined,
+      timestamp: Date.now(),
+    }
+
+    setDraft(currentDraft)
+  }, [
+    formData,
+    category,
+    frameData,
+    lensData,
+    serviceData,
+    variants,
+    editingId,
+    setDraft,
+  ])
+
+  /**
+   * Safe navigation - checks for unsaved changes before navigating
+   */
+  const safeNavigate = useCallback(
+    (to: string) => {
+      if (!isDirty || !isCreating) {
+        navigate(to)
+        return
+      }
+
+      const confirmed = window.confirm(
+        'You have unsaved changes. Do you want to leave this page and save your work as a draft?'
+      )
+
+      if (confirmed) {
+        saveDraft()
+        navigate(to)
+      }
+      // If cancelled, stay on the page
+    },
+    [isDirty, isCreating, saveDraft, navigate]
+  )
+
+  /**
+   * Override handleBackToMenu to use safe navigation
+   */
+  const handleBackToMenu = useCallback(() => {
+    safeNavigate('/manager')
+  }, [safeNavigate])
+
   // Validation
   const validateForm = useCallback((): boolean => {
     const errors: ValidationErrors = {}
@@ -393,8 +640,10 @@ export function ProductManagementPage() {
       errors.basePrice = 'Base price must be greater than 0'
     }
 
-    if (formData.images2D.length === 0 || formData.images2D.every((url) => !url.trim())) {
-      errors.images2D = 'At least one 2D image URL is required'
+    // Check for at least one 2D image (existing URL or pending file)
+    const has2DImages = formData.images2D.length > 0 || pendingImage2DFiles.length > 0
+    if (!has2DImages) {
+      errors.images2D = 'At least one 2D image is required (existing or pending upload)'
     }
 
     // Category-specific validation
@@ -419,7 +668,7 @@ export function ProductManagementPage() {
 
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
-  }, [formData, category, frameData, lensData, serviceData, variants])
+  }, [formData, pendingImage2DFiles, category, frameData, lensData, serviceData, variants])
 
   // Reset forms
   const resetForms = useCallback(() => {
@@ -467,7 +716,12 @@ export function ProductManagementPage() {
     })
     setEditingVariantIndex(null)
     setValidationErrors({})
+    setPendingImage2DFiles([])
+    setPendingImage3DFiles([])
+    setTagInput('')
     setCategory('frame')
+    setIsDirty(false)
+    initialFormValuesRef.current = null
   }, [])
 
   // Variant handlers
@@ -562,6 +816,44 @@ export function ProductManagementPage() {
     [variants]
   )
 
+  const handleToggleVariantStatus = useCallback(
+    (index: number) => {
+      setVariants((prev) => {
+        const updated = [...prev]
+        updated[index] = {
+          ...updated[index],
+          isActive: !updated[index].isActive,
+        }
+        return updated
+      })
+    },
+    [],
+  )
+
+  const handleOpenVariantMedia = useCallback((index: number) => {
+    setCurrentVariantIndex(index)
+    setMediaDialogOpen(true)
+  }, [])
+
+  const handleSaveVariantMedia = useCallback(
+    (images2D: string[], images3D: string[]) => {
+      if (currentVariantIndex === null) return
+
+      setVariants((prev) => {
+        const updated = [...prev]
+        updated[currentVariantIndex] = {
+          ...updated[currentVariantIndex],
+          images2D,
+          images3D,
+        }
+        return updated
+      })
+
+      showSnackbar('Variant media updated successfully', 'success')
+    },
+    [currentVariantIndex, showSnackbar]
+  )
+
   // Product CRUD
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -573,15 +865,56 @@ export function ProductManagementPage() {
 
     try {
       setIsSubmitting(true)
+      setIsUploadingMedia(true)
 
+      // Step 1: Upload pending 2D and 3D files
+      let newImage2DUrls: string[] = []
+      let newImage3DUrls: string[] = []
+
+      if (pendingImage2DFiles.length > 0) {
+        try {
+          newImage2DUrls = await uploadImages2D(pendingImage2DFiles)
+        } catch (uploadErr: unknown) {
+          const message = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload 2D images'
+          showSnackbar(`Upload failed: ${message}`, 'error')
+          setIsUploadingMedia(false)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      if (pendingImage3DFiles.length > 0) {
+        try {
+          newImage3DUrls = await uploadImages3D(pendingImage3DFiles)
+        } catch (uploadErr: unknown) {
+          const message = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload 3D models'
+          showSnackbar(`Upload failed: ${message}`, 'error')
+          setIsUploadingMedia(false)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      setIsUploadingMedia(false)
+
+      // Step 2: Combine existing URLs with newly uploaded URLs, then deduplicate
+      // Using Set to ensure no duplicate URLs from re-submits or duplicate uploads
+      const finalImages2D = Array.from(
+        new Set([...formData.images2D.filter((url) => url.trim()), ...newImage2DUrls])
+      )
+      const finalImages3D =
+        formData.images3D.length > 0 || newImage3DUrls.length > 0
+          ? Array.from(new Set([...formData.images3D.filter((url) => url.trim()), ...newImage3DUrls]))
+          : undefined
+
+      // Step 3: Build payload with final URLs
       const basePayload = {
         name: formData.name.trim(),
         category,
         description: formData.description.trim(),
         basePrice: formData.basePrice,
-        images2D: formData.images2D.filter((url) => url.trim()),
-        images3D:
-          formData.images3D.length > 0 ? formData.images3D.filter((url) => url.trim()) : undefined,
+        images2D: finalImages2D,
+        images3D: finalImages3D,
         tags: formData.tags,
         isActive: formData.isActive,
       }
@@ -627,6 +960,7 @@ export function ProductManagementPage() {
         }
       }
 
+      // Step 4: Create or update product
       if (editingId) {
         await updateProduct(editingId, payload)
         showSnackbar('Product updated successfully', 'success')
@@ -635,9 +969,14 @@ export function ProductManagementPage() {
         showSnackbar('Product created successfully', 'success')
       }
 
+      // Step 5: Clear pending files and reset form
+      setPendingImage2DFiles([])
+      setPendingImage3DFiles([])
       resetForms()
       setIsCreating(false)
       setEditingId(null)
+      setIsDirty(false)
+      clearDraft() // Clear draft after successful save
       loadProducts()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operation failed'
@@ -681,13 +1020,81 @@ export function ProductManagementPage() {
     [loadProducts, showSnackbar]
   )
 
+  // Handle 2D image file selection (no upload, just store files)
+  const handleSelect2DFiles = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const fileArray = Array.from(files)
+
+    setPendingImage2DFiles((prev) => {
+      // Prevent duplicate files by checking file name and size
+      const existingFileKeys = new Set(prev.map((f) => `${f.name}-${f.size}`))
+      const newFiles = fileArray.filter((f) => !existingFileKeys.has(`${f.name}-${f.size}`))
+      if (newFiles.length === 0) {
+        showSnackbar('All selected files already in pending list', 'error')
+        return prev
+      }
+      showSnackbar(`Selected ${newFiles.length} image(s) for upload on save`, 'success')
+      return [...prev, ...newFiles]
+    })
+  }, [showSnackbar])
+
+  // Handle 3D model file selection (no upload, just store files)
+  const handleSelect3DFiles = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const fileArray = Array.from(files)
+
+    setPendingImage3DFiles((prev) => {
+      // Prevent duplicate files by checking file name and size
+      const existingFileKeys = new Set(prev.map((f) => `${f.name}-${f.size}`))
+      const newFiles = fileArray.filter((f) => !existingFileKeys.has(`${f.name}-${f.size}`))
+      if (newFiles.length === 0) {
+        showSnackbar('All selected files already in pending list', 'error')
+        return prev
+      }
+      showSnackbar(`Selected ${newFiles.length} model(s) for upload on save`, 'success')
+      return [...prev, ...newFiles]
+    })
+  }, [showSnackbar])
+
+  // Tags handlers
+  const handleAddTag = useCallback(() => {
+    const trimmedTag = tagInput.trim().toLowerCase()
+    if (!trimmedTag) return
+
+    // Check for duplicates
+    if (formData.tags.includes(trimmedTag)) {
+      showSnackbar('Tag already exists', 'error')
+      return
+    }
+
+    setFormData({ ...formData, tags: [...formData.tags, trimmedTag] })
+    setTagInput('')
+  }, [formData, tagInput, showSnackbar])
+
+  const handleRemoveTag = useCallback((tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((tag) => tag !== tagToRemove),
+    })
+  }, [formData])
+
+  const handleTagInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleAddTag()
+      }
+    },
+    [handleAddTag],
+  )
+
   const startEdit = useCallback(
     (product: Product) => {
       setEditingId(product._id)
       setIsCreating(true)
       setCategory(product.category as 'frame' | 'lens' | 'service')
 
-      setFormData({
+      const initialFormData = {
         name: product.name,
         description: product.description,
         basePrice: product.basePrice,
@@ -695,7 +1102,15 @@ export function ProductManagementPage() {
         isActive: product.isActive ?? true,
         images2D: product.images2D || [],
         images3D: product.images3D || [],
-      })
+      }
+
+      setFormData(initialFormData)
+      initialFormValuesRef.current = initialFormData
+
+      // Clear pending files when editing
+      setPendingImage2DFiles([])
+      setPendingImage3DFiles([])
+      setTagInput('')
 
       setVariants((product as Product & { variants?: ProductVariant[] }).variants || [])
 
@@ -800,6 +1215,18 @@ export function ProductManagementPage() {
                     resetForms()
                     setIsCreating(true)
                     setEditingId(null)
+                    // Store initial values after reset for dirty tracking
+                    setTimeout(() => {
+                      initialFormValuesRef.current = {
+                        name: '',
+                        description: '',
+                        basePrice: 0,
+                        tags: [],
+                        isActive: true,
+                        images2D: [],
+                        images3D: [],
+                      }
+                    }, 0)
                   }}
                 >
                   Create Product
@@ -1040,9 +1467,21 @@ export function ProductManagementPage() {
                 variant="outlined"
                 startIcon={<CloseIcon />}
                 onClick={() => {
-                  setIsCreating(false)
-                  setEditingId(null)
-                  resetForms()
+                  if (isDirty) {
+                    const confirmed = window.confirm(
+                      'You have unsaved changes. Do you want to cancel and save your work as a draft?'
+                    )
+                    if (confirmed) {
+                      saveDraft()
+                      setIsCreating(false)
+                      setEditingId(null)
+                      resetForms()
+                    }
+                  } else {
+                    setIsCreating(false)
+                    setEditingId(null)
+                    resetForms()
+                  }
                 }}
                 disabled={isSubmitting}
               >
@@ -1180,6 +1619,56 @@ export function ProductManagementPage() {
                       </Box>
                     </Card>
                   </Grid>
+
+                  <Grid size={12}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+                      Tags
+                    </Typography>
+                    <Stack spacing={2}>
+                      {/* Tag input field */}
+                      <Box display="flex" gap={1}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          placeholder="Type a tag and press Enter"
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyDown={handleTagInputKeyDown}
+                          disabled={isSubmitting}
+                          helperText={
+                            formData.tags.length > 0
+                              ? 'Press Enter to add a tag'
+                              : 'Add tags to help categorize your product (optional)'
+                          }
+                        />
+                        <Button
+                          variant="outlined"
+                          onClick={handleAddTag}
+                          disabled={!tagInput.trim() || isSubmitting}
+                          startIcon={<AddIcon />}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+
+                      {/* Display tags as chips */}
+                      {formData.tags.length > 0 && (
+                        <Box display="flex" flexWrap="wrap" gap={1}>
+                          {formData.tags.map((tag) => (
+                            <Chip
+                              key={tag}
+                              label={tag}
+                              size="small"
+                              onDelete={() => handleRemoveTag(tag)}
+                              deleteIcon={<CloseIcon fontSize="small" />}
+                              color="primary"
+                              variant="outlined"
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    </Stack>
+                  </Grid>
                 </Grid>
               </CardContent>
             </Card>
@@ -1197,49 +1686,129 @@ export function ProductManagementPage() {
                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
                       2D Images *
                     </Typography>
-                    <Stack spacing={1}>
-                      {formData.images2D.map((url, index) => (
-                        <Box key={index} display="flex" gap={1} alignItems="center">
-                          <TextField
+                    <Stack spacing={2}>
+                      {/* Upload Button */}
+                      <Box>
+                        <input
+                          id="upload-2d"
+                          hidden
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(e) => handleSelect2DFiles(e.target.files)}
+                          disabled={isUploadingMedia || isSubmitting}
+                        />
+                        <label htmlFor="upload-2d">
+                          <Button
+                            variant="contained"
+                            component="span"
+                            disabled={isUploadingMedia || isSubmitting}
                             fullWidth
-                            size="small"
-                            value={url}
-                            onChange={(e) => {
-                              const updated = [...formData.images2D]
-                              updated[index] = e.target.value
-                              setFormData({ ...formData, images2D: updated })
-                              if (validationErrors.images2D) {
-                                setValidationErrors({ ...validationErrors, images2D: '' })
-                              }
-                            }}
-                            placeholder="https://example.com/image.jpg"
-                            error={!!validationErrors.images2D && index === 0}
-                          />
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              setFormData({
-                                ...formData,
-                                images2D: formData.images2D.filter((_, i) => i !== index),
-                              })
-                            }}
                           >
-                            <RemoveIcon fontSize="small" />
-                          </IconButton>
+                            Select 2D Images (PNG, JPG, WebP)
+                          </Button>
+                        </label>
+                      </Box>
+
+                      {/* Existing Images */}
+                      {formData.images2D.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'success.main' }}>
+                            ✓ {formData.images2D.length} existing image(s)
+                          </Typography>
+                          <Grid container spacing={1}>
+                            {formData.images2D.map((url, index) => (
+                              <Grid size={{ xs: 6, sm: 4, md: 3 }} key={`existing-${index}`}>
+                                <Card variant="outlined" sx={{ position: 'relative', opacity: 0.9 }}>
+                                  <CardMedia
+                                    component="img"
+                                    height="140"
+                                    image={url}
+                                    alt={`2D Image ${index + 1}`}
+                                    sx={{ objectFit: 'cover' }}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="140" height="140"%3E%3Crect fill="%23f0f0f0" width="140" height="140"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="Arial" font-size="12" fill="%23999"%3EInvalid URL%3C/text%3E%3C/svg%3E'
+                                    }}
+                                  />
+                                  <Chip
+                                    label="Existing"
+                                    size="small"
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      left: 4,
+                                      height: 20,
+                                      bgcolor: 'success.main',
+                                      color: 'white',
+                                    }}
+                                  />
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      right: 4,
+                                      bgcolor: 'background.paper',
+                                    }}
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        images2D: formData.images2D.filter((_, i) => i !== index),
+                                      })
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Card>
+                              </Grid>
+                            ))}
+                          </Grid>
                         </Box>
-                      ))}
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        startIcon={<AddIcon />}
-                        onClick={() =>
-                          setFormData({ ...formData, images2D: [...formData.images2D, ''] })
-                        }
-                        sx={{ mt: 1 }}
-                      >
-                        Add Image URL
-                      </Button>
+                      )}
+
+                      {/* Pending Files */}
+                      {pendingImage2DFiles.length > 0 && (
+                        <Box>
+                          <Stack spacing={1}>
+                            {pendingImage2DFiles.map((file, index) => (
+                              <Box
+                                key={`pending-${index}`}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                p={1}
+                                border="2px dashed"
+                                borderColor="info.main"
+                                borderRadius={1}
+                                bgcolor="info.lighter"
+                              >
+                                <Box display="flex" alignItems="center" gap={1} flex={1}>
+                                  <Chip
+                                    label={`${(file.size / 1024).toFixed(1)}KB`}
+                                    size="small"
+                                    variant="filled"
+                                    color="info"
+                                  />
+                                  <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                    {file.name}
+                                  </Typography>
+                                </Box>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    setPendingImage2DFiles((prev) => prev.filter((_, i) => i !== index))
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+
                       {validationErrors.images2D && (
                         <Typography variant="caption" color="error">
                           {validationErrors.images2D}
@@ -1252,45 +1821,120 @@ export function ProductManagementPage() {
                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
                       3D Models (Optional)
                     </Typography>
-                    <Stack spacing={1}>
-                      {formData.images3D.map((url, index) => (
-                        <Box key={index} display="flex" gap={1} alignItems="center">
-                          <TextField
+                    <Stack spacing={2}>
+                      {/* Upload Button */}
+                      <Box>
+                        <input
+                          id="upload-3d"
+                          hidden
+                          type="file"
+                          multiple
+                          accept=".glb,.gltf,.usdz"
+                          onChange={(e) => handleSelect3DFiles(e.target.files)}
+                          disabled={isUploadingMedia || isSubmitting}
+                        />
+                        <label htmlFor="upload-3d">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            disabled={isUploadingMedia || isSubmitting}
                             fullWidth
-                            size="small"
-                            value={url}
-                            onChange={(e) => {
-                              const updated = [...formData.images3D]
-                              updated[index] = e.target.value
-                              setFormData({ ...formData, images3D: updated })
-                            }}
-                            placeholder="https://example.com/model.glb"
-                          />
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              setFormData({
-                                ...formData,
-                                images3D: formData.images3D.filter((_, i) => i !== index),
-                              })
-                            }}
                           >
-                            <RemoveIcon fontSize="small" />
-                          </IconButton>
+                            Select 3D Models (GLB, GLTF, USDZ)
+                          </Button>
+                        </label>
+                      </Box>
+
+                      {/* Existing 3D Models */}
+                      {formData.images3D.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'success.main' }}>
+                            ✓ {formData.images3D.length} existing model(s)
+                          </Typography>
+                          <Stack spacing={1}>
+                            {formData.images3D.map((url, index) => (
+                              <Box
+                                key={`existing-3d-${index}`}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                p={1}
+                                border="1px solid"
+                                borderColor="success.main"
+                                borderRadius={1}
+                                bgcolor="success.lighter"
+                              >
+                                <Box display="flex" alignItems="center" gap={1} flex={1}>
+                                  <Chip
+                                    label="Existing"
+                                    size="small"
+                                    color="success"
+                                  />
+                                  <Chip
+                                    label={url.split('/').pop()?.substring(0, 30) || `Model ${index + 1}`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                </Box>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      images3D: formData.images3D.filter((_, i) => i !== index),
+                                    })
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ))}
+                          </Stack>
                         </Box>
-                      ))}
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        startIcon={<LinkIcon />}
-                        onClick={() =>
-                          setFormData({ ...formData, images3D: [...formData.images3D, ''] })
-                        }
-                        sx={{ mt: 1 }}
-                      >
-                        Add 3D Model URL
-                      </Button>
+                      )}
+
+                      {/* Pending 3D Models */}
+                      {pendingImage3DFiles.length > 0 && (
+                        <Box>
+                          <Stack spacing={1}>
+                            {pendingImage3DFiles.map((file, index) => (
+                              <Box
+                                key={`pending-3d-${index}`}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                p={1}
+                                border="2px dashed"
+                                borderColor="info.main"
+                                borderRadius={1}
+                                bgcolor="info.lighter"
+                              >
+                                <Box display="flex" alignItems="center" gap={1} flex={1}>
+                                  <Chip
+                                    label={`${(file.size / 1024 / 1024).toFixed(1)}MB`}
+                                    size="small"
+                                    variant="filled"
+                                    color="info"
+                                  />
+                                  <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                    {file.name}
+                                  </Typography>
+                                </Box>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    setPendingImage3DFiles((prev) => prev.filter((_, i) => i !== index))
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
                     </Stack>
                   </Grid>
                 </Grid>
@@ -1753,14 +2397,22 @@ export function ProductManagementPage() {
                             p={1.5}
                           >
                             <Box display="flex" alignItems="center" gap={1}>
-                              <Typography variant="body2">Active</Typography>
-                              <Checkbox
-                                checked={variantForm.isActive}
-                                onChange={(e) =>
-                                  setVariantForm({ ...variantForm, isActive: e.target.checked })
-                                }
+                              <Typography variant="body2" fontWeight={500}>
+                                Variant Status
+                              </Typography>
+                              <Chip
+                                label={variantForm.isActive ? 'Active' : 'Inactive'}
+                                color={variantForm.isActive ? 'success' : 'default'}
+                                size="small"
                               />
                             </Box>
+                            <Switch
+                              checked={variantForm.isActive}
+                              onChange={(e) =>
+                                setVariantForm({ ...variantForm, isActive: e.target.checked })
+                              }
+                              color="success"
+                            />
                           </Box>
                         </Card>
                       </Grid>
@@ -1848,15 +2500,32 @@ export function ProductManagementPage() {
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <Chip
-                                  label={variant.isActive ? 'Active' : 'Inactive'}
-                                  color={variant.isActive ? 'success' : 'default'}
-                                  size="small"
-                                  variant={variant.isActive ? 'filled' : 'outlined'}
-                                />
+                                <Box display="flex" alignItems="center" gap={1.5}>
+                                  <Chip
+                                    label={variant.isActive ? 'Active' : 'Inactive'}
+                                    color={variant.isActive ? 'success' : 'default'}
+                                    size="small"
+                                    variant={variant.isActive ? 'filled' : 'outlined'}
+                                  />
+                                  <Switch
+                                    checked={variant.isActive ?? true}
+                                    onChange={() => handleToggleVariantStatus(index)}
+                                    color="success"
+                                    size="small"
+                                  />
+                                </Box>
                               </TableCell>
                               <TableCell align="right">
                                 <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<ImageIcon fontSize="small" />}
+                                    onClick={() => handleOpenVariantMedia(index)}
+                                    sx={{ minWidth: 'auto', px: 1 }}
+                                  >
+                                    Media
+                                  </Button>
                                   <IconButton size="small" onClick={() => handleEditVariant(index)}>
                                     <EditIcon fontSize="small" />
                                   </IconButton>
@@ -1896,9 +2565,21 @@ export function ProductManagementPage() {
                     variant="outlined"
                     startIcon={<CloseIcon />}
                     onClick={() => {
-                      setIsCreating(false)
-                      setEditingId(null)
-                      resetForms()
+                      if (isDirty) {
+                        const confirmed = window.confirm(
+                          'You have unsaved changes. Do you want to cancel and save your work as a draft?'
+                        )
+                        if (confirmed) {
+                          saveDraft()
+                          setIsCreating(false)
+                          setEditingId(null)
+                          resetForms()
+                        }
+                      } else {
+                        setIsCreating(false)
+                        setEditingId(null)
+                        resetForms()
+                      }
                     }}
                     disabled={isSubmitting}
                   >
@@ -1910,13 +2591,31 @@ export function ProductManagementPage() {
                     disabled={isSubmitting}
                     type="submit"
                   >
-                    {isSubmitting ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
+                    {isUploadingMedia
+                      ? 'Uploading media...'
+                      : isSubmitting
+                        ? 'Saving...'
+                        : editingId
+                          ? 'Update Product'
+                          : 'Create Product'}
                   </Button>
                 </Box>
               </CardContent>
             </Card>
           </Stack>
         </form>
+
+        {/* Variant Media Dialog */}
+        {currentVariantIndex !== null && (
+          <VariantMediaDialog
+            open={mediaDialogOpen}
+            onClose={() => setMediaDialogOpen(false)}
+            onSave={handleSaveVariantMedia}
+            initialImages2D={variants[currentVariantIndex]?.images2D || []}
+            initialImages3D={variants[currentVariantIndex]?.images3D || []}
+            variantSku={variants[currentVariantIndex]?.sku || ''}
+          />
+        )}
 
         {/* Snackbar */}
         <Snackbar
