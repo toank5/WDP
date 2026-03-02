@@ -14,6 +14,7 @@ import {
 } from '../commons/dtos/product.dto';
 import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
 import { CloudinaryService } from '../commons/services/cloudinary.service';
+import { InventoryService } from './inventory.service';
 import type {
   CreateProductInput,
   VariantInput,
@@ -24,6 +25,7 @@ export class ProductService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<Product>,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   /**
@@ -201,10 +203,10 @@ export class ProductService {
 
     // Deduplicate product-level images (images2D, images3D)
     if ('images2D' in productData && productData.images2D) {
-      productData.images2D = this.deduplicateImageUrls(productData.images2D as string[]);
+      productData.images2D = this.deduplicateImageUrls(productData.images2D);
     }
     if ('images3D' in productData && productData.images3D) {
-      productData.images3D = this.deduplicateImageUrls(productData.images3D as string[]);
+      productData.images3D = this.deduplicateImageUrls(productData.images3D);
     }
 
     // Deduplicate variant images
@@ -220,7 +222,15 @@ export class ProductService {
     }
 
     const createdProduct = new this.productModel(productData);
-    return createdProduct.save();
+    const savedProduct = await createdProduct.save();
+
+    // Auto-create inventory entries for all variant SKUs
+    if (savedProduct.variants && savedProduct.variants.length > 0) {
+      const skus = savedProduct.variants.map((v) => v.sku);
+      await this.inventoryService.ensureInventoryForSkus(skus);
+    }
+
+    return savedProduct;
   }
 
   /**
@@ -367,10 +377,14 @@ export class ProductService {
 
     // Deduplicate product-level images (images2D, images3D)
     if ('images2D' in validatedData && validatedData.images2D) {
-      validatedData.images2D = this.deduplicateImageUrls(validatedData.images2D as string[]);
+      validatedData.images2D = this.deduplicateImageUrls(
+        validatedData.images2D,
+      );
     }
     if ('images3D' in validatedData && validatedData.images3D) {
-      validatedData.images3D = this.deduplicateImageUrls(validatedData.images3D as string[]);
+      validatedData.images3D = this.deduplicateImageUrls(
+        validatedData.images3D,
+      );
     }
 
     // Deduplicate variant images
@@ -385,10 +399,22 @@ export class ProductService {
       });
     }
 
-    return this.productModel
+    const updatedProduct = await this.productModel
       .findByIdAndUpdate(id, validatedData, { new: true })
       .select('-__v')
       .exec();
+
+    // Auto-create inventory entries for all variant SKUs after update
+    if (
+      updatedProduct &&
+      updatedProduct.variants &&
+      updatedProduct.variants.length > 0
+    ) {
+      const skus = updatedProduct.variants.map((v) => v.sku);
+      await this.inventoryService.ensureInventoryForSkus(skus);
+    }
+
+    return updatedProduct;
   }
 
   /**
@@ -541,7 +567,12 @@ export class ProductService {
     }
 
     product.variants.push(cleanedVariant);
-    return product.save();
+    const savedProduct = await product.save();
+
+    // Auto-create inventory entry for the new variant SKU
+    await this.inventoryService.ensureInventoryForSkus([normalizedSku]);
+
+    return savedProduct;
   }
 
   /**

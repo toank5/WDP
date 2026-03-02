@@ -36,6 +36,7 @@ import {
   type InventoryItemEnriched,
   type InventoryQueryParams,
 } from '@/lib/inventory-api'
+import { QuickInventoryDialog } from '@/components/manager/QuickInventoryDialog'
 
 const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('en-US').format(num)
@@ -81,6 +82,10 @@ export function InventoryManagementPage() {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<InventoryItemEnriched | null>(null)
 
   // Filters
   const [skuFilter, setSkuFilter] = useState(searchParams.get('sku') || '')
@@ -173,6 +178,22 @@ export function InventoryManagementPage() {
     }
     return { label: 'In Stock', color: 'success' as const, showWarning: false }
   }
+
+  // Dialog handlers
+  const handleOpenDialog = useCallback((item: InventoryItemEnriched) => {
+    setSelectedItem(item)
+    setDialogOpen(true)
+  }, [])
+
+  const handleCloseDialog = useCallback(() => {
+    setDialogOpen(false)
+    setSelectedItem(null)
+  }, [])
+
+  const handleDialogSuccess = useCallback(() => {
+    // Reload inventory data after successful operation
+    loadInventory()
+  }, [loadInventory])
 
   return (
     <Container maxWidth="lg">
@@ -395,7 +416,7 @@ export function InventoryManagementPage() {
                           size="small"
                           variant="outlined"
                           startIcon={<EditIcon />}
-                          onClick={() => navigate(`/manager/inventory/${item.sku}`)}
+                          onClick={() => handleOpenDialog(item)}
                         >
                           Manage
                         </Button>
@@ -432,6 +453,14 @@ export function InventoryManagementPage() {
             </Button>
           </Box>
         )}
+
+        {/* Quick Inventory Dialog */}
+        <QuickInventoryDialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          inventoryItem={selectedItem}
+          onSuccess={handleDialogSuccess}
+        />
 
         {/* Snackbar */}
         <Snackbar

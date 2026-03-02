@@ -79,6 +79,11 @@ export function InventoryDetailPage() {
   const [supplierCode, setSupplierCode] = useState('')
   const [supplierNotes, setSupplierNotes] = useState('')
 
+  // Receive stock form state
+  const [receiveQuantity, setReceiveQuantity] = useState('')
+  const [receiveReference, setReceiveReference] = useState('')
+  const [receiveNote, setReceiveNote] = useState('')
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -202,6 +207,45 @@ export function InventoryDetailPage() {
       showSnackbar(`Stock ${delta > 0 ? 'increased' : 'decreased'} by ${Math.abs(delta)}`, 'success')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to adjust stock'
+      showSnackbar(message, 'error')
+      // Reload to get correct state
+      loadInventory()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Handle receive stock (for Operation Staff)
+  const handleReceiveStock = async () => {
+    if (!inventory || !sku) return
+
+    const quantity = parseInt(receiveQuantity)
+    if (!quantity || quantity <= 0) {
+      showSnackbar('Please enter a valid quantity', 'error')
+      return
+    }
+
+    try {
+      setSaving(true)
+
+      const payload: StockAdjustmentPayload = {
+        delta: quantity,
+        reason: 'Stock received',
+        reference: receiveReference || undefined,
+      }
+
+      const updated = await adjustStock(sku, payload)
+      setInventory(updated)
+      setStockQuantity(updated.stockQuantity)
+
+      // Clear form
+      setReceiveQuantity('')
+      setReceiveReference('')
+      setReceiveNote('')
+
+      showSnackbar(`Received ${quantity} units successfully`, 'success')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to receive stock'
       showSnackbar(message, 'error')
       // Reload to get correct state
       loadInventory()
@@ -609,6 +653,70 @@ export function InventoryDetailPage() {
                     -10
                   </Button>
                 </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Receive Stock Card */}
+          <Grid size={12}>
+            <Card sx={{ borderLeft: 4, borderColor: 'success.main' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom fontWeight={600} color="success.main">
+                  Receive Stock
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Record incoming stock from suppliers (increases available quantity)
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid size={12} md={4}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Quantity to Receive *"
+                      value={receiveQuantity}
+                      onChange={(e) => setReceiveQuantity(e.target.value)}
+                      placeholder="e.g., 100"
+                      inputProps={{ min: 1 }}
+                      helperText="Number of units received"
+                    />
+                  </Grid>
+
+                  <Grid size={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Reference (optional)"
+                      value={receiveReference}
+                      onChange={(e) => setReceiveReference(e.target.value)}
+                      placeholder="e.g., PO-2026-0001"
+                      helperText="PO number, shipment ID, etc."
+                    />
+                  </Grid>
+
+                  <Grid size={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Note (optional)"
+                      value={receiveNote}
+                      onChange={(e) => setReceiveNote(e.target.value)}
+                      placeholder="e.g., Supplier delivery #12345"
+                      helperText="Additional notes"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Box display="flex" justifyContent="flex-end" mt={2}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={saving ? <CircularProgress size={16} /> : <CheckCircleIcon />}
+                    onClick={handleReceiveStock}
+                    disabled={saving || !receiveQuantity}
+                  >
+                    {saving ? 'Processing...' : 'Receive Stock'}
+                  </Button>
+                </Box>
               </CardContent>
             </Card>
           </Grid>

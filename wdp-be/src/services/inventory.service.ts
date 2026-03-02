@@ -531,4 +531,53 @@ export class InventoryService {
     const result = await this.findAll({ lowStock: true, activeOnly: true });
     return result.items;
   }
+
+  /**
+   * Ensure inventory entries exist for given SKUs
+   * Creates inventory records with zero stock for any SKUs that don't exist
+   * This is idempotent and safe to call multiple times
+   * Called automatically when products/variants are created or updated
+   */
+  async ensureInventoryForSkus(skus: string[]): Promise<void> {
+    // Remove duplicates and filter out empty strings
+    const uniqueSkus = Array.from(new Set(skus)).filter((s) => s && s.trim().length > 0);
+
+    if (uniqueSkus.length === 0) {
+      return;
+    }
+
+    // Find existing inventory items
+    const existingItems = await this.inventoryModel
+      .find({ sku: { $in: uniqueSkus } })
+      .select('sku')
+      .lean();
+
+    const existingSkus = new Set(existingItems.map((item) => item.sku));
+
+    // Find SKUs that need inventory records created
+    const skusToCreate = uniqueSkus.filter((sku) => !existingSkus.has(sku));
+
+    if (skusToCreate.length === 0) {
+      return;
+    }
+
+    // Bulk insert inventory records with zero stock
+    // Use collection.insertMany() to bypass Mongoose validators since:
+    // 1. We know the data is valid (0 = 0 - 0)
+    // 2. The validators have circular dependencies that cause issues during bulk creation
+    await this.inventoryModel.collection.insertMany(
+      skusToCreate.map((sku) => ({
+        sku,
+        stockQuantity: 0,
+        reservedQuantity: 0,
+        availableQuantity: 0,
+        reorderLevel: 0,
+        supplierInfo: {
+          name: 'Default Supplier',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+    );
+  }
 }

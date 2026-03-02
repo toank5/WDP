@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -9,10 +9,8 @@ import {
   Typography,
   Tab,
   Tabs,
-  TextField,
   IconButton,
   Stack,
-  LinearProgress,
   Card,
   CardMedia,
   Chip,
@@ -24,14 +22,15 @@ import {
   Image as ImageIcon,
   ViewInAr as ModelIcon,
 } from '@mui/icons-material'
-import { uploadImages2D, uploadImages3D } from '@/lib/media-api'
 
 interface VariantMediaDialogProps {
   open: boolean
   onClose: () => void
-  onSave: (images2D: string[], images3D: string[]) => void
-  initialImages2D?: string[]
-  initialImages3D?: string[]
+  onSave: (images2DUrls: string[], images3DUrls: string[], images2DFiles: File[], images3DFiles: File[]) => void
+  initialImages2DUrls?: string[]
+  initialImages3DUrls?: string[]
+  initialImages2DFiles?: File[]
+  initialImages3DFiles?: File[]
   variantSku: string
 }
 
@@ -46,89 +45,91 @@ export function VariantMediaDialog({
   open,
   onClose,
   onSave,
-  initialImages2D = [],
-  initialImages3D = [],
+  initialImages2DUrls = [],
+  initialImages3DUrls = [],
+  initialImages2DFiles = [],
+  initialImages3DFiles = [],
   variantSku,
 }: VariantMediaDialogProps) {
   const [tabValue, setTabValue] = useState(0)
-  const [images2D, setImages2D] = useState<string[]>(initialImages2D)
-  const [images3D, setImages3D] = useState<string[]>(initialImages3D)
-  const [isUploading, setIsUploading] = useState(false)
+  const [images2DUrls, setImages2DUrls] = useState<string[]>(initialImages2DUrls)
+  const [images3DUrls, setImages3DUrls] = useState<string[]>(initialImages3DUrls)
+  const [images2DFiles, setImages2DFiles] = useState<File[]>(initialImages2DFiles)
+  const [images3DFiles, setImages3DFiles] = useState<File[]>(initialImages3DFiles)
+
+  // Reset state when dialog opens with new variant data
+  useEffect(() => {
+    if (open) {
+      setTabValue(0)
+      setImages2DUrls([...initialImages2DUrls])
+      setImages3DUrls([...initialImages3DUrls])
+      setImages2DFiles([...initialImages2DFiles])
+      setImages3DFiles([...initialImages3DFiles])
+    }
+  }, [open, initialImages2DUrls, initialImages3DUrls, initialImages2DFiles, initialImages3DFiles])
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
   }
 
-  // Add 2D images
-  const handleAdd2DImages = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files
-      if (!files || files.length === 0) return
+  // Add 2D image files (no upload, just store in state)
+  const handleAdd2DImages = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
-      try {
-        setIsUploading(true)
-        const newUrls = await uploadImages2D(Array.from(files))
+    const newFiles = Array.from(files)
+    setImages2DFiles((prev) => [...prev, ...newFiles])
 
-        // Merge with existing images and deduplicate
-        setImages2D((prev) => Array.from(new Set([...prev, ...newUrls])))
-      } catch (error) {
-        console.error('Failed to upload 2D images:', error)
-        alert('Failed to upload images. Please try again.')
-      } finally {
-        setIsUploading(false)
-        // Reset file input
-        event.target.value = ''
-      }
-    },
-    []
-  )
-
-  // Add 3D models
-  const handleAdd3DModels = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files
-      if (!files || files.length === 0) return
-
-      try {
-        setIsUploading(true)
-        const newUrls = await uploadImages3D(Array.from(files))
-
-        // Merge with existing models and deduplicate
-        setImages3D((prev) => Array.from(new Set([...prev, ...newUrls])))
-      } catch (error) {
-        console.error('Failed to upload 3D models:', error)
-        alert('Failed to upload 3D models. Please try again.')
-      } finally {
-        setIsUploading(false)
-        // Reset file input
-        event.target.value = ''
-      }
-    },
-    []
-  )
-
-  // Remove 2D image
-  const handleRemove2D = useCallback((url: string) => {
-    setImages2D((prev) => prev.filter((u) => u !== url))
+    // Reset file input
+    event.target.value = ''
   }, [])
 
-  // Remove 3D model
-  const handleRemove3D = useCallback((url: string) => {
-    setImages3D((prev) => prev.filter((u) => u !== url))
+  // Add 3D model files (no upload, just store in state)
+  const handleAdd3DModels = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const newFiles = Array.from(files)
+    setImages3DFiles((prev) => [...prev, ...newFiles])
+
+    // Reset file input
+    event.target.value = ''
   }, [])
 
-  // Handle save
+  // Remove 2D image URL
+  const handleRemove2DUrl = useCallback((url: string) => {
+    setImages2DUrls((prev) => prev.filter((u) => u !== url))
+  }, [])
+
+  // Remove 2D image file
+  const handleRemove2DFile = useCallback((index: number) => {
+    setImages2DFiles((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  // Remove 3D model URL
+  const handleRemove3DUrl = useCallback((url: string) => {
+    setImages3DUrls((prev) => prev.filter((u) => u !== url))
+  }, [])
+
+  // Remove 3D model file
+  const handleRemove3DFile = useCallback((index: number) => {
+    setImages3DFiles((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  // Handle save - pass both URLs and files back to parent
   const handleSave = useCallback(() => {
-    onSave(images2D, images3D)
+    onSave(images2DUrls, images3DUrls, images2DFiles, images3DFiles)
     onClose()
-  }, [images2D, images3D, onSave, onClose])
+  }, [images2DUrls, images3DUrls, images2DFiles, images3DFiles, onSave, onClose])
 
   // Handle cancel - restore initial values
   const handleCancel = useCallback(() => {
-    setImages2D(initialImages2D)
-    setImages3D(initialImages3D)
+    setImages2DUrls(initialImages2DUrls)
+    setImages3DUrls(initialImages3DUrls)
+    setImages2DFiles(initialImages2DFiles)
+    setImages3DFiles(initialImages3DFiles)
     onClose()
-  }, [initialImages2D, initialImages3D, onClose])
+  }, [initialImages2DUrls, initialImages3DUrls, initialImages2DFiles, initialImages3DFiles, onClose])
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth="md" fullWidth>
@@ -146,8 +147,6 @@ export function VariantMediaDialog({
         </Box>
       </DialogTitle>
 
-      {isUploading && <LinearProgress />}
-
       <DialogContent>
         <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 2 }}>
           <Tab label="2D Images" {...a11yProps(0)} icon={<ImageIcon />} iconPosition="start" />
@@ -163,7 +162,6 @@ export function VariantMediaDialog({
                 variant="outlined"
                 component="label"
                 startIcon={<AddIcon />}
-                disabled={isUploading}
                 fullWidth
               >
                 Add 2D Images
@@ -176,44 +174,104 @@ export function VariantMediaDialog({
                 />
               </Button>
 
-              {/* Existing images */}
-              {images2D.length > 0 ? (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                    gap: 2,
-                  }}
-                >
-                  {images2D.map((url, index) => (
-                    <Card key={index} variant="outlined">
-                      <Box sx={{ position: 'relative' }}>
-                        <CardMedia
-                          component="img"
-                          height="120"
-                          image={url}
-                          alt={`Variant image ${index + 1}`}
-                          sx={{ objectFit: 'cover' }}
-                        />
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemove2D(url)}
-                          disabled={isUploading}
+              {/* Existing URLs */}
+              {images2DUrls.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'success.main' }}>
+                    Uploaded Images ({images2DUrls.length})
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                      gap: 2,
+                    }}
+                  >
+                    {images2DUrls.map((url, index) => (
+                      <Card key={`url-${index}`} variant="outlined">
+                        <Box sx={{ position: 'relative' }}>
+                          <CardMedia
+                            component="img"
+                            height="120"
+                            image={url}
+                            alt={`Variant image ${index + 1}`}
+                            sx={{ objectFit: 'cover' }}
+                          />
+                          <Chip
+                            label="Uploaded"
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              left: 4,
+                              height: 20,
+                              bgcolor: 'success.main',
+                              color: 'white',
+                            }}
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemove2DUrl(url)}
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              bgcolor: 'background.paper',
+                              '&:hover': { bgcolor: 'grey.200' },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Box>
+                      </Card>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Pending files */}
+              {images2DFiles.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'info.main' }}>
+                    Pending Upload ({images2DFiles.length})
+                  </Typography>
+                  <Stack spacing={1}>
+                    {images2DFiles.map((file, index) => (
+                      <Card key={`file-${index}`} variant="outlined" sx={{ bgcolor: 'info.lighter' }}>
+                        <Box
                           sx={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            bgcolor: 'background.paper',
-                            '&:hover': { bgcolor: 'grey.200' },
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1,
                           }}
                         >
-                          <DeleteIcon fontSize="small" color="error" />
-                        </IconButton>
-                      </Box>
-                    </Card>
-                  ))}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                            <ImageIcon color="info" />
+                            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                              {file.name}
+                            </Typography>
+                            <Chip
+                              label={`${(file.size / 1024).toFixed(1)}KB`}
+                              size="small"
+                              color="info"
+                              variant="filled"
+                            />
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemove2DFile(index)}
+                          >
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Box>
+                      </Card>
+                    ))}
+                  </Stack>
                 </Box>
-              ) : (
+              )}
+
+              {images2DUrls.length === 0 && images2DFiles.length === 0 && (
                 <Box
                   sx={{
                     textAlign: 'center',
@@ -227,7 +285,7 @@ export function VariantMediaDialog({
               )}
 
               <Typography variant="body2" color="text.secondary">
-                Total: {images2D.length} image(s)
+                Total: {images2DUrls.length + images2DFiles.length} image(s) ({images2DUrls.length} uploaded, {images2DFiles.length} pending)
               </Typography>
             </Stack>
           )}
@@ -242,7 +300,6 @@ export function VariantMediaDialog({
                 variant="outlined"
                 component="label"
                 startIcon={<AddIcon />}
-                disabled={isUploading}
                 fullWidth
               >
                 Add 3D Models
@@ -255,43 +312,86 @@ export function VariantMediaDialog({
                 />
               </Button>
 
-              {/* Existing models */}
-              {images3D.length > 0 ? (
-                <Stack spacing={1}>
-                  {images3D.map((url, index) => (
-                    <Card key={index} variant="outlined">
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          p: 2,
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                          <ModelIcon color="primary" />
-                          <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-                            {url.split('/').pop()}
-                          </Typography>
-                          <Chip
-                            label="3D Model"
-                            size="small"
-                            color="info"
-                            variant="outlined"
-                          />
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemove3D(url)}
-                          disabled={isUploading}
+              {/* Existing URLs */}
+              {images3DUrls.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'success.main' }}>
+                    Uploaded Models ({images3DUrls.length})
+                  </Typography>
+                  <Stack spacing={1}>
+                    {images3DUrls.map((url, index) => (
+                      <Card key={`url-${index}`} variant="outlined" sx={{ bgcolor: 'success.lighter' }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 2,
+                          }}
                         >
-                          <DeleteIcon fontSize="small" color="error" />
-                        </IconButton>
-                      </Box>
-                    </Card>
-                  ))}
-                </Stack>
-              ) : (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                            <ModelIcon color="success" />
+                            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                              {url.split('/').pop()}
+                            </Typography>
+                            <Chip label="Uploaded" size="small" color="success" variant="filled" />
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemove3DUrl(url)}
+                          >
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Box>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Pending files */}
+              {images3DFiles.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 600, color: 'info.main' }}>
+                    Pending Upload ({images3DFiles.length})
+                  </Typography>
+                  <Stack spacing={1}>
+                    {images3DFiles.map((file, index) => (
+                      <Card key={`file-${index}`} variant="outlined" sx={{ bgcolor: 'info.lighter' }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1,
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                            <ModelIcon color="info" />
+                            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                              {file.name}
+                            </Typography>
+                            <Chip
+                              label={`${(file.size / 1024 / 1024).toFixed(1)}MB`}
+                              size="small"
+                              color="info"
+                              variant="filled"
+                            />
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemove3DFile(index)}
+                          >
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Box>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {images3DUrls.length === 0 && images3DFiles.length === 0 && (
                 <Box
                   sx={{
                     textAlign: 'center',
@@ -305,7 +405,7 @@ export function VariantMediaDialog({
               )}
 
               <Typography variant="body2" color="text.secondary">
-                Total: {images3D.length} model(s)
+                Total: {images3DUrls.length + images3DFiles.length} model(s) ({images3DUrls.length} uploaded, {images3DFiles.length} pending)
               </Typography>
             </Stack>
           )}
@@ -313,10 +413,10 @@ export function VariantMediaDialog({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleCancel} disabled={isUploading}>
+        <Button onClick={handleCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave} variant="contained" disabled={isUploading}>
+        <Button onClick={handleSave} variant="contained">
           Save Media
         </Button>
       </DialogActions>

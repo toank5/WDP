@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -68,6 +68,7 @@ import {
   type DraftVariant,
 } from '@/store/productDraft.store'
 import { VariantMediaDialog } from '@/components/manager/VariantMediaDialog'
+import { VariantInventoryDialog } from '@/components/manager/VariantInventoryDialog'
 
 // Constants
 const CATEGORIES = ['frame', 'lens', 'service'] as const
@@ -183,9 +184,19 @@ interface VariantForm {
   color: string
   price: number
   weight: number
-  images2D: string[]
-  images3D: string[]
+  // Existing URLs (already uploaded, from previous save or initial edit)
+  images2DUrls: string[]
+  images3DUrls: string[]
+  // New files not yet uploaded
+  images2DFiles: File[]
+  images3DFiles: File[]
   isActive: boolean
+}
+
+// Variant type used in form state - includes both URLs and pending files
+type FormVariant = ProductVariant & {
+  images2DFiles: File[]
+  images3DFiles: File[]
 }
 
 interface ValidationErrors {
@@ -275,9 +286,101 @@ function PriceInputWithSlider({
         helperText={helperText || `Range: ${formatVNPrice(min)} - ${formatVNPrice(max)}`}
         InputProps={{
           startAdornment: <InputAdornment position="start">₫</InputAdornment>,
-          inputProps: { min, max, step: PRICE_RANGES.step },
+          inputProps: { min, max },
         }}
       />
+    </Box>
+  )
+}
+
+// Frame Size Input Component (format: LensWidth-BridgeWidth-TempleLength, e.g., "52-18-140")
+interface FrameSizeInputProps {
+  value: string
+  onChange: (value: string) => void
+  error?: boolean
+  required?: boolean
+}
+
+function FrameSizeInput({ value, onChange, error, required }: FrameSizeInputProps) {
+  // Parse the size string "52-18-140" into parts
+  const parseSize = (sizeStr: string) => {
+    const parts = sizeStr.split('-').map((s) => parseInt(s, 10))
+    return {
+      lensWidth: isNaN(parts[0]) ? '' : parts[0],
+      bridgeWidth: isNaN(parts[1]) ? '' : parts[1],
+      templeLength: isNaN(parts[2]) ? '' : parts[2],
+    }
+  }
+
+  const parsed = parseSize(value)
+
+  const handlePartChange = (part: 'lensWidth' | 'bridgeWidth' | 'templeLength', newValue: string) => {
+    const numValue = parseInt(newValue, 10)
+    const updated = { ...parsed, [part]: isNaN(numValue) ? '' : numValue }
+
+    // Only format if all parts have values
+    if (updated.lensWidth && updated.bridgeWidth && updated.templeLength) {
+      onChange(`${updated.lensWidth}-${updated.bridgeWidth}-${updated.templeLength}`)
+    } else if (updated.lensWidth || updated.bridgeWidth || updated.templeLength) {
+      // Partial input - don't format yet
+      onChange(
+        `${updated.lensWidth || ''}${updated.bridgeWidth ? '-' + updated.bridgeWidth : ''}${updated.templeLength ? '-' + updated.templeLength : ''}`
+      )
+    } else {
+      onChange('')
+    }
+  }
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        Size (Lens-Bridge-Temple) {required && <span style={{ color: 'red' }}>*</span>}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <TextField
+          size="small"
+          type="number"
+          label="Lens"
+          placeholder="52"
+          value={parsed.lensWidth}
+          onChange={(e) => handlePartChange('lensWidth', e.target.value)}
+          error={error}
+          inputProps={{ min: 40, max: 65, style: { textAlign: 'center' } }}
+          sx={{ flex: 1 }}
+        />
+        <Typography sx={{ color: 'text.secondary' }}>-</Typography>
+        <TextField
+          size="small"
+          type="number"
+          label="Bridge"
+          placeholder="18"
+          value={parsed.bridgeWidth}
+          onChange={(e) => handlePartChange('bridgeWidth', e.target.value)}
+          error={error}
+          inputProps={{ min: 12, max: 25, style: { textAlign: 'center' } }}
+          sx={{ flex: 1 }}
+        />
+        <Typography sx={{ color: 'text.secondary' }}>-</Typography>
+        <TextField
+          size="small"
+          type="number"
+          label="Temple"
+          placeholder="140"
+          value={parsed.templeLength}
+          onChange={(e) => handlePartChange('templeLength', e.target.value)}
+          error={error}
+          inputProps={{ min: 120, max: 155, style: { textAlign: 'center' } }}
+          sx={{ flex: 1 }}
+        />
+      </Box>
+      {error && (
+        <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+          Format: Lens Width (40-65) - Bridge (12-25) - Temple (120-155)
+        </Typography>
+      )}
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+        Example: 52-18-140 (52mm lens, 18mm bridge, 140mm temple)
+      </Typography>
     </Box>
   )
 }
@@ -289,15 +392,13 @@ export function ProductManagementPage() {
   // Draft store
   const { draft, setDraft, clearDraft, hasDraft } = useProductDraftStore()
 
-  // Unsaved changes tracking
-  const [isDirty, setIsDirty] = useState(false)
-
   // Variant media dialog state
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false)
   const [currentVariantIndex, setCurrentVariantIndex] = useState<number | null>(null)
 
-  // Initial form values for dirty tracking
-  const initialFormValuesRef = useRef<FormData | null>(null)
+  // Variant inventory dialog state
+  const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false)
+  const [inventoryVariant, setInventoryVariant] = useState<FormVariant | null>(null)
 
   // List view state
   const [products, setProducts] = useState<Product[]>([])
@@ -358,7 +459,7 @@ export function ProductManagementPage() {
   })
 
   // Variants
-  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [variants, setVariants] = useState<FormVariant[]>([])
   const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null)
   const [variantForm, setVariantForm] = useState<VariantForm>({
     sku: '',
@@ -366,8 +467,10 @@ export function ProductManagementPage() {
     color: '',
     price: 0,
     weight: 0,
-    images2D: [],
-    images3D: [],
+    images2DUrls: [],
+    images3DUrls: [],
+    images2DFiles: [],
+    images3DFiles: [],
     isActive: true,
   })
 
@@ -407,115 +510,69 @@ export function ProductManagementPage() {
     loadProducts()
   }, [loadProducts])
 
-  // ==================== UNSAVED CHANGES PROTECTION ====================
-
-  // Beforeunload event listener for browser close/reload
+  // Auto-save draft on unmount when creating or editing
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isDirty || !isCreating) return
+    if (!isCreating) return
 
-      // Trigger browser's native confirmation dialog
-      e.preventDefault()
-      e.returnValue = '' // Required for Chrome
-      return ''
-    }
+    return () => {
+      // Save draft when component unmounts (navigation, page close, etc.)
+      const currentDraft: ProductDraft = {
+        // Common fields
+        name: formData.name,
+        category: category,
+        description: formData.description,
+        basePrice: formData.basePrice,
+        images2D: formData.images2D,
+        images3D: formData.images3D,
+        tags: formData.tags,
+        isActive: formData.isActive,
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isDirty, isCreating])
+        // Frame-specific fields
+        frameType: frameData.frameType,
+        shape: frameData.shape,
+        material: frameData.material,
+        gender: frameData.gender,
+        bridgeFit: frameData.bridgeFit,
+        variants: variants.map((v) => ({
+          sku: v.sku,
+          size: v.size,
+          color: v.color,
+          price: v.price ?? 0,
+          weight: v.weight,
+          images2D: v.images2D || [],
+          images3D: v.images3D || [],
+          isActive: v.isActive ?? true,
+        })),
 
-  // Store initial form values when starting create/edit
-  useEffect(() => {
-    if (isCreating) {
-      initialFormValuesRef.current = { ...formData }
-    }
-  }, [isCreating])
+        // Lens-specific fields
+        lensType: lensData.lensType,
+        index: lensData.index,
+        coatings: lensData.coatings.split(',').map((c) => c.trim()).filter(Boolean),
+        suitableForPrescriptionRange:
+          lensData.minSPH || lensData.maxSPH || lensData.minCYL || lensData.maxCYL
+            ? {
+                minSPH: lensData.minSPH || undefined,
+                maxSPH: lensData.maxSPH || undefined,
+                minCYL: lensData.minCYL || undefined,
+                maxCYL: lensData.maxCYL || undefined,
+              }
+            : undefined,
+        isPrescriptionRequired: lensData.isPrescriptionRequired,
 
-  // Track dirty state by comparing current form values with initial values
-  useEffect(() => {
-    if (!isCreating || !initialFormValuesRef.current) {
-      setIsDirty(false)
-      return
-    }
+        // Service-specific fields
+        serviceType: serviceData.serviceType,
+        durationMinutes: serviceData.durationMinutes,
+        serviceNotes: serviceData.serviceNotes,
 
-    const initial = initialFormValuesRef.current
-    const current = formData
-
-    const isFormDirty =
-      current.name !== initial.name ||
-      current.description !== initial.description ||
-      current.basePrice !== initial.basePrice ||
-      current.isActive !== initial.isActive ||
-      JSON.stringify(current.tags) !== JSON.stringify(initial.tags) ||
-      JSON.stringify(current.images2D) !== JSON.stringify(initial.images2D) ||
-      JSON.stringify(current.images3D) !== JSON.stringify(initial.images3D) ||
-      pendingImage2DFiles.length > 0 ||
-      pendingImage3DFiles.length > 0
-
-    setIsDirty(isFormDirty || variants.length > 0 || editingId !== null)
-  }, [formData, variants, isCreating, editingId, pendingImage2DFiles.length, pendingImage3DFiles.length])
-
-  // Restore draft on page load if exists
-  useEffect(() => {
-    if (!isCreating && hasDraft() && draft) {
-      // Ask user if they want to continue with draft
-      const shouldRestore = window.confirm(
-        'You have an unfinished product draft. Would you like to continue working on it?'
-      )
-
-      if (shouldRestore) {
-        // Restore form state from draft
-        setCategory(draft.category as 'frame' | 'lens' | 'service' || 'frame')
-        setFormData({
-          name: draft.name,
-          description: draft.description,
-          basePrice: draft.basePrice ?? 0,
-          tags: draft.tags,
-          isActive: draft.isActive,
-          images2D: draft.images2D,
-          images3D: draft.images3D,
-        })
-
-        // Restore category-specific data
-        if (draft.category === 'frame') {
-          setFrameData({
-            frameType: (draft.frameType || 'full-rim') as (typeof FRAME_TYPES)[number],
-            shape: (draft.shape || 'round') as (typeof FRAME_SHAPES)[number],
-            material: (draft.material || 'metal') as (typeof FRAME_MATERIALS)[number],
-            gender: (draft.gender || 'unisex') as (typeof FRAME_GENDERS)[number],
-            bridgeFit: (draft.bridgeFit || 'standard') as (typeof BRIDGE_FITS)[number],
-          })
-          setVariants(draft.variants as ProductVariant[])
-        } else if (draft.category === 'lens') {
-          setLensData({
-            lensType: (draft.lensType || 'single-vision') as (typeof LENS_TYPES)[number],
-            index: draft.index || 1.5,
-            coatings: draft.coatings?.join(', ') || '',
-            isPrescriptionRequired: draft.isPrescriptionRequired || false,
-            minSPH: draft.suitableForPrescriptionRange?.minSPH || 0,
-            maxSPH: draft.suitableForPrescriptionRange?.maxSPH || 0,
-            minCYL: draft.suitableForPrescriptionRange?.minCYL || 0,
-            maxCYL: draft.suitableForPrescriptionRange?.maxCYL || 0,
-          })
-          setVariants(draft.variants as ProductVariant[])
-        } else if (draft.category === 'service') {
-          setServiceData({
-            serviceType: (draft.serviceType || 'eye-test') as (typeof SERVICE_TYPES)[number],
-            durationMinutes: draft.durationMinutes || 30,
-            serviceNotes: draft.serviceNotes || '',
-          })
-        }
-
-        setIsCreating(true)
-        if (draft.isEditMode && draft.editProductId) {
-          setEditingId(draft.editProductId)
-        }
-      } else {
-        // Clear the draft if user doesn't want to restore
-        clearDraft()
+        // Metadata
+        isEditMode: editingId !== null,
+        editProductId: editingId ?? undefined,
+        timestamp: Date.now(),
       }
+
+      setDraft(currentDraft)
     }
-  }, []) // Run only on mount
+  }, [isCreating, formData, category, frameData, lensData, serviceData, variants, editingId, setDraft])
 
   // ==================== DRAFT SAVE FUNCTION ====================
 
@@ -590,34 +647,11 @@ export function ProductManagementPage() {
   ])
 
   /**
-   * Safe navigation - checks for unsaved changes before navigating
-   */
-  const safeNavigate = useCallback(
-    (to: string) => {
-      if (!isDirty || !isCreating) {
-        navigate(to)
-        return
-      }
-
-      const confirmed = window.confirm(
-        'You have unsaved changes. Do you want to leave this page and save your work as a draft?'
-      )
-
-      if (confirmed) {
-        saveDraft()
-        navigate(to)
-      }
-      // If cancelled, stay on the page
-    },
-    [isDirty, isCreating, saveDraft, navigate]
-  )
-
-  /**
-   * Override handleBackToMenu to use safe navigation
+   * Navigate back to menu
    */
   const handleBackToMenu = useCallback(() => {
-    safeNavigate('/manager')
-  }, [safeNavigate])
+    navigate('/manager')
+  }, [navigate])
 
   // Validation
   const validateForm = useCallback((): boolean => {
@@ -710,8 +744,10 @@ export function ProductManagementPage() {
       color: '',
       price: 0,
       weight: 0,
-      images2D: [],
-      images3D: [],
+      images2DUrls: [],
+      images3DUrls: [],
+      images2DFiles: [],
+      images3DFiles: [],
       isActive: true,
     })
     setEditingVariantIndex(null)
@@ -720,8 +756,6 @@ export function ProductManagementPage() {
     setPendingImage3DFiles([])
     setTagInput('')
     setCategory('frame')
-    setIsDirty(false)
-    initialFormValuesRef.current = null
   }, [])
 
   // Variant handlers
@@ -747,14 +781,16 @@ export function ProductManagementPage() {
       return
     }
 
-    const newVariant: ProductVariant = {
+    const newVariant: FormVariant = {
       sku: variantForm.sku.toUpperCase().trim(),
       size: variantForm.size.trim(),
       color: variantForm.color.trim().toLowerCase(),
       price: variantForm.price,
       weight: variantForm.weight > 0 ? variantForm.weight : undefined,
-      images2D: variantForm.images2D.filter((url) => url.trim()),
-      images3D: variantForm.images3D.filter((url) => url.trim()),
+      images2D: variantForm.images2DUrls.filter((url) => url.trim()),
+      images3D: variantForm.images3DUrls.filter((url) => url.trim()),
+      images2DFiles: variantForm.images2DFiles,
+      images3DFiles: variantForm.images3DFiles,
       isActive: variantForm.isActive,
     }
 
@@ -781,8 +817,10 @@ export function ProductManagementPage() {
       color: '',
       price: 0,
       weight: 0,
-      images2D: [],
-      images3D: [],
+      images2DUrls: [],
+      images3DUrls: [],
+      images2DFiles: [],
+      images3DFiles: [],
       isActive: true,
     })
     setValidationErrors({})
@@ -807,8 +845,10 @@ export function ProductManagementPage() {
         color: variant.color,
         price: variant.price || 0,
         weight: variant.weight || 0,
-        images2D: variant.images2D || [],
-        images3D: variant.images3D || [],
+        images2DUrls: variant.images2D || [],
+        images3DUrls: variant.images3D || [],
+        images2DFiles: variant.images2DFiles || [],
+        images3DFiles: variant.images3DFiles || [],
         isActive: variant.isActive ?? true,
       })
       setEditingVariantIndex(index)
@@ -836,15 +876,17 @@ export function ProductManagementPage() {
   }, [])
 
   const handleSaveVariantMedia = useCallback(
-    (images2D: string[], images3D: string[]) => {
+    (images2DUrls: string[], images3DUrls: string[], images2DFiles: File[], images3DFiles: File[]) => {
       if (currentVariantIndex === null) return
 
       setVariants((prev) => {
         const updated = [...prev]
         updated[currentVariantIndex] = {
           ...updated[currentVariantIndex],
-          images2D,
-          images3D,
+          images2D: images2DUrls,
+          images3D: images3DUrls,
+          images2DFiles,
+          images3DFiles,
         }
         return updated
       })
@@ -853,6 +895,17 @@ export function ProductManagementPage() {
     },
     [currentVariantIndex, showSnackbar]
   )
+
+  // Variant Inventory handlers
+  const handleOpenVariantInventory = useCallback((index: number) => {
+    setCurrentVariantIndex(index)
+    setInventoryDialogOpen(true)
+  }, [])
+
+  const handleCloseInventoryDialog = useCallback(() => {
+    setInventoryDialogOpen(false)
+    setCurrentVariantIndex(null)
+  }, [])
 
   // Product CRUD
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
@@ -867,13 +920,13 @@ export function ProductManagementPage() {
       setIsSubmitting(true)
       setIsUploadingMedia(true)
 
-      // Step 1: Upload pending 2D and 3D files
-      let newImage2DUrls: string[] = []
-      let newImage3DUrls: string[] = []
+      // Step 1: Upload product-level pending 2D and 3D files
+      let newProduct2DUrls: string[] = []
+      let newProduct3DUrls: string[] = []
 
       if (pendingImage2DFiles.length > 0) {
         try {
-          newImage2DUrls = await uploadImages2D(pendingImage2DFiles)
+          newProduct2DUrls = await uploadImages2D(pendingImage2DFiles)
         } catch (uploadErr: unknown) {
           const message = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload 2D images'
           showSnackbar(`Upload failed: ${message}`, 'error')
@@ -885,7 +938,7 @@ export function ProductManagementPage() {
 
       if (pendingImage3DFiles.length > 0) {
         try {
-          newImage3DUrls = await uploadImages3D(pendingImage3DFiles)
+          newProduct3DUrls = await uploadImages3D(pendingImage3DFiles)
         } catch (uploadErr: unknown) {
           const message = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload 3D models'
           showSnackbar(`Upload failed: ${message}`, 'error')
@@ -895,26 +948,71 @@ export function ProductManagementPage() {
         }
       }
 
+      // Step 2: Upload all variant files and build final variants array
+      const finalVariants = await Promise.all(
+        variants.map(async (variant) => {
+          let newVariant2DUrls: string[] = []
+          let newVariant3DUrls: string[] = []
+
+          // Upload variant 2D files
+          if (variant.images2DFiles && variant.images2DFiles.length > 0) {
+            try {
+              newVariant2DUrls = await uploadImages2D(variant.images2DFiles)
+            } catch (uploadErr: unknown) {
+              throw new Error(`Failed to upload 2D images for variant ${variant.sku}`)
+            }
+          }
+
+          // Upload variant 3D files
+          if (variant.images3DFiles && variant.images3DFiles.length > 0) {
+            try {
+              newVariant3DUrls = await uploadImages3D(variant.images3DFiles)
+            } catch (uploadErr: unknown) {
+              throw new Error(`Failed to upload 3D models for variant ${variant.sku}`)
+            }
+          }
+
+          // Combine existing URLs with newly uploaded URLs and deduplicate
+          const finalVariant2D = Array.from(
+            new Set([...(variant.images2D || []), ...newVariant2DUrls])
+          )
+          const finalVariant3D = Array.from(
+            new Set([...(variant.images3D || []), ...newVariant3DUrls])
+          )
+
+          // Return clean ProductVariant without file properties
+          return {
+            sku: variant.sku,
+            size: variant.size,
+            color: variant.color,
+            price: variant.price,
+            weight: variant.weight,
+            images2D: finalVariant2D,
+            images3D: finalVariant3D,
+            isActive: variant.isActive,
+          }
+        })
+      )
+
       setIsUploadingMedia(false)
 
-      // Step 2: Combine existing URLs with newly uploaded URLs, then deduplicate
-      // Using Set to ensure no duplicate URLs from re-submits or duplicate uploads
-      const finalImages2D = Array.from(
-        new Set([...formData.images2D.filter((url) => url.trim()), ...newImage2DUrls])
+      // Step 3: Combine product-level existing URLs with newly uploaded URLs
+      const finalProductImages2D = Array.from(
+        new Set([...formData.images2D.filter((url) => url.trim()), ...newProduct2DUrls])
       )
-      const finalImages3D =
-        formData.images3D.length > 0 || newImage3DUrls.length > 0
-          ? Array.from(new Set([...formData.images3D.filter((url) => url.trim()), ...newImage3DUrls]))
+      const finalProductImages3D =
+        formData.images3D.length > 0 || newProduct3DUrls.length > 0
+          ? Array.from(new Set([...formData.images3D.filter((url) => url.trim()), ...newProduct3DUrls]))
           : undefined
 
-      // Step 3: Build payload with final URLs
+      // Step 4: Build payload with final URLs
       const basePayload = {
         name: formData.name.trim(),
         category,
         description: formData.description.trim(),
         basePrice: formData.basePrice,
-        images2D: finalImages2D,
-        images3D: finalImages3D,
+        images2D: finalProductImages2D,
+        images3D: finalProductImages3D,
         tags: formData.tags,
         isActive: formData.isActive,
       }
@@ -929,7 +1027,7 @@ export function ProductManagementPage() {
           material: frameData.material,
           gender: frameData.gender,
           bridgeFit: frameData.bridgeFit,
-          variants,
+          variants: finalVariants,
         }
       } else if (category === 'lens') {
         payload = {
@@ -949,7 +1047,7 @@ export function ProductManagementPage() {
             minCYL: lensData.minCYL || undefined,
             maxCYL: lensData.maxCYL || undefined,
           },
-          variants,
+          variants: finalVariants,
         }
       } else if (category === 'service') {
         payload = {
@@ -960,7 +1058,7 @@ export function ProductManagementPage() {
         }
       }
 
-      // Step 4: Create or update product
+      // Step 5: Create or update product
       if (editingId) {
         await updateProduct(editingId, payload)
         showSnackbar('Product updated successfully', 'success')
@@ -969,13 +1067,12 @@ export function ProductManagementPage() {
         showSnackbar('Product created successfully', 'success')
       }
 
-      // Step 5: Clear pending files and reset form
+      // Step 6: Clear pending files and reset form
       setPendingImage2DFiles([])
       setPendingImage3DFiles([])
       resetForms()
       setIsCreating(false)
       setEditingId(null)
-      setIsDirty(false)
       clearDraft() // Clear draft after successful save
       loadProducts()
     } catch (err: unknown) {
@@ -1105,14 +1202,22 @@ export function ProductManagementPage() {
       }
 
       setFormData(initialFormData)
-      initialFormValuesRef.current = initialFormData
 
       // Clear pending files when editing
       setPendingImage2DFiles([])
       setPendingImage3DFiles([])
       setTagInput('')
 
-      setVariants((product as Product & { variants?: ProductVariant[] }).variants || [])
+      // Convert ProductVariant[] to FormVariant[] by adding empty file arrays
+      setVariants(
+        ((product as Product & { variants?: ProductVariant[] }).variants || []).map(
+          (v) => ({
+            ...v,
+            images2DFiles: [],
+            images3DFiles: [],
+          })
+        )
+      )
 
       if (product.category === 'frame') {
         const p = product as Product & {
@@ -1215,18 +1320,6 @@ export function ProductManagementPage() {
                     resetForms()
                     setIsCreating(true)
                     setEditingId(null)
-                    // Store initial values after reset for dirty tracking
-                    setTimeout(() => {
-                      initialFormValuesRef.current = {
-                        name: '',
-                        description: '',
-                        basePrice: 0,
-                        tags: [],
-                        isActive: true,
-                        images2D: [],
-                        images3D: [],
-                      }
-                    }, 0)
                   }}
                 >
                   Create Product
@@ -1465,23 +1558,19 @@ export function ProductManagementPage() {
             <Box display="flex" gap={1}>
               <Button
                 variant="outlined"
+                startIcon={<SaveIcon />}
+                onClick={saveDraft}
+                disabled={isSubmitting}
+              >
+                Save draft
+              </Button>
+              <Button
+                variant="outlined"
                 startIcon={<CloseIcon />}
                 onClick={() => {
-                  if (isDirty) {
-                    const confirmed = window.confirm(
-                      'You have unsaved changes. Do you want to cancel and save your work as a draft?'
-                    )
-                    if (confirmed) {
-                      saveDraft()
-                      setIsCreating(false)
-                      setEditingId(null)
-                      resetForms()
-                    }
-                  } else {
-                    setIsCreating(false)
-                    setEditingId(null)
-                    resetForms()
-                  }
+                  setIsCreating(false)
+                  setEditingId(null)
+                  resetForms()
                 }}
                 disabled={isSubmitting}
               >
@@ -2333,14 +2422,11 @@ export function ProductManagementPage() {
                         />
                       </Grid>
                       <Grid size={6}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Size *"
+                        <FrameSizeInput
                           value={variantForm.size}
-                          onChange={(e) => setVariantForm({ ...variantForm, size: e.target.value })}
+                          onChange={(size) => setVariantForm({ ...variantForm, size })}
                           error={!!validationErrors.size}
-                          placeholder="e.g., 52mm"
+                          required
                         />
                       </Grid>
                       <Grid size={6}>
@@ -2437,8 +2523,10 @@ export function ProductManagementPage() {
                                   color: '',
                                   price: 0,
                                   weight: 0,
-                                  images2D: [],
-                                  images3D: [],
+                                  images2DUrls: [],
+                                  images3DUrls: [],
+                                  images2DFiles: [],
+                                  images3DFiles: [],
                                   isActive: true,
                                 })
                               }}
@@ -2533,7 +2621,7 @@ export function ProductManagementPage() {
                                     size="small"
                                     variant="outlined"
                                     startIcon={<InventoryIcon fontSize="small" />}
-                                    onClick={() => navigate(`/manager/inventory/${variant.sku}`)}
+                                    onClick={() => handleOpenVariantInventory(index)}
                                     sx={{ minWidth: 'auto', px: 1 }}
                                   >
                                     Stock
@@ -2565,21 +2653,9 @@ export function ProductManagementPage() {
                     variant="outlined"
                     startIcon={<CloseIcon />}
                     onClick={() => {
-                      if (isDirty) {
-                        const confirmed = window.confirm(
-                          'You have unsaved changes. Do you want to cancel and save your work as a draft?'
-                        )
-                        if (confirmed) {
-                          saveDraft()
-                          setIsCreating(false)
-                          setEditingId(null)
-                          resetForms()
-                        }
-                      } else {
-                        setIsCreating(false)
-                        setEditingId(null)
-                        resetForms()
-                      }
+                      setIsCreating(false)
+                      setEditingId(null)
+                      resetForms()
                     }}
                     disabled={isSubmitting}
                   >
@@ -2611,9 +2687,25 @@ export function ProductManagementPage() {
             open={mediaDialogOpen}
             onClose={() => setMediaDialogOpen(false)}
             onSave={handleSaveVariantMedia}
-            initialImages2D={variants[currentVariantIndex]?.images2D || []}
-            initialImages3D={variants[currentVariantIndex]?.images3D || []}
+            initialImages2DUrls={variants[currentVariantIndex]?.images2D || []}
+            initialImages3DUrls={variants[currentVariantIndex]?.images3D || []}
+            initialImages2DFiles={variants[currentVariantIndex]?.images2DFiles || []}
+            initialImages3DFiles={variants[currentVariantIndex]?.images3DFiles || []}
             variantSku={variants[currentVariantIndex]?.sku || ''}
+          />
+        )}
+
+        {/* Variant Inventory Dialog */}
+        {currentVariantIndex !== null && (
+          <VariantInventoryDialog
+            open={inventoryDialogOpen}
+            onClose={handleCloseInventoryDialog}
+            variantSku={variants[currentVariantIndex]?.sku || ''}
+            variantInfo={{
+              size: variants[currentVariantIndex]?.size,
+              color: variants[currentVariantIndex]?.color,
+              price: variants[currentVariantIndex]?.price,
+            }}
           />
         )}
 
