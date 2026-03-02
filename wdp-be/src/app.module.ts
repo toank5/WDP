@@ -25,6 +25,10 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
 import { InventoryService } from './services/inventory.service';
 import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
+import { SupplierController, PublicSupplierController } from './controllers/supplier.controller';
+import { SupplierService } from './services/supplier.service';
+import { Supplier, SupplierSchema } from './commons/schemas/supplier.schema';
+import { InventoryMovement, InventoryMovementSchema } from './commons/schemas/inventory-movement.schema';
 
 @Module({
   imports: [
@@ -69,6 +73,14 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
         name: Inventory.name,
         schema: InventorySchema,
       },
+      {
+        name: Supplier.name,
+        schema: SupplierSchema,
+      },
+      {
+        name: InventoryMovement.name,
+        schema: InventoryMovementSchema,
+      },
     ]),
   ],
   controllers: [
@@ -78,6 +90,8 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyController,
     ProductController,
     InventoryController,
+    SupplierController,
+    PublicSupplierController,
     MediaController,
   ],
   providers: [
@@ -89,6 +103,7 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyService,
     ProductService,
     InventoryService,
+    SupplierService,
     CloudinaryService,
     FileUploadService,
     MediaService,

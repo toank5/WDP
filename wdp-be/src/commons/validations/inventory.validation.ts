@@ -42,21 +42,4 @@ export const inventoryValidation = {
     min: 0,
     errorMsg: 'Reorder level is invalid',
   },
-  supplier: {
-    presence: true,
-    errorMsg: 'Supplier is invalid',
-    name: {
-      presence: true,
-      length: {
-        min: 1,
-        max: 100,
-      },
-      errorMsg: 'Supplier name is invalid',
-    },
-    expectedArrival: {
-      presence: true,
-      date: true,
-      errorMsg: 'Expected arrival is invalid',
-    },
-  },
 };

@@ -35,6 +35,7 @@ import {
   Assessment,
   Build,
   Warehouse,
+  Business,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -104,6 +105,12 @@ export function DashboardLayout() {
       icon: <Warehouse />,
       url: '/dashboard/inventory',
       managerOrOperationOnly: true,
+    },
+    {
+      title: 'Suppliers',
+      icon: <Business />,
+      url: '/dashboard/suppliers',
+      managerOnly: true,
     },
     {
       title: 'Operations',

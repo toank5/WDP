@@ -35,6 +35,8 @@ import PromotionsPage from './pages/PromotionsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import { InventoryManagementPage } from './pages/manager/InventoryManagementPage'
 import { InventoryDetailPage } from './pages/manager/InventoryDetailPage'
+import { SupplierManagementPage } from './pages/manager/SupplierManagementPage'
+import { SupplierFormPage } from './pages/manager/SupplierFormPage'
 
 // Components
 import { Navbar } from './components/Navbar'
@@ -83,9 +85,14 @@ function App() {
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="inventory" element={<InventoryManagementPage />} />
+            <Route path="suppliers/new" element={<SupplierFormPage />} />
+            <Route path="suppliers/:id/edit" element={<SupplierFormPage />} />
+            <Route path="suppliers/:id" element={<SupplierFormPage />} />
+            <Route path="suppliers" element={<SupplierManagementPage />} />
+            <Route path="inventory/:sku" element={<InventoryDetailPage />} />
           </Route>
 
-          {/* Inventory detail route (outside dashboard layout for standalone access from product variants) */}
+          {/* Inventory/Supplier detail routes (outside dashboard layout for standalone access) */}
           <Route
             path="/manager/inventory/:sku"
             element={

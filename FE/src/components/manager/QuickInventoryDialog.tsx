@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -16,25 +16,29 @@ import {
   Alert,
   Chip,
   IconButton,
+  Autocomplete,
+  InputAdornment,
 } from '@mui/material'
 import {
   Close as CloseIcon,
   Inventory as InventoryIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
-  Add as AddIcon,
-  Remove as RemoveIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material'
 import {
   adjustStock,
+  getInventoryBySku,
   type InventoryItemEnriched,
 } from '@/lib/inventory-api'
+import { getPublicSuppliers, type SupplierLight } from '@/lib/supplier-api'
 
 interface QuickInventoryDialogProps {
   open: boolean
   onClose: () => void
   inventoryItem: InventoryItemEnriched | null
   onSuccess?: () => void
+  onItemUpdate?: (updatedItem: InventoryItemEnriched) => void
 }
 
 const formatNumber = (num: number): string => {
@@ -46,16 +50,26 @@ export function QuickInventoryDialog({
   onClose,
   inventoryItem,
   onSuccess,
+  onItemUpdate,
 }: QuickInventoryDialogProps) {
   const [saving, setSaving] = useState(false)
+  const [localInventoryItem, setLocalInventoryItem] = useState<InventoryItemEnriched | null>(null)
 
   // Receive stock form state
   const [receiveQuantity, setReceiveQuantity] = useState('')
   const [receiveReference, setReceiveReference] = useState('')
   const [receiveNote, setReceiveNote] = useState('')
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierLight | null>(null)
+  const [suppliers, setSuppliers] = useState<SupplierLight[]>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false)
 
   // Error state
   const [error, setError] = useState<string | null>(null)
+
+  // Sync local inventory item when prop changes
+  useEffect(() => {
+    setLocalInventoryItem(inventoryItem)
+  }, [inventoryItem])
 
   // Reset form when dialog opens with new item
   useEffect(() => {
@@ -63,9 +77,40 @@ export function QuickInventoryDialog({
       setReceiveQuantity('')
       setReceiveReference('')
       setReceiveNote('')
+      setSelectedSupplier(null)
       setError(null)
+      // Load active suppliers
+      loadSuppliers()
     }
   }, [open])
+
+  // Load suppliers for autocomplete
+  const loadSuppliers = async () => {
+    try {
+      setLoadingSuppliers(true)
+      const data = await getPublicSuppliers()
+      setSuppliers(data)
+    } catch (err) {
+      // Silently fail - supplier list is optional
+      setSuppliers([])
+    } finally {
+      setLoadingSuppliers(false)
+    }
+  }
+
+  // Refresh inventory item after successful operation
+  const refreshInventoryItem = async () => {
+    if (!inventoryItem?.sku) return
+    try {
+      const updated = await getInventoryBySku(inventoryItem.sku)
+      if (updated) {
+        setLocalInventoryItem(updated)
+        onItemUpdate?.(updated)
+      }
+    } catch (err) {
+      // Silently fail, will use the API response data
+    }
+  }
 
   const handleReceiveStock = async () => {
     if (!inventoryItem) return
@@ -84,12 +129,18 @@ export function QuickInventoryDialog({
         delta: quantity,
         reason: 'Stock received',
         reference: receiveReference || undefined,
+        note: receiveNote || undefined,
+        supplierId: selectedSupplier?._id,
       })
+
+      // Refresh local data
+      await refreshInventoryItem()
 
       // Clear form
       setReceiveQuantity('')
       setReceiveReference('')
       setReceiveNote('')
+      setSelectedSupplier(null)
 
       // Notify parent of success - parent will reload the list
       onSuccess?.()
@@ -101,55 +152,27 @@ export function QuickInventoryDialog({
     }
   }
 
-  const handleQuickAdjust = async (delta: number) => {
-    if (!inventoryItem) return
-
-    const newStock = inventoryItem.stockQuantity + delta
-    if (newStock < 0) {
-      setError('Stock cannot be negative')
-      return
-    }
-
-    try {
-      setSaving(true)
-      setError(null)
-
-      await adjustStock(inventoryItem.sku, {
-        delta,
-        reason: delta > 0 ? 'Manual stock addition' : 'Manual stock removal',
-      })
-
-      // Notify parent of success
-      onSuccess?.()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to adjust stock'
-      setError(message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const isLowStock = inventoryItem ? inventoryItem.stockQuantity <= inventoryItem.reorderLevel : false
-  const isOutOfStock = inventoryItem ? inventoryItem.availableQuantity <= 0 : false
+  const isLowStock = localInventoryItem ? localInventoryItem.stockQuantity <= localInventoryItem.reorderLevel : false
+  const isOutOfStock = localInventoryItem ? localInventoryItem.availableQuantity <= 0 : false
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box display="flex" alignItems="center" gap={1}>
-            <InventoryIcon color="primary" />
-            <Box>
-              <Typography variant="h6">Inventory Management</Typography>
-              <Typography variant="body2" color="text.secondary">
-                SKU: {inventoryItem?.sku || 'N/A'}
-              </Typography>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box display="flex" alignItems="center" gap={1}>
+              <InventoryIcon color="primary" />
+              <Box>
+                <Typography variant="h6">Inventory Management</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  SKU: {localInventoryItem?.sku || 'N/A'}
+                </Typography>
+              </Box>
             </Box>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
           </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+        </DialogTitle>
 
       <DialogContent>
         {error && (
@@ -158,7 +181,7 @@ export function QuickInventoryDialog({
           </Alert>
         )}
 
-        {!inventoryItem ? (
+        {!localInventoryItem ? (
           <Box display="flex" justifyContent="center" py={4}>
             <CircularProgress />
           </Box>
@@ -171,28 +194,28 @@ export function QuickInventoryDialog({
                   Product
                 </Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {inventoryItem.productName || 'Unknown Product'}
+                  {localInventoryItem.productName || 'Unknown Product'}
                 </Typography>
                 <Box mt={0.5} display="flex" gap={1} alignItems="center">
-                  {inventoryItem.productCategory && (
+                  {localInventoryItem.productCategory && (
                     <Chip
-                      label={inventoryItem.productCategory}
+                      label={localInventoryItem.productCategory}
                       size="small"
                       color="primary"
                       variant="outlined"
                     />
                   )}
-                  {inventoryItem.variantSize && (
-                    <Chip label={inventoryItem.variantSize} size="small" variant="outlined" />
+                  {localInventoryItem.variantSize && (
+                    <Chip label={localInventoryItem.variantSize} size="small" variant="outlined" />
                   )}
-                  {inventoryItem.variantColor && (
+                  {localInventoryItem.variantColor && (
                     <Chip
-                      label={inventoryItem.variantColor}
+                      label={localInventoryItem.variantColor}
                       size="small"
                       sx={{
-                        bgcolor: inventoryItem.variantColor,
+                        bgcolor: localInventoryItem.variantColor,
                         color: ['white', 'yellow', 'cyan'].includes(
-                          inventoryItem.variantColor.toLowerCase(),
+                          localInventoryItem.variantColor.toLowerCase(),
                         )
                           ? 'black'
                           : 'white',
@@ -243,7 +266,7 @@ export function QuickInventoryDialog({
                       Stock
                     </Typography>
                     <Typography variant="h6" color={isLowStock ? 'error.main' : 'text.primary'}>
-                      {formatNumber(inventoryItem.stockQuantity)}
+                      {formatNumber(localInventoryItem.stockQuantity)}
                     </Typography>
                   </Box>
                   <Box flex={1}>
@@ -251,7 +274,7 @@ export function QuickInventoryDialog({
                       Reserved
                     </Typography>
                     <Typography variant="h6" color="text.secondary">
-                      {formatNumber(inventoryItem.reservedQuantity)}
+                      {formatNumber(localInventoryItem.reservedQuantity)}
                     </Typography>
                   </Box>
                   <Box flex={1}>
@@ -260,97 +283,12 @@ export function QuickInventoryDialog({
                     </Typography>
                     <Typography
                       variant="h6"
-                      color={inventoryItem.availableQuantity > 0 ? 'success.main' : 'error.main'}
+                      color={localInventoryItem.availableQuantity > 0 ? 'success.main' : 'error.main'}
                     >
-                      {formatNumber(inventoryItem.availableQuantity)}
+                      {formatNumber(localInventoryItem.availableQuantity)}
                     </Typography>
                   </Box>
                 </Box>
-              </CardContent>
-            </Card>
-
-            {/* Quick Adjust */}
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                  Quick Adjustment
-                </Typography>
-                <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                  Quickly add or remove stock
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleQuickAdjust(1)}
-                    disabled={saving}
-                  >
-                    +1
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleQuickAdjust(5)}
-                    disabled={saving}
-                  >
-                    +5
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleQuickAdjust(10)}
-                    disabled={saving}
-                  >
-                    +10
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleQuickAdjust(50)}
-                    disabled={saving}
-                  >
-                    +50
-                  </Button>
-                  <Divider orientation="vertical" flexItem />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    startIcon={<RemoveIcon />}
-                    onClick={() => handleQuickAdjust(-1)}
-                    disabled={saving || inventoryItem.stockQuantity < 1}
-                  >
-                    -1
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    startIcon={<RemoveIcon />}
-                    onClick={() => handleQuickAdjust(-5)}
-                    disabled={saving || inventoryItem.stockQuantity < 5}
-                  >
-                    -5
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    startIcon={<RemoveIcon />}
-                    onClick={() => handleQuickAdjust(-10)}
-                    disabled={saving || inventoryItem.stockQuantity < 10}
-                  >
-                    -10
-                  </Button>
-                </Stack>
               </CardContent>
             </Card>
 
@@ -373,6 +311,38 @@ export function QuickInventoryDialog({
                     onChange={(e) => setReceiveQuantity(e.target.value)}
                     placeholder="e.g., 100"
                     inputProps={{ min: 1 }}
+                  />
+                  <Autocomplete
+                    fullWidth
+                    size="small"
+                    options={suppliers}
+                    loading={loadingSuppliers}
+                    value={selectedSupplier}
+                    onChange={(_event, newValue) => setSelectedSupplier(newValue)}
+                    getOptionLabel={(option) => `${option.code} - ${option.name}`}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Supplier (optional)"
+                        placeholder="Select supplier"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <BusinessIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <>
+                              {loadingSuppliers ? <CircularProgress size={16} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    noOptionsText="No suppliers found"
                   />
                   <TextField
                     fullWidth
@@ -410,7 +380,7 @@ export function QuickInventoryDialog({
                 For advanced options (edit stock, reorder level, supplier), go to{' '}
                 <Button
                   size="small"
-                  href={`/manager/inventory/${inventoryItem.sku}`}
+                  href={`/manager/inventory/${localInventoryItem.sku}`}
                   sx={{ ml: 0.5 }}
                 >
                   Full Inventory Details

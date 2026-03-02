@@ -10,18 +10,6 @@ type ApiResponse<T> = {
 }
 
 /**
- * Supplier information type
- */
-export type SupplierInfo = {
-  name?: string
-  contactEmail?: string
-  contactPhone?: string
-  code?: string
-  notes?: string
-  expectedArrival?: string
-}
-
-/**
  * Inventory item type
  */
 export type InventoryItem = {
@@ -31,7 +19,6 @@ export type InventoryItem = {
   reservedQuantity: number
   availableQuantity: number
   reorderLevel: number
-  supplierInfo?: SupplierInfo
   updatedAt: string
   createdAt: string
 }
@@ -78,7 +65,6 @@ export type UpdateInventoryPayload = {
   stockQuantity?: number
   reservedQuantity?: number
   reorderLevel?: number
-  supplierInfo?: SupplierInfo
 }
 
 /**
@@ -88,6 +74,62 @@ export type StockAdjustmentPayload = {
   delta: number
   reason: string
   reference?: string
+  note?: string
+  supplierId?: string
+  supplierRef?: string
+}
+
+/**
+ * Movement type enum
+ */
+export enum MovementType {
+  RECEIPT = 'receipt',
+  ADJUSTMENT = 'adjustment',
+  RESERVATION = 'reservation',
+  RELEASE = 'release',
+  CONFIRMED = 'confirmed',
+  SALE = 'sale',
+  RETURN = 'return',
+}
+
+/**
+ * Supplier info in movement (denormalized)
+ */
+export type MovementSupplierInfo = {
+  supplierId?: string
+  supplierCode?: string
+  supplierName?: string
+  supplierRef?: string
+}
+
+/**
+ * Inventory movement type
+ */
+export type InventoryMovement = {
+  _id: string
+  sku: string
+  movementType: MovementType
+  quantity: number
+  stockBefore: number
+  stockAfter: number
+  reason: string
+  reference?: string
+  note?: string
+  supplier?: MovementSupplierInfo
+  performedBy?: string
+  orderId?: string
+  productId?: string
+  reservationId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Movements response
+ */
+export type MovementsResponse = {
+  movements: InventoryMovement[]
+  total: number
 }
 
 /**
@@ -191,7 +233,6 @@ export async function createInventory(
     stockQuantity: number
     reservedQuantity: number
     reorderLevel: number
-    supplierInfo: SupplierInfo
   },
 ): Promise<InventoryItem> {
   return handleRequest<InventoryItem>(api.post('/manager/inventory', payload))
@@ -262,4 +303,51 @@ export async function releaseReservation(
 export async function getLowStockItems(): Promise<InventoryItemEnriched[]> {
   const response = await api.get('/manager/inventory/reports/low-stock')
   return response.data.data || []
+}
+
+/**
+ * Get movement history for a specific SKU
+ */
+export async function getMovements(
+  sku: string,
+  options: {
+    limit?: number
+    offset?: number
+  } = {},
+): Promise<MovementsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (options.limit) queryParams.append('limit', options.limit.toString())
+  if (options.offset) queryParams.append('offset', options.offset.toString())
+
+  const queryString = queryParams.toString()
+  const url = `/manager/inventory/${sku}/movements${queryString ? `?${queryString}` : ''}`
+
+  return handleRequest<MovementsResponse>(api.get(url))
+}
+
+/**
+ * Get all movements (with optional filtering)
+ */
+export async function getAllMovements(
+  options: {
+    sku?: string
+    movementType?: MovementType
+    supplierId?: string
+    limit?: number
+    offset?: number
+  } = {},
+): Promise<MovementsResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (options.sku) queryParams.append('sku', options.sku)
+  if (options.movementType) queryParams.append('movementType', options.movementType)
+  if (options.supplierId) queryParams.append('supplierId', options.supplierId)
+  if (options.limit) queryParams.append('limit', options.limit.toString())
+  if (options.offset) queryParams.append('offset', options.offset.toString())
+
+  const queryString = queryParams.toString()
+  const url = `/manager/inventory/movements/all${queryString ? `?${queryString}` : ''}`
+
+  return handleRequest<MovementsResponse>(api.get(url))
 }

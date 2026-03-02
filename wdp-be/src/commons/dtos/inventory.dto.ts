@@ -1,42 +1,5 @@
-import { IsString, IsNumber, IsOptional, Min, IsObject, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-/**
- * Supplier information DTO
- */
-export class SupplierInfoDto {
-  @ApiProperty({
-    description: 'Supplier name',
-    example: 'Acme Eyewear Supplies',
-  })
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
-
-  @ApiPropertyOptional({
-    description: 'Supplier contact email',
-    example: 'contact@acme.com',
-  })
-  @IsString()
-  @IsOptional()
-  contactEmail?: string;
-
-  @ApiPropertyOptional({
-    description: 'Supplier contact phone',
-    example: '+1-555-123-4567',
-  })
-  @IsString()
-  @IsOptional()
-  contactPhone?: string;
-
-  @ApiPropertyOptional({
-    description: 'Additional notes about the supplier',
-    example: 'Primary supplier for frames',
-  })
-  @IsString()
-  @IsOptional()
-  notes?: string;
-}
 
 /**
  * Create inventory item DTO
@@ -76,13 +39,6 @@ export class CreateInventoryDto {
   @IsNumber()
   @Min(0)
   reorderLevel!: number;
-
-  @ApiProperty({
-    description: 'Supplier information',
-    type: SupplierInfoDto,
-  })
-  @IsObject()
-  supplierInfo!: SupplierInfoDto;
 }
 
 /**
@@ -118,18 +74,11 @@ export class UpdateInventoryDto {
   @Min(0)
   @IsOptional()
   reorderLevel?: number;
-
-  @ApiPropertyOptional({
-    description: 'Supplier information',
-    type: SupplierInfoDto,
-  })
-  @IsObject()
-  @IsOptional()
-  supplierInfo?: SupplierInfoDto;
 }
 
 /**
  * Stock adjustment DTO
+ * Used for all stock changes (receive, adjust, issue)
  */
 export class StockAdjustmentDto {
   @ApiProperty({
@@ -154,6 +103,30 @@ export class StockAdjustmentDto {
   @IsString()
   @IsOptional()
   reference?: string;
+
+  @ApiPropertyOptional({
+    description: 'Additional notes',
+    example: 'Additional notes about the adjustment',
+  })
+  @IsString()
+  @IsOptional()
+  note?: string;
+
+  @ApiPropertyOptional({
+    description: 'Supplier ID (when receiving from supplier)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsString()
+  @IsOptional()
+  supplierId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Supplier reference (invoice/delivery order number)',
+    example: 'INV-2024-001',
+  })
+  @IsString()
+  @IsOptional()
+  supplierRef?: string;
 }
 
 /**

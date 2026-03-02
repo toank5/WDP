@@ -5,9 +5,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
+import { Supplier } from '../commons/schemas/supplier.schema';
+import { InventoryMovement, MovementType } from '../commons/schemas/inventory-movement.schema';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
@@ -48,6 +50,8 @@ export class InventoryService {
   constructor(
     @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(Supplier.name) private supplierModel: Model<Supplier>,
+    @InjectModel(InventoryMovement.name) private movementModel: Model<InventoryMovement>,
   ) {}
 
   /**
@@ -259,14 +263,12 @@ export class InventoryService {
       stockQuantity: 0,
       reservedQuantity: 0,
       reorderLevel: 0,
-      supplierInfo: {
-        name: 'Default Supplier',
-      },
     });
   }
 
   /**
    * Update inventory item by SKU
+   * Only allows updating stock quantities and reorder level
    */
   async updateBySku(
     sku: string,
@@ -292,10 +294,6 @@ export class InventoryService {
       updateData.reorderLevel = updateInventoryDto.reorderLevel;
     }
 
-    if (updateInventoryDto.supplierInfo !== undefined) {
-      updateData.supplierInfo = updateInventoryDto.supplierInfo;
-    }
-
     // Recalculate available quantity
     const newStockQuantity =
       updateData.stockQuantity ?? inventoryItem.stockQuantity;
@@ -317,6 +315,8 @@ export class InventoryService {
 
   /**
    * Adjust stock quantity by delta
+   * Creates a movement record to track the adjustment with supplier info
+   * This is the primary method for all stock changes (receive, adjust, issue)
    */
   async adjustStock(
     sku: string,
@@ -346,6 +346,45 @@ export class InventoryService {
 
     const availableQuantity = newStockQuantity - inventoryItem.reservedQuantity;
 
+    // Determine movement type based on delta and context
+    let movementType: MovementType;
+    if (adjustmentDto.delta > 0 && adjustmentDto.supplierId) {
+      movementType = MovementType.RECEIPT;
+    } else if (adjustmentDto.delta > 0) {
+      movementType = MovementType.ADJUSTMENT;
+    } else {
+      movementType = MovementType.ADJUSTMENT;
+    }
+
+    // Build movement record with supplier info
+    const movementData: Partial<InventoryMovement> = {
+      sku,
+      movementType,
+      quantity: adjustmentDto.delta,
+      stockBefore: inventoryItem.stockQuantity,
+      stockAfter: newStockQuantity,
+      reason: adjustmentDto.reason,
+      reference: adjustmentDto.reference,
+      note: adjustmentDto.note,
+    };
+
+    // Add supplier info if provided
+    if (adjustmentDto.supplierId) {
+      const supplier = await this.supplierModel.findById(adjustmentDto.supplierId);
+      if (supplier) {
+        movementData.supplier = {
+          supplierId: supplier._id,
+          supplierCode: supplier.code,
+          supplierName: supplier.name,
+          supplierRef: adjustmentDto.supplierRef,
+        };
+      }
+    }
+
+    // Create movement record (audit trail)
+    await this.movementModel.create(movementData);
+
+    // Update inventory
     return this.inventoryModel
       .findOneAndUpdate(
         { sku },
@@ -533,6 +572,72 @@ export class InventoryService {
   }
 
   /**
+   * Get movement history for a specific SKU
+   */
+  async getMovements(
+    sku: string,
+    options: {
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<{ movements: InventoryMovement[]; total: number }> {
+    const { limit = 50, offset = 0 } = options;
+
+    const [movements, total] = await Promise.all([
+      this.movementModel
+        .find({ sku })
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.movementModel.countDocuments({ sku }),
+    ]);
+
+    return { movements, total };
+  }
+
+  /**
+   * Get all movements (with optional filtering)
+   */
+  async getAllMovements(options: {
+    sku?: string;
+    movementType?: MovementType;
+    supplierId?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<{ movements: InventoryMovement[]; total: number }> {
+    const { sku, movementType, supplierId, limit = 50, offset = 0 } = options;
+
+    const query: Record<string, unknown> = {};
+
+    if (sku) {
+      query.sku = sku;
+    }
+
+    if (movementType) {
+      query.movementType = movementType;
+    }
+
+    if (supplierId) {
+      query['supplier.supplierId'] = new Types.ObjectId(supplierId);
+    }
+
+    const [movements, total] = await Promise.all([
+      this.movementModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.movementModel.countDocuments(query),
+    ]);
+
+    return { movements, total };
+  }
+
+  /**
    * Ensure inventory entries exist for given SKUs
    * Creates inventory records with zero stock for any SKUs that don't exist
    * This is idempotent and safe to call multiple times
@@ -562,9 +667,6 @@ export class InventoryService {
     }
 
     // Bulk insert inventory records with zero stock
-    // Use collection.insertMany() to bypass Mongoose validators since:
-    // 1. We know the data is valid (0 = 0 - 0)
-    // 2. The validators have circular dependencies that cause issues during bulk creation
     await this.inventoryModel.collection.insertMany(
       skusToCreate.map((sku) => ({
         sku,
@@ -572,9 +674,6 @@ export class InventoryService {
         reservedQuantity: 0,
         availableQuantity: 0,
         reorderLevel: 0,
-        supplierInfo: {
-          name: 'Default Supplier',
-        },
         createdAt: new Date(),
         updatedAt: new Date(),
       })),

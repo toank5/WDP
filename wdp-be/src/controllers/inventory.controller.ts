@@ -27,6 +27,7 @@ import {
   CreateInventoryDto,
   UpdateInventoryDto,
   StockAdjustmentDto,
+  StockAdjustmentWithSupplierDto,
   BulkStockUpdateDto,
   ReserveInventoryDto,
   ReleaseReservationDto,
@@ -384,7 +385,7 @@ export class InventoryController {
   })
   async adjustStock(
     @Param('sku') sku: string,
-    @Body() adjustmentDto: StockAdjustmentDto,
+    @Body() adjustmentDto: StockAdjustmentWithSupplierDto,
     @Res() res?: Response,
   ) {
     try {
@@ -722,6 +723,117 @@ export class InventoryController {
       };
     } catch (error) {
       console.error('Low stock report error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get movement history for a specific SKU
+   * GET /manager/inventory/:sku/movements
+   */
+  @Get(':sku/movements')
+  @Roles(...INVENTORY_ACCESS_ROLES)
+  @ApiOperation({
+    summary: 'Get movement history for SKU',
+    description:
+      'Retrieve the movement history for a specific SKU including receipts, adjustments, reservations, etc.',
+  })
+  @ApiOkResponse({
+    description: 'Movement history retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Movement history retrieved successfully',
+        data: {
+          movements: [
+            {
+              sku: 'FR-ROUND-52-BLK',
+              movementType: 'receipt',
+              quantity: 100,
+              stockBefore: 50,
+              stockAfter: 150,
+              reason: 'Stock received',
+              reference: 'PO-2024-12345',
+              supplier: {
+                supplierCode: 'ACME',
+                supplierName: 'Acme Eyewear Supplies',
+                supplierRef: 'INV-2024-001',
+              },
+              createdAt: '2024-01-15T10:30:00.000Z',
+            },
+          ],
+          total: 1,
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  async getMovements(
+    @Param('sku') sku: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    try {
+      const result = await this.inventoryService.getMovements(sku, {
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Movement history retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.error('Movement history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all movements (with optional filtering)
+   * GET /manager/inventory/movements/all
+   */
+  @Get('movements/all')
+  @Roles(...INVENTORY_ACCESS_ROLES)
+  @ApiOperation({
+    summary: 'Get all inventory movements',
+    description:
+      'Retrieve all inventory movements with optional filtering by SKU, movement type, or supplier.',
+  })
+  @ApiOkResponse({
+    description: 'Movements retrieved successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  async getAllMovements(
+    @Query('sku') sku?: string,
+    @Query('movementType') movementType?: string,
+    @Query('supplierId') supplierId?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    try {
+      const result = await this.inventoryService.getAllMovements({
+        sku,
+        movementType: movementType as any,
+        supplierId,
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Movements retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.error('All movements error:', error);
       throw error;
     }
   }

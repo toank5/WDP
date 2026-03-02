@@ -3,7 +3,8 @@
     "allow": [
       "Bash(find:*)",
       "Bash(npx tsc --noEmit --skipLibCheck)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\")"
     ]
   }
 }

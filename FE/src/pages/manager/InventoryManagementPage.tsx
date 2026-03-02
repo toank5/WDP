@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -15,7 +15,6 @@ import {
   Chip,
   Stack,
   Container,
-  IconButton,
   CircularProgress,
   Snackbar,
   Alert,
@@ -29,14 +28,12 @@ import {
   Search as SearchIcon,
   Edit as EditIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material'
 import {
   getInventoryList,
   type InventoryItemEnriched,
   type InventoryQueryParams,
 } from '@/lib/inventory-api'
-import { QuickInventoryDialog } from '@/components/manager/QuickInventoryDialog'
 
 const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('en-US').format(num)
@@ -70,12 +67,6 @@ const getCategoryColor = (category: string): 'primary' | 'secondary' | 'success'
 
 export function InventoryManagementPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // Check if we're inside the dashboard layout
-  const isInDashboard = location.pathname.startsWith('/dashboard')
-
-  const [searchParams, setSearchParams] = useSearchParams()
 
   // State
   const [items, setItems] = useState<InventoryItemEnriched[]>([])
@@ -83,14 +74,10 @@ export function InventoryManagementPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
 
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<InventoryItemEnriched | null>(null)
-
   // Filters
-  const [skuFilter, setSkuFilter] = useState(searchParams.get('sku') || '')
-  const [lowStockOnly, setLowStockOnly] = useState(searchParams.get('lowStock') === 'true')
-  const [activeOnly, setActiveOnly] = useState(searchParams.get('activeOnly') !== 'false')
+  const [skuFilter, setSkuFilter] = useState('')
+  const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [activeOnly, setActiveOnly] = useState(true)
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -138,15 +125,6 @@ export function InventoryManagementPage() {
     loadInventory()
   }, [loadInventory])
 
-  // Update URL params when filters change
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (skuFilter) params.set('sku', skuFilter)
-    if (lowStockOnly) params.set('lowStock', 'true')
-    if (!activeOnly) params.set('activeOnly', 'false')
-    setSearchParams(params, { replace: true })
-  }, [skuFilter, lowStockOnly, activeOnly, setSearchParams])
-
   // Handle search
   const handleSearch = () => {
     setPage(1)
@@ -178,22 +156,6 @@ export function InventoryManagementPage() {
     }
     return { label: 'In Stock', color: 'success' as const, showWarning: false }
   }
-
-  // Dialog handlers
-  const handleOpenDialog = useCallback((item: InventoryItemEnriched) => {
-    setSelectedItem(item)
-    setDialogOpen(true)
-  }, [])
-
-  const handleCloseDialog = useCallback(() => {
-    setDialogOpen(false)
-    setSelectedItem(null)
-  }, [])
-
-  const handleDialogSuccess = useCallback(() => {
-    // Reload inventory data after successful operation
-    loadInventory()
-  }, [loadInventory])
 
   return (
     <Container maxWidth="lg">
@@ -241,8 +203,10 @@ export function InventoryManagementPage() {
                     handleSearch()
                   }
                 }}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                  },
                 }}
                 sx={{ minWidth: 250 }}
               />
@@ -416,7 +380,7 @@ export function InventoryManagementPage() {
                           size="small"
                           variant="outlined"
                           startIcon={<EditIcon />}
-                          onClick={() => handleOpenDialog(item)}
+                          onClick={() => navigate(`/dashboard/inventory/${item.sku}`)}
                         >
                           Manage
                         </Button>
@@ -453,14 +417,6 @@ export function InventoryManagementPage() {
             </Button>
           </Box>
         )}
-
-        {/* Quick Inventory Dialog */}
-        <QuickInventoryDialog
-          open={dialogOpen}
-          onClose={handleCloseDialog}
-          inventoryItem={selectedItem}
-          onSuccess={handleDialogSuccess}
-        />
 
         {/* Snackbar */}
         <Snackbar
