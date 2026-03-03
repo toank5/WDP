@@ -38,8 +38,9 @@ import {
   CreateProductDto,
   UpdateProductDto,
   ProductVariantDto,
+  ListProductsQueryDto,
 } from '../commons/dtos/product.dto';
-import { RbacGuard } from '../commons/guards/rbac.guard';
+import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
@@ -231,6 +232,129 @@ export class ProductController {
   })
   async findAll() {
     return this.productService.findAll();
+  }
+
+  /**
+   * Get products catalog with filtering and pagination (admin/manager/operation)
+   * GET /products/catalog
+   */
+  @Get('catalog')
+  @UseGuards(RbacGuard)
+  @Roles(UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'List products with filters (catalog view)',
+    description:
+      'Retrieves products with filtering, sorting, and pagination. Used for admin/manager catalog view.',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name, SKU, or variant SKU',
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    enum: PRODUCT_CATEGORIES,
+    description: 'Filter by category',
+  })
+  @ApiQuery({
+    name: 'shape',
+    required: false,
+    type: String,
+    description: 'Filter by frame shape',
+  })
+  @ApiQuery({
+    name: 'material',
+    required: false,
+    type: String,
+    description: 'Filter by frame material',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['ACTIVE', 'INACTIVE'],
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'has3D',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Filter products with 3D media',
+  })
+  @ApiQuery({
+    name: 'hasVariants',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Filter products with multiple variants',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['createdAt', 'name', 'price', 'updatedAt'],
+    description: 'Sort by field',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort order',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page',
+  })
+  @ApiOkResponse({
+    description: 'Products retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Products retrieved successfully',
+        data: {
+          items: [
+            {
+              id: 'product-id',
+              name: 'Designer Eyeglasses',
+              category: 'frame',
+              isActive: true,
+              has3D: true,
+              variantCount: 5,
+            },
+          ],
+          total: 100,
+          page: 1,
+          limit: 20,
+          totalPages: 5,
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
+  async listCatalog(
+    @Query() query: ListProductsQueryDto,
+    @Res() res?: Response,
+  ) {
+    const result = await this.productService.list(query);
+    return res?.status(HttpStatus.OK).json({
+      statusCode: HttpStatus.OK,
+      message: 'Products retrieved successfully',
+      data: result,
+    });
   }
 
   /**

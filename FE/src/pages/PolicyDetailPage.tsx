@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPolicyByType, Policy, PolicyType } from '../lib/policy-api'
+import { getPolicyByType, Policy, PolicyType } from '@/lib/policy-api'
+import type { ReturnPolicyConfig } from '@/types/policy.types'
 
 const PolicyDetailPage: React.FC = () => {
   const { type } = useParams<{ type: string }>()
@@ -20,6 +21,11 @@ const PolicyDetailPage: React.FC = () => {
   if (loading) return <div className="p-10 text-center">Loading...</div>
   if (!policy) return <div className="p-10 text-center">Policy not found.</div>
 
+  // Type guard for return policy
+  const isReturnPolicy = (p: Policy | null): p is Policy & { config: ReturnPolicyConfig } => {
+    return p?.type === 'return'
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white min-h-screen">
       <div className="mb-8 border-b pb-4">
@@ -38,20 +44,20 @@ const PolicyDetailPage: React.FC = () => {
         )}
       </div>
 
-      {policy.type === 'return' && (
+      {isReturnPolicy(policy) && policy.config.returnWindowDays && (
         <div className="mt-12 p-6 bg-gray-50 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">Key Policy Highlights</h2>
           <ul className="space-y-2">
             <li>
-              <strong>Return Window (Frames):</strong> {policy.config.returnWindowDays?.framesOnly}{' '}
+              <strong>Return Window (Frames):</strong> {policy.config.returnWindowDays.framesOnly ?? 'N/A'}{' '}
               days
             </li>
             <li>
               <strong>Return Window (Prescription):</strong>{' '}
-              {policy.config.returnWindowDays?.prescriptionGlasses} days
+              {policy.config.returnWindowDays.prescriptionGlasses ?? 'N/A'} days
             </li>
             <li>
-              <strong>Restocking Fee:</strong> {policy.config.restockingFeePercent}%
+              <strong>Restocking Fee:</strong> {policy.config.restockingFeePercent ?? 'N/A'}%
             </li>
             <li>
               <strong>Return Shipping:</strong>{' '}

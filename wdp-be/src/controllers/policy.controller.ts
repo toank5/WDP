@@ -73,7 +73,8 @@ export class PolicyController {
   @Get(':type')
   @ApiOperation({
     summary: 'Get current policy by type',
-    description: 'Retrieves the currently active policy for a specific policy type.',
+    description:
+      'Retrieves the currently active policy for a specific policy type.',
   })
   @ApiOkResponse({
     description: 'Policy retrieved successfully',
@@ -90,7 +91,10 @@ export class PolicyController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Policy not found', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Policy not found',
+    type: ErrorResponseDto,
+  })
   async getCurrentPolicyByType(@Param('type') type: POLICY_TYPES) {
     return this.policyService.getCurrentPolicyByType(type);
   }
@@ -128,7 +132,8 @@ export class PolicyController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Debug: Get current authenticated user',
-    description: 'Returns information about the currently authenticated user. For debugging purposes.',
+    description:
+      'Returns information about the currently authenticated user. For debugging purposes.',
   })
   @ApiOkResponse({
     description: 'User information retrieved',
@@ -140,7 +145,10 @@ export class PolicyController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   getMe(@Req() req: AuthenticatedRequest) {
     return {
       user: req.user,
@@ -155,10 +163,21 @@ export class PolicyController {
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'List all policies (manager/admin)',
-    description: 'Get all policies with optional filtering by type and active status. Requires manager or admin role.',
+    description:
+      'Get all policies with optional filtering by type and active status. Requires manager or admin role.',
   })
-  @ApiQuery({ name: 'type', required: false, enum: POLICY_TYPES, description: 'Filter by policy type' })
-  @ApiQuery({ name: 'active', required: false, type: Boolean, description: 'Filter by active status' })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: POLICY_TYPES,
+    description: 'Filter by policy type',
+  })
+  @ApiQuery({
+    name: 'active',
+    required: false,
+    type: Boolean,
+    description: 'Filter by active status',
+  })
   @ApiOkResponse({
     description: 'Policies retrieved successfully',
     schema: {
@@ -176,8 +195,14 @@ export class PolicyController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiForbiddenResponse({ description: 'Forbidden - insufficient permissions', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async findAll(
     @Query('type') type?: POLICY_TYPES,
     @Query('active') active?: string,
@@ -210,9 +235,18 @@ export class PolicyController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiForbiddenResponse({ description: 'Forbidden - insufficient permissions', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async create(
     @Body(new ZodValidationPipe(CreatePolicySchema)) payload: CreatePolicyInput,
     @Req() req: AuthenticatedRequest,
@@ -243,10 +277,22 @@ export class PolicyController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiNotFoundResponse({ description: 'Policy not found', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiForbiddenResponse({ description: 'Forbidden - insufficient permissions', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Policy not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdatePolicySchema)) payload: UpdatePolicyInput,
@@ -259,7 +305,8 @@ export class PolicyController {
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Activate a policy (manager/admin)',
-    description: 'Activates a policy. Deactivates other policies of the same type. Requires manager or admin role.',
+    description:
+      'Activates a policy. Deactivates other policies of the same type. Requires manager or admin role.',
   })
   @ApiOkResponse({
     description: 'Policy activated successfully',
@@ -276,9 +323,18 @@ export class PolicyController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Policy not found', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiForbiddenResponse({ description: 'Forbidden - insufficient permissions', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Policy not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async activate(@Param('id') id: string) {
     return this.policyService.activate(id);
   }
@@ -305,9 +361,18 @@ export class PolicyController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Policy not found', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiForbiddenResponse({ description: 'Forbidden - insufficient permissions', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Policy not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - insufficient permissions',
+    type: ErrorResponseDto,
+  })
   async deactivate(@Param('id') id: string) {
     return this.policyService.deactivate(id);
   }

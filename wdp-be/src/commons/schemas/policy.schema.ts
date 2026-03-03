@@ -7,6 +7,8 @@ export type PolicyDocument = HydratedDocument<Policy>;
 
 @Schema({ timestamps: true })
 export class Policy {
+  _id?: string;
+
   @Prop({
     type: String,
     required: true,

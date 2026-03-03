@@ -16,6 +16,14 @@ import {
   Divider,
   Grid,
   Chip,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableContainer,
+  Autocomplete,
+  InputAdornment,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
@@ -23,15 +31,28 @@ import {
   Inventory as InventoryIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
+  Business as BusinessIcon,
+  Timeline as TimelineIcon,
+  Add as AddIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import {
   getInventoryBySku,
   updateInventory,
   adjustStock,
+  getMovements,
   type InventoryItemEnriched,
   type UpdateInventoryPayload,
   type StockAdjustmentPayload,
+  type InventoryMovement,
+  MovementType,
 } from '@/lib/inventory-api'
+import {
+  getPublicSuppliers,
+  getSupplierById,
+  type SupplierLight,
+  type Supplier,
+} from '@/lib/supplier-api'
 
 const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('en-US').format(num)
@@ -75,9 +96,20 @@ export function InventoryDetailPage() {
   // Form state
   const [stockQuantity, setStockQuantity] = useState(0)
   const [reorderLevel, setReorderLevel] = useState(0)
-  const [supplierName, setSupplierName] = useState('')
-  const [supplierCode, setSupplierCode] = useState('')
-  const [supplierNotes, setSupplierNotes] = useState('')
+
+  // Receive stock form state
+  const [receiveQuantity, setReceiveQuantity] = useState('')
+  const [receiveReference, setReceiveReference] = useState('')
+  const [receiveNote, setReceiveNote] = useState('')
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierLight | null>(null)
+  const [suppliers, setSuppliers] = useState<SupplierLight[]>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false)
+  const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<Supplier | null>(null)
+  const [loadingSupplierDetail, setLoadingSupplierDetail] = useState(false)
+
+  // Movements history
+  const [movements, setMovements] = useState<InventoryMovement[]>([])
+  const [loadingMovements, setLoadingMovements] = useState(false)
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -104,20 +136,17 @@ export function InventoryDetailPage() {
 
       if (!data) {
         showSnackbar('Inventory item not found', 'error')
-        navigate('/manager/inventory')
+        navigate('/dashboard/inventory')
         return
       }
 
       setInventory(data)
       setStockQuantity(data.stockQuantity)
       setReorderLevel(data.reorderLevel)
-      setSupplierName(data.supplierInfo?.name || '')
-      setSupplierCode(data.supplierInfo?.code || '')
-      setSupplierNotes(data.supplierInfo?.notes || '')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load inventory'
       showSnackbar(message, 'error')
-      navigate('/manager/inventory')
+      navigate('/dashboard/inventory')
     } finally {
       setLoading(false)
     }
@@ -126,6 +155,43 @@ export function InventoryDetailPage() {
   useEffect(() => {
     loadInventory()
   }, [loadInventory])
+
+  // Load suppliers
+  useEffect(() => {
+    const loadSuppliers = async () => {
+      try {
+        setLoadingSuppliers(true)
+        const data = await getPublicSuppliers()
+        setSuppliers(data)
+      } catch (err) {
+        console.error('Failed to load suppliers:', err)
+        const message = err instanceof Error ? err.message : 'Failed to load suppliers'
+        showSnackbar(message, 'error')
+        setSuppliers([])
+      } finally {
+        setLoadingSuppliers(false)
+      }
+    }
+    loadSuppliers()
+  }, [showSnackbar])
+
+  // Load movements when inventory is loaded
+  useEffect(() => {
+    if (!sku) return
+
+    const loadMovements = async () => {
+      try {
+        setLoadingMovements(true)
+        const result = await getMovements(sku, { limit: 20 })
+        setMovements(result.movements || [])
+      } catch (err) {
+        setMovements([])
+      } finally {
+        setLoadingMovements(false)
+      }
+    }
+    loadMovements()
+  }, [sku])
 
   // Validate form
   const validateForm = (): boolean => {
@@ -159,14 +225,6 @@ export function InventoryDetailPage() {
         reorderLevel,
       }
 
-      if (supplierName || supplierCode || supplierNotes) {
-        payload.supplierInfo = {
-          name: supplierName,
-          code: supplierCode,
-          notes: supplierNotes,
-        }
-      }
-
       const updated = await updateInventory(sku, payload)
       setInventory(updated)
       showSnackbar('Inventory updated successfully', 'success')
@@ -178,13 +236,13 @@ export function InventoryDetailPage() {
     }
   }
 
-  // Quick stock adjustment
-  const handleQuickAdjust = async (delta: number) => {
+  // Handle receive stock (for Operation Staff)
+  const handleReceiveStock = async () => {
     if (!inventory || !sku) return
 
-    const newStock = stockQuantity + delta
-    if (newStock < 0) {
-      showSnackbar('Stock cannot be negative', 'error')
+    const quantity = parseInt(receiveQuantity)
+    if (!quantity || quantity <= 0) {
+      showSnackbar('Please enter a valid quantity', 'error')
       return
     }
 
@@ -192,21 +250,53 @@ export function InventoryDetailPage() {
       setSaving(true)
 
       const payload: StockAdjustmentPayload = {
-        delta,
-        reason: delta > 0 ? 'Manual stock addition' : 'Manual stock removal',
+        delta: quantity,
+        reason: 'Stock received',
+        reference: receiveReference || undefined,
+        note: receiveNote || undefined,
+        supplierId: selectedSupplier?._id,
       }
 
       const updated = await adjustStock(sku, payload)
       setInventory(updated)
       setStockQuantity(updated.stockQuantity)
-      showSnackbar(`Stock ${delta > 0 ? 'increased' : 'decreased'} by ${Math.abs(delta)}`, 'success')
+
+      // Clear form
+      setReceiveQuantity('')
+      setReceiveReference('')
+      setReceiveNote('')
+      setSelectedSupplier(null)
+
+      // Reload movements
+      const movementsResult = await getMovements(sku, { limit: 20 })
+      setMovements(movementsResult.movements || [])
+
+      showSnackbar(`Received ${quantity} units successfully`, 'success')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to adjust stock'
+      const message = err instanceof Error ? err.message : 'Failed to receive stock'
       showSnackbar(message, 'error')
       // Reload to get correct state
       loadInventory()
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Handle supplier selection - fetch supplier details
+  const handleSupplierChange = async (_event: unknown, newValue: SupplierLight | null) => {
+    setSelectedSupplier(newValue)
+    setSelectedSupplierDetail(null)
+
+    if (newValue?._id) {
+      try {
+        setLoadingSupplierDetail(true)
+        const detail = await getSupplierById(newValue._id)
+        setSelectedSupplierDetail(detail)
+      } catch (err) {
+        // Silently fail - we still have the light data
+      } finally {
+        setLoadingSupplierDetail(false)
+      }
     }
   }
 
@@ -237,7 +327,7 @@ export function InventoryDetailPage() {
             <Box display="flex" alignItems="center" gap={2}>
               <Button
                 startIcon={<ArrowBackIcon />}
-                onClick={() => navigate('/manager/inventory')}
+                onClick={() => navigate('/dashboard/inventory')}
               >
                 Back
               </Button>
@@ -280,7 +370,7 @@ export function InventoryDetailPage() {
 
         <Grid container spacing={2}>
           {/* Product Info Card */}
-          <Grid size={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -362,7 +452,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Stock Status Card */}
-          <Grid size={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -371,7 +461,7 @@ export function InventoryDetailPage() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Stock Quantity
                     </Typography>
@@ -382,7 +472,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.stockQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Reserved
                     </Typography>
@@ -390,7 +480,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.reservedQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Available
                     </Typography>
@@ -401,7 +491,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.availableQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Reorder Level
                     </Typography>
@@ -427,7 +517,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Edit Stock Card */}
-          <Grid size={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -436,7 +526,7 @@ export function InventoryDetailPage() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -455,7 +545,7 @@ export function InventoryDetailPage() {
                     />
                   </Grid>
 
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -470,39 +560,7 @@ export function InventoryDetailPage() {
                       }}
                       error={!!errors.reorderLevel}
                       helperText={errors.reorderLevel || 'Alert threshold for low stock'}
-                      inputProps={{ min: 0 }}
-                    />
-                  </Grid>
-
-                  <Grid size={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Supplier Name"
-                      value={supplierName}
-                      onChange={(e) => setSupplierName(e.target.value)}
-                      placeholder="e.g., Acme Supplies"
-                    />
-                  </Grid>
-
-                  <Grid size={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Supplier Code"
-                      value={supplierCode}
-                      onChange={(e) => setSupplierCode(e.target.value)}
-                      placeholder="e.g., SUP-001"
-                    />
-                  </Grid>
-
-                  <Grid size={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={2}
-                      label="Supplier Notes"
-                      value={supplierNotes}
-                      onChange={(e) => setSupplierNotes(e.target.value)}
-                      placeholder="Additional supplier information..."
+                      slotProps={{ htmlInput: { min: 0 } }}
                     />
                   </Grid>
                 </Grid>
@@ -528,87 +586,226 @@ export function InventoryDetailPage() {
             </Card>
           </Grid>
 
-          {/* Quick Adjust Card */}
-          <Grid size={12}>
-            <Card>
+          {/* Receive Stock Card */}
+          <Grid size={{ xs: 12 }}>
+            <Card sx={{ borderLeft: 4, borderColor: 'success.main' }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Quick Stock Adjustment
+                <Typography variant="h6" gutterBottom fontWeight={600} color="success.main">
+                  Receive Stock
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Quickly add or remove stock without editing the full quantity
+                  Record incoming stock from suppliers (increases available quantity)
                 </Typography>
 
-                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    onClick={() => handleQuickAdjust(1)}
-                    disabled={saving}
-                  >
-                    +1
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    onClick={() => handleQuickAdjust(5)}
-                    disabled={saving}
-                  >
-                    +5
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    onClick={() => handleQuickAdjust(10)}
-                    disabled={saving}
-                  >
-                    +10
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    onClick={() => handleQuickAdjust(50)}
-                    disabled={saving}
-                  >
-                    +50
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    onClick={() => handleQuickAdjust(100)}
-                    disabled={saving}
-                  >
-                    +100
-                  </Button>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Quantity to Receive *"
+                      value={receiveQuantity}
+                      onChange={(e) => setReceiveQuantity(e.target.value)}
+                      placeholder="e.g., 100"
+                      inputProps={{ min: 1 }}
+                      helperText="Number of units received"
+                    />
+                  </Grid>
 
-                  <Divider orientation="vertical" flexItem />
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Box display="flex" gap={1} alignItems="flex-start">
+                      <Autocomplete
+                        fullWidth
+                        options={suppliers}
+                        loading={loadingSuppliers}
+                        value={selectedSupplier}
+                        onChange={handleSupplierChange}
+                        getOptionLabel={(option) => `${option.code} - ${option.name}`}
+                        isOptionEqualToValue={(option, value) => option._id === value._id}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Supplier (optional)"
+                            placeholder="Select supplier"
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start">
+                                    <BusinessIcon fontSize="small" />
+                                  </InputAdornment>
+                                  {params.InputProps.startAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        noOptionsText="No suppliers found"
+                      />
+                      <Button
+                        variant="outlined"
+                        startIcon={<OpenInNewIcon />}
+                        onClick={() => navigate('/dashboard/suppliers')}
+                        sx={{ mt: 0.5, whiteSpace: 'nowrap' }}
+                      >
+                        New
+                      </Button>
+                    </Box>
+                    {selectedSupplierDetail && (
+                      <Box mt={1}>
+                        <Typography variant="caption" color="text.secondary">
+                          Phone: {selectedSupplierDetail.phone || 'N/A'} | Email: {selectedSupplierDetail.email || 'N/A'}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Grid>
 
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      fullWidth
+                      label="Reference (optional)"
+                      value={receiveReference}
+                      onChange={(e) => setReceiveReference(e.target.value)}
+                      placeholder="e.g., PO-2026-0001"
+                      helperText="PO number, shipment ID, etc."
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      fullWidth
+                      label="Note (optional)"
+                      value={receiveNote}
+                      onChange={(e) => setReceiveNote(e.target.value)}
+                      placeholder="e.g., Supplier delivery #12345"
+                      helperText="Additional notes"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Box display="flex" justifyContent="flex-end" mt={2}>
                   <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleQuickAdjust(-1)}
-                    disabled={saving || stockQuantity < 1}
+                    variant="contained"
+                    color="success"
+                    startIcon={saving ? <CircularProgress size={16} /> : <CheckCircleIcon />}
+                    onClick={handleReceiveStock}
+                    disabled={saving || !receiveQuantity}
                   >
-                    -1
+                    {saving ? 'Processing...' : 'Receive Stock'}
                   </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleQuickAdjust(-5)}
-                    disabled={saving || stockQuantity < 5}
-                  >
-                    -5
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleQuickAdjust(-10)}
-                    disabled={saving || stockQuantity < 10}
-                  >
-                    -10
-                  </Button>
-                </Stack>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Movement History Card */}
+          <Grid size={{ xs: 12 }}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                  <TimelineIcon color="primary" />
+                  <Typography variant="h6" fontWeight={600}>
+                    Movement History
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+
+                {loadingMovements ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress size={32} />
+                  </Box>
+                ) : movements.length === 0 ? (
+                  <Box py={4} textAlign="center">
+                    <Typography color="text.secondary">
+                      No movement history found
+                    </Typography>
+                  </Box>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date/Time</TableCell>
+                          <TableCell>Type</TableCell>
+                          <TableCell align="right">Change</TableCell>
+                          <TableCell align="right">Before</TableCell>
+                          <TableCell align="right">After</TableCell>
+                          <TableCell>Reason</TableCell>
+                          <TableCell>Supplier</TableCell>
+                          <TableCell>Reference</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {movements.map((movement) => (
+                          <TableRow key={movement._id} hover>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {new Date(movement.createdAt).toLocaleString()}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={movement.movementType.toUpperCase()}
+                                size="small"
+                                color={
+                                  movement.quantity > 0
+                                    ? 'success'
+                                    : 'error'
+                                }
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                color={movement.quantity > 0 ? 'success.main' : 'error.main'}
+                              >
+                                {movement.quantity > 0 ? '+' : ''}{movement.quantity}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color="text.secondary">
+                                {formatNumber(movement.stockBefore)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight={500}>
+                                {formatNumber(movement.stockAfter)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" noWrap>
+                                {movement.reason}
+                              </Typography>
+                              {movement.note && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {movement.note}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {movement.supplier ? (
+                                <Typography variant="body2" noWrap>
+                                  {movement.supplier.supplierCode || movement.supplier.supplierName || '—'}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  —
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="text.secondary" noWrap>
+                                {movement.reference || '—'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
               </CardContent>
             </Card>
           </Grid>

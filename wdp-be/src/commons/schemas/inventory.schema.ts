@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { SupplierInfo, SupplierInfoSchema } from './supplier-info.schema';
 import { inventoryValidation } from '../validations/inventory.validation';
 
 @Schema({ timestamps: true })
 export class Inventory {
+  _id?: string;
+
   @Prop({
     type: String,
     required: inventoryValidation.sku.presence,
@@ -49,12 +50,11 @@ export class Inventory {
     min: inventoryValidation.reorderLevel.min,
   })
   reorderLevel: number;
-
-  @Prop({
-    type: SupplierInfoSchema,
-    required: inventoryValidation.supplier.presence,
-  })
-  supplierInfo: SupplierInfo;
 }
 
 export const InventorySchema = SchemaFactory.createForClass(Inventory);
+
+// Index for efficient queries
+InventorySchema.index({ sku: 1 }, { unique: true });
+InventorySchema.index({ stockQuantity: 1 });
+InventorySchema.index({ availableQuantity: 1 });

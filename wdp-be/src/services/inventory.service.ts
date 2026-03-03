@@ -5,9 +5,14 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
+import { Supplier } from '../commons/schemas/supplier.schema';
+import {
+  InventoryMovement,
+  MovementType,
+} from '../commons/schemas/inventory-movement.schema';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
@@ -48,6 +53,9 @@ export class InventoryService {
   constructor(
     @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(Supplier.name) private supplierModel: Model<Supplier>,
+    @InjectModel(InventoryMovement.name)
+    private movementModel: Model<InventoryMovement>,
   ) {}
 
   /**
@@ -259,14 +267,12 @@ export class InventoryService {
       stockQuantity: 0,
       reservedQuantity: 0,
       reorderLevel: 0,
-      supplierInfo: {
-        name: 'Default Supplier',
-      },
     });
   }
 
   /**
    * Update inventory item by SKU
+   * Only allows updating stock quantities and reorder level
    */
   async updateBySku(
     sku: string,
@@ -292,10 +298,6 @@ export class InventoryService {
       updateData.reorderLevel = updateInventoryDto.reorderLevel;
     }
 
-    if (updateInventoryDto.supplierInfo !== undefined) {
-      updateData.supplierInfo = updateInventoryDto.supplierInfo;
-    }
-
     // Recalculate available quantity
     const newStockQuantity =
       updateData.stockQuantity ?? inventoryItem.stockQuantity;
@@ -317,6 +319,8 @@ export class InventoryService {
 
   /**
    * Adjust stock quantity by delta
+   * Creates a movement record to track the adjustment with supplier info
+   * This is the primary method for all stock changes (receive, adjust, issue)
    */
   async adjustStock(
     sku: string,
@@ -346,6 +350,47 @@ export class InventoryService {
 
     const availableQuantity = newStockQuantity - inventoryItem.reservedQuantity;
 
+    // Determine movement type based on delta and context
+    let movementType: MovementType;
+    if (adjustmentDto.delta > 0 && adjustmentDto.supplierId) {
+      movementType = MovementType.RECEIPT;
+    } else if (adjustmentDto.delta > 0) {
+      movementType = MovementType.ADJUSTMENT;
+    } else {
+      movementType = MovementType.ADJUSTMENT;
+    }
+
+    // Build movement record with supplier info
+    const movementData: Partial<InventoryMovement> = {
+      sku,
+      movementType,
+      quantity: adjustmentDto.delta,
+      stockBefore: inventoryItem.stockQuantity,
+      stockAfter: newStockQuantity,
+      reason: adjustmentDto.reason,
+      reference: adjustmentDto.reference,
+      note: adjustmentDto.note,
+    };
+
+    // Add supplier info if provided
+    if (adjustmentDto.supplierId) {
+      const supplier = await this.supplierModel.findById(
+        adjustmentDto.supplierId,
+      );
+      if (supplier) {
+        movementData.supplier = {
+          supplierId: supplier._id,
+          supplierCode: supplier.code,
+          supplierName: supplier.name,
+          supplierRef: adjustmentDto.supplierRef,
+        };
+      }
+    }
+
+    // Create movement record (audit trail)
+    await this.movementModel.create(movementData);
+
+    // Update inventory
     return this.inventoryModel
       .findOneAndUpdate(
         { sku },
@@ -530,5 +575,306 @@ export class InventoryService {
   async getLowStockItems(): Promise<InventoryItemEnriched[]> {
     const result = await this.findAll({ lowStock: true, activeOnly: true });
     return result.items;
+  }
+
+  /**
+   * Get movement history for a specific SKU
+   */
+  async getMovements(
+    sku: string,
+    options: {
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<{ movements: InventoryMovement[]; total: number }> {
+    const { limit = 50, offset = 0 } = options;
+
+    const [movements, total] = await Promise.all([
+      this.movementModel
+        .find({ sku })
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.movementModel.countDocuments({ sku }),
+    ]);
+
+    return { movements, total };
+  }
+
+  /**
+   * Get all movements (with optional filtering)
+   */
+  async getAllMovements(
+    options: {
+      sku?: string;
+      movementType?: MovementType;
+      supplierId?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<{ movements: InventoryMovement[]; total: number }> {
+    const { sku, movementType, supplierId, limit = 50, offset = 0 } = options;
+
+    const query: Record<string, unknown> = {};
+
+    if (sku) {
+      query.sku = sku;
+    }
+
+    if (movementType) {
+      query.movementType = movementType;
+    }
+
+    if (supplierId) {
+      query['supplier.supplierId'] = new Types.ObjectId(supplierId);
+    }
+
+    const [movements, total] = await Promise.all([
+      this.movementModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.movementModel.countDocuments(query),
+    ]);
+
+    return { movements, total };
+  }
+
+  /**
+   * Ensure inventory entries exist for given SKUs
+   * Creates inventory records with zero stock for any SKUs that don't exist
+   * This is idempotent and safe to call multiple times
+   * Called automatically when products/variants are created or updated
+   */
+  async ensureInventoryForSkus(skus: string[]): Promise<void> {
+    // Remove duplicates and filter out empty strings
+    const uniqueSkus = Array.from(new Set(skus)).filter(
+      (s) => s && s.trim().length > 0,
+    );
+
+    if (uniqueSkus.length === 0) {
+      return;
+    }
+
+    // Find existing inventory items
+    const existingItems = await this.inventoryModel
+      .find({ sku: { $in: uniqueSkus } })
+      .select('sku')
+      .lean();
+
+    const existingSkus = new Set(existingItems.map((item) => item.sku));
+
+    // Find SKUs that need inventory records created
+    const skusToCreate = uniqueSkus.filter((sku) => !existingSkus.has(sku));
+
+    if (skusToCreate.length === 0) {
+      return;
+    }
+
+    // Bulk insert inventory records with zero stock
+    await this.inventoryModel.collection.insertMany(
+      skusToCreate.map((sku) => ({
+        sku,
+        stockQuantity: 0,
+        reservedQuantity: 0,
+        availableQuantity: 0,
+        reorderLevel: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+    );
+  }
+
+  /**
+   * Reserve stock for an order
+   * Moves stock from available to reserved
+   * @param sku Variant SKU
+   * @param orderId Order ID reserving the stock
+   * @param quantity Quantity to reserve (defaults to full order quantity)
+   */
+  async reserveStock(
+    sku: string,
+    orderId: string,
+    quantity?: number,
+  ): Promise<Inventory> {
+    const inventory = await this.inventoryModel.findOne({ sku });
+
+    if (!inventory) {
+      throw new NotFoundException(`Inventory not found for SKU: ${sku}`);
+    }
+
+    // If quantity specified, reserve only that amount
+    const quantityToReserve = quantity || inventory.availableQuantity;
+
+    if (quantityToReserve > inventory.availableQuantity) {
+      throw new BadRequestException(
+        `Insufficient stock for SKU ${sku}. Available: ${inventory.availableQuantity}, Requested: ${quantityToReserve}`,
+      );
+    }
+
+    // Update quantities
+    inventory.reservedQuantity += quantityToReserve;
+    inventory.availableQuantity -= quantityToReserve;
+    inventory.updatedAt = new Date();
+
+    await inventory.save();
+
+    // Record movement
+    await this.movementModel.create({
+      sku,
+      type: MovementType.RESERVATION,
+      quantity: quantityToReserve,
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      notes: `Reserved for order ${orderId}`,
+      performedBy: 'SYSTEM',
+      timestamp: new Date(),
+    });
+
+    return inventory;
+  }
+
+  /**
+   * Release reserved stock for an order
+   * Moves stock from reserved back to available
+   * @param orderId Order ID to release stock for
+   * @param sku Variant SKU (optional - releases all reserved stock for the order)
+   */
+  async releaseStock(orderId: string, sku?: string): Promise<void> {
+    // Find all reservation movements for this order
+    const reservationMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    if (reservationMovements.length === 0) {
+      return; // No stock to release
+    }
+
+    for (const movement of reservationMovements) {
+      // If SKU specified, only process that SKU
+      if (sku && movement.sku !== sku) {
+        continue;
+      }
+
+      const inventory = await this.inventoryModel.findOne({
+        sku: movement.sku,
+      });
+      if (!inventory) continue;
+
+      // Release the reserved quantity
+      const quantityToRelease = movement.quantity;
+
+      inventory.reservedQuantity = Math.max(
+        0,
+        inventory.reservedQuantity - quantityToRelease,
+      );
+      inventory.availableQuantity += quantityToRelease;
+      inventory.updatedAt = new Date();
+
+      await inventory.save();
+
+      // Record release movement
+      await this.movementModel.create({
+        sku: movement.sku,
+        type: MovementType.RELEASE,
+        quantity: quantityToRelease,
+        referenceId: orderId,
+        referenceType: 'ORDER',
+        notes: `Released from order ${orderId}`,
+        performedBy: 'SYSTEM',
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Confirm stock for an order (when shipped)
+   * Moves stock from reserved to deducted (actual stock decrease)
+   * @param orderId Order ID being shipped
+   * @param sku Variant SKU (optional - confirms all reserved stock for the order)
+   */
+  async confirmStock(orderId: string, sku?: string): Promise<void> {
+    // Find all reservation movements for this order that haven't been confirmed yet
+    const reservationMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    // Get movements that have already been confirmed for this order
+    const confirmedMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.SALE,
+    });
+
+    const confirmedSkus = new Set(confirmedMovements.map((m) => m.sku));
+
+    for (const movement of reservationMovements) {
+      // If SKU specified, only process that SKU
+      if (sku && movement.sku !== sku) {
+        continue;
+      }
+
+      // Skip if already confirmed
+      if (confirmedSkus.has(movement.sku)) {
+        continue;
+      }
+
+      const inventory = await this.inventoryModel.findOne({
+        sku: movement.sku,
+      });
+      if (!inventory) continue;
+
+      const quantityToConfirm = movement.quantity;
+
+      // Deduct from stock and release reservation
+      inventory.stockQuantity -= quantityToConfirm;
+      inventory.reservedQuantity = Math.max(
+        0,
+        inventory.reservedQuantity - quantityToConfirm,
+      );
+      inventory.availableQuantity = Math.max(
+        0,
+        inventory.availableQuantity - quantityToConfirm,
+      );
+      inventory.updatedAt = new Date();
+
+      await inventory.save();
+
+      // Record sale movement
+      await this.movementModel.create({
+        sku: movement.sku,
+        type: MovementType.SALE,
+        quantity: quantityToConfirm,
+        referenceId: orderId,
+        referenceType: 'ORDER',
+        notes: `Sold for order ${orderId}`,
+        performedBy: 'SYSTEM',
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Get reserved quantity for an order
+   * Returns the total reserved quantity for all items in an order
+   * @param orderId Order ID
+   */
+  async getOrderReservedQuantity(orderId: string): Promise<number> {
+    const movements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    return movements.reduce((sum, m) => sum + m.quantity, 0);
   }
 }

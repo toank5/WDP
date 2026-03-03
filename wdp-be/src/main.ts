@@ -18,7 +18,7 @@ async function bootstrap() {
     .setTitle('WDP Eyewear Admin API')
     .setDescription(
       'Admin and backend API for WDP Eyewear platform. ' +
-      'Manages products, variants, media uploads, inventory, policies, users, and orders.',
+        'Manages products, variants, media uploads, inventory, policies, users, and orders.',
     )
     .setVersion('1.0')
     .addBearerAuth()

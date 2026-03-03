@@ -11,7 +11,7 @@ export class User {
   save() {
     throw new Error('Method not implemented.');
   }
-  _id: Types.ObjectId;
+  _id?: string;
 
   createdAt: Date;
   updatedAt: Date;

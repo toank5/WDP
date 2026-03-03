@@ -25,6 +25,44 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
 import { InventoryService } from './services/inventory.service';
 import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
+import {
+  SupplierController,
+  PublicSupplierController,
+} from './controllers/supplier.controller';
+import { SupplierService } from './services/supplier.service';
+import { Supplier, SupplierSchema } from './commons/schemas/supplier.schema';
+import {
+  InventoryMovement,
+  InventoryMovementSchema,
+} from './commons/schemas/inventory-movement.schema';
+import { CartController } from './controllers/cart.controller';
+import { CartService } from './services/cart.service';
+import { Cart, CartSchema } from './commons/schemas/cart.schema';
+import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
+import { OrderController } from './controllers/order.controller';
+import { OrderService } from './services/order.service';
+import { Order, OrderSchema } from './commons/schemas/order.schema';
+import {
+  OrderItem,
+  OrderItemSchema,
+} from './commons/schemas/order-item.schema';
+import {
+  OrderPayment,
+  OrderPaymentSchema,
+} from './commons/schemas/order-payment.schema';
+import {
+  OrderTracking,
+  OrderTrackingSchema,
+} from './commons/schemas/order-tracking.schema';
+import {
+  OrderHistory,
+  OrderHistorySchema,
+} from './commons/schemas/order-history.schema';
+import { VNPayService } from './services/vnpay.service';
+import {
+  ProductVariant,
+  ProductVariantSchema,
+} from './commons/schemas/product-variant.schema';
 
 @Module({
   imports: [
@@ -69,6 +107,25 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
         name: Inventory.name,
         schema: InventorySchema,
       },
+      {
+        name: Supplier.name,
+        schema: SupplierSchema,
+      },
+      {
+        name: InventoryMovement.name,
+        schema: InventoryMovementSchema,
+      },
+      {
+        name: ProductVariant.name,
+        schema: ProductVariantSchema,
+      },
+      { name: Cart.name, schema: CartSchema },
+      { name: CartItem.name, schema: CartItemSchema },
+      { name: Order.name, schema: OrderSchema },
+      { name: OrderItem.name, schema: OrderItemSchema },
+      { name: OrderPayment.name, schema: OrderPaymentSchema },
+      { name: OrderTracking.name, schema: OrderTrackingSchema },
+      { name: OrderHistory.name, schema: OrderHistorySchema },
     ]),
   ],
   controllers: [
@@ -78,7 +135,11 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyController,
     ProductController,
     InventoryController,
+    SupplierController,
+    PublicSupplierController,
     MediaController,
+    CartController,
+    OrderController,
   ],
   providers: [
     AppService,
@@ -89,9 +150,13 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyService,
     ProductService,
     InventoryService,
+    SupplierService,
     CloudinaryService,
     FileUploadService,
     MediaService,
+    CartService,
+    OrderService,
+    VNPayService,
   ],
 })
 export class AppModule {}

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Address } from './api.types'
+import type { Address } from '@/types/api.types'
 
 export type AuthUser = {
   fullName: string
