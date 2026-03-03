@@ -27,7 +27,6 @@ import {
   CreateInventoryDto,
   UpdateInventoryDto,
   StockAdjustmentDto,
-  StockAdjustmentWithSupplierDto,
   BulkStockUpdateDto,
   ReserveInventoryDto,
   ReleaseReservationDto,
@@ -385,7 +384,7 @@ export class InventoryController {
   })
   async adjustStock(
     @Param('sku') sku: string,
-    @Body() adjustmentDto: StockAdjustmentWithSupplierDto,
+    @Body() adjustmentDto: StockAdjustmentDto,
     @Res() res?: Response,
   ) {
     try {

@@ -475,17 +475,11 @@ export function VariantInventoryDialog({
                           input: {
                             ...params.InputProps,
                             startAdornment: (
-                              <InputAdornment position="start">
-                                <BusinessIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                          },
-                          endAdornment: {
-                            ...params.InputProps.endAdornment,
-                            children: (
                               <>
-                                {loadingSuppliers ? <CircularProgress size={16} /> : null}
-                                {params.InputProps.endAdornment?.children}
+                                <InputAdornment position="start">
+                                  <BusinessIcon fontSize="small" />
+                                </InputAdornment>
+                                {params.InputProps.startAdornment}
                               </>
                             ),
                           },

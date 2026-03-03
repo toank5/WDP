@@ -1,13 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { inventoryValidation } from '../validations/inventory.validation';
 
 @Schema({ _id: false })
 export class SupplierInfo {
   @Prop({
-    required: inventoryValidation.supplier.name.presence,
-    length: inventoryValidation.supplier.name.length,
+    required: false,
+    type: String,
   })
-  name: string;
+  name?: string;
 
   @Prop({
     required: false,

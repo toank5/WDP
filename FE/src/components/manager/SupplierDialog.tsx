@@ -320,7 +320,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
               </AccordionSummary>
               <AccordionDetails>
                 <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       required
@@ -338,7 +338,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       autoFocus={!isEdit}
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       required
@@ -390,7 +390,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
               </AccordionSummary>
               <AccordionDetails>
                 <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -413,7 +413,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       }}
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -480,7 +480,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
               </AccordionSummary>
               <AccordionDetails>
                 <Grid container spacing={2}>
-                  <Grid xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -527,7 +527,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
               </AccordionSummary>
               <AccordionDetails>
                 <Grid container spacing={2}>
-                  <Grid xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -537,7 +537,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       placeholder="123 Main Street"
                     />
                   </Grid>
-                  <Grid xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -547,7 +547,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       placeholder="Suite 100, Floor 5"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -557,7 +557,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       placeholder="Ho Chi Minh City"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -567,7 +567,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       placeholder="District 1"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -577,7 +577,7 @@ export function SupplierDialog({ open, onClose, onSave, supplierId }: SupplierDi
                       placeholder="700000"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       size="small"

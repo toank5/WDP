@@ -1,13 +1,19 @@
-﻿import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Order } from '../types/api.types'
+
+// Temporary interface for mock data
+interface MockOrder {
+  id: string
+  status: string
+  total: number
+}
 
 const OrderHistoryPage: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<MockOrder[]>([])
 
   useEffect(() => {
     // TODO: Replace with actual API call
-    setOrders([{ id: 'o1', status: 'delivered', total: 200 } as Order])
+    setOrders([{ id: 'o1', status: 'delivered', total: 200 }])
   }, [])
 
   return (

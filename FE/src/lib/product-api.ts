@@ -241,3 +241,83 @@ export async function deleteProduct(id: string) {
 export async function restoreProduct(id: string) {
   return handleRequest<Product>(api.patch(`/products/${id}/restore`))
 }
+
+// Catalog list types
+
+export type ProductCategory = 'frame' | 'lens' | 'service'
+
+export type ProductSortBy = 'createdAt' | 'name' | 'price' | 'updatedAt'
+
+export type ProductSortOrder = 'asc' | 'desc'
+
+export interface ProductCatalogQueryParams {
+  search?: string
+  category?: ProductCategory
+  shape?: string
+  material?: string
+  status?: 'ACTIVE' | 'INACTIVE'
+  has3D?: 'true' | 'false'
+  hasVariants?: 'true' | 'false'
+  sortBy?: ProductSortBy
+  sortOrder?: ProductSortOrder
+  page?: number
+  limit?: number
+}
+
+export interface ProductListItem {
+  id: string
+  name: string
+  category: ProductCategory
+  shape?: string
+  material?: string
+  isActive: boolean
+  defaultImage2DUrl?: string
+  has3D: boolean
+  variantCount: number
+  minPrice?: number
+  maxPrice?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductCatalogResponse {
+  items: ProductListItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+/**
+ * Get products catalog with filtering, sorting, and pagination
+ * Used for admin/manager catalog view
+ */
+export async function getProductsCatalog(
+  params: ProductCatalogQueryParams = {},
+): Promise<ProductCatalogResponse> {
+  const queryParams = new URLSearchParams()
+
+  if (params.search) queryParams.append('search', params.search)
+  if (params.category) queryParams.append('category', params.category)
+  if (params.shape) queryParams.append('shape', params.shape)
+  if (params.material) queryParams.append('material', params.material)
+  if (params.status) queryParams.append('status', params.status)
+  if (params.has3D) queryParams.append('has3D', params.has3D)
+  if (params.hasVariants) queryParams.append('hasVariants', params.hasVariants)
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy)
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+  if (params.page) queryParams.append('page', params.page.toString())
+  if (params.limit) queryParams.append('limit', params.limit.toString())
+
+  const queryString = queryParams.toString()
+  const url = `/products/catalog${queryString ? `?${queryString}` : ''}`
+
+  return handleRequest<ProductCatalogResponse>(api.get(url))
+}
+
+/**
+ * Get product by ID (full details)
+ */
+export async function getProductById(id: string): Promise<Product> {
+  return handleRequest<Product>(api.get(`/products/${id}`))
+}

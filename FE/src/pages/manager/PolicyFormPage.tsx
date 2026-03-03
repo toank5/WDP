@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { getPolicies, createPolicy, updatePolicy, AnyPolicy, PolicyType, ApiError } from '../../lib/policy-api'
+import { getPolicies, createPolicy, updatePolicy, AnyPolicy, PolicyType, StrictPolicyConfigMap } from '../../lib/policy-api'
 import {
   FiFileText,
   FiSettings,
@@ -22,6 +22,8 @@ import type {
   PrescriptionPolicyConfig,
   CancellationPolicyConfig,
   RefundPolicyConfig,
+  LegalPolicyConfig,
+  ApiError,
 } from '../../types/policy.types'
 
 /**
@@ -31,16 +33,87 @@ interface ValidationErrors {
   [key: string]: string
 }
 
+/**
+ * Form state type - allows partial config for editing
+ * Common fields are required, config can be partial
+ */
+interface PolicyFormState {
+  type?: PolicyType
+  title?: string
+  summary?: string
+  bodyPlainText?: string
+  bodyRichTextJson?: unknown
+  effectiveFrom?: string
+  config?: Record<string, unknown>
+}
+
+/**
+ * Type guard to check if value is a valid PolicyType
+ */
+function isValidPolicyType(value: string): value is PolicyType {
+  return ['return', 'refund', 'warranty', 'shipping', 'prescription', 'cancellation', 'privacy', 'terms'].includes(value)
+}
+
+/**
+ * Type guard to narrow config to ReturnPolicyConfig
+ */
+function isReturnConfig(config: unknown): config is Partial<ReturnPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow config to WarrantyPolicyConfig
+ */
+function isWarrantyConfig(config: unknown): config is Partial<WarrantyPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow config to ShippingPolicyConfig
+ */
+function isShippingConfig(config: unknown): config is Partial<ShippingPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow config to PrescriptionPolicyConfig
+ */
+function isPrescriptionConfig(config: unknown): config is Partial<PrescriptionPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow config to CancellationPolicyConfig
+ */
+function isCancellationConfig(config: unknown): config is Partial<CancellationPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow config to RefundPolicyConfig
+ */
+function isRefundConfig(config: unknown): config is Partial<RefundPolicyConfig> {
+  return typeof config === 'object' && config !== null
+}
+
+/**
+ * Type guard to narrow error to ApiError
+ */
+function isApiError(error: unknown): error is ApiError {
+  return typeof error === 'object' && error !== null && 'message' in error
+}
+
 const PolicyFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
   const queryParams = new URLSearchParams(location.search)
-  const initialType = (queryParams.get('type') as PolicyType) || 'return'
+  const typeParam = queryParams.get('type')
+  const initialType: PolicyType = isValidPolicyType(typeParam || '') ? (typeParam as PolicyType) : 'return'
 
   const [loading, setLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
-  const [formData, setFormData] = useState<Partial<AnyPolicy>>({
+  const [formData, setFormData] = useState<PolicyFormState>({
     type: initialType,
     summary: '',
     bodyPlainText: '',
@@ -57,8 +130,13 @@ const PolicyFormPage: React.FC = () => {
           const policy = policies.find((p) => p._id === id)
           if (policy) {
             setFormData({
-              ...policy,
+              type: policy.type,
+              title: policy.title,
+              summary: policy.summary,
+              bodyPlainText: policy.bodyPlainText,
+              bodyRichTextJson: policy.bodyRichTextJson,
               effectiveFrom: new Date(policy.effectiveFrom).toISOString().split('T')[0],
+              config: policy.config as Record<string, unknown>,
             })
           }
         })
@@ -237,24 +315,47 @@ const PolicyFormPage: React.FC = () => {
 
     setLoading(true)
     try {
+      // Prepare the base submit data without config first
+      const baseSubmitData = {
+        type: formData.type!,
+        title: formData.title || '',
+        summary: formData.summary || '',
+        bodyPlainText: formData.bodyPlainText || '',
+        bodyRichTextJson: formData.bodyRichTextJson,
+        effectiveFrom: formData.effectiveFrom || new Date().toISOString().split('T')[0],
+      }
+
+      // Add config with proper type casting for API
+      // We use unknown as intermediate type to avoid direct type assertion errors
+      const submitData = {
+        ...baseSubmitData,
+        config: formData.config as StrictPolicyConfigMap[typeof baseSubmitData.type],
+      }
+
       if (id) {
-        await updatePolicy(id, formData)
+        // Update - type is inferred from submitData
+        await updatePolicy(id, submitData)
         toast.success('Policy updated successfully')
       } else {
-        await createPolicy(formData)
+        // Create - type is inferred from submitData
+        await createPolicy(submitData)
         toast.success('New policy version created')
       }
       navigate('/dashboard/policies')
     } catch (err: unknown) {
-      const apiError = err as ApiError
       console.error('Failed to save policy', err)
 
-      // Handle validation errors from backend
-      if (apiError.errors && Object.keys(apiError.errors).length > 0) {
-        setValidationErrors(apiError.errors)
-        toast.error(apiError.message || 'Please fix the validation errors')
+      // Use type guard for error handling
+      if (isApiError(err)) {
+        // Handle validation errors from backend
+        if (err.errors && Object.keys(err.errors).length > 0) {
+          setValidationErrors(err.errors)
+          toast.error(err.message || 'Please fix the validation errors')
+        } else {
+          toast.error(err.message || 'Failed to save policy. Please try again.')
+        }
       } else {
-        toast.error(apiError.message || 'Failed to save policy. Please try again.')
+        toast.error('Failed to save policy. Please try again.')
       }
     } finally {
       setLoading(false)
@@ -266,7 +367,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Return Policy Config
     if (type === 'return') {
-      const c = config as Partial<ReturnPolicyConfig>
+      const c = isReturnConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -287,15 +388,14 @@ const PolicyFormPage: React.FC = () => {
                 value={c.returnWindowDays?.framesOnly ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.framesOnly')
+                  const updatedConfig = Object.assign({}, c, {
+                    returnWindowDays: Object.assign({}, c.returnWindowDays || {}, {
+                      framesOnly: parseInt(e.target.value) || 0,
+                    }),
+                  })
                   setFormData({
                     ...formData,
-                    config: {
-                      ...config,
-                      returnWindowDays: {
-                        ...(c.returnWindowDays || {}),
-                        framesOnly: parseInt(e.target.value) || 0,
-                      },
-                    },
+                    config: updatedConfig,
                   })
                 }}
               />
@@ -316,15 +416,14 @@ const PolicyFormPage: React.FC = () => {
                 value={c.returnWindowDays?.prescriptionGlasses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.prescriptionGlasses')
+                  const updatedConfig = Object.assign({}, c, {
+                    returnWindowDays: Object.assign({}, c.returnWindowDays || {}, {
+                      prescriptionGlasses: parseInt(e.target.value) || 0,
+                    }),
+                  })
                   setFormData({
                     ...formData,
-                    config: {
-                      ...config,
-                      returnWindowDays: {
-                        ...(c.returnWindowDays || {}),
-                        prescriptionGlasses: parseInt(e.target.value) || 0,
-                      },
-                    },
+                    config: updatedConfig,
                   })
                 }}
               />
@@ -345,15 +444,14 @@ const PolicyFormPage: React.FC = () => {
                 value={c.returnWindowDays?.contactLenses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.contactLenses')
+                  const updatedConfig = Object.assign({}, c, {
+                    returnWindowDays: Object.assign({}, c.returnWindowDays || {}, {
+                      contactLenses: parseInt(e.target.value) || 0,
+                    }),
+                  })
                   setFormData({
                     ...formData,
-                    config: {
-                      ...config,
-                      returnWindowDays: {
-                        ...(c.returnWindowDays || {}),
-                        contactLenses: parseInt(e.target.value) || 0,
-                      },
-                    },
+                    config: updatedConfig,
                   })
                 }}
               />
@@ -374,10 +472,7 @@ const PolicyFormPage: React.FC = () => {
                 clearFieldError('nonReturnableCategories')
                 setFormData({
                   ...formData,
-                  config: {
-                    ...config,
-                    nonReturnableCategories: value,
-                  },
+                  config: Object.assign({}, c, { nonReturnableCategories: value }),
                 })
               }}
               placeholder="Type a category and press Enter (e.g. used-contact-lenses)"
@@ -406,7 +501,7 @@ const PolicyFormPage: React.FC = () => {
                 clearFieldError('restockingFeePercent')
                 setFormData({
                   ...formData,
-                  config: { ...config, restockingFeePercent: parseInt(e.target.value) || 0 },
+                  config: Object.assign({}, c, { restockingFeePercent: parseInt(e.target.value) || 0 }),
                 })
               }}
             />
@@ -430,7 +525,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('customerPaysReturnShipping')
                   setFormData({
                     ...formData,
-                    config: { ...config, customerPaysReturnShipping: e.target.checked },
+                    config: Object.assign({}, c, { customerPaysReturnShipping: e.target.checked }),
                   })
                 }}
               />
@@ -449,7 +544,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Warranty Policy Config
     if (type === 'warranty') {
-      const c = config as Partial<WarrantyPolicyConfig>
+      const c = isWarrantyConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -472,7 +567,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('framesMonths')
                   setFormData({
                     ...formData,
-                    config: { ...config, framesMonths: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { framesMonths: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -495,7 +590,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('lensesMonths')
                   setFormData({
                     ...formData,
-                    config: { ...config, lensesMonths: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { lensesMonths: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -518,7 +613,7 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('coversManufacturingDefects')
                     setFormData({
                       ...formData,
-                      config: { ...config, coversManufacturingDefects: e.target.checked },
+                      config: Object.assign({}, c, { coversManufacturingDefects: e.target.checked }),
                     })
                   }}
                 />
@@ -542,7 +637,7 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('excludesScratchesFromWear')
                     setFormData({
                       ...formData,
-                      config: { ...config, excludesScratchesFromWear: e.target.checked },
+                      config: Object.assign({}, c, { excludesScratchesFromWear: e.target.checked }),
                     })
                   }}
                 />
@@ -562,7 +657,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Shipping Policy Config
     if (type === 'shipping') {
-      const c = config as Partial<ShippingPolicyConfig>
+      const c = isShippingConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -583,7 +678,7 @@ const PolicyFormPage: React.FC = () => {
                 clearFieldError('defaultCarrier')
                 setFormData({
                   ...formData,
-                  config: { ...config, defaultCarrier: e.target.value },
+                  config: Object.assign({}, c, { defaultCarrier: e.target.value }),
                 })
               }}
               placeholder="e.g., FedEx, UPS, USPS"
@@ -609,7 +704,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('standardDaysMax')
                   setFormData({
                     ...formData,
-                    config: { ...config, standardDaysMin: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { standardDaysMin: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -633,7 +728,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('standardDaysMin')
                   setFormData({
                     ...formData,
-                    config: { ...config, standardDaysMax: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { standardDaysMax: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -657,7 +752,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('expressDaysMax')
                   setFormData({
                     ...formData,
-                    config: { ...config, expressDaysMin: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { expressDaysMin: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -681,7 +776,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('expressDaysMin')
                   setFormData({
                     ...formData,
-                    config: { ...config, expressDaysMax: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { expressDaysMax: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -705,7 +800,7 @@ const PolicyFormPage: React.FC = () => {
                 clearFieldError('freeShippingMinAmount')
                 setFormData({
                   ...formData,
-                  config: { ...config, freeShippingMinAmount: parseInt(e.target.value) || 0 },
+                  config: Object.assign({}, c, { freeShippingMinAmount: parseInt(e.target.value) || 0 }),
                 })
               }}
             />
@@ -721,7 +816,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Prescription Policy Config
     if (type === 'prescription') {
-      const c = config as Partial<PrescriptionPolicyConfig>
+      const c = isPrescriptionConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -743,7 +838,7 @@ const PolicyFormPage: React.FC = () => {
                 clearFieldError('maxPrescriptionAgeMonths')
                 setFormData({
                   ...formData,
-                  config: { ...config, maxPrescriptionAgeMonths: parseInt(e.target.value) || 0 },
+                  config: Object.assign({}, c, { maxPrescriptionAgeMonths: parseInt(e.target.value) || 0 }),
                 })
               }}
             />
@@ -768,7 +863,7 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('requirePD')
                     setFormData({
                       ...formData,
-                      config: { ...config, requirePD: e.target.checked },
+                      config: Object.assign({}, c, { requirePD: e.target.checked }),
                     })
                   }}
                 />
@@ -792,7 +887,7 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('allowHighPowerRange')
                     setFormData({
                       ...formData,
-                      config: { ...config, allowHighPowerRange: e.target.checked },
+                      config: Object.assign({}, c, { allowHighPowerRange: e.target.checked }),
                     })
                   }}
                 />
@@ -812,7 +907,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Cancellation Policy Config
     if (type === 'cancellation') {
-      const c = config as Partial<CancellationPolicyConfig>
+      const c = isCancellationConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -833,7 +928,7 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('allowCancelReadyBeforeShip')
                     setFormData({
                       ...formData,
-                      config: { ...config, allowCancelReadyBeforeShip: e.target.checked },
+                      config: Object.assign({}, c, { allowCancelReadyBeforeShip: e.target.checked }),
                     })
                   }}
                 />
@@ -857,10 +952,9 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('allowCancelPrescriptionBeforeProduction')
                     setFormData({
                       ...formData,
-                      config: {
-                        ...config,
+                      config: Object.assign({}, c, {
                         allowCancelPrescriptionBeforeProduction: e.target.checked,
-                      },
+                      }),
                     })
                   }}
                 />
@@ -884,10 +978,9 @@ const PolicyFormPage: React.FC = () => {
                     clearFieldError('allowCancelPreorderBeforeSupplierConfirm')
                     setFormData({
                       ...formData,
-                      config: {
-                        ...config,
+                      config: Object.assign({}, c, {
                         allowCancelPreorderBeforeSupplierConfirm: e.target.checked,
-                      },
+                      }),
                     })
                   }}
                 />
@@ -907,7 +1000,7 @@ const PolicyFormPage: React.FC = () => {
 
     // Refund Policy Config
     if (type === 'refund') {
-      const c = config as Partial<RefundPolicyConfig>
+      const c = isRefundConfig(config) ? config : {}
       return (
         <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
@@ -927,7 +1020,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('refundToOriginalMethodOnly')
                   setFormData({
                     ...formData,
-                    config: { ...config, refundToOriginalMethodOnly: e.target.checked },
+                    config: Object.assign({}, c, { refundToOriginalMethodOnly: e.target.checked }),
                   })
                 }}
               />
@@ -955,7 +1048,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('expectedProcessingDaysMax')
                   setFormData({
                     ...formData,
-                    config: { ...config, expectedProcessingDaysMin: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { expectedProcessingDaysMin: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -979,7 +1072,7 @@ const PolicyFormPage: React.FC = () => {
                   clearFieldError('expectedProcessingDaysMin')
                   setFormData({
                     ...formData,
-                    config: { ...config, expectedProcessingDaysMax: parseInt(e.target.value) || 0 },
+                    config: Object.assign({}, c, { expectedProcessingDaysMax: parseInt(e.target.value) || 0 }),
                   })
                 }}
               />
@@ -1074,9 +1167,12 @@ const PolicyFormPage: React.FC = () => {
                       disabled={!!id}
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50 cursor-pointer appearance-none"
                       value={formData.type}
-                      onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value as PolicyType, config: {} })
-                      }
+                      onChange={(e) => {
+                        const newType = e.target.value
+                        if (isValidPolicyType(newType)) {
+                          setFormData({ ...formData, type: newType, config: {} })
+                        }
+                      }}
                     >
                       <option value="return">Return</option>
                       <option value="refund">Refund</option>

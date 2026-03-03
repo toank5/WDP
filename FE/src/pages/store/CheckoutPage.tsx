@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { CreditCard, MapPin, ReceiptText, Truck, RefreshCcw } from 'lucide-react'
-import { getCurrentPolicies, Policy } from '../lib/policy-api'
+import { getCurrentPolicies, Policy } from '@/lib/policy-api'
 const CheckoutPage: React.FC = () => {
   const [address, setAddress] = useState('')
   const [policies, setPolicies] = useState<Record<string, Policy> | null>(null)

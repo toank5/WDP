@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsOptional, Min, IsNotEmpty, IsBoolean, IsArray, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  Min,
+  IsNotEmpty,
+  IsArray,
+  IsEnum,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SupplierStatus } from '../schemas/supplier.schema';
 
@@ -289,7 +297,8 @@ export class SupplierQueryParams {
  */
 export class StockAdjustmentWithSupplierDto {
   @ApiProperty({
-    description: 'Change in stock quantity (positive for increase, negative for decrease)',
+    description:
+      'Change in stock quantity (positive for increase, negative for decrease)',
     example: 10,
   })
   @IsNumber()

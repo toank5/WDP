@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import type { Order } from '../types/api.types'
+import type { Order } from '@/types/api.types'
 
 type OrderItem = {
   name: string

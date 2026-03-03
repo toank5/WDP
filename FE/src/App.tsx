@@ -12,16 +12,16 @@ import PolicyListPage from './pages/manager/PolicyListPage'
 import PolicyFormPage from './pages/manager/PolicyFormPage'
 import PolicyDetailPage from './pages/PolicyDetailPage'
 
-// Customer pages
-import ProductsPage from './pages/ProductsPage'
-import ProductDetailPage from './pages/ProductDetailPage'
-import CartPage from './pages/CartPage'
-import CheckoutPage from './pages/CheckoutPage'
+// Customer pages (store/)
+import { StorePage } from './pages/store/StorePage'
+import { ProductDetailPage } from './pages/store/ProductDetailPage'
+import CartPage from './pages/store/CartPage'
+import CheckoutPage from './pages/store/CheckoutPage'
 import AccountPage from './pages/AccountPage'
-import OrderHistoryPage from './pages/OrderHistoryPage'
-import OrderDetailPage from './pages/OrderDetailPage'
-import PrescriptionUploadPage from './pages/PrescriptionUploadPage'
-import VirtualTryOnPage from './pages/VirtualTryOnPage'
+import OrderHistoryPage from './pages/store/OrderHistoryPage'
+import OrderDetailPage from './pages/store/OrderDetailPage'
+import PrescriptionUploadPage from './pages/store/PrescriptionUploadPage'
+import VirtualTryOnPage from './pages/store/VirtualTryOnPage'
 
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
@@ -31,8 +31,10 @@ import OperationsDashboard from './pages/OperationsDashboard'
 import ShippingPage from './pages/ShippingPage'
 
 // Manager pages
-import PromotionsPage from './pages/PromotionsPage'
-import AnalyticsPage from './pages/AnalyticsPage'
+import PromotionsPage from './pages/manager/PromotionsPage'
+import AnalyticsPage from './pages/manager/AnalyticsPage'
+import { ProductCatalogPage } from './pages/manager/ProductCatalogPage'
+import { ProductDetailAdminPage } from './pages/manager/ProductDetailAdminPage'
 import { InventoryManagementPage } from './pages/manager/InventoryManagementPage'
 import { InventoryDetailPage } from './pages/manager/InventoryDetailPage'
 import { SupplierManagementPage } from './pages/manager/SupplierManagementPage'
@@ -52,9 +54,12 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Customer routes */}
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
+          {/* Customer routes - Storefront */}
+          <Route path="/store" element={<StorePage />} />
+          <Route path="/store/:category" element={<StorePage />} />
+          <Route path="/product/:slug" element={<ProductDetailPage />} />
+          <Route path="/products" element={<StorePage />} />
+          <Route path="/products/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/account" element={<AccountPage />} />
@@ -79,6 +84,8 @@ function App() {
             <Route path="policies/new" element={<PolicyFormPage />} />
             <Route path="policies/:id/edit" element={<PolicyFormPage />} />
             <Route path="products" element={<ProductManagementPage />} />
+            <Route path="all-products" element={<ProductCatalogPage />} />
+            <Route path="products-catalog/:id" element={<ProductDetailAdminPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
             <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />

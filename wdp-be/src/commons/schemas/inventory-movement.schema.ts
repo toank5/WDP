@@ -2,13 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export enum MovementType {
-  RECEIPT = 'receipt',       // Stock received from supplier
+  RECEIPT = 'receipt', // Stock received from supplier
   ADJUSTMENT = 'adjustment', // Manual adjustment (+/-)
   RESERVATION = 'reservation', // Stock reserved for order
-  RELEASE = 'release',       // Reserved stock released
-  CONFIRMED = 'confirmed',   // Reserved stock confirmed/shipped
-  SALE = 'sale',            // Direct sale (no reservation)
-  RETURN = 'return',        // Customer return
+  RELEASE = 'release', // Reserved stock released
+  CONFIRMED = 'confirmed', // Reserved stock confirmed/shipped
+  SALE = 'sale', // Direct sale (no reservation)
+  RETURN = 'return', // Customer return
 }
 
 /**
@@ -81,7 +81,8 @@ export class InventoryMovement extends Document {
   reservationId?: Types.ObjectId;
 }
 
-export const InventoryMovementSchema = SchemaFactory.createForClass(InventoryMovement);
+export const InventoryMovementSchema =
+  SchemaFactory.createForClass(InventoryMovement);
 
 // Index for common queries
 InventoryMovementSchema.index({ sku: 1, createdAt: -1 });

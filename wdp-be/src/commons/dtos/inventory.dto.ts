@@ -1,4 +1,10 @@
-import { IsString, IsNumber, IsOptional, Min, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  Min,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -82,7 +88,8 @@ export class UpdateInventoryDto {
  */
 export class StockAdjustmentDto {
   @ApiProperty({
-    description: 'Change in stock quantity (positive for increase, negative for decrease)',
+    description:
+      'Change in stock quantity (positive for increase, negative for decrease)',
     example: 10,
   })
   @IsNumber()

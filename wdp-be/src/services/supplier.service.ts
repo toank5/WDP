@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Supplier, SupplierStatus } from '../commons/schemas/supplier.schema';
@@ -46,12 +50,7 @@ export class SupplierService {
     page: number;
     limit: number;
   }> {
-    const {
-      search,
-      status,
-      page = 1,
-      limit = 20,
-    } = params;
+    const { search, status, page = 1, limit = 20 } = params;
 
     const query: Record<string, unknown> = {};
 
@@ -98,12 +97,7 @@ export class SupplierService {
     page: number;
     limit: number;
   }> {
-    const {
-      search,
-      activeOnly = false,
-      page = 1,
-      limit = 50,
-    } = params;
+    const { search, activeOnly = false, page = 1, limit = 50 } = params;
 
     const query: Record<string, unknown> = {};
 
@@ -160,9 +154,7 @@ export class SupplierService {
       code: code.toUpperCase(),
     });
     if (!supplier) {
-      throw new NotFoundException(
-        `Supplier with code "${code}" not found`,
-      );
+      throw new NotFoundException(`Supplier with code "${code}" not found`);
     }
     return supplier;
   }
@@ -193,10 +185,7 @@ export class SupplierService {
   /**
    * Update supplier
    */
-  async update(
-    id: string,
-    updateDto: UpdateSupplierDto,
-  ): Promise<Supplier> {
+  async update(id: string, updateDto: UpdateSupplierDto): Promise<Supplier> {
     const supplier = await this.findById(id);
 
     // Apply updates (code cannot be changed)
@@ -219,7 +208,9 @@ export class SupplierService {
    */
   async setActive(id: string, isActive: boolean): Promise<Supplier> {
     const supplier = await this.findById(id);
-    supplier.status = isActive ? SupplierStatus.ACTIVE : SupplierStatus.INACTIVE;
+    supplier.status = isActive
+      ? SupplierStatus.ACTIVE
+      : SupplierStatus.INACTIVE;
     return await supplier.save();
   }
 

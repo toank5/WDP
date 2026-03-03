@@ -685,4 +685,186 @@ export class ProductService {
 
     return product.save();
   }
+
+  /**
+   * List products with filtering, sorting, and pagination (admin catalog view)
+   * Used for the "All Products" page in the dashboard
+   */
+  async list(query: {
+    search?: string;
+    category?: PRODUCT_CATEGORIES;
+    shape?: string;
+    material?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+    has3D?: 'true' | 'false';
+    hasVariants?: 'true' | 'false';
+    sortBy?: 'createdAt' | 'name' | 'price' | 'updatedAt';
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      name: string;
+      category: PRODUCT_CATEGORIES;
+      shape?: string;
+      material?: string;
+      isActive: boolean;
+      defaultImage2DUrl?: string;
+      has3D: boolean;
+      variantCount: number;
+      minPrice?: number;
+      maxPrice?: number;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const {
+      search,
+      category,
+      shape,
+      material,
+      status,
+      has3D,
+      hasVariants,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 20,
+    } = query;
+
+    // Build query filter
+    const filter: Record<string, unknown> = { isDeleted: false };
+
+    // Search: name, SKU (variants.sku), or category
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { 'variants.sku': searchRegex },
+        { category: searchRegex },
+      ];
+    }
+
+    // Category filter
+    if (category) {
+      filter.category = category;
+    }
+
+    // Shape filter (frames)
+    if (shape) {
+      filter.shape = new RegExp(shape, 'i');
+    }
+
+    // Material filter (frames)
+    if (material) {
+      filter.material = new RegExp(material, 'i');
+    }
+
+    // Status filter
+    if (status === 'ACTIVE') {
+      filter.isActive = true;
+    } else if (status === 'INACTIVE') {
+      filter.isActive = false;
+    }
+
+    // Pagination
+    const skip = (page - 1) * limit;
+
+    // Get total count before pagination
+    const total = await this.productModel.countDocuments(filter);
+
+    // Build sort object
+    const sortObj: Record<string, 1 | -1> = {};
+    sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Fetch products
+    const products = await this.productModel
+      .find(filter)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    // Process products into lightweight DTOs
+    const items = products
+      .map((product) => {
+        const variantCount = product.variants?.length || 0;
+
+        // Find default 2D image (from product or first variant)
+        let defaultImage2DUrl: string | undefined;
+        if (product.images2D && product.images2D.length > 0) {
+          defaultImage2DUrl = product.images2D[0];
+        } else if (product.variants && product.variants.length > 0) {
+          const variantWithImage = product.variants.find(
+            (v: ProductVariant) => v.images2D && v.images2D.length > 0,
+          );
+          if (
+            variantWithImage?.images2D &&
+            variantWithImage.images2D.length > 0
+          ) {
+            defaultImage2DUrl = variantWithImage.images2D[0];
+          }
+        }
+
+        // Check if has 3D media
+        const hasProduct3D = product.images3D && product.images3D.length > 0;
+        const hasVariant3D = product.variants?.some(
+          (v: ProductVariant) => v.images3D && v.images3D.length > 0,
+        );
+        const productHas3D = hasProduct3D || hasVariant3D;
+
+        // Calculate min/max price from variants or basePrice
+        let minPrice: number | undefined;
+        let maxPrice: number | undefined;
+        if (product.variants && product.variants.length > 0) {
+          const prices = product.variants.map((v: ProductVariant) => v.price);
+          minPrice = Math.min(...prices);
+          maxPrice = Math.max(...prices);
+        } else {
+          minPrice = product.basePrice;
+          maxPrice = product.basePrice;
+        }
+
+        return {
+          id: product._id.toString(),
+          name: product.name,
+          category: product.category,
+          shape: product.shape,
+          material: product.material,
+          isActive: product.isActive ?? true,
+          defaultImage2DUrl,
+          has3D: productHas3D,
+          variantCount,
+          minPrice,
+          maxPrice,
+          createdAt: product.createdAt!,
+          updatedAt: product.updatedAt!,
+        };
+      })
+      // Post-filter for has3D and hasVariants
+      .filter((item) => {
+        if (has3D === 'true' && !item.has3D) return false;
+        if (has3D === 'false' && item.has3D) return false;
+        if (hasVariants === 'true' && item.variantCount <= 1) return false;
+        if (hasVariants === 'false' && item.variantCount > 1) return false;
+        return true;
+      });
+
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
 }

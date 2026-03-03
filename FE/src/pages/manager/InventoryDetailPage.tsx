@@ -370,7 +370,7 @@ export function InventoryDetailPage() {
 
         <Grid container spacing={2}>
           {/* Product Info Card */}
-          <Grid size={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -452,7 +452,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Stock Status Card */}
-          <Grid size={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -461,7 +461,7 @@ export function InventoryDetailPage() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Stock Quantity
                     </Typography>
@@ -472,7 +472,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.stockQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Reserved
                     </Typography>
@@ -480,7 +480,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.reservedQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Available
                     </Typography>
@@ -491,7 +491,7 @@ export function InventoryDetailPage() {
                       {formatNumber(inventory.availableQuantity)}
                     </Typography>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" color="text.secondary">
                       Reorder Level
                     </Typography>
@@ -517,7 +517,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Edit Stock Card */}
-          <Grid size={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -526,7 +526,7 @@ export function InventoryDetailPage() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -545,7 +545,7 @@ export function InventoryDetailPage() {
                     />
                   </Grid>
 
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -587,7 +587,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Receive Stock Card */}
-          <Grid size={12}>
+          <Grid size={{ xs: 12 }}>
             <Card sx={{ borderLeft: 4, borderColor: 'success.main' }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom fontWeight={600} color="success.main">
@@ -599,7 +599,7 @@ export function InventoryDetailPage() {
                 </Typography>
 
                 <Grid container spacing={2}>
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -607,12 +607,12 @@ export function InventoryDetailPage() {
                       value={receiveQuantity}
                       onChange={(e) => setReceiveQuantity(e.target.value)}
                       placeholder="e.g., 100"
-                      slotProps={{ input: { min: 1 } }}
+                      inputProps={{ min: 1 }}
                       helperText="Number of units received"
                     />
                   </Grid>
 
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Box display="flex" gap={1} alignItems="flex-start">
                       <Autocomplete
                         fullWidth
@@ -660,7 +660,7 @@ export function InventoryDetailPage() {
                     )}
                   </Grid>
 
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Reference (optional)"
@@ -671,7 +671,7 @@ export function InventoryDetailPage() {
                     />
                   </Grid>
 
-                  <Grid size={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Note (optional)"
@@ -699,7 +699,7 @@ export function InventoryDetailPage() {
           </Grid>
 
           {/* Movement History Card */}
-          <Grid size={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>

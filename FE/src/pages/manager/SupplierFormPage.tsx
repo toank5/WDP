@@ -220,7 +220,7 @@ export function SupplierFormPage() {
                   Basic Information
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       required
@@ -233,7 +233,7 @@ export function SupplierFormPage() {
                       placeholder="ACME"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       required
@@ -256,7 +256,7 @@ export function SupplierFormPage() {
                   Contact Information
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Email"
@@ -268,7 +268,7 @@ export function SupplierFormPage() {
                       placeholder="contact@acme.com"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Phone"
@@ -288,7 +288,7 @@ export function SupplierFormPage() {
                   Finance Information
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Tax Code / VAT Number"
@@ -297,7 +297,7 @@ export function SupplierFormPage() {
                       placeholder="123456789"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Default Currency"
@@ -317,7 +317,7 @@ export function SupplierFormPage() {
                   Address
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="Address Line 1"
@@ -326,7 +326,7 @@ export function SupplierFormPage() {
                       placeholder="123 Main Street"
                     />
                   </Grid>
-                  <Grid xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="Address Line 2"
@@ -335,7 +335,7 @@ export function SupplierFormPage() {
                       placeholder="Suite 100"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="City"
@@ -344,7 +344,7 @@ export function SupplierFormPage() {
                       placeholder="Ho Chi Minh City"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="State/Province"
@@ -353,7 +353,7 @@ export function SupplierFormPage() {
                       placeholder="HCM"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Postal Code"
@@ -362,7 +362,7 @@ export function SupplierFormPage() {
                       placeholder="700000"
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="Country"

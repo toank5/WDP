@@ -9,7 +9,10 @@ import { Model, Types } from 'mongoose';
 import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Supplier } from '../commons/schemas/supplier.schema';
-import { InventoryMovement, MovementType } from '../commons/schemas/inventory-movement.schema';
+import {
+  InventoryMovement,
+  MovementType,
+} from '../commons/schemas/inventory-movement.schema';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
@@ -51,7 +54,8 @@ export class InventoryService {
     @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(Supplier.name) private supplierModel: Model<Supplier>,
-    @InjectModel(InventoryMovement.name) private movementModel: Model<InventoryMovement>,
+    @InjectModel(InventoryMovement.name)
+    private movementModel: Model<InventoryMovement>,
   ) {}
 
   /**
@@ -370,7 +374,9 @@ export class InventoryService {
 
     // Add supplier info if provided
     if (adjustmentDto.supplierId) {
-      const supplier = await this.supplierModel.findById(adjustmentDto.supplierId);
+      const supplier = await this.supplierModel.findById(
+        adjustmentDto.supplierId,
+      );
       if (supplier) {
         movementData.supplier = {
           supplierId: supplier._id,
@@ -600,13 +606,15 @@ export class InventoryService {
   /**
    * Get all movements (with optional filtering)
    */
-  async getAllMovements(options: {
-    sku?: string;
-    movementType?: MovementType;
-    supplierId?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<{ movements: InventoryMovement[]; total: number }> {
+  async getAllMovements(
+    options: {
+      sku?: string;
+      movementType?: MovementType;
+      supplierId?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<{ movements: InventoryMovement[]; total: number }> {
     const { sku, movementType, supplierId, limit = 50, offset = 0 } = options;
 
     const query: Record<string, unknown> = {};
@@ -645,7 +653,9 @@ export class InventoryService {
    */
   async ensureInventoryForSkus(skus: string[]): Promise<void> {
     // Remove duplicates and filter out empty strings
-    const uniqueSkus = Array.from(new Set(skus)).filter((s) => s && s.trim().length > 0);
+    const uniqueSkus = Array.from(new Set(skus)).filter(
+      (s) => s && s.trim().length > 0,
+    );
 
     if (uniqueSkus.length === 0) {
       return;

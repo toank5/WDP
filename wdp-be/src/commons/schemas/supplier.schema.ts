@@ -53,7 +53,7 @@ export class Supplier extends Document {
   @Prop({
     type: String,
     enum: SupplierStatus,
-    default: SupplierStatus.ACTIVE
+    default: SupplierStatus.ACTIVE,
   })
   status: SupplierStatus;
 }

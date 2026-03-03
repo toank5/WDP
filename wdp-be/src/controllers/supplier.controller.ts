@@ -12,7 +12,7 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard, UserRole, Roles } from '../commons/guards/rbac.guard';
@@ -20,7 +20,6 @@ import { SupplierService } from '../services/supplier.service';
 import {
   CreateSupplierDto,
   UpdateSupplierDto,
-  SupplierQueryParams,
   ListSuppliersQueryDto,
 } from '../commons/dtos/supplier.dto';
 import { Supplier, SupplierStatus } from '../commons/schemas/supplier.schema';
@@ -30,7 +29,11 @@ import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 const SUPPLIER_MANAGE_ROLES = [UserRole.MANAGER, UserRole.ADMIN];
 
 // Roles that can view suppliers (Operation, Manager, Admin)
-const SUPPLIER_VIEW_ROLES = [UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN];
+const SUPPLIER_VIEW_ROLES = [
+  UserRole.OPERATION,
+  UserRole.MANAGER,
+  UserRole.ADMIN,
+];
 
 @ApiTags('suppliers')
 @Controller('manager/suppliers')
@@ -66,9 +69,21 @@ export class SupplierController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden', type: ErrorResponseDto })
-  @ApiResponse({ status: 409, description: 'Supplier code already exists', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Supplier code already exists',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async create(@Body() createDto: CreateSupplierDto, @Res() res?: Response) {
     try {
       const supplier = await this.supplierService.create(createDto);
@@ -96,36 +111,57 @@ export class SupplierController {
   @Roles(...SUPPLIER_MANAGE_ROLES)
   @ApiOperation({
     summary: 'Get suppliers list',
-    description: 'Get paginated list of suppliers with optional search and status filter',
+    description:
+      'Get paginated list of suppliers with optional search and status filter',
   })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by name or code' })
-  @ApiQuery({ name: 'status', required: false, enum: SupplierStatus, description: 'Filter by status' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name or code',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: SupplierStatus,
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 20)',
+  })
   @ApiResponse({ status: 200, description: 'Suppliers retrieved' })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: SupplierStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    try {
-      const params: ListSuppliersQueryDto = {
-        search,
-        status,
-        page: page ? parseInt(page, 10) : 1,
-        limit: limit ? parseInt(limit, 10) : 20,
-      };
-      const result = await this.supplierService.findAll(params);
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'Suppliers retrieved successfully',
-        data: result,
-      };
-    } catch (error) {
-      throw error;
-    }
+    const params: ListSuppliersQueryDto = {
+      search,
+      status,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+    };
+    const result = await this.supplierService.findAll(params);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Suppliers retrieved successfully',
+      data: result,
+    };
   }
 
   /**
@@ -138,8 +174,16 @@ export class SupplierController {
     description: 'Get a single supplier by ID',
   })
   @ApiResponse({ status: 200, description: 'Supplier found', type: Supplier })
-  @ApiResponse({ status: 404, description: 'Supplier not found', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Supplier not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async findById(@Param('id') id: string, @Res() res?: Response) {
     try {
       const supplier = await this.supplierService.findById(id);
@@ -170,8 +214,16 @@ export class SupplierController {
     description: 'Get a single supplier by code',
   })
   @ApiResponse({ status: 200, description: 'Supplier found', type: Supplier })
-  @ApiResponse({ status: 404, description: 'Supplier not found', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Supplier not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async findByCode(@Param('code') code: string, @Res() res?: Response) {
     try {
       const supplier = await this.supplierService.findByCode(code);
@@ -202,9 +254,21 @@ export class SupplierController {
     description: 'Update supplier information',
   })
   @ApiResponse({ status: 200, description: 'Supplier updated', type: Supplier })
-  @ApiResponse({ status: 404, description: 'Supplier not found', type: ErrorResponseDto })
-  @ApiResponse({ status: 409, description: 'Supplier code already exists', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Supplier not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Supplier code already exists',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async update(
     @Param('id') id: string,
     @Body() updateDto: UpdateSupplierDto,
@@ -245,10 +309,26 @@ export class SupplierController {
     summary: 'Update supplier status',
     description: 'Update supplier status (ACTIVE or INACTIVE)',
   })
-  @ApiResponse({ status: 200, description: 'Supplier status updated', type: Supplier })
-  @ApiResponse({ status: 404, description: 'Supplier not found', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiResponse({ status: 400, description: 'Invalid status value', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Supplier status updated',
+    type: Supplier,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Supplier not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid status value',
+    type: ErrorResponseDto,
+  })
   async setStatus(
     @Param('id') id: string,
     @Body('status') status: SupplierStatus,
@@ -295,9 +375,21 @@ export class SupplierController {
     description: 'Permanently delete a supplier. ADMIN only.',
   })
   @ApiResponse({ status: 200, description: 'Supplier deleted' })
-  @ApiResponse({ status: 404, description: 'Supplier not found', type: ErrorResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin only', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 404,
+    description: 'Supplier not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin only',
+    type: ErrorResponseDto,
+  })
   async delete(@Param('id') id: string, @Res() res?: Response) {
     try {
       const supplier = await this.supplierService.delete(id);
@@ -336,7 +428,8 @@ export class PublicSupplierController {
   @Roles(...SUPPLIER_VIEW_ROLES)
   @ApiOperation({
     summary: 'Get active suppliers (public)',
-    description: 'Get active suppliers for dropdown/autocomplete. Returns minimal fields (id, code, name).',
+    description:
+      'Get active suppliers for dropdown/autocomplete. Returns minimal fields (id, code, name).',
   })
   @ApiResponse({
     status: 200,
@@ -346,28 +439,32 @@ export class PublicSupplierController {
         statusCode: 200,
         message: 'Suppliers retrieved successfully',
         data: [
-          { _id: '507f1f77bcf86cd799439011', code: 'ACME', name: 'Acme Eyewear Supplies' },
+          {
+            _id: '507f1f77bcf86cd799439011',
+            code: 'ACME',
+            name: 'Acme Eyewear Supplies',
+          },
         ],
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async publicList(@Query('search') search?: string, @Res() res?: Response) {
-    try {
-      const suppliers = await this.supplierService.findActive(search);
-      // Return only minimal fields for autocomplete
-      const lightSuppliers = suppliers.map((s) => ({
-        _id: s._id,
-        code: s.code,
-        name: s.name,
-      }));
-      return res?.status(HttpStatus.OK).json({
-        statusCode: HttpStatus.OK,
-        message: 'Suppliers retrieved successfully',
-        data: lightSuppliers,
-      });
-    } catch (error) {
-      throw error;
-    }
+    const suppliers = await this.supplierService.findActive(search);
+    // Return only minimal fields for autocomplete
+    const lightSuppliers = suppliers.map((s) => ({
+      _id: s._id,
+      code: s.code,
+      name: s.name,
+    }));
+    return res?.status(HttpStatus.OK).json({
+      statusCode: HttpStatus.OK,
+      message: 'Suppliers retrieved successfully',
+      data: lightSuppliers,
+    });
   }
 }

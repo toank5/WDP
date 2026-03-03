@@ -439,6 +439,228 @@ export class CreateServiceProductDto {
   serviceNotes?: string;
 }
 
+/**
+ * Query DTO for listing products with filters and pagination
+ */
+export class ListProductsQueryDto {
+  @ApiPropertyOptional({
+    description: 'Search by name, SKU, or variant SKU',
+    example: 'designer',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by category',
+    enum: PRODUCT_CATEGORIES,
+  })
+  @IsOptional()
+  @IsEnum(PRODUCT_CATEGORIES)
+  category?: PRODUCT_CATEGORIES;
+
+  @ApiPropertyOptional({
+    description: 'Filter by shape (frames only)',
+    example: 'ROUND',
+  })
+  @IsOptional()
+  @IsString()
+  shape?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by material (frames only)',
+    example: 'ACETATE',
+  })
+  @IsOptional()
+  @IsString()
+  material?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by active status',
+    example: 'true',
+  })
+  @IsOptional()
+  @IsString()
+  status?: 'ACTIVE' | 'INACTIVE';
+
+  @ApiPropertyOptional({
+    description: 'Filter products that have 3D media',
+    example: 'true',
+  })
+  @IsOptional()
+  @IsString()
+  has3D?: 'true' | 'false';
+
+  @ApiPropertyOptional({
+    description: 'Filter products that have multiple variants',
+    example: 'true',
+  })
+  @IsOptional()
+  @IsString()
+  hasVariants?: 'true' | 'false';
+
+  @ApiPropertyOptional({
+    description: 'Sort by field',
+    enum: ['createdAt', 'name', 'price', 'updatedAt'],
+    example: 'createdAt',
+  })
+  @IsOptional()
+  @IsString()
+  sortBy?: 'createdAt' | 'name' | 'price' | 'updatedAt';
+
+  @ApiPropertyOptional({
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({
+    description: 'Page number',
+    example: 1,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Type(() => Number)
+  page?: number;
+
+  @ApiPropertyOptional({
+    description: 'Items per page',
+    example: 20,
+    minimum: 1,
+    maximum: 100,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
+}
+
+/**
+ * Lightweight product item for list views
+ */
+export class ProductListItemDto {
+  @ApiProperty({
+    description: 'Product ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  id: string;
+
+  @ApiProperty({
+    description: 'Product name',
+    example: 'Designer Round Eyeglasses',
+  })
+  name: string;
+
+  @ApiProperty({
+    description: 'Product category',
+    enum: PRODUCT_CATEGORIES,
+    example: PRODUCT_CATEGORIES.FRAMES,
+  })
+  category: PRODUCT_CATEGORIES;
+
+  @ApiPropertyOptional({
+    description: 'Frame shape (if applicable)',
+    example: 'ROUND',
+  })
+  shape?: string;
+
+  @ApiPropertyOptional({
+    description: 'Frame material (if applicable)',
+    example: 'ACETATE',
+  })
+  material?: string;
+
+  @ApiProperty({
+    description: 'Product active status',
+    example: true,
+  })
+  isActive: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Default 2D image URL',
+    example: 'https://cdn.example.com/product.jpg',
+  })
+  defaultImage2DUrl?: string;
+
+  @ApiProperty({
+    description: 'Whether product has 3D media',
+    example: true,
+  })
+  has3D: boolean;
+
+  @ApiProperty({
+    description: 'Number of variants',
+    example: 5,
+  })
+  variantCount: number;
+
+  @ApiPropertyOptional({
+    description: 'Minimum price across variants',
+    example: 199.99,
+  })
+  minPrice?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum price across variants',
+    example: 299.99,
+  })
+  maxPrice?: number;
+
+  @ApiProperty({
+    description: 'Creation date',
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  createdAt: Date;
+
+  @ApiProperty({
+    description: 'Last update date',
+    example: '2024-01-15T00:00:00.000Z',
+  })
+  updatedAt: Date;
+}
+
+/**
+ * Paginated product list response
+ */
+export class ProductListResponseDto {
+  @ApiProperty({
+    description: 'List of products',
+    type: [ProductListItemDto],
+  })
+  items: ProductListItemDto[];
+
+  @ApiProperty({
+    description: 'Total number of items',
+    example: 100,
+  })
+  total: number;
+
+  @ApiProperty({
+    description: 'Current page number',
+    example: 1,
+  })
+  page: number;
+
+  @ApiProperty({
+    description: 'Items per page',
+    example: 20,
+  })
+  limit: number;
+
+  @ApiProperty({
+    description: 'Total number of pages',
+    example: 5,
+  })
+  totalPages: number;
+}
+
 // Generic create product DTO that accepts any type
 export class CreateProductDto {
   @ApiProperty({
