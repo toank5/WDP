@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
-import { getAllProducts, type Product, type ProductVariant, type FrameProduct } from '@/lib/product-api'
+import { getAllProducts, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
+import { cartApi } from '@/lib/cart-api'
+import { wishlistApi } from '@/lib/wishlist-api'
 import {
   Box,
   Container,
@@ -634,7 +636,7 @@ interface RelatedProductCardProps {
 }
 
 function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
-  const mainImage = product.images2D?.[0] || ''
+  const mainImage = formatImageUrl(product.images2D?.[0])
   const variantCount = isFrameProduct(product) ? product.variants?.length || 0 : 0
 
   return (
@@ -681,10 +683,16 @@ function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
               component="img"
               src={mainImage}
               alt={product.name}
-              sx={{ height: 160, objectFit: 'contain' }}
+              sx={{ height: 160, width: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                const fallback = e.currentTarget.nextElementSibling as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
             />
-          ) : (
-            <Box sx={{ fontSize: 60 }}>👓</Box>
+          ) : null}
+          {!mainImage && (
+            <Box sx={{ fontSize: 60, display: mainImage ? 'none' : 'flex' }}>👓</Box>
           )}
           {/* 3D Badge */}
           {product.images3D && product.images3D.length > 0 && (
@@ -783,18 +791,22 @@ export function ProductDetailPage() {
       product.variants.forEach((variant) => {
         if (variant.isActive !== false) {
           if (variant.images2D?.length) {
-            allVariantImages2D.push(...variant.images2D)
+            allVariantImages2D.push(...variant.images2D.map(formatImageUrl))
           }
           if (variant.images3D?.length) {
-            allVariantImages3D.push(...variant.images3D)
+            allVariantImages3D.push(...variant.images3D.map(formatImageUrl))
           }
         }
       })
     }
 
+    // Format base images
+    const formattedBaseImages2D = baseImages2D.map(formatImageUrl)
+    const formattedBaseImages3D = baseImages3D.map(formatImageUrl)
+
     // Combine: all variant images + base images (deduplicated)
-    const images2D = [...new Set([...allVariantImages2D, ...baseImages2D])]
-    const images3D = [...new Set([...allVariantImages3D, ...baseImages3D])]
+    const images2D = [...new Set([...allVariantImages2D, ...formattedBaseImages2D])]
+    const images3D = [...new Set([...allVariantImages3D, ...formattedBaseImages3D])]
 
     return { images2D, images3D }
   }
@@ -947,62 +959,80 @@ export function ProductDetailPage() {
 
   // Add to cart
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-
     if (!product) return
 
     setIsAdding(true)
     try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-      const cartItemId = selectedVariant ? `${product._id}-${selectedVariant.sku}` : product._id
-
-      const existingItem = cart.find((item: any) => item.cartItemId === cartItemId)
-      if (existingItem) {
-        existingItem.qty += quantity
-      } else {
-        cart.push({
-          cartItemId,
-          id: product._id,
+      const result = await cartApi.addItem({
+        variantId: selectedVariant?.sku,
+        productId: product._id,
+        quantity,
+        productData: {
           name: product.name,
           price: getDisplayPrice(),
           variantSku: selectedVariant?.sku,
           variantName: selectedVariant
             ? `${selectedVariant.size} - ${selectedVariant.color}`
             : 'Standard',
-          qty: quantity,
-          image: images2D[0] || '',
-        })
-      }
+          image: images2D[0] ? formatImageUrl(images2D[0]) : '',
+        },
+      })
 
-      localStorage.setItem('cart', JSON.stringify(cart))
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
-
-      setSnackbarState({ open: true, message: 'Added to cart!', severity: 'success' })
+      setSnackbarState({
+        open: true,
+        message: result.message,
+        severity: result.success ? ('success' as const) : ('error' as const),
+      })
     } catch (err) {
-      setSnackbarState({ open: true, message: 'Failed to add to cart', severity: 'error' })
+      setSnackbarState({ open: true, message: 'Failed to add to cart', severity: 'error' as const })
     } finally {
       setIsAdding(false)
     }
   }
 
   // Buy now
-  const handleBuyNow = () => {
-    handleAddToCart()
+  const handleBuyNow = async () => {
+    await handleAddToCart()
     navigate('/checkout')
   }
 
   // Toggle wishlist
-  const toggleWishlist = () => {
-    setIsInWishlist((prev) => !prev)
-    setSnackbarState({
-      open: true,
-      message: isInWishlist ? 'Removed from wishlist' : 'Added to wishlist',
-      severity: 'success',
-    })
+  const toggleWishlist = async () => {
+    if (!product) return
+
+    try {
+      const result = await wishlistApi.toggleItem({
+        productId: product._id,
+        productName: product.name,
+        variantId: selectedVariant?.sku,
+        variantName: selectedVariant
+          ? `${selectedVariant.size} - ${selectedVariant.color}`
+          : undefined,
+        image: images2D[0] ? formatImageUrl(images2D[0]) : '',
+      })
+
+      setIsInWishlist(result.isFavorited)
+      setSnackbarState({
+        open: true,
+        message: result.message,
+        severity: result.success ? ('success' as const) : ('error' as const),
+      })
+    } catch (err) {
+      setSnackbarState({ open: true, message: 'Failed to update wishlist', severity: 'error' as const })
+    }
   }
+
+  // Load wishlist state when product or variant changes
+  useEffect(() => {
+    if (!product) return
+
+    const checkWishlistStatus = async () => {
+      const isFavorited = await wishlistApi.isFavorited(product._id, selectedVariant?.sku)
+      setIsInWishlist(isFavorited)
+    }
+
+    checkWishlistStatus()
+  }, [product, selectedVariant])
 
   // ==================== Render ====================
 

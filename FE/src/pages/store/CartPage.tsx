@@ -10,6 +10,16 @@ import {
   FiLock,
   FiInfo,
 } from 'react-icons/fi'
+import { formatImageUrl } from '@/lib/product-api'
+
+// VND Price formatter
+const formatPrice = (price: number): string => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(price)
+}
 
 // Local cart item type (not the same as API CartItem)
 type LocalCartItem = {
@@ -71,7 +81,7 @@ const CartPage: React.FC = () => {
             <FiArrowLeft /> Continue Shopping
           </Link>
           <h1 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-            Shopping Bag
+            Shopping Cart
           </h1>
         </div>
       </div>
@@ -91,7 +101,7 @@ const CartPage: React.FC = () => {
             <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
-                  <FiShoppingCart className="text-slate-400" /> Items in Bag ({items.length})
+                  <FiShoppingCart className="text-slate-400" /> Items in Cart ({items.length})
                 </h2>
               </div>
 
@@ -99,7 +109,7 @@ const CartPage: React.FC = () => {
                 <div className="p-16 text-center space-y-4">
                   <FiShoppingCart className="mx-auto w-16 h-16 text-slate-200" />
                   <p className="text-slate-500 font-medium">
-                    Your shopping bag is currently empty.
+                    Your shopping cart is currently empty.
                   </p>
                   <Link
                     to="/products"
@@ -125,8 +135,19 @@ const CartPage: React.FC = () => {
                         <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center text-3xl">
-                                {item.image || '📦'}
+                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                                {item.image ? (
+                                  <img
+                                    src={formatImageUrl(item.image)}
+                                    alt={item.name}
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTZweCIgaGVpZ2h0PSIxNnB4IiB2aWV3Qm94PSIwIDAgMTYgMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0NDhCMjUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiLz4KPHJlY3QgeD0iOCIgd2lkdGg9IjYiIGhlaWdodD0iNiIgcng9IjQiIGZpbGw9IndoaXRlIi8+PC9zdmc+'
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-2xl">📦</span>
+                                )}
                               </div>
                               <div>
                                 <Link
@@ -142,7 +163,7 @@ const CartPage: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-sm font-bold text-slate-700">${item.price}</span>
+                            <span className="text-sm font-bold text-slate-700">{formatPrice(item.price)}</span>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden">
@@ -163,7 +184,7 @@ const CartPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm font-bold text-slate-900">
-                              ${(item.price * item.qty).toFixed(2)}
+                              {formatPrice(item.price * item.qty)}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -188,7 +209,7 @@ const CartPage: React.FC = () => {
                 <div className="flex items-center gap-2 text-blue-700">
                   <FiInfo />
                   <span className="font-semibold italic">
-                    Free shipping applied to all orders over $100.00
+                    Free shipping applied to all orders over 2.000.000 ₫
                   </span>
                 </div>
               </div>
@@ -206,7 +227,7 @@ const CartPage: React.FC = () => {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Subtotal</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
@@ -214,14 +235,14 @@ const CartPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Est. Tax (10%)</span>
-                  <span>${(total * 0.1).toFixed(2)}</span>
+                  <span>{formatPrice(total * 0.1)}</span>
                 </div>
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">
                     Total
                   </span>
                   <span className="text-xl font-bold text-blue-700">
-                    ${(total * 1.1).toFixed(2)}
+                    {formatPrice(total * 1.1)}
                   </span>
                 </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
-import { getAllProducts, type Product, type FrameProduct } from '@/lib/product-api'
+import { getAllProducts, type Product, type FrameProduct, formatImageUrl } from '@/lib/product-api'
 import {
   Box,
   Container,
@@ -103,13 +103,16 @@ function isFrameProduct(product: Product): product is FrameProduct {
 
 // Product Card Component
 interface ProductCardProps {
-  product: Product & { mainImageUrl: string; tag?: string; variantCount: number }
+  product: Product & { mainImageUrl?: string; tag?: string; variantCount: number }
   onClick: () => void
   onAddToCart: (e: React.MouseEvent) => void
 }
 
 function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
   const price = (product as any).price || product.basePrice
+  // Get image from mainImageUrl or fallback to images2D
+  const displayImage = product.mainImageUrl || ((product as any).images2D?.[0] ? formatImageUrl((product as any).images2D[0]) : undefined)
+
   return (
     <Card
       sx={{
@@ -148,15 +151,22 @@ function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
             position: 'relative',
           }}
         >
-          {product.mainImageUrl ? (
+          {displayImage ? (
             <Box
               component="img"
-              src={product.mainImageUrl}
+              src={displayImage}
               alt={product.name}
-              sx={{ height: 160, objectFit: 'contain' }}
+              sx={{ height: 160, width: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                // Fallback to emoji if image fails to load
+                e.currentTarget.style.display = 'none'
+                const fallback = e.currentTarget.nextElementSibling as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
             />
-          ) : (
-            <Box sx={{ fontSize: 60 }}>👓</Box>
+          ) : null}
+          {!displayImage && (
+            <Box sx={{ fontSize: 60, display: displayImage ? 'none' : 'flex' }}>👓</Box>
           )}
           {/* 3D Badge */}
           {(product as any).images3D && (product as any).images3D.length > 0 && (
@@ -401,7 +411,7 @@ export function StorePage() {
   // State
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<
-    Array<Product & { mainImageUrl: string; tag?: string; variantCount: number }>
+    Array<Product & { mainImageUrl?: string; tag?: string; variantCount: number }>
   >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -449,7 +459,7 @@ export function StorePage() {
   useEffect(() => {
     let filtered = products.map((p) => ({
       ...p,
-      mainImageUrl: p.images2D?.[0] || '',
+      mainImageUrl: (p.images2D && p.images2D.length > 0) ? formatImageUrl(p.images2D[0]) : undefined,
       tag: p.category,
       variantCount: isFrameProduct(p) ? p.variants?.length || 0 : 0,
       price: p.basePrice,
@@ -556,7 +566,7 @@ export function StorePage() {
   )
 
   // Add to cart
-  const handleAddToCart = (e: React.MouseEvent, product: Product & { mainImageUrl: string; variantCount: number }) => {
+  const handleAddToCart = (e: React.MouseEvent, product: Product & { mainImageUrl?: string; variantCount: number }) => {
     e.preventDefault()
     e.stopPropagation()
     if (!isAuthenticated) {

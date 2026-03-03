@@ -1,12 +1,18 @@
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 
-type ApiResponse<T> = {
-  statusCode: number
-  message: string
-  data?: T
-  metadata?: T
-  errors?: Array<{ path: string; message: string }>
+// Get the API base URL for formatting image URLs
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+
+// Utility function to format image URLs
+export function formatImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined
+  // If URL already starts with http://, https://, or data:, return as-is
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) {
+    return url
+  }
+  // Otherwise, prepend the API base URL
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 export type ProductVariant = {
