@@ -67,30 +67,29 @@ interface RawCartItem extends Partial<CartItem>, Partial<LegacyCartItem> {
   addedAt?: string
 }
 
-const CART_STORAGE_KEY = 'cart'
+const CART_BASE_KEY = 'cart'
 
 class CartAPI {
+  // Get user-specific cart storage key
+  private getCartStorageKey(userId?: string): string {
+    const state = useAuthStore.getState()
+    const currentUserId = userId || state.user?.email || 'guest'
+    return `${CART_BASE_KEY}_${currentUserId}`
+  }
+
   private get isAuthenticated() {
     // Check if user is authenticated using the auth store
     const state = useAuthStore.getState()
     return state.isAuthenticated && !!state.accessToken
   }
 
-  private get authHeader() {
-    // Get token from auth store instead of localStorage
-    const state = useAuthStore.getState()
-    const token = state.accessToken
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }
 
   /**
    * Get current user's cart from backend
    */
   async getCart(): Promise<CartResponse> {
     try {
-      const response = await api.get('/cart', {
-        headers: this.authHeader,
-      })
+      const response = await api.get('/cart')
       return response.data.data
     } catch (error) {
       const message = extractApiMessage(error)
@@ -111,7 +110,7 @@ class CartAPI {
    */
   private getCartFromLocalStorage(): CartResponse {
     try {
-      const cart = localStorage.getItem(CART_STORAGE_KEY)
+      const cart = localStorage.getItem(this.getCartStorageKey())
       if (!cart) {
         return this.emptyCartResponse()
       }
@@ -156,7 +155,7 @@ class CartAPI {
       })
 
       // Save the converted cart back to localStorage in new format
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
+      localStorage.setItem(this.getCartStorageKey(), JSON.stringify(items))
 
       return {
         _id: '',
@@ -192,7 +191,7 @@ class CartAPI {
    * Save cart to localStorage
    */
   private saveCartToLocalStorage(cart: CartItem[]): void {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart))
+    localStorage.setItem(this.getCartStorageKey(), JSON.stringify(cart))
     window.dispatchEvent(new CustomEvent('cartUpdated'))
   }
 
@@ -216,11 +215,10 @@ class CartAPI {
           variantSku: params.variantId,
           quantity: params.quantity,
         }, {
-          headers: this.authHeader,
         })
 
         // Clear local cart since backend is now the source of truth
-        localStorage.removeItem(CART_STORAGE_KEY)
+        localStorage.removeItem(this.getCartStorageKey())
         window.dispatchEvent(new CustomEvent('cartUpdated'))
 
         return { success: true, message: 'Item added to cart' }
@@ -280,7 +278,6 @@ class CartAPI {
         await api.post('/cart/items/bulk', {
           items,
         }, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -334,7 +331,6 @@ class CartAPI {
         await api.patch(`/cart/items/${itemId}`, {
           quantity,
         }, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -369,7 +365,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         await api.delete(`/cart/items/${itemId}`, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -398,7 +393,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.delete('/cart', {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -431,7 +425,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.get('/cart/count', {
-          headers: this.authHeader,
         })
         return response.data.data.count || 0
       }
@@ -452,7 +445,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.get('/cart', {
-          headers: this.authHeader,
         })
         return response.data.data?.subtotal || 0
       }
@@ -488,7 +480,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.get('/cart/validate', {
-          headers: this.authHeader,
         })
         return response.data.data
       }
@@ -523,7 +514,7 @@ class CartAPI {
    */
   async migrateFromLocalStorage(): Promise<{ success: boolean; message: string }> {
     try {
-      const guestCart = localStorage.getItem(CART_STORAGE_KEY)
+      const guestCart = localStorage.getItem(this.getCartStorageKey())
       if (!guestCart) {
         return { success: true, message: 'No items to migrate' }
       }
@@ -532,7 +523,7 @@ class CartAPI {
       const result = await this.mergeGuestCart(items)
 
       if (result.success) {
-        localStorage.removeItem(CART_STORAGE_KEY)
+        localStorage.removeItem(this.getCartStorageKey())
       }
 
       return result

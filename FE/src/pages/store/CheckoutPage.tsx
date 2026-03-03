@@ -15,6 +15,7 @@ import {
 import { cartApi, CartResponse } from '@/lib/cart-api'
 import { orderApi, CheckoutRequest, OrderType, PaymentMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
+import { useAuthStore } from '@/store/auth-store'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -138,8 +139,13 @@ const CheckoutPage: React.FC = () => {
   // Notes
   const [notes, setNotes] = useState('')
 
-  // Load cart on mount
+  // Load cart on mount - only if authenticated
   useEffect(() => {
+    const authState = useAuthStore.getState()
+    if (!authState.isAuthenticated) {
+      navigate('/login')
+      return
+    }
     loadCart()
   }, [])
 

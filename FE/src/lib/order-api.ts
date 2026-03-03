@@ -2,7 +2,6 @@
 
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
-import { useAuthStore } from '@/store/auth-store'
 
 // Get the API base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -147,11 +146,16 @@ interface ApiResponse<T> {
 }
 
 class OrderAPI {
-  private get authHeader() {
-    // Get token from auth store instead of localStorage
-    const state = useAuthStore.getState()
-    const token = state.accessToken
-    return token ? { Authorization: `Bearer ${token}` } : {}
+  // Helper to clear all cart data
+  private clearAllCarts(): void {
+    const CART_BASE_KEY = 'cart'
+    const keys = Object.keys(localStorage)
+    keys.forEach((key) => {
+      if (key.startsWith(CART_BASE_KEY)) {
+        localStorage.removeItem(key)
+      }
+    })
+    window.dispatchEvent(new CustomEvent('cartUpdated'))
   }
 
   /**
@@ -171,13 +175,10 @@ class OrderAPI {
         notes: request.notes,
       }
 
-      const response = await api.post('/orders/checkout', payload, {
-        headers: this.authHeader,
-      })
+      const response = await api.post('/orders/checkout', payload)
 
-      // Clear cart after successful checkout
-      localStorage.removeItem('cart')
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
+      // Clear all cart data after successful checkout
+      this.clearAllCarts()
 
       return response.data.data
     } catch (error) {
@@ -203,9 +204,7 @@ class OrderAPI {
       const queryString = queryParams.toString()
       const url = `/orders${queryString ? `?${queryString}` : ''}`
 
-      const response = await api.get(url, {
-        headers: this.authHeader,
-      })
+      const response = await api.get(url)
 
       return response.data.data
     } catch (error) {
@@ -219,9 +218,7 @@ class OrderAPI {
    */
   async getOrderById(orderId: string): Promise<Order> {
     try {
-      const response = await api.get(`/orders/${orderId}`, {
-        headers: this.authHeader,
-      })
+      const response = await api.get(`/orders/${orderId}`)
 
       return response.data.data
     } catch (error) {
@@ -235,9 +232,7 @@ class OrderAPI {
    */
   async cancelOrder(orderId: string, request: CancelOrderRequest): Promise<Order> {
     try {
-      const response = await api.post(`/orders/${orderId}/cancel`, request, {
-        headers: this.authHeader,
-      })
+      const response = await api.post(`/orders/${orderId}/cancel`, request)
 
       return response.data.data
     } catch (error) {
@@ -254,9 +249,7 @@ class OrderAPI {
     byStatus: Record<string, number>
   }> {
     try {
-      const response = await api.get('/orders/stats/summary', {
-        headers: this.authHeader,
-      })
+      const response = await api.get('/orders/stats/summary')
 
       return response.data.data
     } catch (error) {

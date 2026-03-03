@@ -768,7 +768,7 @@ export function ProductDetailPage() {
   const [snackbar, setSnackbarState] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   })
 
   // ==================== Computed Values ====================
@@ -973,6 +973,21 @@ export function ProductDetailPage() {
   // Add to cart
   const handleAddToCart = async () => {
     if (!product) return
+
+    // Check if user is authenticated
+    const authState = useAuthStore.getState()
+    if (!authState.isAuthenticated) {
+      setSnackbarState({
+        open: true,
+        message: 'Please login to add items to cart',
+        severity: 'warning',
+      })
+      // Show toast for a moment before navigating
+      setTimeout(() => {
+        navigate('/login')
+      }, 1500)
+      return
+    }
 
     setIsAdding(true)
     try {
