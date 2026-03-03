@@ -3,6 +3,8 @@ import { inventoryValidation } from '../validations/inventory.validation';
 
 @Schema({ timestamps: true })
 export class Inventory {
+  _id?: string;
+
   @Prop({
     type: String,
     required: inventoryValidation.sku.presence,

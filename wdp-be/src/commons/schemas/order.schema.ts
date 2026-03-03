@@ -9,6 +9,8 @@ import { OrderHistory, OrderHistorySchema } from './order-history.schema';
 
 @Schema({ timestamps: true })
 export class Order {
+  _id?: string;
+
   @Prop({
     type: String,
     required: orderValidation.number.presence,

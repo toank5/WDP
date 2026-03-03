@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FiShoppingCart,
@@ -10,6 +10,7 @@ import {
   FiLock,
   FiInfo,
 } from 'react-icons/fi'
+import { cartApi, CartItem } from '@/lib/cart-api'
 import { formatImageUrl } from '@/lib/product-api'
 
 // VND Price formatter
@@ -21,19 +22,11 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
-// Local cart item type (not the same as API CartItem)
-type LocalCartItem = {
-  id: string
-  name: string
-  price: number
-  qty: number
-  image?: string
-  variantName?: string
-}
-
 const CartPage: React.FC = () => {
-  const [items, setItems] = useState<LocalCartItem[]>([])
+  const [items, setItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState<string>('')
+  const [updating, setUpdating] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadCart()
@@ -41,33 +34,78 @@ const CartPage: React.FC = () => {
     return () => window.removeEventListener('cartUpdated', loadCart)
   }, [])
 
-  const loadCart = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    setItems(cart)
+  const loadCart = async () => {
+    setLoading(true)
+    try {
+      const cart = await cartApi.getCart()
+      setItems(cart.items)
+    } catch (err) {
+      console.error('Failed to load cart:', err)
+      setItems([])
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleUpdateQty = (itemId: string, newQty: number) => {
+  const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
       handleRemove(itemId)
       return
     }
 
-    const updatedCart = items.map((item) => (item.id === itemId ? { ...item, qty: newQty } : item))
-    setItems(updatedCart)
-    localStorage.setItem('cart', JSON.stringify(updatedCart))
-    window.dispatchEvent(new CustomEvent('cartUpdated'))
+    setUpdating((prev) => new Set(prev).add(itemId))
+    try {
+      await cartApi.updateItem(itemId, newQty)
+      // Optimistic update
+      setItems((prev) =>
+        prev.map((item) => (item._id === itemId ? { ...item, quantity: newQty } : item))
+      )
+    } catch (err) {
+      console.error('Failed to update quantity:', err)
+      // Reload cart on error
+      loadCart()
+    } finally {
+      setUpdating((prev) => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
+      })
+    }
   }
 
-  const handleRemove = (itemId: string) => {
-    const updatedCart = items.filter((item) => item.id !== itemId)
-    setItems(updatedCart)
-    localStorage.setItem('cart', JSON.stringify(updatedCart))
-    setNotification('Item removed from cart')
-    setTimeout(() => setNotification(''), 3000)
-    window.dispatchEvent(new CustomEvent('cartUpdated'))
+  const handleRemove = async (itemId: string) => {
+    setUpdating((prev) => new Set(prev).add(itemId))
+    try {
+      await cartApi.removeItem(itemId)
+      // Optimistic update
+      setItems((prev) => prev.filter((item) => item._id !== itemId))
+      setNotification('Item removed from cart')
+      setTimeout(() => setNotification(''), 3000)
+    } catch (err) {
+      console.error('Failed to remove item:', err)
+      // Reload cart on error
+      loadCart()
+    } finally {
+      setUpdating((prev) => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
+      })
+    }
   }
 
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const total = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="mt-4 text-slate-600">Loading cart...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
@@ -131,73 +169,87 @@ const CartPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
-                                {item.image ? (
-                                  <img
-                                    src={formatImageUrl(item.image)}
-                                    alt={item.name}
-                                    className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTZweCIgaGVpZ2h0PSIxNnB4IiB2aWV3Qm94PSIwIDAgMTYgMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0NDhCMjUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiLz4KPHJlY3QgeD0iOCIgd2lkdGg9IjYiIGhlaWdodD0iNiIgcng9IjQiIGZpbGw9IndoaXRlIi8+PC9zdmc+'
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="text-2xl">📦</span>
-                                )}
+                      {items.map((item) => {
+                        const isUpdating = updating.has(item._id)
+                        return (
+                          <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                                  {item.productImage ? (
+                                    <img
+                                      src={formatImageUrl(item.productImage)}
+                                      alt={item.productName}
+                                      className="w-full h-full object-contain"
+                                      onError={(e) => {
+                                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTZweCIgaGVpZ2h0PSIxNnB4IiB2aWV3Qm94PSIwIDAgMTYgMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0NDhCMjUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiLz4KPHJlY3QgeD0iOCIgd2lkdGg9IjYiIGhlaWdodD0iNiIgcng9IjQiIGZpbGw9IndoaXRlIi8+PC9zdmc+'
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-2xl">📦</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <Link
+                                    to={`/products/${item.productId}`}
+                                    className="text-sm font-bold text-slate-900 hover:text-blue-600 block"
+                                  >
+                                    {item.productName || 'Product'}
+                                  </Link>
+                                  {item.variantDetails && (
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold">
+                                      {item.variantDetails.size && `Size: ${item.variantDetails.size}`}
+                                      {item.variantDetails.size && item.variantDetails.color && ' | '}
+                                      {item.variantDetails.color && `Color: ${item.variantDetails.color}`}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <Link
-                                  to={`/products/${item.id}`}
-                                  className="text-sm font-bold text-slate-900 hover:text-blue-600 block"
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-bold text-slate-700">
+                                {formatPrice(item.price || 0)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden disabled:opacity-50">
+                                <button
+                                  onClick={() => handleUpdateQty(item._id, item.quantity - 1)}
+                                  disabled={isUpdating}
+                                  className="p-1.5 hover:bg-slate-100 border-r border-slate-300 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  {item.name}
-                                </Link>
-                                <span className="text-[10px] text-slate-400 uppercase font-bold">
-                                  {item.variantName || 'Standard'}
+                                  <FiMinus size={12} />
+                                </button>
+                                <span className="w-8 text-center text-xs font-bold">
+                                  {isUpdating ? '...' : item.quantity}
                                 </span>
+                                <button
+                                  onClick={() => handleUpdateQty(item._id, item.quantity + 1)}
+                                  disabled={isUpdating}
+                                  className="p-1.5 hover:bg-slate-100 border-l border-slate-300 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <FiPlus size={12} />
+                                </button>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm font-bold text-slate-700">{formatPrice(item.price)}</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden">
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-bold text-slate-900">
+                                {formatPrice((item.price || 0) * item.quantity)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
                               <button
-                                onClick={() => handleUpdateQty(item.id, item.qty - 1)}
-                                className="p-1.5 hover:bg-slate-100 border-r border-slate-300 text-slate-600"
+                                onClick={() => handleRemove(item._id)}
+                                disabled={isUpdating}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Remove item"
                               >
-                                <FiMinus size={12} />
+                                <FiTrash2 size={16} />
                               </button>
-                              <span className="w-8 text-center text-xs font-bold">{item.qty}</span>
-                              <button
-                                onClick={() => handleUpdateQty(item.id, item.qty + 1)}
-                                className="p-1.5 hover:bg-slate-100 border-l border-slate-300 text-slate-600"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm font-bold text-slate-900">
-                              {formatPrice(item.price * item.qty)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => handleRemove(item.id)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-[2px]"
-                              title="Remove item"
-                            >
-                              <FiTrash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

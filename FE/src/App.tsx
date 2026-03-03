@@ -17,6 +17,7 @@ import { StorePage } from './pages/store/StorePage'
 import { ProductDetailPage } from './pages/store/ProductDetailPage'
 import CartPage from './pages/store/CartPage'
 import CheckoutPage from './pages/store/CheckoutPage'
+import OrderSuccessPage from './pages/store/OrderSuccessPage'
 import AccountPage from './pages/AccountPage'
 import OrderHistoryPage from './pages/store/OrderHistoryPage'
 import OrderDetailPage from './pages/store/OrderDetailPage'
@@ -62,6 +63,7 @@ function App() {
           <Route path="/products/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />

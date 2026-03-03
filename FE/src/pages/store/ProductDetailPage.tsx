@@ -791,22 +791,26 @@ export function ProductDetailPage() {
       product.variants.forEach((variant) => {
         if (variant.isActive !== false) {
           if (variant.images2D?.length) {
-            allVariantImages2D.push(...variant.images2D.map(formatImageUrl))
+            allVariantImages2D.push(
+              ...variant.images2D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+            )
           }
           if (variant.images3D?.length) {
-            allVariantImages3D.push(...variant.images3D.map(formatImageUrl))
+            allVariantImages3D.push(
+              ...variant.images3D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+            )
           }
         }
       })
     }
 
-    // Format base images
-    const formattedBaseImages2D = baseImages2D.map(formatImageUrl)
-    const formattedBaseImages3D = baseImages3D.map(formatImageUrl)
+    // Format base images (filter out undefined)
+    const formattedBaseImages2D = baseImages2D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+    const formattedBaseImages3D = baseImages3D.map(formatImageUrl).filter((url): url is string => url !== undefined)
 
     // Combine: all variant images + base images (deduplicated)
-    const images2D = [...new Set([...allVariantImages2D, ...formattedBaseImages2D])]
-    const images3D = [...new Set([...allVariantImages3D, ...formattedBaseImages3D])]
+    const images2D: string[] = [...new Set([...allVariantImages2D, ...formattedBaseImages2D])]
+    const images3D: string[] = [...new Set([...allVariantImages3D, ...formattedBaseImages3D])]
 
     return { images2D, images3D }
   }
@@ -840,11 +844,18 @@ export function ProductDetailPage() {
     return selectedVariant?.price || product.basePrice
   }
 
-  // Check stock
+  // Check stock - more lenient: allow add to cart if product is active OR if any variant exists
   const isInStock = () => {
     if (!product) return false
+    // If a variant is selected, check if that specific variant is active
     if (selectedVariant) return selectedVariant.isActive !== false
-    return product.isActive
+    // If no variant selected, allow if product is active OR if product has any active variants
+    if (product.isActive) return true
+    // Check for variants (only frame products have variants)
+    if ('variants' in product && product.variants && product.variants.length > 0) {
+      return product.variants.some((v: any) => v.isActive !== false)
+    }
+    return false
   }
 
   // Get stock message
@@ -853,7 +864,11 @@ export function ProductDetailPage() {
     if (selectedVariant) {
       return selectedVariant.isActive !== false ? 'In Stock' : 'Out of Stock'
     }
-    return product.isActive ? 'In Stock' : 'Out of Stock'
+    if (product.isActive) return 'In Stock'
+    if ('variants' in product && product.variants && product.variants.length > 0) {
+      return product.variants.some((v: any) => v.isActive !== false) ? 'Select options' : 'Out of Stock'
+    }
+    return 'Out of Stock'
   }
 
   // ==================== Handlers ====================
@@ -912,10 +927,8 @@ export function ProductDetailPage() {
   }, [loadProduct])
 
   // Reset variant state when product changes
+  // Note: This is handled by the auto-selection logic in loadProduct()
   useEffect(() => {
-    setSelectedColor(null)
-    setSelectedSize(null)
-    setSelectedVariant(null)
     setActiveImageIndex(0)
   }, [product?._id])
 
@@ -1008,7 +1021,7 @@ export function ProductDetailPage() {
         variantName: selectedVariant
           ? `${selectedVariant.size} - ${selectedVariant.color}`
           : undefined,
-        image: images2D[0] ? formatImageUrl(images2D[0]) : '',
+        image: formatImageUrl(images2D[0]) || '',
       })
 
       setIsInWishlist(result.isFavorited)

@@ -689,4 +689,192 @@ export class InventoryService {
       })),
     );
   }
+
+  /**
+   * Reserve stock for an order
+   * Moves stock from available to reserved
+   * @param sku Variant SKU
+   * @param orderId Order ID reserving the stock
+   * @param quantity Quantity to reserve (defaults to full order quantity)
+   */
+  async reserveStock(
+    sku: string,
+    orderId: string,
+    quantity?: number,
+  ): Promise<Inventory> {
+    const inventory = await this.inventoryModel.findOne({ sku });
+
+    if (!inventory) {
+      throw new NotFoundException(`Inventory not found for SKU: ${sku}`);
+    }
+
+    // If quantity specified, reserve only that amount
+    const quantityToReserve = quantity || inventory.availableQuantity;
+
+    if (quantityToReserve > inventory.availableQuantity) {
+      throw new BadRequestException(
+        `Insufficient stock for SKU ${sku}. Available: ${inventory.availableQuantity}, Requested: ${quantityToReserve}`,
+      );
+    }
+
+    // Update quantities
+    inventory.reservedQuantity += quantityToReserve;
+    inventory.availableQuantity -= quantityToReserve;
+    inventory.updatedAt = new Date();
+
+    await inventory.save();
+
+    // Record movement
+    await this.movementModel.create({
+      sku,
+      type: MovementType.RESERVATION,
+      quantity: quantityToReserve,
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      notes: `Reserved for order ${orderId}`,
+      performedBy: 'SYSTEM',
+      timestamp: new Date(),
+    });
+
+    return inventory;
+  }
+
+  /**
+   * Release reserved stock for an order
+   * Moves stock from reserved back to available
+   * @param orderId Order ID to release stock for
+   * @param sku Variant SKU (optional - releases all reserved stock for the order)
+   */
+  async releaseStock(orderId: string, sku?: string): Promise<void> {
+    // Find all reservation movements for this order
+    const reservationMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    if (reservationMovements.length === 0) {
+      return; // No stock to release
+    }
+
+    for (const movement of reservationMovements) {
+      // If SKU specified, only process that SKU
+      if (sku && movement.sku !== sku) {
+        continue;
+      }
+
+      const inventory = await this.inventoryModel.findOne({
+        sku: movement.sku,
+      });
+      if (!inventory) continue;
+
+      // Release the reserved quantity
+      const quantityToRelease = movement.quantity;
+
+      inventory.reservedQuantity = Math.max(
+        0,
+        inventory.reservedQuantity - quantityToRelease,
+      );
+      inventory.availableQuantity += quantityToRelease;
+      inventory.updatedAt = new Date();
+
+      await inventory.save();
+
+      // Record release movement
+      await this.movementModel.create({
+        sku: movement.sku,
+        type: MovementType.RELEASE,
+        quantity: quantityToRelease,
+        referenceId: orderId,
+        referenceType: 'ORDER',
+        notes: `Released from order ${orderId}`,
+        performedBy: 'SYSTEM',
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Confirm stock for an order (when shipped)
+   * Moves stock from reserved to deducted (actual stock decrease)
+   * @param orderId Order ID being shipped
+   * @param sku Variant SKU (optional - confirms all reserved stock for the order)
+   */
+  async confirmStock(orderId: string, sku?: string): Promise<void> {
+    // Find all reservation movements for this order that haven't been confirmed yet
+    const reservationMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    // Get movements that have already been confirmed for this order
+    const confirmedMovements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.SALE,
+    });
+
+    const confirmedSkus = new Set(confirmedMovements.map((m) => m.sku));
+
+    for (const movement of reservationMovements) {
+      // If SKU specified, only process that SKU
+      if (sku && movement.sku !== sku) {
+        continue;
+      }
+
+      // Skip if already confirmed
+      if (confirmedSkus.has(movement.sku)) {
+        continue;
+      }
+
+      const inventory = await this.inventoryModel.findOne({
+        sku: movement.sku,
+      });
+      if (!inventory) continue;
+
+      const quantityToConfirm = movement.quantity;
+
+      // Deduct from stock and release reservation
+      inventory.stockQuantity -= quantityToConfirm;
+      inventory.reservedQuantity = Math.max(
+        0,
+        inventory.reservedQuantity - quantityToConfirm,
+      );
+      inventory.availableQuantity = Math.max(
+        0,
+        inventory.availableQuantity - quantityToConfirm,
+      );
+      inventory.updatedAt = new Date();
+
+      await inventory.save();
+
+      // Record sale movement
+      await this.movementModel.create({
+        sku: movement.sku,
+        type: MovementType.SALE,
+        quantity: quantityToConfirm,
+        referenceId: orderId,
+        referenceType: 'ORDER',
+        notes: `Sold for order ${orderId}`,
+        performedBy: 'SYSTEM',
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Get reserved quantity for an order
+   * Returns the total reserved quantity for all items in an order
+   * @param orderId Order ID
+   */
+  async getOrderReservedQuantity(orderId: string): Promise<number> {
+    const movements = await this.movementModel.find({
+      referenceId: orderId,
+      referenceType: 'ORDER',
+      type: MovementType.RESERVATION,
+    });
+
+    return movements.reduce((sum, m) => sum + m.quantity, 0);
+  }
 }

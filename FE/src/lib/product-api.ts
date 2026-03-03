@@ -1,6 +1,14 @@
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 
+// API response wrapper
+interface ApiResponse<T> {
+  statusCode: number
+  message: string
+  data?: T
+  metadata?: T
+}
+
 // Get the API base URL for formatting image URLs
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 

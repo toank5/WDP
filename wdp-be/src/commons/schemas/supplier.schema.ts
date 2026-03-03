@@ -11,6 +11,8 @@ export enum SupplierStatus {
 
 @Schema({ timestamps: true })
 export class Supplier extends Document {
+  _id?: string;
+
   @Prop({ required: true, unique: true, trim: true, uppercase: true })
   code: string;
 

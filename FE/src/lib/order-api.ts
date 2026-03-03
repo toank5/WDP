@@ -1,0 +1,269 @@
+// Order API
+
+import { api } from './api-client'
+import { extractApiMessage } from './api-client'
+import { useAuthStore } from '@/store/auth-store'
+
+// Get the API base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+
+// Order enums
+export enum OrderType {
+  READY = 'READY',
+  PREORDER = 'PREORDER',
+  PRESCRIPTION = 'PRESCRIPTION',
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  CONFIRMED = 'CONFIRMED',
+  SHIPPED = 'SHIPPED',
+  DELIVERED = 'DELIVERED',
+  RETURNED = 'RETURNED',
+}
+
+export enum PaymentMethod {
+  VNPAY = 'VNPAY',
+  CASH = 'CASH',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+}
+
+// Order types
+export interface ShippingAddress {
+  fullName: string
+  phone: string
+  address: string
+  city: string
+  district: string
+  ward?: string
+  postalCode?: string
+}
+
+export interface OrderItem {
+  _id: string
+  productId: string
+  variantSku?: string
+  productName?: string
+  productImage?: string
+  priceAtOrder: number
+  quantity: number
+  variantDetails?: {
+    size?: string
+    color?: string
+  }
+}
+
+export interface OrderPayment {
+  method: string
+  amount: number
+  transactionId?: string
+  paidAt?: Date
+  status?: 'PENDING' | 'PAID' | 'FAILED'
+}
+
+export interface OrderTracking {
+  carrier?: string
+  trackingNumber?: string
+  estimatedDelivery?: Date
+  actualDelivery?: Date
+}
+
+export interface OrderHistoryItem {
+  status: OrderStatus
+  changedBy?: string
+  timestamp: Date
+  note?: string
+}
+
+export interface Order {
+  _id: string
+  orderNumber: string
+  customerId: string
+  orderType: OrderType
+  orderStatus: OrderStatus
+  items: OrderItem[]
+  subtotal: number
+  shippingFee: number
+  tax: number
+  totalAmount: number
+  shippingAddress: ShippingAddress
+  payment?: OrderPayment
+  tracking?: OrderTracking
+  assignedStaffId?: string
+  notes?: string
+  history?: OrderHistoryItem[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CheckoutRequest {
+  items: Array<{
+    productId: string
+    variantSku?: string
+    quantity: number
+    priceAtOrder: number
+  }>
+  shippingAddress: ShippingAddress
+  shippingMethod: 'STANDARD' | 'EXPRESS'
+  payment: {
+    method: PaymentMethod
+  }
+  orderType?: OrderType
+  notes?: string
+}
+
+export interface CheckoutResponse {
+  order: Order
+  paymentUrl?: string
+}
+
+export interface OrderListQueryParams {
+  status?: OrderStatus
+  search?: string
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export interface OrderListResponse {
+  orders: Order[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface CancelOrderRequest {
+  reason: string
+}
+
+// API response wrapper
+interface ApiResponse<T> {
+  statusCode: number
+  message: string
+  data?: T
+}
+
+class OrderAPI {
+  private get authHeader() {
+    // Get token from auth store instead of localStorage
+    const state = useAuthStore.getState()
+    const token = state.accessToken
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
+
+  /**
+   * Checkout - Create order from cart
+   */
+  async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
+    try {
+      // Prepare the create order DTO
+      const payload = {
+        items: request.items,
+        shippingAddress: request.shippingAddress,
+        shippingMethod: request.shippingMethod,
+        payment: {
+          method: request.payment.method,
+        },
+        orderType: request.orderType,
+        notes: request.notes,
+      }
+
+      const response = await api.post('/orders/checkout', payload, {
+        headers: this.authHeader,
+      })
+
+      // Clear cart after successful checkout
+      localStorage.removeItem('cart')
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Get user's orders
+   */
+  async getMyOrders(params: OrderListQueryParams = {}): Promise<OrderListResponse> {
+    try {
+      const queryParams = new URLSearchParams()
+
+      if (params.status) queryParams.append('status', params.status)
+      if (params.search) queryParams.append('search', params.search)
+      if (params.page) queryParams.append('page', params.page.toString())
+      if (params.limit) queryParams.append('limit', params.limit.toString())
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+
+      const queryString = queryParams.toString()
+      const url = `/orders${queryString ? `?${queryString}` : ''}`
+
+      const response = await api.get(url, {
+        headers: this.authHeader,
+      })
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Get order by ID
+   */
+  async getOrderById(orderId: string): Promise<Order> {
+    try {
+      const response = await api.get(`/orders/${orderId}`, {
+        headers: this.authHeader,
+      })
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Cancel order
+   */
+  async cancelOrder(orderId: string, request: CancelOrderRequest): Promise<Order> {
+    try {
+      const response = await api.post(`/orders/${orderId}/cancel`, request, {
+        headers: this.authHeader,
+      })
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Get order statistics (admin only)
+   */
+  async getOrderStats(): Promise<{
+    total: number
+    byStatus: Record<string, number>
+  }> {
+    try {
+      const response = await api.get('/orders/stats/summary', {
+        headers: this.authHeader,
+      })
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+}
+
+export const orderApi = new OrderAPI()

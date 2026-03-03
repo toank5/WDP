@@ -35,6 +35,34 @@ import {
   InventoryMovement,
   InventoryMovementSchema,
 } from './commons/schemas/inventory-movement.schema';
+import { CartController } from './controllers/cart.controller';
+import { CartService } from './services/cart.service';
+import { Cart, CartSchema } from './commons/schemas/cart.schema';
+import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
+import { OrderController } from './controllers/order.controller';
+import { OrderService } from './services/order.service';
+import { Order, OrderSchema } from './commons/schemas/order.schema';
+import {
+  OrderItem,
+  OrderItemSchema,
+} from './commons/schemas/order-item.schema';
+import {
+  OrderPayment,
+  OrderPaymentSchema,
+} from './commons/schemas/order-payment.schema';
+import {
+  OrderTracking,
+  OrderTrackingSchema,
+} from './commons/schemas/order-tracking.schema';
+import {
+  OrderHistory,
+  OrderHistorySchema,
+} from './commons/schemas/order-history.schema';
+import { VNPayService } from './services/vnpay.service';
+import {
+  ProductVariant,
+  ProductVariantSchema,
+} from './commons/schemas/product-variant.schema';
 
 @Module({
   imports: [
@@ -87,6 +115,17 @@ import {
         name: InventoryMovement.name,
         schema: InventoryMovementSchema,
       },
+      {
+        name: ProductVariant.name,
+        schema: ProductVariantSchema,
+      },
+      { name: Cart.name, schema: CartSchema },
+      { name: CartItem.name, schema: CartItemSchema },
+      { name: Order.name, schema: OrderSchema },
+      { name: OrderItem.name, schema: OrderItemSchema },
+      { name: OrderPayment.name, schema: OrderPaymentSchema },
+      { name: OrderTracking.name, schema: OrderTrackingSchema },
+      { name: OrderHistory.name, schema: OrderHistorySchema },
     ]),
   ],
   controllers: [
@@ -99,6 +138,8 @@ import {
     SupplierController,
     PublicSupplierController,
     MediaController,
+    CartController,
+    OrderController,
   ],
   providers: [
     AppService,
@@ -113,6 +154,9 @@ import {
     CloudinaryService,
     FileUploadService,
     MediaService,
+    CartService,
+    OrderService,
+    VNPayService,
   ],
 })
 export class AppModule {}

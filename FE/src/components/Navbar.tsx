@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth-store'
+import { cartApi } from '@/lib/cart-api'
 import {
   FiLogOut,
   FiLogIn,
@@ -29,18 +30,21 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-      setCartCount(cart.length)
+    const updateCartCount = async () => {
+      try {
+        const count = await cartApi.getCartCount()
+        setCartCount(count)
+      } catch (err) {
+        console.error('Failed to get cart count:', err)
+        setCartCount(0)
+      }
     }
 
     updateCartCount()
     window.addEventListener('cartUpdated', updateCartCount)
-    window.addEventListener('storage', updateCartCount)
 
     return () => {
       window.removeEventListener('cartUpdated', updateCartCount)
-      window.removeEventListener('storage', updateCartCount)
     }
   }, [])
 
