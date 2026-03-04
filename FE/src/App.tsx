@@ -40,6 +40,8 @@ import { InventoryManagementPage } from './pages/manager/InventoryManagementPage
 import { InventoryDetailPage } from './pages/manager/InventoryDetailPage'
 import { SupplierManagementPage } from './pages/manager/SupplierManagementPage'
 import { SupplierFormPage } from './pages/manager/SupplierFormPage'
+import PreorderManagementPage from './pages/manager/PreorderManagementPage'
+import PreorderDetailPage from './pages/manager/PreorderDetailPage'
 
 // Components
 import { Navbar } from './components/Navbar'
@@ -98,6 +100,8 @@ function App() {
             <Route path="suppliers/:id/edit" element={<SupplierFormPage />} />
             <Route path="suppliers/:id" element={<SupplierFormPage />} />
             <Route path="suppliers" element={<SupplierManagementPage />} />
+            <Route path="preorders" element={<PreorderManagementPage />} />
+            <Route path="preorders/:sku" element={<PreorderDetailPage />} />
             <Route path="inventory/:sku" element={<InventoryDetailPage />} />
           </Route>
 

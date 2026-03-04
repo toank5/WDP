@@ -720,20 +720,19 @@ export class InventoryService {
     // Update quantities
     inventory.reservedQuantity += quantityToReserve;
     inventory.availableQuantity -= quantityToReserve;
-    inventory.updatedAt = new Date();
 
     await inventory.save();
 
     // Record movement
     await this.movementModel.create({
       sku,
-      type: MovementType.RESERVATION,
+      movementType: MovementType.RESERVATION,
       quantity: quantityToReserve,
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      notes: `Reserved for order ${orderId}`,
-      performedBy: 'SYSTEM',
-      timestamp: new Date(),
+      stockBefore: inventory.stockQuantity,
+      stockAfter: inventory.stockQuantity,
+      reason: `Reserved for order ${orderId}`,
+      orderId: new Types.ObjectId(orderId),
+      note: `Reserved for order ${orderId}`,
     });
 
     return inventory;
@@ -776,20 +775,19 @@ export class InventoryService {
         inventory.reservedQuantity - quantityToRelease,
       );
       inventory.availableQuantity += quantityToRelease;
-      inventory.updatedAt = new Date();
 
       await inventory.save();
 
       // Record release movement
       await this.movementModel.create({
         sku: movement.sku,
-        type: MovementType.RELEASE,
+        movementType: MovementType.RELEASE,
         quantity: quantityToRelease,
-        referenceId: orderId,
-        referenceType: 'ORDER',
-        notes: `Released from order ${orderId}`,
-        performedBy: 'SYSTEM',
-        timestamp: new Date(),
+        stockBefore: inventory.stockQuantity,
+        stockAfter: inventory.stockQuantity,
+        reason: `Released from order ${orderId}`,
+        orderId: movement.orderId,
+        note: `Released from order ${orderId}`,
       });
     }
   }
@@ -803,16 +801,14 @@ export class InventoryService {
   async confirmStock(orderId: string, sku?: string): Promise<void> {
     // Find all reservation movements for this order that haven't been confirmed yet
     const reservationMovements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.RESERVATION,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.RESERVATION,
     });
 
     // Get movements that have already been confirmed for this order
     const confirmedMovements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.SALE,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.SALE,
     });
 
     const confirmedSkus = new Set(confirmedMovements.map((m) => m.sku));
@@ -845,20 +841,19 @@ export class InventoryService {
         0,
         inventory.availableQuantity - quantityToConfirm,
       );
-      inventory.updatedAt = new Date();
 
       await inventory.save();
 
       // Record sale movement
       await this.movementModel.create({
         sku: movement.sku,
-        type: MovementType.SALE,
+        movementType: MovementType.CONFIRMED,
         quantity: quantityToConfirm,
-        referenceId: orderId,
-        referenceType: 'ORDER',
-        notes: `Sold for order ${orderId}`,
-        performedBy: 'SYSTEM',
-        timestamp: new Date(),
+        stockBefore: inventory.stockQuantity + quantityToConfirm,
+        stockAfter: inventory.stockQuantity,
+        reason: `Sold for order ${orderId}`,
+        orderId: movement.orderId,
+        note: `Sold for order ${orderId}`,
       });
     }
   }
@@ -870,9 +865,8 @@ export class InventoryService {
    */
   async getOrderReservedQuantity(orderId: string): Promise<number> {
     const movements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.RESERVATION,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.RESERVATION,
     });
 
     return movements.reduce((sum, m) => sum + m.quantity, 0);

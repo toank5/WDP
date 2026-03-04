@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Get, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -17,6 +17,11 @@ import { ZodValidationPipe } from 'src/commons/pipes/zod-validation.pipe';
 import { LoginResponseDto } from 'src/commons/dtos/auth.dto';
 import { ErrorResponseDto } from 'src/commons/dtos/error-response.dto';
 import { ROLES } from 'src/commons/enums/role.enum';
+import {
+  VerifyEmailResponseDto,
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
+} from 'src/commons/dtos/auth.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -77,5 +82,99 @@ export class AuthController {
     },
   ) {
     return this.authService.register(userData);
+  }
+
+  @Post('verify-email')
+  @ApiOperation({
+    summary: 'Verify email address',
+    description:
+      'Verifies a user email using the token sent to their email address.',
+  })
+  @ApiOkResponse({
+    description: 'Email verified successfully',
+    type: VerifyEmailResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or expired token',
+    type: ErrorResponseDto,
+  })
+  async verifyEmail(
+    @Body() body: { token: string },
+  ): Promise<VerifyEmailResponseDto> {
+    return this.authService.verifyEmail(body.token);
+  }
+
+  @Get('verify-email')
+  @ApiOperation({
+    summary: 'Verify email address (GET)',
+    description: 'Verifies a user email using the token from query params.',
+  })
+  @ApiOkResponse({
+    description: 'Email verified successfully',
+    type: VerifyEmailResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or expired token',
+    type: ErrorResponseDto,
+  })
+  async verifyEmailGet(
+    @Query('token') token: string,
+  ): Promise<VerifyEmailResponseDto> {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Sends a password reset email to the user if the account exists.',
+  })
+  @ApiOkResponse({
+    description: 'If an account exists, a password reset email will be sent',
+    type: ForgotPasswordResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  async forgotPassword(
+    @Body() body: { email: string },
+  ): Promise<ForgotPasswordResponseDto> {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Reset password',
+    description: 'Resets user password using the token sent to their email.',
+  })
+  @ApiOkResponse({
+    description: 'Password reset successfully',
+    type: ResetPasswordResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or expired token',
+    type: ErrorResponseDto,
+  })
+  async resetPassword(
+    @Body() body: { token: string; newPassword: string },
+  ): Promise<ResetPasswordResponseDto> {
+    return this.authService.resetPassword(body.token, body.newPassword);
+  }
+
+  @Post('resend-verification')
+  @ApiOperation({
+    summary: 'Resend verification email',
+    description: 'Resends the email verification link to the user.',
+  })
+  @ApiOkResponse({
+    description:
+      'If account exists and email is not verified, a new verification email will be sent',
+    type: ForgotPasswordResponseDto,
+  })
+  async resendVerificationEmail(
+    @Body() body: { email: string },
+  ): Promise<ForgotPasswordResponseDto> {
+    return this.authService.resendVerificationEmail(body.email);
   }
 }

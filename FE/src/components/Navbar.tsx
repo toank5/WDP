@@ -37,8 +37,6 @@ import {
   Info as InfoIcon,
   Dashboard as DashboardIcon,
   Logout as LogoutIcon,
-  ExpandLess,
-  ExpandMore,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/store/auth-store'
 import { cartApi } from '@/lib/cart-api'

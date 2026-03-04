@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { ROLES } from 'src/commons/enums/role.enum';
 import { Address, AddressSchema } from './address.schema';
 import { userValidation } from 'src/commons/validations/user.validation';
@@ -57,6 +57,23 @@ export class User {
 
   @Prop({ type: [AddressSchema], default: [] })
   addresses: Address[];
+
+  // Email verification fields
+  @Prop({ default: false })
+  emailVerified: boolean;
+
+  @Prop()
+  emailVerifyToken?: string;
+
+  @Prop()
+  emailVerifyTokenExpires?: Date;
+
+  // Password reset fields
+  @Prop()
+  resetPasswordToken?: string;
+
+  @Prop()
+  resetPasswordTokenExpires?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

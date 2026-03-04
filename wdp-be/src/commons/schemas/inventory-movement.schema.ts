@@ -24,8 +24,6 @@ export interface MovementSupplierInfo {
 
 @Schema({ timestamps: true })
 export class InventoryMovement extends Document {
-  _id?: string;
-
   @Prop({ required: true, index: true })
   sku!: string;
 

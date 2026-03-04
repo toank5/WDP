@@ -8,11 +8,9 @@ import {
   IsObject,
   IsArray,
   ValidateNested,
-  IsDateString,
-  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { ORDER_TYPES, ORDER_STATUS } from '../commons/enums/order.enum';
 
 /**
@@ -271,11 +269,11 @@ export class OrderResponseDto {
   @ApiProperty({ type: [OrderHistoryItemDto], required: false })
   history?: OrderHistoryItemDto[];
 
-  @ApiProperty()
-  createdAt: Date;
+  @ApiProperty({ required: false })
+  createdAt?: Date;
 
-  @ApiProperty()
-  updatedAt: Date;
+  @ApiProperty({ required: false })
+  updatedAt?: Date;
 }
 
 /**

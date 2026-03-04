@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
+import { PREORDER_STATUS } from '../enums/preorder.enum';
 
 @Schema({ _id: false })
 export class OrderItem {
@@ -7,7 +8,7 @@ export class OrderItem {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
   })
-  productId: mongoose.ObjectId;
+  productId: mongoose.Types.ObjectId;
 
   @Prop()
   variantSku: string;
@@ -17,6 +18,32 @@ export class OrderItem {
 
   @Prop()
   priceAtOrder: number;
+
+  // Pre-order fields
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isPreorder: boolean;
+
+  @Prop({
+    type: String,
+    enum: PREORDER_STATUS,
+    default: null,
+  })
+  preorderStatus?: PREORDER_STATUS;
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  expectedShipDate?: Date;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
+  reservedQuantity?: number; // How much has been reserved from incoming stock
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

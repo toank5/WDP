@@ -51,6 +51,11 @@ export interface OrderItem {
     size?: string
     color?: string
   }
+  // Pre-order fields
+  isPreorder?: boolean
+  preorderStatus?: 'PENDING_STOCK' | 'PARTIALLY_RESERVED' | 'READY_TO_FULFILL' | 'FULFILLED' | 'CANCELED'
+  expectedShipDate?: string
+  reservedQuantity?: number
 }
 
 export interface OrderPayment {

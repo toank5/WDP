@@ -103,15 +103,15 @@ function isFrameProduct(product: Product): product is FrameProduct {
 
 // Product Card Component
 interface ProductCardProps {
-  product: Product & { mainImageUrl?: string; tag?: string; variantCount: number }
+  product: Product & { mainImageUrl?: string; tag?: string; variantCount: number; price?: number; images2D?: string[]; images3D?: string[] }
   onClick: () => void
   onAddToCart: (e: React.MouseEvent) => void
 }
 
 function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
-  const price = (product as any).price || product.basePrice
+  const price = product.price ?? product.basePrice
   // Get image from mainImageUrl or fallback to images2D
-  const displayImage = product.mainImageUrl || ((product as any).images2D?.[0] ? formatImageUrl((product as any).images2D[0]) : undefined)
+  const displayImage = product.mainImageUrl || (product.images2D?.[0] ? formatImageUrl(product.images2D[0]) : undefined)
 
   return (
     <Card
@@ -169,7 +169,7 @@ function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
             <Box sx={{ fontSize: 60, display: displayImage ? 'none' : 'flex' }}>👓</Box>
           )}
           {/* 3D Badge */}
-          {(product as any).images3D && (product as any).images3D.length > 0 && (
+          {product.images3D && product.images3D.length > 0 && (
             <Chip
               icon={<ThreeDIcon sx={{ fontSize: 10 }} />}
               label="3D"
@@ -463,6 +463,7 @@ export function StorePage() {
       tag: p.category,
       variantCount: isFrameProduct(p) ? p.variants?.length || 0 : 0,
       price: p.basePrice,
+      images3D: p.images3D,
     }))
 
     // Category filter
@@ -480,7 +481,7 @@ export function StorePage() {
 
     // Has 3D filter
     if (filters.has3D) {
-      filtered = filtered.filter((p) => (p as any).images3D && (p as any).images3D.length > 0)
+      filtered = filtered.filter((p) => p.images3D && p.images3D.length > 0)
     }
 
     // Color filter (check variant colors)
@@ -575,7 +576,7 @@ export function StorePage() {
     }
 
     const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    const existingItem = cart.find((item: any) => item.id === product._id)
+    const existingItem = cart.find((item: { id: string }) => item.id === product._id)
     if (existingItem) {
       existingItem.qty += 1
     } else {

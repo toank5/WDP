@@ -63,6 +63,7 @@ import {
   ProductVariant,
   ProductVariantSchema,
 } from './commons/schemas/product-variant.schema';
+import { PreorderModule } from './preorder.module';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import {
       { name: OrderTracking.name, schema: OrderTrackingSchema },
       { name: OrderHistory.name, schema: OrderHistorySchema },
     ]),
+    PreorderModule,
   ],
   controllers: [
     AppController,

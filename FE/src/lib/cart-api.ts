@@ -202,7 +202,13 @@ class CartAPI {
     variantId?: string
     productId: string
     quantity: number
-    productData?: any
+    productData?: {
+      name?: string
+      image?: string
+      price?: number
+      variantName?: string
+      variantSku?: string
+    }
   }): Promise<{ success: boolean; message: string }> {
     let usingLocalStorage = !useAuthStore.getState().accessToken
 
