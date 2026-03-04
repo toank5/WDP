@@ -45,6 +45,8 @@ import PreorderDetailPage from './pages/manager/PreorderDetailPage'
 
 // Components
 import { Navbar } from './components/Navbar'
+import NotFoundPage from './pages/NotFoundPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 function App() {
   return (
@@ -56,6 +58,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Customer routes - Storefront */}
           <Route path="/store" element={<StorePage />} />
@@ -116,7 +119,7 @@ function App() {
           />
 
           {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
     </BrowserRouter>

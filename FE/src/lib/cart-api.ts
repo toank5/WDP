@@ -4,6 +4,7 @@ import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 import { formatImageUrl } from './product-api'
 import { useAuthStore } from '@/store/auth-store'
+import { ROLES } from './validations'
 
 // Cart item type from backend
 export interface CartItem {
@@ -90,7 +91,7 @@ class CartAPI {
   async getCart(): Promise<CartResponse> {
     try {
       const response = await api.get('/cart')
-      return response.data.data
+      return response.data.metadata || response.data.data
     } catch (error) {
       const message = extractApiMessage(error)
       console.log('Backend cart API failed, using localStorage fallback:', message)
@@ -405,7 +406,7 @@ class CartAPI {
         return {
           success: true,
           message: 'Cart cleared',
-          itemsRemoved: response.data.data?.itemsRemoved || 0,
+          itemsRemoved: (response.data.metadata || response.data.data)?.itemsRemoved || 0,
         }
       }
     } catch (error) {
@@ -428,11 +429,11 @@ class CartAPI {
    */
   async getCartCount(): Promise<number> {
     try {
-      const token = useAuthStore.getState().accessToken
-      if (token) {
+      const { accessToken: token, user } = useAuthStore.getState()
+      if (token && user?.role === ROLES.CUSTOMER) {
         const response = await api.get('/cart/count', {
         })
-        return response.data.data.count || 0
+        return (response.data.metadata || response.data.data)?.count || 0
       }
     } catch (error) {
       // Silently fall back to localStorage
@@ -448,11 +449,11 @@ class CartAPI {
    */
   async getCartTotal(): Promise<number> {
     try {
-      const token = useAuthStore.getState().accessToken
-      if (token) {
+      const { accessToken: token, user } = useAuthStore.getState()
+      if (token && user?.role === ROLES.CUSTOMER) {
         const response = await api.get('/cart', {
         })
-        return response.data.data?.subtotal || 0
+        return (response.data.metadata || response.data.data)?.subtotal || 0
       }
     } catch (error) {
       // Fall back to localStorage
@@ -487,7 +488,7 @@ class CartAPI {
       if (token) {
         const response = await api.get('/cart/validate', {
         })
-        return response.data.data
+        return response.data.metadata || response.data.data
       }
     } catch (error) {
       // If validation fails, proceed anyway

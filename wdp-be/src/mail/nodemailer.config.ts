@@ -1,5 +1,9 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { config } from 'dotenv';
+
+// Ensure env vars are loaded before creating transporter
+config();
 
 // Get the current directory relative to dist folder
 // When built, templates will be in dist/mail/templates
@@ -34,7 +38,7 @@ const hbsOptions = {
 // Use dynamic import for ESM-only nodemailer-express-handlebars
 async function configureHandlebars() {
   const hbs = await import('nodemailer-express-handlebars');
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
   transporter.use('compile', hbs.default(hbsOptions));
 }
 

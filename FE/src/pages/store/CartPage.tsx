@@ -144,7 +144,7 @@ const CartPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
           <div className="flex-1 space-y-6">
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
                   <FiShoppingCart className="text-slate-400" /> Items in Cart ({items.length})
@@ -159,7 +159,7 @@ const CartPage: React.FC = () => {
                   </p>
                   <Link
                     to="/products"
-                    className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-[2px] transition-colors"
+                    className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-xs transition-colors"
                   >
                     Go to Shop
                   </Link>
@@ -220,7 +220,7 @@ const CartPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden disabled:opacity-50">
+                              <div className="flex items-center border border-slate-300 rounded-xs bg-white w-fit overflow-hidden disabled:opacity-50">
                                 <button
                                   onClick={() => handleUpdateQty(item._id, item.quantity - 1)}
                                   disabled={isUpdating}
@@ -249,7 +249,7 @@ const CartPage: React.FC = () => {
                               <button
                                 onClick={() => handleRemove(item._id)}
                                 disabled={isUpdating}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Remove item"
                               >
                                 <FiTrash2 size={16} />
@@ -265,7 +265,7 @@ const CartPage: React.FC = () => {
             </div>
 
             {items.length > 0 && (
-              <div className="flex justify-between items-center p-4 bg-blue-50/50 border border-blue-100 rounded-[2px] text-xs">
+              <div className="flex justify-between items-center p-4 bg-blue-50/50 border border-blue-100 rounded-xs text-xs">
                 <div className="flex items-center gap-2 text-blue-700">
                   <FiInfo />
                   <span className="font-semibold italic">
@@ -278,7 +278,7 @@ const CartPage: React.FC = () => {
 
           {/* Sidebar Area */}
           <div className="w-full lg:w-80 space-y-6">
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden sticky top-20">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden sticky top-20">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
                   Order Summary
@@ -309,7 +309,7 @@ const CartPage: React.FC = () => {
                 <div className="pt-6 space-y-3">
                   <Link
                     to="/checkout"
-                    className={`w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-[2px] transition-all shadow-sm ${
+                    className={`w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-xs transition-all shadow-sm ${
                       items.length === 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
                     }`}
                   >
@@ -317,7 +317,7 @@ const CartPage: React.FC = () => {
                   </Link>
                   <Link
                     to="/products"
-                    className="w-full h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 font-bold text-xs uppercase tracking-[0.1em] rounded-[2px] transition-all"
+                    className="w-full h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 font-bold text-xs uppercase tracking-widest rounded-xs transition-all"
                   >
                     Shop More
                   </Link>

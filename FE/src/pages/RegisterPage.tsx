@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material'
 import { register } from '@/lib/api'
 import { useAuthStore } from '@/store/auth-store'
+import { toast } from 'sonner'
 
 interface FormValues {
   fullName: string
@@ -63,8 +64,8 @@ export function RegisterPage() {
     // Full name validation
     if (!values.fullName.trim()) {
       errors.fullName = 'Full name is required'
-    } else if (values.fullName.trim().length < 2) {
-      errors.fullName = 'Please enter a valid name'
+    } else if (values.fullName.trim().length < 5) {
+      errors.fullName = 'Full name must be at least 5 characters'
     }
 
     // Email validation
@@ -126,6 +127,8 @@ export function RegisterPage() {
 
       // Auto-login after successful registration
       setAuth(data)
+
+      toast.success('Registration successful! Please check your email to verify your account.')
 
       // Redirect to home page
       navigate('/', { replace: true })
