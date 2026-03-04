@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fi'
 import { cartApi, CartItem } from '@/lib/cart-api'
 import { formatImageUrl } from '@/lib/product-api'
+import { useAuthStore } from '@/store/auth-store'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -30,15 +31,22 @@ const CartPage: React.FC = () => {
 
   useEffect(() => {
     loadCart()
-    window.addEventListener('cartUpdated', loadCart)
-    return () => window.removeEventListener('cartUpdated', loadCart)
+    // Note: Removed cartUpdated event listener to prevent infinite reload loops
+    // Cart operations will manually refresh the cart
   }, [])
 
   const loadCart = async () => {
     setLoading(true)
     try {
-      const cart = await cartApi.getCart()
-      setItems(cart.items)
+      // For guest users, use localStorage directly to avoid 401 errors
+      const authState = useAuthStore.getState()
+      if (!authState.isAuthenticated) {
+        const cart = await cartApi.getItems() // This uses localStorage only
+        setItems(cart)
+      } else {
+        const cart = await cartApi.getCart()
+        setItems(cart.items)
+      }
     } catch (err) {
       console.error('Failed to load cart:', err)
       setItems([])
