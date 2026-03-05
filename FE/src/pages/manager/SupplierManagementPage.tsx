@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -49,8 +48,6 @@ import { SupplierDialog } from '@/components/manager/SupplierDialog'
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 export function SupplierManagementPage() {
-  const navigate = useNavigate()
-
   // State
   const [items, setItems] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -144,14 +141,6 @@ export function SupplierManagementPage() {
     if (selectedSupplier) {
       setEditingSupplierId(selectedSupplier._id)
       setDialogOpen(true)
-    }
-    handleMenuClose()
-  }
-
-  // Handle view (still navigates to detail page)
-  const handleView = () => {
-    if (selectedSupplier) {
-      navigate(`/dashboard/suppliers/${selectedSupplier._id}`)
     }
     handleMenuClose()
   }
@@ -428,10 +417,6 @@ export function SupplierManagementPage() {
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
-          <MenuItem onClick={handleView}>
-            <EditIcon fontSize="small" sx={{ mr: 1 }} />
-            View Details
-          </MenuItem>
           <MenuItem onClick={handleEdit}>
             <EditIcon fontSize="small" sx={{ mr: 1 }} />
             Edit

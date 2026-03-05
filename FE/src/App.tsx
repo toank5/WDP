@@ -101,7 +101,6 @@ function App() {
             <Route path="inventory" element={<InventoryManagementPage />} />
             <Route path="suppliers/new" element={<SupplierFormPage />} />
             <Route path="suppliers/:id/edit" element={<SupplierFormPage />} />
-            <Route path="suppliers/:id" element={<SupplierFormPage />} />
             <Route path="suppliers" element={<SupplierManagementPage />} />
             <Route path="preorders" element={<PreorderManagementPage />} />
             <Route path="preorders/:sku" element={<PreorderDetailPage />} />

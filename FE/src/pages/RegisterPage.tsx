@@ -128,6 +128,10 @@ export function RegisterPage() {
       // Auto-login after successful registration
       setAuth(data)
 
+      // Migrate any items from guest cart (localStorage) to backend cart
+      const { cartApi } = await import('@/lib/cart-api')
+      await cartApi.migrateFromLocalStorage()
+
       toast.success('Registration successful! Please check your email to verify your account.')
 
       // Redirect to home page

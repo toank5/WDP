@@ -75,11 +75,52 @@ export class InventoryService {
       limit = 50,
     } = params;
 
-    // Build query
+    // If activeOnly is true, we need to first find active products and their SKUs
+    // This must be done BEFORE pagination to ensure we get correct results
+    let allowedSkus: string[] | null = null;
+    if (activeOnly) {
+      // Find all active products with active variants
+      const activeProducts = await this.productModel
+        .find({
+          isDeleted: false,
+          isActive: { $ne: false }, // isActive is true or undefined (defaults to true)
+          'variants.isActive': { $ne: false }, // variant is active
+        })
+        .select('variants.sku')
+        .lean();
+
+      // Extract all SKUs from active variants
+      let allActiveSkus = activeProducts.flatMap((p) =>
+        (p.variants || []).map((v) => v.sku),
+      );
+
+      // If there's also a SKU search filter, filter the active SKUs
+      if (sku && allActiveSkus.length > 0) {
+        const regex = new RegExp(sku, 'i');
+        allActiveSkus = allActiveSkus.filter((s) => regex.test(s));
+      }
+
+      // If no active products/variants found, return empty result
+      if (allActiveSkus.length === 0) {
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
+
+      allowedSkus = allActiveSkus;
+    }
+
+    // Build query - use allowedSkus if activeOnly is true, otherwise use regex or no filter
     const query: Record<string, unknown> = {};
 
-    // SKU search (partial match, case-insensitive)
-    if (sku) {
+    if (allowedSkus) {
+      // activeOnly mode - use $in with filtered SKUs
+      query.sku = { $in: allowedSkus };
+    } else if (sku) {
+      // normal SKU search
       query.sku = { $regex: sku, $options: 'i' };
     }
 
@@ -162,7 +203,7 @@ export class InventoryService {
       };
     });
 
-    // Filter for active variants only if requested
+    // Filter for active variants only if requested (double-check after enrichment)
     if (activeOnly) {
       enrichedItems = enrichedItems.filter(
         (item) =>
@@ -170,8 +211,16 @@ export class InventoryService {
       );
     }
 
-    // Get total count
-    const total = await this.inventoryModel.countDocuments(query);
+    // Get total count - account for activeOnly filter
+    let total: number;
+    if (activeOnly && allowedSkus) {
+      // Count inventory items that have SKUs in the allowed list
+      total = await this.inventoryModel.countDocuments({
+        sku: { $in: allowedSkus },
+      });
+    } else {
+      total = await this.inventoryModel.countDocuments(query);
+    }
 
     return {
       items: enrichedItems,

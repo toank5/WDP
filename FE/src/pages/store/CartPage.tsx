@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   FiShoppingCart,
   FiTrash2,
@@ -10,9 +10,8 @@ import {
   FiLock,
   FiInfo,
 } from 'react-icons/fi'
-import { cartApi, CartItem } from '@/lib/cart-api'
 import { formatImageUrl } from '@/lib/product-api'
-import { useAuthStore } from '@/store/auth-store'
+import { useUserCart, type CartItem } from '@/hooks/useUserCart'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -24,36 +23,42 @@ const formatPrice = (price: number): string => {
 }
 
 const CartPage: React.FC = () => {
-  const [items, setItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [notification, setNotification] = useState<string>('')
-  const [updating, setUpdating] = useState<Set<string>>(new Set())
+  const {
+    items,
+    email,
+    cartKey,
+    loading,
+    error,
+    setItems,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    refreshCart,
+  } = useUserCart()
 
+  const [notification, setNotification] = React.useState<string>('')
+  const [updating, setUpdating] = React.useState<Set<string>>(new Set())
+
+  const navigate = useNavigate()
+
+  // Listen for cart updates from other components (e.g., add to cart from product page)
   useEffect(() => {
-    loadCart()
-    // Note: Removed cartUpdated event listener to prevent infinite reload loops
-    // Cart operations will manually refresh the cart
-  }, [])
-
-  const loadCart = async () => {
-    setLoading(true)
-    try {
-      // For guest users, use localStorage directly to avoid 401 errors
-      const authState = useAuthStore.getState()
-      if (!authState.isAuthenticated) {
-        const cart = await cartApi.getItems() // This uses localStorage only
-        setItems(cart)
-      } else {
-        const cart = await cartApi.getCart()
-        setItems(cart.items)
-      }
-    } catch (err) {
-      console.error('Failed to load cart:', err)
-      setItems([])
-    } finally {
-      setLoading(false)
+    const handleCartUpdate = () => {
+      console.log('[CartPage] cartUpdated event received, refreshing...')
+      refreshCart()
     }
-  }
+
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate)
+  }, [refreshCart])
+
+  // Show error notification if any
+  useEffect(() => {
+    if (error) {
+      setNotification(`Cart error: ${error}`)
+      setTimeout(() => setNotification(''), 5000)
+    }
+  }, [error])
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
@@ -63,15 +68,10 @@ const CartPage: React.FC = () => {
 
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      await cartApi.updateItem(itemId, newQty)
-      // Optimistic update
-      setItems((prev) =>
-        prev.map((item) => (item._id === itemId ? { ...item, quantity: newQty } : item))
-      )
+      updateQuantity(itemId, newQty)
     } catch (err) {
       console.error('Failed to update quantity:', err)
-      // Reload cart on error
-      loadCart()
+      refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -84,15 +84,12 @@ const CartPage: React.FC = () => {
   const handleRemove = async (itemId: string) => {
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      await cartApi.removeItem(itemId)
-      // Optimistic update
-      setItems((prev) => prev.filter((item) => item._id !== itemId))
+      removeItem(itemId)
       setNotification('Item removed from cart')
       setTimeout(() => setNotification(''), 3000)
     } catch (err) {
       console.error('Failed to remove item:', err)
-      // Reload cart on error
-      loadCart()
+      refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -102,7 +99,10 @@ const CartPage: React.FC = () => {
     }
   }
 
-  const total = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
+  const total = useMemo(
+    () => items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0),
+    [items]
+  )
 
   if (loading) {
     return (
@@ -110,6 +110,11 @@ const CartPage: React.FC = () => {
         <div className="text-center">
           <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
           <p className="mt-4 text-slate-600">Loading cart...</p>
+          {cartKey && (
+            <p className="mt-2 text-xs text-slate-400">
+              Using cart key: <code className="bg-slate-200 px-1 rounded">{cartKey}</code>
+            </p>
+          )}
         </div>
       </div>
     )
@@ -131,6 +136,26 @@ const CartPage: React.FC = () => {
           </h1>
         </div>
       </div>
+
+      {/* Debug info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-xs">
+          <div className="max-w-6xl mx-auto flex items-center gap-4">
+            <span className="font-semibold">Debug:</span>
+            <span>Email: {email || 'Not logged in'}</span>
+            <span>Cart Key: <code>{cartKey || 'None'}</code></span>
+            <span>Items: {items.length}</span>
+            {email && (
+              <button
+                onClick={refreshCart}
+                className="px-2 py-1 bg-blue-200 hover:bg-blue-300 rounded"
+              >
+                Refresh
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notification */}
       {notification && (
@@ -157,6 +182,11 @@ const CartPage: React.FC = () => {
                   <p className="text-slate-500 font-medium">
                     Your shopping cart is currently empty.
                   </p>
+                  {email && (
+                    <p className="text-sm text-slate-400">
+                      Logged in as <span className="font-mono">{email}</span>
+                    </p>
+                  )}
                   <Link
                     to="/products"
                     className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-xs transition-colors"
@@ -199,7 +229,7 @@ const CartPage: React.FC = () => {
                                 </div>
                                 <div>
                                   <Link
-                                    to={`/products/${item.productId}`}
+                                    to={`/product/${item.productId}`}
                                     className="text-sm font-bold text-slate-900 hover:text-blue-600 block"
                                   >
                                     {item.productName || 'Product'}

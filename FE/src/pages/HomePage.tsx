@@ -140,7 +140,14 @@ const benefits = [
 
 // Product Card Component for homepage
 interface ProductCardProps {
-  product: Product & { mainImageUrl?: string; tag?: string; variantCount: number; price?: number; images2D?: string[]; images3D?: string[] }
+  product: Product & {
+    mainImageUrl?: string
+    tag?: string
+    variantCount: number
+    price?: number
+    images2D?: string[]
+    images3D?: string[]
+  }
   onClick: () => void
   onToggleFavorite?: () => void
   isFavorite?: boolean
@@ -148,7 +155,9 @@ interface ProductCardProps {
 
 function ProductCard({ product, onClick, onToggleFavorite, isFavorite }: ProductCardProps) {
   const price = product.price ?? product.basePrice
-  const displayImage = product.mainImageUrl || (product.images2D?.[0] ? formatImageUrl(product.images2D[0]) : undefined)
+  const displayImage =
+    product.mainImageUrl ||
+    (product.images2D?.[0] ? formatImageUrl(product.images2D[0]) : undefined)
   const has3D = product.images3D && product.images3D.length > 0
 
   return (
@@ -419,12 +428,19 @@ export function HomePage() {
                   color: 'text.primary',
                 }}
               >
-                See clearly.<br />Look amazing.
+                See clearly.
+                <br />
+                Look amazing.
               </Typography>
               <Typography
                 variant="body1"
                 color="text.secondary"
-                sx={{ mb: 4, maxWidth: 480, lineHeight: 1.7, fontSize: { xs: '1rem', md: '1.125rem' } }}
+                sx={{
+                  mb: 4,
+                  maxWidth: 480,
+                  lineHeight: 1.7,
+                  fontSize: { xs: '1rem', md: '1.125rem' },
+                }}
               >
                 Discover EyeWear's curated collection of designer frames and lenses, featuring 3D
                 view technology and hassle-free returns.
@@ -563,7 +579,7 @@ export function HomePage() {
                 {/* Hero Image */}
                 <Box
                   component="img"
-                  src="/images/hero-eyewear.png"
+                  src="/images/hero-eyewear.webp"
                   alt="Person wearing EyeWear designer glasses"
                   onError={(e) => {
                     // Fallback to emoji if image fails to load
@@ -631,7 +647,11 @@ export function HomePage() {
                       >
                         3D View Available
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontSize: '0.7rem' }}
+                      >
                         For selected frames
                       </Typography>
                     </Box>
@@ -646,7 +666,8 @@ export function HomePage() {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    background: 'linear-gradient(135deg, rgba(37,99,235,0.05) 0%, rgba(139,92,246,0.05) 100%)',
+                    background:
+                      'linear-gradient(135deg, rgba(37,99,235,0.05) 0%, rgba(139,92,246,0.05) 100%)',
                     pointerEvents: 'none',
                   }}
                 />
@@ -722,7 +743,9 @@ export function HomePage() {
       {/* ==================== NEW ARRIVALS ==================== */}
       <Box sx={{ py: { xs: 6, md: 10 }, bgcolor: 'grey.50' }}>
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
+          >
             <Box>
               <Typography variant="h4" fontWeight={700} gutterBottom>
                 New arrivals
@@ -741,27 +764,25 @@ export function HomePage() {
           </Box>
 
           <Grid container spacing={3}>
-            {loading ? (
-              Array.from({ length: isTablet ? 4 : 6 }).map((_, i) => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
-                  <ProductCardSkeleton />
-                </Grid>
-              ))
-            ) : (
-              newArrivals.map((product) => {
-                const enriched = enrichProduct(product)
-                return (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.slug}>
-                    <ProductCard
-                      product={enriched}
-                      onClick={() => navigateToProduct(product.slug)}
-                      onToggleFavorite={() => toggleFavorite(product._id)}
-                      isFavorite={favorites.has(product._id)}
-                    />
+            {loading
+              ? Array.from({ length: isTablet ? 4 : 6 }).map((_, i) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+                    <ProductCardSkeleton />
                   </Grid>
-                )
-              })
-            )}
+                ))
+              : newArrivals.map((product) => {
+                  const enriched = enrichProduct(product)
+                  return (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.slug}>
+                      <ProductCard
+                        product={enriched}
+                        onClick={() => navigateToProduct(product.slug)}
+                        onToggleFavorite={() => toggleFavorite(product._id)}
+                        isFavorite={favorites.has(product._id)}
+                      />
+                    </Grid>
+                  )
+                })}
           </Grid>
 
           <Box sx={{ mt: 4, textAlign: { xs: 'center', md: 'left' } }}>
@@ -780,7 +801,9 @@ export function HomePage() {
       {/* ==================== BEST SELLERS ==================== */}
       <Box sx={{ py: { xs: 6, md: 10 } }}>
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
+          >
             <Box>
               <Typography variant="h4" fontWeight={700} gutterBottom>
                 Best sellers
@@ -799,27 +822,25 @@ export function HomePage() {
           </Box>
 
           <Grid container spacing={3}>
-            {loading ? (
-              Array.from({ length: isTablet ? 4 : 6 }).map((_, i) => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
-                  <ProductCardSkeleton />
-                </Grid>
-              ))
-            ) : (
-              bestSellers.map((product) => {
-                const enriched = enrichProduct(product)
-                return (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.slug}>
-                    <ProductCard
-                      product={enriched}
-                      onClick={() => navigateToProduct(product.slug)}
-                      onToggleFavorite={() => toggleFavorite(product._id)}
-                      isFavorite={favorites.has(product._id)}
-                    />
+            {loading
+              ? Array.from({ length: isTablet ? 4 : 6 }).map((_, i) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+                    <ProductCardSkeleton />
                   </Grid>
-                )
-              })
-            )}
+                ))
+              : bestSellers.map((product) => {
+                  const enriched = enrichProduct(product)
+                  return (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.slug}>
+                      <ProductCard
+                        product={enriched}
+                        onClick={() => navigateToProduct(product.slug)}
+                        onToggleFavorite={() => toggleFavorite(product._id)}
+                        isFavorite={favorites.has(product._id)}
+                      />
+                    </Grid>
+                  )
+                })}
           </Grid>
 
           <Box sx={{ mt: 4, textAlign: { xs: 'center', md: 'left' } }}>
@@ -960,7 +981,12 @@ export function HomePage() {
                 }}
               />
 
-              <Grid container spacing={4} alignItems="center" sx={{ position: 'relative', zIndex: 1 }}>
+              <Grid
+                container
+                spacing={4}
+                alignItems="center"
+                sx={{ position: 'relative', zIndex: 1 }}
+              >
                 <Grid size={{ xs: 12, md: 8 }}>
                   <Typography variant="h4" fontWeight={700} gutterBottom sx={{ color: 'white' }}>
                     Try our 3D View
@@ -1111,22 +1137,34 @@ export function HomePage() {
                 Shop
               </Typography>
               <Stack spacing={1}>
-                <Link to="/products?category=frame" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link
+                  to="/products?category=frame"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                >
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     Frames
                   </Typography>
                 </Link>
-                <Link to="/products?category=lens" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link
+                  to="/products?category=lens"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                >
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     Lenses
                   </Typography>
                 </Link>
-                <Link to="/products?tags=sunglasses" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link
+                  to="/products?tags=sunglasses"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                >
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     Sunglasses
                   </Typography>
                 </Link>
-                <Link to="/products?has3D=true" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link
+                  to="/products?has3D=true"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                >
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     3D View
                   </Typography>
@@ -1192,12 +1230,18 @@ export function HomePage() {
             </Typography>
             <Stack direction="row" spacing={3}>
               <Link to="/policies/privacy" style={{ color: 'inherit', textDecoration: 'none' }}>
-                <Typography variant="body2" sx={{ color: 'grey.500', '&:hover': { color: 'grey.300' } }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'grey.500', '&:hover': { color: 'grey.300' } }}
+                >
                   Privacy Policy
                 </Typography>
               </Link>
               <Link to="/policies/terms" style={{ color: 'inherit', textDecoration: 'none' }}>
-                <Typography variant="body2" sx={{ color: 'grey.500', '&:hover': { color: 'grey.300' } }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'grey.500', '&:hover': { color: 'grey.300' } }}
+                >
                   Terms of Service
                 </Typography>
               </Link>
