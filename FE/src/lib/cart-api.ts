@@ -4,6 +4,7 @@ import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 import { formatImageUrl } from './product-api'
 import { useAuthStore } from '@/store/auth-store'
+import { ROLES } from './validations'
 
 // Cart item type from backend
 export interface CartItem {
@@ -67,31 +68,48 @@ interface RawCartItem extends Partial<CartItem>, Partial<LegacyCartItem> {
   addedAt?: string
 }
 
-const CART_STORAGE_KEY = 'cart'
+const CART_BASE_KEY = 'cart'
 
 class CartAPI {
+  // Get user-specific cart storage key
+  private getCartStorageKey(userId?: string): string {
+    const state = useAuthStore.getState()
+    const currentUserId = userId || state.user?.email || 'guest'
+    return `${CART_BASE_KEY}_${currentUserId}`
+  }
+
   private get isAuthenticated() {
     // Check if user is authenticated using the auth store
     const state = useAuthStore.getState()
     return state.isAuthenticated && !!state.accessToken
   }
 
-  private get authHeader() {
-    // Get token from auth store instead of localStorage
-    const state = useAuthStore.getState()
-    const token = state.accessToken
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }
 
   /**
    * Get current user's cart from backend
    */
   async getCart(): Promise<CartResponse> {
     try {
-      const response = await api.get('/cart', {
-        headers: this.authHeader,
+      const response = await api.get('/cart')
+      const cartData = response.data.metadata || response.data.data
+
+      // Log the response for debugging
+      console.log('Backend cart response:', {
+        hasMetadata: !!response.data.metadata,
+        hasData: !!response.data.data,
+        cartData: cartData ? {
+          itemsCount: cartData.items?.length || 0,
+          totalItems: cartData.totalItems,
+          subtotal: cartData.subtotal,
+        } : null,
       })
-      return response.data.data
+
+      if (!cartData) {
+        console.warn('Backend returned success but no cart data, falling back to localStorage')
+        return this.getCartFromLocalStorage()
+      }
+
+      return cartData
     } catch (error) {
       const message = extractApiMessage(error)
       console.log('Backend cart API failed, using localStorage fallback:', message)
@@ -111,7 +129,7 @@ class CartAPI {
    */
   private getCartFromLocalStorage(): CartResponse {
     try {
-      const cart = localStorage.getItem(CART_STORAGE_KEY)
+      const cart = localStorage.getItem(this.getCartStorageKey())
       if (!cart) {
         return this.emptyCartResponse()
       }
@@ -156,7 +174,7 @@ class CartAPI {
       })
 
       // Save the converted cart back to localStorage in new format
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
+      localStorage.setItem(this.getCartStorageKey(), JSON.stringify(items))
 
       return {
         _id: '',
@@ -192,7 +210,7 @@ class CartAPI {
    * Save cart to localStorage
    */
   private saveCartToLocalStorage(cart: CartItem[]): void {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart))
+    localStorage.setItem(this.getCartStorageKey(), JSON.stringify(cart))
     window.dispatchEvent(new CustomEvent('cartUpdated'))
   }
 
@@ -203,7 +221,13 @@ class CartAPI {
     variantId?: string
     productId: string
     quantity: number
-    productData?: any
+    productData?: {
+      name?: string
+      image?: string
+      price?: number
+      variantName?: string
+      variantSku?: string
+    }
   }): Promise<{ success: boolean; message: string }> {
     let usingLocalStorage = !useAuthStore.getState().accessToken
 
@@ -211,23 +235,36 @@ class CartAPI {
       // Try backend first if authenticated
       const token = useAuthStore.getState().accessToken
       if (token) {
-        await api.post('/cart/items', {
+        console.log('Adding to backend cart:', {
           productId: params.productId,
           variantSku: params.variantId,
           quantity: params.quantity,
-        }, {
-          headers: this.authHeader,
+        })
+
+        const response = await api.post('/cart/items', {
+          productId: params.productId,
+          variantSku: params.variantId,
+          quantity: params.quantity,
+        })
+
+        console.log('Backend add to cart response:', {
+          status: response.status,
+          hasData: !!response.data,
+          hasMetadata: !!response.data.metadata,
         })
 
         // Clear local cart since backend is now the source of truth
-        localStorage.removeItem(CART_STORAGE_KEY)
+        const storageKey = this.getCartStorageKey()
+        console.log('Clearing localStorage cart:', storageKey)
+        localStorage.removeItem(storageKey)
         window.dispatchEvent(new CustomEvent('cartUpdated'))
 
         return { success: true, message: 'Item added to cart' }
       }
     } catch (error) {
       // Fall back to localStorage if backend fails
-      console.log('Backend cart API failed, using localStorage')
+      const message = extractApiMessage(error)
+      console.log('Backend cart API failed, using localStorage. Error:', message)
       usingLocalStorage = true
     }
 
@@ -280,7 +317,6 @@ class CartAPI {
         await api.post('/cart/items/bulk', {
           items,
         }, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -334,7 +370,6 @@ class CartAPI {
         await api.patch(`/cart/items/${itemId}`, {
           quantity,
         }, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -369,7 +404,6 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         await api.delete(`/cart/items/${itemId}`, {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -398,14 +432,13 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.delete('/cart', {
-          headers: this.authHeader,
         })
 
         window.dispatchEvent(new CustomEvent('cartUpdated'))
         return {
           success: true,
           message: 'Cart cleared',
-          itemsRemoved: response.data.data?.itemsRemoved || 0,
+          itemsRemoved: (response.data.metadata || response.data.data)?.itemsRemoved || 0,
         }
       }
     } catch (error) {
@@ -428,12 +461,11 @@ class CartAPI {
    */
   async getCartCount(): Promise<number> {
     try {
-      const token = useAuthStore.getState().accessToken
-      if (token) {
+      const { accessToken: token, user } = useAuthStore.getState()
+      if (token && user?.role === ROLES.CUSTOMER) {
         const response = await api.get('/cart/count', {
-          headers: this.authHeader,
         })
-        return response.data.data.count || 0
+        return (response.data.metadata || response.data.data)?.count || 0
       }
     } catch (error) {
       // Silently fall back to localStorage
@@ -449,12 +481,11 @@ class CartAPI {
    */
   async getCartTotal(): Promise<number> {
     try {
-      const token = useAuthStore.getState().accessToken
-      if (token) {
+      const { accessToken: token, user } = useAuthStore.getState()
+      if (token && user?.role === ROLES.CUSTOMER) {
         const response = await api.get('/cart', {
-          headers: this.authHeader,
         })
-        return response.data.data?.subtotal || 0
+        return (response.data.metadata || response.data.data)?.subtotal || 0
       }
     } catch (error) {
       // Fall back to localStorage
@@ -488,9 +519,8 @@ class CartAPI {
       const token = useAuthStore.getState().accessToken
       if (token) {
         const response = await api.get('/cart/validate', {
-          headers: this.authHeader,
         })
-        return response.data.data
+        return response.data.metadata || response.data.data
       }
     } catch (error) {
       // If validation fails, proceed anyway
@@ -523,20 +553,30 @@ class CartAPI {
    */
   async migrateFromLocalStorage(): Promise<{ success: boolean; message: string }> {
     try {
-      const guestCart = localStorage.getItem(CART_STORAGE_KEY)
+      // After login, the storage key is now the user's email, but the guest cart was stored as 'cart_guest'
+      // So we need to check both the current key and the guest key
+      const guestCartKey = `${CART_BASE_KEY}_guest`
+      const guestCart = localStorage.getItem(guestCartKey) || localStorage.getItem(this.getCartStorageKey())
+
       if (!guestCart) {
         return { success: true, message: 'No items to migrate' }
       }
 
       const items: CartItem[] = JSON.parse(guestCart)
+      console.log('Migrating cart items:', items.length)
+
       const result = await this.mergeGuestCart(items)
 
       if (result.success) {
-        localStorage.removeItem(CART_STORAGE_KEY)
+        // Clear both guest and user-specific localStorage keys
+        localStorage.removeItem(guestCartKey)
+        localStorage.removeItem(this.getCartStorageKey())
+        console.log('Cart migration completed, localStorage cleared')
       }
 
       return result
     } catch (error) {
+      console.error('Cart migration failed:', error)
       return { success: false, message: 'Migration failed' }
     }
   }

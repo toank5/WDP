@@ -1,114 +1,339 @@
-import React, { FormEvent, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { login } from '../lib/api'
-import { useAuthStore } from '../store/auth-store'
-import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn } from 'react-icons/fi'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  IconButton,
+  InputAdornment,
+  Alert,
+  Checkbox,
+  FormControlLabel,
+  CircularProgress,
+} from '@mui/material'
+import {
+  Visibility,
+  VisibilityOff,
+  EmailRounded,
+  LockRounded,
+  ShoppingBagOutlined,
+} from '@mui/icons-material'
+import { login } from '@/lib/api'
+import { useAuthStore } from '@/store/auth-store'
+
+interface FormValues {
+  email: string
+  password: string
+}
+
+interface FormErrors {
+  email?: string
+  password?: string
+}
 
 export function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuth = useAuthStore((state) => state.setAuth)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    try {
-      const data = await login({ email, password })
-      setAuth(data)
-      toast.success('Successfully logged in')
-      navigate('/dashboard')
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Login failed'
-      toast.error(message)
-    } finally {
-      setIsLoading(false)
+  // Form state
+  const [values, setValues] = useState<FormValues>({ email: '', password: '' })
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [rememberMe, setRememberMe] = useState(false)
+
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+
+  // Get redirect path from location state or default to home
+  const from = (location.state as any)?.from?.pathname || '/'
+
+  // Load saved email if remember me was checked
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail')
+    if (savedEmail) {
+      setValues((prev) => ({ ...prev, email: savedEmail }))
+      setRememberMe(true)
+    }
+  }, [])
+
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {}
+
+    // Email validation
+    if (!values.email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+
+    // Password validation
+    if (!values.password) {
+      errors.password = 'Password is required'
+    } else if (values.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters'
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleChange = (field: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValues((prev) => ({ ...prev, [field]: e.target.value }))
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }))
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Clear previous error
+    setError(null)
+
+    // Validate form
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const data = await login({ email: values.email, password: values.password })
+      setAuth(data)
+
+      // Migrate any items from guest cart (localStorage) to backend cart
+      const { cartApi } = await import('@/lib/cart-api')
+      await cartApi.migrateFromLocalStorage()
+
+      // Save email if remember me is checked
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', values.email)
+      } else {
+        localStorage.removeItem('rememberedEmail')
+      }
+
+      // Redirect to the page they tried to visit, or home
+      navigate(from, { replace: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMouseDownPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
-        {/* Header with gradient */}
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 px-8 py-10 text-white text-center">
-          <h1 className="text-3xl font-black tracking-tight mb-2">Welcome Back</h1>
-          <p className="text-blue-100 text-sm font-medium italic">
-            "Precision vision, professional care"
-          </p>
-        </div>
-
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                Email Address
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                  <FiMail size={18} />
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                Security Password
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                  <FiLock size={18} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-blue-600 transition-colors"
-                >
-                  {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fb 0%, #ffffff 50%, #e6f0ff 100%)',
+        p: 2,
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper
+          elevation={3}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            borderRadius: 3,
+          }}
+        >
+          {/* Logo/Brand */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                bgcolor: 'primary.main',
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+              }}
             >
-              {isLoading ? 'Authenticating...' : 'Sign In Now'}
-            </button>
+              <ShoppingBagOutlined sx={{ fontSize: 36, color: 'white' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Welcome back
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sign in to manage your orders and favorites
+            </Typography>
+          </Box>
 
-            <div className="pt-4 text-center">
-              <p className="text-sm text-slate-500">
-                New to WDP?{' '}
+          {/* Error Alert */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Login Form */}
+          <Box component="form" onSubmit={handleSubmit}>
+            {/* Email Field */}
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              margin="normal"
+              value={values.email}
+              onChange={handleChange('email')}
+              error={!!formErrors.email}
+              helperText={formErrors.email}
+              autoComplete="email"
+              autoFocus
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailRounded color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 1 }}
+            />
+
+            {/* Password Field */}
+            <TextField
+              fullWidth
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              margin="normal"
+              value={values.password}
+              onChange={handleChange('password')}
+              error={!!formErrors.password}
+              helperText={formErrors.password}
+              autoComplete="current-password"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockRounded color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 2 }}
+            />
+
+            {/* Remember Me & Forgot Password */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+                flexWrap: 'wrap',
+                gap: 1,
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="text.secondary">
+                    Remember me
+                  </Typography>
+                }
+              />
+              <Link
+                to="/forgot-password"
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#1976d2',
+                  textDecoration: 'none',
+                }}
+              >
+                Forgot password?
+              </Link>
+            </Box>
+
+            {/* Submit Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              type="submit"
+              disabled={loading}
+              sx={{
+                py: 1.5,
+                mt: 1,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+                minHeight: 48, // 44px touch target + padding
+              }}
+            >
+              {loading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Logging in…
+                </>
+              ) : (
+                'Log in'
+              )}
+            </Button>
+
+            {/* Create Account Link */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Don't have an account?{' '}
                 <Link
                   to="/register"
-                  className="text-blue-600 font-bold hover:underline underline-offset-4"
+                  style={{
+                    color: '#1976d2',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
                 >
-                  Join the platform
+                  Create account
                 </Link>
-              </p>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Footer */}
+        <Box sx={{ textAlign: 'center', mt: 3, color: 'text.secondary' }}>
+          <Typography variant="caption">
+            By continuing, you agree to our Terms of Service and Privacy Policy
+          </Typography>
+        </Box>
+      </Container>
+    </Box>
   )
 }

@@ -369,7 +369,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'return') {
       const c = isReturnConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -384,7 +384,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.returnWindowDays?.framesOnly ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.framesOnly')
@@ -412,7 +412,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.returnWindowDays?.prescriptionGlasses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.prescriptionGlasses')
@@ -440,7 +440,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.returnWindowDays?.contactLenses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.contactLenses')
@@ -495,7 +495,7 @@ const PolicyFormPage: React.FC = () => {
               type="number"
               min="0"
               max="100"
-              className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
               value={c.restockingFeePercent ?? ''}
               onChange={(e) => {
                 clearFieldError('restockingFeePercent')
@@ -546,7 +546,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'warranty') {
       const c = isWarrantyConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -561,7 +561,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.framesMonths ?? ''}
                 onChange={(e) => {
                   clearFieldError('framesMonths')
@@ -584,7 +584,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.lensesMonths ?? ''}
                 onChange={(e) => {
                   clearFieldError('lensesMonths')
@@ -659,7 +659,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'shipping') {
       const c = isShippingConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -672,7 +672,7 @@ const PolicyFormPage: React.FC = () => {
             </label>
             <input
               type="text"
-              className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
               value={c.defaultCarrier ?? ''}
               onChange={(e) => {
                 clearFieldError('defaultCarrier')
@@ -697,7 +697,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.standardDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('standardDaysMin')
@@ -721,7 +721,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.standardDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('standardDaysMax')
@@ -745,7 +745,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.expressDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('expressDaysMin')
@@ -769,7 +769,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.expressDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('expressDaysMax')
@@ -794,7 +794,7 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="number"
               min="0"
-              className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
               value={c.freeShippingMinAmount ?? ''}
               onChange={(e) => {
                 clearFieldError('freeShippingMinAmount')
@@ -818,7 +818,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'prescription') {
       const c = isPrescriptionConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -832,7 +832,7 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="number"
               min="1"
-              className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
               value={c.maxPrescriptionAgeMonths ?? ''}
               onChange={(e) => {
                 clearFieldError('maxPrescriptionAgeMonths')
@@ -909,7 +909,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'cancellation') {
       const c = isCancellationConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -1002,7 +1002,7 @@ const PolicyFormPage: React.FC = () => {
     if (type === 'refund') {
       const c = isRefundConfig(config) ? config : {}
       return (
-        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-[2px] self-stretch">
+        <div className="space-y-4 p-4 bg-white border border-slate-300 rounded-xs self-stretch">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
             <FiSettings className="w-4 h-4 text-slate-500" />
             <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px]">
@@ -1041,7 +1041,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.expectedProcessingDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('expectedProcessingDaysMin')
@@ -1065,7 +1065,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-[2px] px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
                 value={c.expectedProcessingDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('expectedProcessingDaysMax')
@@ -1103,7 +1103,7 @@ const PolicyFormPage: React.FC = () => {
     }
 
     return (
-      <div className="p-12 text-center bg-slate-50/50 border border-slate-100 border-dashed rounded-[2rem] animate-in fade-in duration-700">
+      <div className="p-12 text-center bg-slate-50/50 border border-slate-100 border-dashed rounded-4xl animate-in fade-in duration-700">
         <FiAlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-4" />
         <div className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">
           Configuration for {type} policy type
@@ -1142,13 +1142,13 @@ const PolicyFormPage: React.FC = () => {
               {id ? 'Modify Policy Version' : 'New Policy Version'}
             </h1>
           </div>
-          <div className="p-3 bg-white border border-slate-300 rounded-[2px] shadow-sm">
+          <div className="p-3 bg-white border border-slate-300 rounded-xs shadow-sm">
             <FiFileText className="w-8 h-8 text-slate-500" />
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
             <div className="bg-slate-100 border-b border-slate-300 px-6 py-2.5">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
                 Primary Configuration
@@ -1297,7 +1297,7 @@ const PolicyFormPage: React.FC = () => {
                     required
                     rows={10}
                     placeholder="Draft the complete policy content. Use clear, unambiguous language..."
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-6 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300 leading-relaxed min-h-[320px]"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-6 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300 leading-relaxed min-h-80"
                     value={formData.bodyPlainText}
                     onChange={(e) => {
                       clearFieldError('bodyPlainText')

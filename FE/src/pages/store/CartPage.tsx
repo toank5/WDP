@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   FiShoppingCart,
   FiTrash2,
@@ -10,8 +10,8 @@ import {
   FiLock,
   FiInfo,
 } from 'react-icons/fi'
-import { cartApi, CartItem } from '@/lib/cart-api'
 import { formatImageUrl } from '@/lib/product-api'
+import { useUserCart, type CartItem } from '@/hooks/useUserCart'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -23,29 +23,42 @@ const formatPrice = (price: number): string => {
 }
 
 const CartPage: React.FC = () => {
-  const [items, setItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [notification, setNotification] = useState<string>('')
-  const [updating, setUpdating] = useState<Set<string>>(new Set())
+  const {
+    items,
+    email,
+    cartKey,
+    loading,
+    error,
+    setItems,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    refreshCart,
+  } = useUserCart()
 
+  const [notification, setNotification] = React.useState<string>('')
+  const [updating, setUpdating] = React.useState<Set<string>>(new Set())
+
+  const navigate = useNavigate()
+
+  // Listen for cart updates from other components (e.g., add to cart from product page)
   useEffect(() => {
-    loadCart()
-    window.addEventListener('cartUpdated', loadCart)
-    return () => window.removeEventListener('cartUpdated', loadCart)
-  }, [])
-
-  const loadCart = async () => {
-    setLoading(true)
-    try {
-      const cart = await cartApi.getCart()
-      setItems(cart.items)
-    } catch (err) {
-      console.error('Failed to load cart:', err)
-      setItems([])
-    } finally {
-      setLoading(false)
+    const handleCartUpdate = () => {
+      console.log('[CartPage] cartUpdated event received, refreshing...')
+      refreshCart()
     }
-  }
+
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate)
+  }, [refreshCart])
+
+  // Show error notification if any
+  useEffect(() => {
+    if (error) {
+      setNotification(`Cart error: ${error}`)
+      setTimeout(() => setNotification(''), 5000)
+    }
+  }, [error])
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
@@ -55,15 +68,10 @@ const CartPage: React.FC = () => {
 
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      await cartApi.updateItem(itemId, newQty)
-      // Optimistic update
-      setItems((prev) =>
-        prev.map((item) => (item._id === itemId ? { ...item, quantity: newQty } : item))
-      )
+      updateQuantity(itemId, newQty)
     } catch (err) {
       console.error('Failed to update quantity:', err)
-      // Reload cart on error
-      loadCart()
+      refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -76,15 +84,12 @@ const CartPage: React.FC = () => {
   const handleRemove = async (itemId: string) => {
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      await cartApi.removeItem(itemId)
-      // Optimistic update
-      setItems((prev) => prev.filter((item) => item._id !== itemId))
+      removeItem(itemId)
       setNotification('Item removed from cart')
       setTimeout(() => setNotification(''), 3000)
     } catch (err) {
       console.error('Failed to remove item:', err)
-      // Reload cart on error
-      loadCart()
+      refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -94,7 +99,10 @@ const CartPage: React.FC = () => {
     }
   }
 
-  const total = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
+  const total = useMemo(
+    () => items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0),
+    [items]
+  )
 
   if (loading) {
     return (
@@ -102,6 +110,11 @@ const CartPage: React.FC = () => {
         <div className="text-center">
           <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
           <p className="mt-4 text-slate-600">Loading cart...</p>
+          {cartKey && (
+            <p className="mt-2 text-xs text-slate-400">
+              Using cart key: <code className="bg-slate-200 px-1 rounded">{cartKey}</code>
+            </p>
+          )}
         </div>
       </div>
     )
@@ -124,6 +137,26 @@ const CartPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Debug info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-xs">
+          <div className="max-w-6xl mx-auto flex items-center gap-4">
+            <span className="font-semibold">Debug:</span>
+            <span>Email: {email || 'Not logged in'}</span>
+            <span>Cart Key: <code>{cartKey || 'None'}</code></span>
+            <span>Items: {items.length}</span>
+            {email && (
+              <button
+                onClick={refreshCart}
+                className="px-2 py-1 bg-blue-200 hover:bg-blue-300 rounded"
+              >
+                Refresh
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Notification */}
       {notification && (
         <div className="fixed top-20 right-4 bg-white border border-slate-300 shadow-md p-4 z-50 flex items-center gap-3 border-l-4 border-l-emerald-500 animate-in slide-in-from-right-4">
@@ -136,7 +169,7 @@ const CartPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
           <div className="flex-1 space-y-6">
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
                   <FiShoppingCart className="text-slate-400" /> Items in Cart ({items.length})
@@ -149,9 +182,14 @@ const CartPage: React.FC = () => {
                   <p className="text-slate-500 font-medium">
                     Your shopping cart is currently empty.
                   </p>
+                  {email && (
+                    <p className="text-sm text-slate-400">
+                      Logged in as <span className="font-mono">{email}</span>
+                    </p>
+                  )}
                   <Link
                     to="/products"
-                    className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-[2px] transition-colors"
+                    className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-xs transition-colors"
                   >
                     Go to Shop
                   </Link>
@@ -191,7 +229,7 @@ const CartPage: React.FC = () => {
                                 </div>
                                 <div>
                                   <Link
-                                    to={`/products/${item.productId}`}
+                                    to={`/product/${item.productId}`}
                                     className="text-sm font-bold text-slate-900 hover:text-blue-600 block"
                                   >
                                     {item.productName || 'Product'}
@@ -212,7 +250,7 @@ const CartPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center border border-slate-300 rounded-[2px] bg-white w-fit overflow-hidden disabled:opacity-50">
+                              <div className="flex items-center border border-slate-300 rounded-xs bg-white w-fit overflow-hidden disabled:opacity-50">
                                 <button
                                   onClick={() => handleUpdateQty(item._id, item.quantity - 1)}
                                   disabled={isUpdating}
@@ -241,7 +279,7 @@ const CartPage: React.FC = () => {
                               <button
                                 onClick={() => handleRemove(item._id)}
                                 disabled={isUpdating}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Remove item"
                               >
                                 <FiTrash2 size={16} />
@@ -257,7 +295,7 @@ const CartPage: React.FC = () => {
             </div>
 
             {items.length > 0 && (
-              <div className="flex justify-between items-center p-4 bg-blue-50/50 border border-blue-100 rounded-[2px] text-xs">
+              <div className="flex justify-between items-center p-4 bg-blue-50/50 border border-blue-100 rounded-xs text-xs">
                 <div className="flex items-center gap-2 text-blue-700">
                   <FiInfo />
                   <span className="font-semibold italic">
@@ -270,7 +308,7 @@ const CartPage: React.FC = () => {
 
           {/* Sidebar Area */}
           <div className="w-full lg:w-80 space-y-6">
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden sticky top-20">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden sticky top-20">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-3">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
                   Order Summary
@@ -301,7 +339,7 @@ const CartPage: React.FC = () => {
                 <div className="pt-6 space-y-3">
                   <Link
                     to="/checkout"
-                    className={`w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-[2px] transition-all shadow-sm ${
+                    className={`w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-xs transition-all shadow-sm ${
                       items.length === 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
                     }`}
                   >
@@ -309,7 +347,7 @@ const CartPage: React.FC = () => {
                   </Link>
                   <Link
                     to="/products"
-                    className="w-full h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 font-bold text-xs uppercase tracking-[0.1em] rounded-[2px] transition-all"
+                    className="w-full h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 font-bold text-xs uppercase tracking-widest rounded-xs transition-all"
                   >
                     Shop More
                   </Link>

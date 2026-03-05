@@ -7,6 +7,12 @@ export class OrderTracking {
 
   @Prop()
   trackingNumber: string;
+
+  @Prop({ type: Date })
+  estimatedDelivery?: Date;
+
+  @Prop({ type: Date })
+  actualDelivery?: Date;
 }
 
 export const OrderTrackingSchema = SchemaFactory.createForClass(OrderTracking);

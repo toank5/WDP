@@ -6,20 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderSchema } from '../commons/schemas/order.schema';
+import mongoose from 'mongoose';
+import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
-import {
-  OrderPayment,
-  OrderPaymentSchema,
-} from '../commons/schemas/order-payment.schema';
-import {
-  OrderTracking,
-  OrderTrackingSchema,
-} from '../commons/schemas/order-tracking.schema';
-import {
-  OrderHistory,
-  OrderHistorySchema,
-} from '../commons/schemas/order-history.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { ProductVariant } from '../commons/schemas/product-variant.schema';
 import { CartService } from './cart.service';
@@ -120,14 +109,14 @@ export class OrderService {
     // Generate order number
     const orderNumber = this.generateOrderNumber();
 
-    // Create order
-    const order = await this.orderModel.create({
+    // Create order - use new Document() + save() for better type inference
+    const order = new this.orderModel({
       orderNumber,
       customerId: new Types.ObjectId(customerId),
       orderType: orderType || ORDER_TYPES.READY,
       orderStatus: ORDER_STATUS.PENDING,
       items: items.map((item) => ({
-        productId: new Types.ObjectId(item.productId),
+        productId: new mongoose.Types.ObjectId(item.productId),
         variantSku: item.variantSku,
         quantity: item.quantity,
         priceAtOrder: item.priceAtOrder,
@@ -151,6 +140,7 @@ export class OrderService {
         },
       ],
     });
+    await order.save();
 
     // Generate payment URL if VNPAY
     let paymentUrl: string | undefined;
@@ -293,26 +283,39 @@ export class OrderService {
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Build query
-    const filter: any = { customerId: new Types.ObjectId(customerId) };
+    // Build query using mongoose query builder
+    const orderQuery = this.orderModel.find({
+      customerId: new Types.ObjectId(customerId),
+    });
 
     if (status) {
-      filter.orderStatus = status;
+      orderQuery.where('orderStatus').equals(status);
     }
 
     if (search) {
-      filter.$or = [
+      orderQuery.or([
         { orderNumber: { $regex: search, $options: 'i' } },
         { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
-      ];
+      ]);
     }
 
-    // Count total
-    const total = await this.orderModel.countDocuments(filter);
+    // Count total - clone the query conditions
+    const countQuery = this.orderModel.find({
+      customerId: new Types.ObjectId(customerId),
+    });
+    if (status) {
+      countQuery.where('orderStatus').equals(status);
+    }
+    if (search) {
+      countQuery.or([
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+      ]);
+    }
+    const total = await countQuery.countDocuments();
 
     // Get orders
-    const orders = await this.orderModel
-      .find(filter)
+    const orders = await orderQuery
       .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
       .skip(skip)
       .limit(limitNum)
@@ -348,7 +351,7 @@ export class OrderService {
     }
 
     // Check if customer owns this order
-    if (customerId && order.customerId.toString() !== customerId) {
+    if (customerId && String(order.customerId) !== customerId) {
       throw new UnauthorizedException(
         'You do not have permission to view this order',
       );
@@ -374,7 +377,8 @@ export class OrderService {
       order.items.map(async (item) => {
         const product = await this.productModel.findById(item.productId);
 
-        let variantDetails = null;
+        let variantDetails: { size?: string; color?: string } | undefined =
+          undefined;
         if (item.variantSku) {
           const variant = await this.productVariantModel.findOne({
             sku: item.variantSku,
@@ -389,8 +393,8 @@ export class OrderService {
         }
 
         return {
-          _id: (item as any)._id?.toString() || '',
-          productId: item.productId.toString(),
+          _id: `${String(order._id)}-${String(item.productId)}-${item.variantSku || 'default'}`,
+          productId: String(item.productId),
           variantSku: item.variantSku,
           quantity: item.quantity,
           priceAtOrder: item.priceAtOrder,
@@ -402,9 +406,9 @@ export class OrderService {
     );
 
     return {
-      _id: order._id.toString(),
+      _id: String(order._id),
       orderNumber: order.orderNumber,
-      customerId: order.customerId.toString(),
+      customerId: String(order.customerId),
       orderType: order.orderType,
       orderStatus: order.orderStatus,
       items: itemsWithDetails,
@@ -412,7 +416,7 @@ export class OrderService {
       shippingFee: order.shippingFee,
       tax: order.tax,
       totalAmount: order.totalAmount,
-      shippingAddress: order.shippingAddress as any,
+      shippingAddress: order.shippingAddress,
       payment: order.payment
         ? {
             method: order.payment.method,
@@ -430,11 +434,13 @@ export class OrderService {
             actualDelivery: order.tracking.actualDelivery,
           }
         : undefined,
-      assignedStaffId: order.assignedStaffId?.toString(),
+      assignedStaffId: order.assignedStaffId
+        ? String(order.assignedStaffId)
+        : undefined,
       notes: order.notes,
       history: order.history.map((h) => ({
         status: h.status,
-        changedBy: h.changedBy,
+        changedBy: h.changedBy ? h.changedBy.toHexString() : undefined,
         timestamp: h.timestamp,
         note: h.note,
       })),
@@ -535,7 +541,7 @@ export class OrderService {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.customerId.toString() !== customerId) {
+    if (String(order.customerId) !== customerId) {
       throw new UnauthorizedException(
         'You do not have permission to cancel this order',
       );

@@ -31,6 +31,7 @@ import {
 import {
   ArrowBack as ArrowBackIcon,
   ShoppingCart as CartIcon,
+  ShoppingCartOutlined,
   Favorite as WishlistIcon,
   FavoriteBorder as WishlistBorderIcon,
   FlashOn as BuyNowIcon,
@@ -768,7 +769,7 @@ export function ProductDetailPage() {
   const [snackbar, setSnackbarState] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   })
 
   // ==================== Computed Values ====================
@@ -869,6 +870,30 @@ export function ProductDetailPage() {
       return product.variants.some((v: any) => v.isActive !== false) ? 'Select options' : 'Out of Stock'
     }
     return 'Out of Stock'
+  }
+
+  // Check if pre-order is enabled for selected variant
+  const isPreorderEnabled = () => {
+    if (!selectedVariant) return false
+    return selectedVariant.isPreorderEnabled === true
+  }
+
+  // Get expected ship date range for pre-order
+  const getExpectedShipDateRange = () => {
+    if (!selectedVariant?.preorderExpectedShipStart) return null
+    const start = new Date(selectedVariant.preorderExpectedShipStart)
+    const end = selectedVariant.preorderExpectedShipEnd
+      ? new Date(selectedVariant.preorderExpectedShipEnd)
+      : null
+
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+
+    if (end) {
+      return `${formatDate(start)} – ${formatDate(end)}`
+    }
+    return `from ${formatDate(start)}`
   }
 
   // ==================== Handlers ====================
@@ -973,6 +998,21 @@ export function ProductDetailPage() {
   // Add to cart
   const handleAddToCart = async () => {
     if (!product) return
+
+    // Check if user is authenticated
+    const authState = useAuthStore.getState()
+    if (!authState.isAuthenticated) {
+      setSnackbarState({
+        open: true,
+        message: 'Please login to add items to cart',
+        severity: 'warning',
+      })
+      // Show toast for a moment before navigating
+      setTimeout(() => {
+        navigate('/login')
+      }, 1500)
+      return
+    }
 
     setIsAdding(true)
     try {
@@ -1185,7 +1225,21 @@ export function ProductDetailPage() {
 
                 {/* Stock Status */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {isInStock() ? (
+                  {isPreorderEnabled() ? (
+                    <>
+                      <Chip
+                        label="Pre-order"
+                        color="info"
+                        size="small"
+                        sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                      />
+                      {getExpectedShipDateRange() && (
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                          Expected shipping: {getExpectedShipDateRange()}
+                        </Typography>
+                      )}
+                    </>
+                  ) : isInStock() ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
                       <CheckIcon fontSize="small" />
                       <Typography variant="body2" color="success.main" fontWeight={500}>
@@ -1312,14 +1366,28 @@ export function ProductDetailPage() {
                 <Stack spacing={1}>
                   <Button
                     fullWidth
-                    variant="contained"
+                    variant={isPreorderEnabled() ? 'outlined' : 'contained'}
                     size="large"
-                    startIcon={<CartIcon />}
-                    disabled={!isInStock() || isAdding}
+                    startIcon={isPreorderEnabled() ? <ShoppingCartOutlined /> : <CartIcon />}
+                    disabled={(!isInStock() && !isPreorderEnabled()) || isAdding}
                     onClick={handleAddToCart}
-                    sx={{ py: 1.5 }}
+                    sx={{
+                      py: 1.5,
+                      ...(isPreorderEnabled() && {
+                        borderColor: 'info.main',
+                        color: 'info.main',
+                        '&:hover': {
+                          borderColor: 'info.dark',
+                          bgcolor: 'info.50',
+                        },
+                      }),
+                    }}
                   >
-                    {isAdding ? 'Adding...' : 'Add to Cart'}
+                    {isAdding
+                      ? 'Adding...'
+                      : isPreorderEnabled()
+                        ? 'Pre-order Now'
+                        : 'Add to Cart'}
                   </Button>
                   <Button
                     fullWidth
@@ -1327,7 +1395,7 @@ export function ProductDetailPage() {
                     color="secondary"
                     size="large"
                     startIcon={<BuyNowIcon />}
-                    disabled={!isInStock()}
+                    disabled={!isInStock() && !isPreorderEnabled()}
                     onClick={handleBuyNow}
                     sx={{ py: 1.5 }}
                   >

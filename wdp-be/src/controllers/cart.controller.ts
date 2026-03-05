@@ -34,11 +34,12 @@ import {
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Cart')
 @ApiBearerAuth()
 @Controller('cart')
-@UseGuards(RbacGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 

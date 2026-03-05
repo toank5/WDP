@@ -9,7 +9,7 @@ export class CartItem {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
   })
-  productId: mongoose.ObjectId;
+  productId: mongoose.Types.ObjectId;
 
   @Prop({
     type: String,

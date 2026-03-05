@@ -51,13 +51,12 @@ export const RegisterUserSchema = z
       .min(5, 'Full name must be at least 5 characters')
       .max(100, 'Full name must not exceed 100 characters')
       .trim(),
-    role: z.nativeEnum(ROLES),
+    role: z.nativeEnum(ROLES).optional().default(ROLES.CUSTOMER),
   })
   .refine((data) => data.password.length >= 6, {
     message: 'Password must be at least 6 characters',
     path: ['password'],
-  })
-  .strict();
+  });
 
 /**
  * Strict Login Schema

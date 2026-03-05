@@ -75,11 +75,52 @@ export class InventoryService {
       limit = 50,
     } = params;
 
-    // Build query
+    // If activeOnly is true, we need to first find active products and their SKUs
+    // This must be done BEFORE pagination to ensure we get correct results
+    let allowedSkus: string[] | null = null;
+    if (activeOnly) {
+      // Find all active products with active variants
+      const activeProducts = await this.productModel
+        .find({
+          isDeleted: false,
+          isActive: { $ne: false }, // isActive is true or undefined (defaults to true)
+          'variants.isActive': { $ne: false }, // variant is active
+        })
+        .select('variants.sku')
+        .lean();
+
+      // Extract all SKUs from active variants
+      let allActiveSkus = activeProducts.flatMap((p) =>
+        (p.variants || []).map((v) => v.sku),
+      );
+
+      // If there's also a SKU search filter, filter the active SKUs
+      if (sku && allActiveSkus.length > 0) {
+        const regex = new RegExp(sku, 'i');
+        allActiveSkus = allActiveSkus.filter((s) => regex.test(s));
+      }
+
+      // If no active products/variants found, return empty result
+      if (allActiveSkus.length === 0) {
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
+
+      allowedSkus = allActiveSkus;
+    }
+
+    // Build query - use allowedSkus if activeOnly is true, otherwise use regex or no filter
     const query: Record<string, unknown> = {};
 
-    // SKU search (partial match, case-insensitive)
-    if (sku) {
+    if (allowedSkus) {
+      // activeOnly mode - use $in with filtered SKUs
+      query.sku = { $in: allowedSkus };
+    } else if (sku) {
+      // normal SKU search
       query.sku = { $regex: sku, $options: 'i' };
     }
 
@@ -162,7 +203,7 @@ export class InventoryService {
       };
     });
 
-    // Filter for active variants only if requested
+    // Filter for active variants only if requested (double-check after enrichment)
     if (activeOnly) {
       enrichedItems = enrichedItems.filter(
         (item) =>
@@ -170,8 +211,16 @@ export class InventoryService {
       );
     }
 
-    // Get total count
-    const total = await this.inventoryModel.countDocuments(query);
+    // Get total count - account for activeOnly filter
+    let total: number;
+    if (activeOnly && allowedSkus) {
+      // Count inventory items that have SKUs in the allowed list
+      total = await this.inventoryModel.countDocuments({
+        sku: { $in: allowedSkus },
+      });
+    } else {
+      total = await this.inventoryModel.countDocuments(query);
+    }
 
     return {
       items: enrichedItems,
@@ -720,20 +769,19 @@ export class InventoryService {
     // Update quantities
     inventory.reservedQuantity += quantityToReserve;
     inventory.availableQuantity -= quantityToReserve;
-    inventory.updatedAt = new Date();
 
     await inventory.save();
 
     // Record movement
     await this.movementModel.create({
       sku,
-      type: MovementType.RESERVATION,
+      movementType: MovementType.RESERVATION,
       quantity: quantityToReserve,
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      notes: `Reserved for order ${orderId}`,
-      performedBy: 'SYSTEM',
-      timestamp: new Date(),
+      stockBefore: inventory.stockQuantity,
+      stockAfter: inventory.stockQuantity,
+      reason: `Reserved for order ${orderId}`,
+      orderId: new Types.ObjectId(orderId),
+      note: `Reserved for order ${orderId}`,
     });
 
     return inventory;
@@ -776,20 +824,19 @@ export class InventoryService {
         inventory.reservedQuantity - quantityToRelease,
       );
       inventory.availableQuantity += quantityToRelease;
-      inventory.updatedAt = new Date();
 
       await inventory.save();
 
       // Record release movement
       await this.movementModel.create({
         sku: movement.sku,
-        type: MovementType.RELEASE,
+        movementType: MovementType.RELEASE,
         quantity: quantityToRelease,
-        referenceId: orderId,
-        referenceType: 'ORDER',
-        notes: `Released from order ${orderId}`,
-        performedBy: 'SYSTEM',
-        timestamp: new Date(),
+        stockBefore: inventory.stockQuantity,
+        stockAfter: inventory.stockQuantity,
+        reason: `Released from order ${orderId}`,
+        orderId: movement.orderId,
+        note: `Released from order ${orderId}`,
       });
     }
   }
@@ -803,16 +850,14 @@ export class InventoryService {
   async confirmStock(orderId: string, sku?: string): Promise<void> {
     // Find all reservation movements for this order that haven't been confirmed yet
     const reservationMovements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.RESERVATION,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.RESERVATION,
     });
 
     // Get movements that have already been confirmed for this order
     const confirmedMovements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.SALE,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.SALE,
     });
 
     const confirmedSkus = new Set(confirmedMovements.map((m) => m.sku));
@@ -845,20 +890,19 @@ export class InventoryService {
         0,
         inventory.availableQuantity - quantityToConfirm,
       );
-      inventory.updatedAt = new Date();
 
       await inventory.save();
 
       // Record sale movement
       await this.movementModel.create({
         sku: movement.sku,
-        type: MovementType.SALE,
+        movementType: MovementType.CONFIRMED,
         quantity: quantityToConfirm,
-        referenceId: orderId,
-        referenceType: 'ORDER',
-        notes: `Sold for order ${orderId}`,
-        performedBy: 'SYSTEM',
-        timestamp: new Date(),
+        stockBefore: inventory.stockQuantity + quantityToConfirm,
+        stockAfter: inventory.stockQuantity,
+        reason: `Sold for order ${orderId}`,
+        orderId: movement.orderId,
+        note: `Sold for order ${orderId}`,
       });
     }
   }
@@ -870,9 +914,8 @@ export class InventoryService {
    */
   async getOrderReservedQuantity(orderId: string): Promise<number> {
     const movements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.RESERVATION,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.RESERVATION,
     });
 
     return movements.reduce((sum, m) => sum + m.quantity, 0);

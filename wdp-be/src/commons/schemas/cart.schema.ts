@@ -10,7 +10,7 @@ export class Cart {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   })
-  customerId: mongoose.ObjectId;
+  customerId: mongoose.Types.ObjectId;
 
   @Prop({
     type: [CartItemSchema],

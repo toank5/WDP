@@ -28,7 +28,7 @@ export class Order {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer',
   })
-  customerId: mongoose.ObjectId;
+  customerId: mongoose.Types.ObjectId;
 
   @Prop({
     type: String,
@@ -71,10 +71,36 @@ export class Order {
   totalAmount: number;
 
   @Prop({
+    type: Number,
+    default: 0,
+  })
+  subtotal: number;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
+  shippingFee: number;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
+  tax: number;
+
+  @Prop({
     type: Object,
     required: true,
   })
-  shippingAddress: object;
+  shippingAddress: {
+    fullName: string;
+    phone: string;
+    address: string;
+    city: string;
+    district: string;
+    ward?: string;
+    zipCode?: string;
+  };
 
   @Prop({
     type: OrderPaymentSchema,
@@ -92,7 +118,7 @@ export class Order {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   })
-  assignedStaffId: mongoose.ObjectId;
+  assignedStaffId: mongoose.Types.ObjectId;
 
   @Prop({
     type: String,
@@ -105,6 +131,9 @@ export class Order {
     default: [],
   })
   history: OrderHistory[];
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

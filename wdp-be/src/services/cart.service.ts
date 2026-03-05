@@ -23,7 +23,7 @@ type CartDocument = HydratedDocument<Cart>;
 // Type for aggregated cart item from MongoDB pipeline
 interface AggregatedCartItem {
   _id: string;
-  productId: mongoose.ObjectId;
+  productId: mongoose.Types.ObjectId;
   variantSku?: string;
   quantity: number;
   addedAt: Date;
@@ -245,9 +245,7 @@ export class CartService {
       // Add new item
       const cartItem: CartItem = {
         _id: new mongoose.Types.ObjectId().toString(),
-        productId: new mongoose.Types.ObjectId(
-          addItemDto.productId,
-        ) as unknown as mongoose.ObjectId,
+        productId: new mongoose.Types.ObjectId(addItemDto.productId),
         variantSku: addItemDto.variantSku || '',
         quantity: addItemDto.quantity,
         addedAt: new Date(),

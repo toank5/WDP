@@ -32,6 +32,11 @@ export type ProductVariant = {
   images2D?: string[]
   images3D?: string[]
   isActive?: boolean
+  // Pre-order configuration
+  isPreorderEnabled?: boolean
+  preorderExpectedShipStart?: string
+  preorderExpectedShipEnd?: string
+  preorderLimit?: number
 }
 
 // Frame-specific types

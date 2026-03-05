@@ -6,11 +6,9 @@ import {
   Min,
   IsArray,
   ValidateNested,
-  IsEnum,
-  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * DTO for adding an item to cart

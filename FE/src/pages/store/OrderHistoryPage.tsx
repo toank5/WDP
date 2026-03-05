@@ -50,6 +50,39 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   )
 }
 
+// Check if order has pre-order items
+const hasPreorderItems = (order: Order) => {
+  return order.items.some((item) => item.isPreorder === true)
+}
+
+// Pre-order badge component
+const PreorderBadge: React.FC = () => (
+  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase bg-info-100 text-info-700 border border-info-200">
+    <FiBox /> Pre-order
+  </span>
+)
+
+// Pre-order status badge for individual items
+const PreorderItemBadge: React.FC<{ status?: string }> = ({ status }) => {
+  if (!status) return null
+
+  const statusConfig: Record<string, { color: string; label: string }> = {
+    PENDING_STOCK: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Waiting for Stock' },
+    PARTIALLY_RESERVED: { color: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Partially Reserved' },
+    READY_TO_FULFILL: { color: 'bg-green-100 text-green-700 border-green-200', label: 'Ready to Ship' },
+    FULFILLED: { color: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Shipped' },
+    CANCELED: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Canceled' },
+  }
+
+  const config = statusConfig[status] || statusConfig.PENDING_STOCK
+
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase border ${config.color}`}>
+      {config.label}
+    </span>
+  )
+}
+
 const OrderHistoryPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -245,12 +278,15 @@ const OrderHistoryPage: React.FC = () => {
                   {/* Order Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 pb-4 border-b border-slate-200">
                     <div>
-                      <Link
-                        to={`/orders/${order._id}`}
-                        className="text-lg font-bold text-blue-600 hover:text-blue-700"
-                      >
-                        {order.orderNumber}
-                      </Link>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Link
+                          to={`/orders/${order._id}`}
+                          className="text-lg font-bold text-blue-600 hover:text-blue-700"
+                        >
+                          {order.orderNumber}
+                        </Link>
+                        {hasPreorderItems(order) && <PreorderBadge />}
+                      </div>
                       <p className="text-sm text-slate-500">
                         Placed on {formatDate(order.createdAt)}
                       </p>

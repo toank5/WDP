@@ -103,13 +103,13 @@ const OrderSuccessPage: React.FC = () => {
           <div className="flex gap-4 justify-center">
             <Link
               to="/orders"
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors"
             >
               View Orders
             </Link>
             <Link
               to="/products"
-              className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors"
+              className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-xs transition-colors"
             >
               Continue Shopping
             </Link>
@@ -156,7 +156,7 @@ const OrderSuccessPage: React.FC = () => {
         {/* Order Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Order Status */}
-          <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm p-6">
+          <div className="bg-white border border-slate-300 rounded-xs shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <FiFileText className="text-blue-600" />
               <h2 className="font-bold text-slate-900">Order Status</h2>
@@ -182,7 +182,7 @@ const OrderSuccessPage: React.FC = () => {
           </div>
 
           {/* Shipping Address */}
-          <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm p-6">
+          <div className="bg-white border border-slate-300 rounded-xs shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <FiTruck className="text-blue-600" />
               <h2 className="font-bold text-slate-900">Shipping Address</h2>
@@ -198,7 +198,7 @@ const OrderSuccessPage: React.FC = () => {
           </div>
 
           {/* Payment Info */}
-          <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm p-6">
+          <div className="bg-white border border-slate-300 rounded-xsadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <FiFileText className="text-blue-600" />
               <h2 className="font-bold text-slate-900">Payment</h2>
@@ -217,7 +217,7 @@ const OrderSuccessPage: React.FC = () => {
               {order.payment?.transactionId && (
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-500">Transaction ID:</span>
-                  <span className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">
+                  <span className="text-sm font-semibold text-slate-900 truncate max-w-30">
                     {order.payment.transactionId}
                   </span>
                 </div>
@@ -227,7 +227,7 @@ const OrderSuccessPage: React.FC = () => {
         </div>
 
         {/* Order Items */}
-        <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden mb-8">
+        <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden mb-8">
           <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <FiShoppingBag className="text-blue-600" />
@@ -237,7 +237,7 @@ const OrderSuccessPage: React.FC = () => {
           <div className="p-6 space-y-4">
             {order.items.map((item, index) => (
               <div key={item._id || index} className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                   {item.productImage ? (
                     <img
                       src={formatImageUrl(item.productImage)}
@@ -268,7 +268,7 @@ const OrderSuccessPage: React.FC = () => {
         </div>
 
         {/* Order Summary */}
-        <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden mb-8">
+        <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden mb-8">
           <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
             <h2 className="text-lg font-bold text-slate-900">Order Summary</h2>
           </div>
@@ -296,20 +296,20 @@ const OrderSuccessPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             to={`/orders/${order._id}`}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors shadow-sm flex items-center justify-center gap-2"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors shadow-sm flex items-center justify-center gap-2"
           >
             <FiFileText />
             Track Order
           </Link>
           <Link
             to="/orders"
-            className="px-8 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+            className="px-8 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-xs transition-colors flex items-center justify-center gap-2"
           >
             View All Orders
           </Link>
           <Link
             to="/products"
-            className="px-8 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+            className="px-8 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-xs transition-colors flex items-center justify-center gap-2"
           >
             <FiHome />
             Continue Shopping

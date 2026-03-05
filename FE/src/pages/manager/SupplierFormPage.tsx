@@ -99,7 +99,7 @@ export function SupplierFormPage() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load supplier'
       showSnackbar(message, 'error')
-      navigate('/manager/suppliers')
+      navigate('/dashboard/suppliers')
     } finally {
       setLoading(false)
     }
@@ -166,13 +166,13 @@ export function SupplierFormPage() {
         showSnackbar('Supplier created successfully', 'success')
         // Reset form on create
         if (!isEdit) {
-          navigate(`/manager/suppliers`)
+          navigate(`/dashboard/suppliers`)
         }
       }
 
       // Navigate back to list after successful save
       setTimeout(() => {
-        navigate('/manager/suppliers')
+        navigate('/dashboard/suppliers')
       }, 500)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save supplier'
@@ -200,7 +200,7 @@ export function SupplierFormPage() {
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/manager/suppliers')}
+              onClick={() => navigate('/dashboard/suppliers')}
             >
               Back to List
             </Button>
@@ -402,7 +402,7 @@ export function SupplierFormPage() {
                 <Stack direction="row" spacing={2} justifyContent="flex-end">
                   <Button
                     variant="outlined"
-                    onClick={() => navigate('/manager/suppliers')}
+                    onClick={() => navigate('/dashboard/suppliers')}
                     disabled={saving}
                   >
                     Cancel

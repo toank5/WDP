@@ -560,6 +560,7 @@ export class ProductService {
         ? this.cleanImageUrls(variantData.images3D)
         : [],
       isActive: variantData.isActive ?? true,
+      isPreorderEnabled: false,
     };
 
     if (!product.variants) {
