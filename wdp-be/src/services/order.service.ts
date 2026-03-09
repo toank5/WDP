@@ -363,24 +363,39 @@ export class OrderService {
   async getOperationsOrders(
     query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc', status, showAll } = query;
+
+    console.log('🔍 [getOperationsOrders] Query params:', { status, showAll, search, page, limit });
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Operations can see:
-    // 1. PROCESSING orders (ready to fulfill - approved by sales)
-    // 2. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
-    const baseQuery = {
-      $or: [
-        { orderStatus: ORDER_STATUS.PROCESSING },
-        {
-          orderStatus: { $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED] },
-          'items.isPreorder': true,
-        },
-      ],
-    };
+    // If showAll is true, show all orders (no status filter)
+    // If status is explicitly filtered, use it
+    // Otherwise use default queue behavior
+    let baseQuery: any;
+    if (showAll === 'true') {
+      console.log('📋 Using showAll mode - returning ALL orders');
+      baseQuery = {}; // No filter, show all orders
+    } else if (status) {
+      console.log('📋 Filtering by status:', status);
+      baseQuery = { orderStatus: status };
+    } else {
+      console.log('📋 Using default Operations queue (PROCESSING + PAID/CONFIRMED preorders)');
+      // Default: Operations can see active work queue
+      // 1. PROCESSING orders (ready to fulfill - approved by sales)
+      // 2. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
+      baseQuery = {
+        $or: [
+          { orderStatus: ORDER_STATUS.PROCESSING },
+          {
+            orderStatus: { $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED] },
+            'items.isPreorder': true,
+          },
+        ],
+      };
+    }
 
     const orderQuery = this.orderModel.find(baseQuery);
 
@@ -428,21 +443,40 @@ export class OrderService {
    * Get sales pending-approval queue:
     * - normal orders: PAID/CONFIRMED
     * - pre-orders: PAID/CONFIRMED (visibility), approval still requires stock-ready
+    * If status filter is provided, shows filtered orders instead
    */
   async getSalesPendingApprovalOrders(
     query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc', status, showAll } = query;
+
+    console.log('🔍 [getSalesPendingApprovalOrders] Query params:', { status, showAll, search, page, limit });
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    const paidOrderQuery = this.orderModel.find({
-      orderStatus: {
-        $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED],
-      },
-    });
+    // If showAll is true, show all orders (no status filter)
+    // If status is explicitly filtered, use it
+    // Otherwise use default queue behavior for Sales
+    let baseQuery: any;
+    if (showAll === 'true') {
+      console.log('📋 Using showAll mode - returning ALL orders');
+      baseQuery = {}; // No filter, show all orders
+    } else if (status) {
+      console.log('📋 Filtering by status:', status);
+      baseQuery = { orderStatus: status };
+    } else {
+      console.log('📋 Using default Sales queue (PAID/CONFIRMED orders)');
+      // Default: Sales sees pending approval orders
+      baseQuery = {
+        orderStatus: {
+          $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED],
+        },
+      };
+    }
+
+    const paidOrderQuery = this.orderModel.find(baseQuery);
 
     if (search) {
       paidOrderQuery.or([

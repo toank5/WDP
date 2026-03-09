@@ -128,6 +128,7 @@ export interface CheckoutResponse {
 
 export interface OrderListQueryParams {
   status?: OrderStatus
+  showAll?: boolean
   search?: string
   orderType?: OrderType
   dateFrom?: string
@@ -286,6 +287,7 @@ class OrderAPI {
   async getOpsOrders(params: OrderListQueryParams = {}): Promise<OrderListResponse> {
     const queryParams = new URLSearchParams()
 
+    if (params.showAll) queryParams.append('showAll', 'true')
     if (params.status) queryParams.append('status', params.status)
     if (params.search) queryParams.append('search', params.search)
     if (params.orderType) queryParams.append('orderType', params.orderType)
@@ -337,6 +339,7 @@ class OrderAPI {
     try {
       const queryParams = new URLSearchParams()
 
+      if (params.showAll) queryParams.append('showAll', 'true')
       if (params.status) queryParams.append('status', params.status)
       if (params.search) queryParams.append('search', params.search)
       if (params.orderType) queryParams.append('orderType', params.orderType)

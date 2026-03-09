@@ -32,13 +32,14 @@ import OrderDetailDrawer from '@/components/staff/OrderDetailDrawer'
 import { orderApi, Order, OrderStatus, OrderType } from '@/lib/order-api'
 import { useAuthStore } from '@/store/auth-store'
 
-type StatusFilter = 'ALL' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+type StatusFilter = 'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
 type TypeFilter = 'ALL' | 'PREORDER' | 'PRESCRIPTION' | 'READY'
 type SalesQueueFilter = 'ALL' | 'READY' | 'WAITING'
 
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'PENDING', label: 'Pending Action (Default)' },
   { value: 'ALL', label: 'All statuses' },
-  { value: 'PROCESSING', label: 'Processing/Paid' },
+  { value: 'PROCESSING', label: 'Processing' },
   { value: 'SHIPPED', label: 'Shipped' },
   { value: 'DELIVERED', label: 'Delivered' },
   { value: 'CANCELLED', label: 'Canceled/Returned' },
@@ -170,7 +171,7 @@ const StaffOrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
   const [salesQueueFilter, setSalesQueueFilter] = useState<SalesQueueFilter>('ALL')
   const [dateFrom, setDateFrom] = useState('')
@@ -188,16 +189,19 @@ const StaffOrdersPage: React.FC = () => {
       setLoading(true)
       setError(null)
 
+      // PENDING means use default queue behavior (no params)
+      // ALL means fetch all orders (showAll=true)
+      // Specific status means filter by that status
+      const showAll = statusFilter === 'ALL'
       const statusParam =
-        statusFilter === 'ALL'
+        statusFilter === 'PENDING' || statusFilter === 'ALL'
           ? undefined
-          : statusFilter === 'PROCESSING'
-            ? OrderStatus.PAID
-            : statusFilter === 'CANCELLED'
-              ? OrderStatus.CANCELLED
-              : (statusFilter as OrderStatus)
+          : statusFilter === 'CANCELLED'
+            ? OrderStatus.CANCELLED
+            : (statusFilter as OrderStatus)
 
-      const response = await (isSalesMode ? orderApi.getSalesPendingOrders : orderApi.getOpsOrders)({
+      const params = {
+        showAll,
         status: statusParam,
         orderType: typeFilter === 'ALL' ? undefined : (typeFilter as OrderType),
         dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00`).toISOString() : undefined,
@@ -206,8 +210,13 @@ const StaffOrdersPage: React.FC = () => {
         limit: 100,
         sortBy: 'createdAt',
         sortOrder: 'desc',
-      })
+      }
 
+      console.log('🔍 Loading orders with params:', { statusFilter, showAll, statusParam, params })
+
+      const response = await (isSalesMode ? orderApi.getSalesPendingOrders : orderApi.getOpsOrders)(params)
+
+      console.log('✅ Orders loaded:', response.orders.length, 'orders')
       setOrders(response.orders)
     } catch (err) {
       const message = err instanceof Error
@@ -224,15 +233,7 @@ const StaffOrdersPage: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      const matchesStatus =
-        statusFilter === 'ALL'
-          ? true
-          : statusFilter === 'PROCESSING'
-            ? isProcessingStatus(order.orderStatus)
-            : statusFilter === 'CANCELLED'
-              ? [OrderStatus.CANCELLED, OrderStatus.RETURNED].includes(order.orderStatus)
-              : order.orderStatus === statusFilter
-
+      // Status filtering is done by API now, no need to filter here
       const hasPreorder = order.orderType === OrderType.PREORDER || order.items.some((item) => item.isPreorder)
       const waitingStock = isWaitingPreorderStock(order)
       const matchesType =
@@ -255,21 +256,13 @@ const StaffOrdersPage: React.FC = () => {
       const afterFrom = dateFrom ? orderDate >= new Date(`${dateFrom}T00:00:00`) : true
       const beforeTo = dateTo ? orderDate <= new Date(`${dateTo}T23:59:59`) : true
 
-      return matchesStatus && matchesType && matchesSalesQueue && afterFrom && beforeTo
+      return matchesType && matchesSalesQueue && afterFrom && beforeTo
     })
-  }, [orders, statusFilter, typeFilter, salesQueueFilter, dateFrom, dateTo, isSalesMode])
+  }, [orders, typeFilter, salesQueueFilter, dateFrom, dateTo, isSalesMode])
 
   const salesCounters = useMemo(() => {
     const scoped = orders.filter((order) => {
-      const matchesStatus =
-        statusFilter === 'ALL'
-          ? true
-          : statusFilter === 'PROCESSING'
-            ? isProcessingStatus(order.orderStatus)
-            : statusFilter === 'CANCELLED'
-              ? [OrderStatus.CANCELLED, OrderStatus.RETURNED].includes(order.orderStatus)
-              : order.orderStatus === statusFilter
-
+      // Status filtering is done by API now
       const hasPreorder = order.orderType === OrderType.PREORDER || order.items.some((item) => item.isPreorder)
       const matchesType =
         typeFilter === 'ALL'
@@ -282,7 +275,7 @@ const StaffOrdersPage: React.FC = () => {
       const afterFrom = dateFrom ? orderDate >= new Date(`${dateFrom}T00:00:00`) : true
       const beforeTo = dateTo ? orderDate <= new Date(`${dateTo}T23:59:59`) : true
 
-      return matchesStatus && matchesType && afterFrom && beforeTo
+      return matchesType && afterFrom && beforeTo
     })
 
     const waiting = scoped.filter((order) => isWaitingPreorderStock(order)).length
@@ -293,7 +286,7 @@ const StaffOrdersPage: React.FC = () => {
       ready,
       waiting,
     }
-  }, [orders, statusFilter, typeFilter, dateFrom, dateTo])
+  }, [orders, typeFilter, dateFrom, dateTo])
 
   const handleOpenDetails = (order: Order) => {
     setSelectedOrder(order)
@@ -311,7 +304,7 @@ const StaffOrdersPage: React.FC = () => {
   }
 
   const handleResetFilters = () => {
-    setStatusFilter('ALL')
+    setStatusFilter('PENDING')
     setTypeFilter('ALL')
     setSalesQueueFilter('ALL')
     setDateFrom('')

@@ -331,6 +331,11 @@ export class OrderListQueryDto {
   @IsEnum(ORDER_STATUS)
   status?: ORDER_STATUS;
 
+  @ApiProperty({ required: false, description: 'Set to true to show all orders regardless of status' })
+  @IsOptional()
+  @IsString()
+  showAll?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
