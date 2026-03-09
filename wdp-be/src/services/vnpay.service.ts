@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { VNPay } from 'vnpay';
+import { HashAlgorithm, ProductCode, VnpLocale } from 'vnpay/enums';
+import type { ReturnQueryFromVNPay } from 'vnpay/types';
 import {
   VNPayPaymentRequestDto,
   VNPayPaymentResponseDto,
@@ -12,10 +15,14 @@ import {
 
 @Injectable()
 export class VNPayService {
+  private readonly logger = new Logger(VNPayService.name);
   private readonly tmnCode: string;
   private readonly hashSecret: string;
   private readonly paymentUrl: string;
   private readonly isSandbox: boolean;
+  private readonly returnUrl: string;
+  private readonly ipnUrl: string;
+  private readonly vnpayClient: VNPay;
 
   constructor(private readonly configService: ConfigService) {
     this.tmnCode = this.configService.get('VNPAY_TMN_CODE') || 'VNPAYMERCHANT';
@@ -25,6 +32,26 @@ export class VNPayService {
       this.configService.get('VNPAY_PAYMENT_URL') ||
       'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     this.isSandbox = this.configService.get('VNPAY_SANDBOX') !== 'false';
+    this.returnUrl =
+      this.configService.get('VNPAY_RETURN_URL') ||
+      'http://localhost:8386/checkout/vnpay-return';
+    this.ipnUrl =
+      this.configService.get('VNPAY_IPN_URL') ||
+      'http://localhost:8386/checkout/vnpay-ipn';
+
+    const vnpayHost = this.resolveVnpayHost(this.paymentUrl);
+    this.vnpayClient = new VNPay({
+      tmnCode: this.tmnCode,
+      secureSecret: this.hashSecret,
+      vnpayHost,
+      testMode: this.isSandbox,
+      hashAlgorithm: HashAlgorithm.SHA512,
+      enableLog: false,
+    });
+
+    this.logger.log(
+      `VNPay config loaded | sandbox=${this.isSandbox} tmnCode=${this.tmnCode} host=${vnpayHost} returnUrl=${this.returnUrl} ipnUrl=${this.ipnUrl}`,
+    );
   }
 
   /**
@@ -37,41 +64,37 @@ export class VNPayService {
       amount,
       orderDescription,
       clientIp,
-      returnUrl,
       locale = 'vn',
+      returnUrl,
     } = request;
+    this.logger.log(
+      `Creating VNPay payment URL for orderNumber=${request.orderNumber} orderId=${request.orderId}`,
+    );
 
-    const txnRef = VNPayHelpers.generateTxnRef();
-    const formattedAmount = VNPayHelpers.formatAmount(amount);
-    const requestDate = VNPayHelpers.formatDate();
+    const txnRef = this.buildTxnRef(request.orderNumber, request.orderId);
+    const requestDate = Number(VNPayHelpers.formatDate());
+    const expireDate = Number(
+      VNPayHelpers.formatDate(new Date(Date.now() + 15 * 60 * 1000)),
+    );
 
-    // Build payment params
-    const params: Record<string, string> = {
-      vnp_Version: '2.1.0',
-      vnp_Command: 'pay',
-      vnp_TmnCode: this.tmnCode,
-      vnp_Locale: locale,
-      vnp_CurrCode: 'VND',
-      vnp_TxnRef: txnRef,
-      vnp_OrderInfo: orderDescription.substring(0, 255), // Max 255 chars
-      vnp_OrderType: 'billpayment',
-      vnp_Amount: formattedAmount.toString(),
-      vnp_ReturnUrl: returnUrl,
+    const paymentUrl = this.vnpayClient.buildPaymentUrl({
+      vnp_Amount: amount,
       vnp_IpAddr: clientIp || '127.0.0.1',
+      vnp_TxnRef: txnRef,
+      vnp_OrderInfo: orderDescription.substring(0, 255),
+      vnp_OrderType: ProductCode.Other,
+      vnp_ReturnUrl: returnUrl || this.returnUrl,
+      vnp_Locale: locale === 'en' ? VnpLocale.EN : VnpLocale.VN,
       vnp_CreateDate: requestDate,
-    };
+      vnp_ExpireDate: expireDate,
+    });
 
-    // Sort params alphabetically by key
-    const sortedParams = Object.keys(params).sort();
-    const queryString = sortedParams
-      .map((key) => `${key}=${encodeURIComponent(params[key])}`)
-      .join('&');
-
-    // Generate hash
-    const hash = this.generateHmacSha512(queryString);
-
-    // Construct payment URL
-    const paymentUrl = `${this.paymentUrl}?${queryString}&vnp_SecureHash=${hash}`;
+    this.logger.log(
+      `VNPay payment URL generated successfully | txnRef=${txnRef}`,
+    );
+    this.logger.debug(
+      `VNPay params | txnRef=${txnRef} amountVnd=${amount} ip=${clientIp || '127.0.0.1'} locale=${locale} createDate=${requestDate} expireDate=${expireDate}`,
+    );
 
     return Promise.resolve({
       paymentUrl,
@@ -85,60 +108,38 @@ export class VNPayService {
   verifyCallback(
     callback: VNPayCallbackParamsDto,
   ): Promise<VNPayVerificationResultDto> {
-    const {
-      vnp_ResponseCode,
-      vnp_TmnCode,
-      vnp_Amount,
-      vnp_BankCode,
-      vnp_TransactionNo,
-      vnp_TxnRef,
-      vnp_SecureHash,
-    } = callback;
+    const { vnp_TxnRef, vnp_ResponseCode } = callback;
 
-    // Verify TMN code
-    if (vnp_TmnCode !== this.tmnCode) {
-      return Promise.resolve({
-        success: false,
-        responseCode: '99',
-        message: 'Invalid merchant',
-        amount: VNPayHelpers.parseAmount(vnp_Amount),
-      });
+    this.logger.log(
+      `Verifying VNPay callback | txnRef=${vnp_TxnRef} responseCode=${vnp_ResponseCode}`,
+    );
+
+    const verification = this.vnpayClient.verifyIpnCall(
+      callback as unknown as ReturnQueryFromVNPay,
+    );
+    const responseCode = String(callback.vnp_ResponseCode ?? '99');
+    const success =
+      verification.isVerified &&
+      verification.isSuccess &&
+      responseCode === VNPAY_RESPONSE_CODES.SUCCESS;
+
+    if (!verification.isVerified) {
+      this.logger.warn(
+        `VNPay callback signature invalid | txnRef=${vnp_TxnRef} message=${verification.message}`,
+      );
     }
 
-    // Verify signature
-    const paramsToHash = { ...callback };
-
-    // Remove hash fields before verification
-    const sortedParams = Object.keys(paramsToHash)
-      .filter((key) => key !== 'vnp_SecureHash' && key !== 'vnp_SecureHashType')
-      .sort();
-    const hashData = sortedParams
-      .map(
-        (key) => `${key}=${paramsToHash[key as keyof VNPayCallbackParamsDto]}`,
-      )
-      .join('&');
-
-    const calculatedHash = this.generateHmacSha512(hashData);
-
-    if (calculatedHash !== vnp_SecureHash) {
-      return Promise.resolve({
-        success: false,
-        responseCode: '99',
-        message: 'Invalid signature',
-        amount: VNPayHelpers.parseAmount(vnp_Amount),
-      });
-    }
-
-    // Check response code
-    const success = vnp_ResponseCode === VNPAY_RESPONSE_CODES.SUCCESS;
+    this.logger.log(
+      `VNPay callback verified | txnRef=${vnp_TxnRef} success=${success}`,
+    );
 
     return Promise.resolve({
       success,
-      responseCode: vnp_ResponseCode,
-      message: VNPayHelpers.getResponseMessage(vnp_ResponseCode),
-      transactionId: vnp_TransactionNo || vnp_TxnRef,
-      amount: VNPayHelpers.parseAmount(vnp_Amount),
-      bankCode: vnp_BankCode,
+      responseCode,
+      message: verification.message,
+      transactionId: String(verification.vnp_TransactionNo || '') || vnp_TxnRef,
+      amount: this.toAmountInVnd(verification.vnp_Amount),
+      bankCode: String(verification.vnp_BankCode || ''),
     });
   }
 
@@ -201,6 +202,47 @@ export class VNPayService {
       .createHmac('sha512', this.hashSecret)
       .update(data, 'utf-8')
       .digest('hex');
+  }
+
+  private buildQueryString(params: Record<string, string>): string {
+    return Object.keys(params)
+      .sort()
+      .map((key) => {
+        const encodedValue = encodeURIComponent(params[key]).replace(
+          /%20/g,
+          '+',
+        );
+        return `${key}=${encodedValue}`;
+      })
+      .join('&');
+  }
+
+  private buildTxnRef(orderNumber?: string, orderId?: string): string {
+    const raw = (orderNumber || orderId || VNPayHelpers.generateTxnRef())
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 34);
+
+    return raw || VNPayHelpers.generateTxnRef().slice(0, 34);
+  }
+
+  private toAmountInVnd(value: unknown): number {
+    if (typeof value === 'number') {
+      return value > 1000 ? value / 100 : value;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      return VNPayHelpers.parseAmount(value);
+    }
+
+    return 0;
+  }
+
+  private resolveVnpayHost(paymentUrl: string): string {
+    try {
+      return new URL(paymentUrl).origin;
+    } catch {
+      return 'https://sandbox.vnpayment.vn';
+    }
   }
 
   /**

@@ -171,7 +171,16 @@ export type OrderType = 'READY' | 'PREORDER' | 'PRESCRIPTION';
 /**
  * Order Status - matches backend ORDER_STATUS enum
  */
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
+export type OrderStatus =
+  | 'PENDING'
+  | 'PENDING_PAYMENT'
+  | 'PAID'
+  | 'PROCESSING'
+  | 'CONFIRMED'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'RETURNED'
+  | 'CANCELLED';
 
 /**
  * Payment Methods - matches backend PAYMENT_METHOD enum

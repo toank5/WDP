@@ -34,11 +34,14 @@ const formatDate = (dateString: string): string => {
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusConfig: Record<string, { color: string; label: string }> = {
     PENDING: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Pending' },
+    PENDING_PAYMENT: { color: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Pending Payment' },
+    PAID: { color: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Paid' },
     PROCESSING: { color: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Processing' },
     CONFIRMED: { color: 'bg-green-100 text-green-700 border-green-200', label: 'Confirmed' },
     SHIPPED: { color: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Shipped' },
     DELIVERED: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Delivered' },
-    RETURNED: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Cancelled' },
+    RETURNED: { color: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Returned' },
+    CANCELLED: { color: 'bg-gray-100 text-gray-700 border-gray-200', label: 'Cancelled' },
   }
 
   const config = statusConfig[status] || statusConfig.PENDING
@@ -204,6 +207,26 @@ const OrderHistoryPage: React.FC = () => {
               Pending
             </button>
             <button
+              onClick={() => handleStatusFilter(OrderStatus.PENDING_PAYMENT)}
+              className={`px-4 py-2 rounded-[2px] text-sm font-bold uppercase transition-colors ${
+                statusFilter === OrderStatus.PENDING_PAYMENT
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700'
+              }`}
+            >
+              Pending Payment
+            </button>
+            <button
+              onClick={() => handleStatusFilter(OrderStatus.PAID)}
+              className={`px-4 py-2 rounded-[2px] text-sm font-bold uppercase transition-colors ${
+                statusFilter === OrderStatus.PAID
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700'
+              }`}
+            >
+              Paid
+            </button>
+            <button
               onClick={() => handleStatusFilter(OrderStatus.CONFIRMED)}
               className={`px-4 py-2 rounded-[2px] text-sm font-bold uppercase transition-colors ${
                 statusFilter === OrderStatus.CONFIRMED
@@ -232,6 +255,26 @@ const OrderHistoryPage: React.FC = () => {
               }`}
             >
               Delivered
+            </button>
+            <button
+              onClick={() => handleStatusFilter(OrderStatus.RETURNED)}
+              className={`px-4 py-2 rounded-[2px] text-sm font-bold uppercase transition-colors ${
+                statusFilter === OrderStatus.RETURNED
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700'
+              }`}
+            >
+              Returned
+            </button>
+            <button
+              onClick={() => handleStatusFilter(OrderStatus.CANCELLED)}
+              className={`px-4 py-2 rounded-[2px] text-sm font-bold uppercase transition-colors ${
+                statusFilter === OrderStatus.CANCELLED
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700'
+              }`}
+            >
+              Cancelled
             </button>
           </div>
         </div>

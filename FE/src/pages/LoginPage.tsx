@@ -107,10 +107,6 @@ export function LoginPage() {
       const data = await login({ email: values.email, password: values.password })
       setAuth(data)
 
-      // Migrate any items from guest cart (localStorage) to backend cart
-      const { cartApi } = await import('@/lib/cart-api')
-      await cartApi.migrateFromLocalStorage()
-
       // Save email if remember me is checked
       if (rememberMe) {
         localStorage.setItem('rememberedEmail', values.email)

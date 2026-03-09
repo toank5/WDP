@@ -18,6 +18,7 @@ import { ProductDetailPage } from './pages/store/ProductDetailPage'
 import CartPage from './pages/store/CartPage'
 import CheckoutPage from './pages/store/CheckoutPage'
 import OrderSuccessPage from './pages/store/OrderSuccessPage'
+import OrderFailedPage from './pages/store/OrderFailedPage'
 import AccountPage from './pages/AccountPage'
 import OrderHistoryPage from './pages/store/OrderHistoryPage'
 import OrderDetailPage from './pages/store/OrderDetailPage'
@@ -47,6 +48,7 @@ import PreorderDetailPage from './pages/manager/PreorderDetailPage'
 import { Navbar } from './components/Navbar'
 import NotFoundPage from './pages/NotFoundPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import VNPayReturnPage from './pages/store/VNPayReturnPage'
 
 function App() {
   return (
@@ -68,6 +70,9 @@ function App() {
           <Route path="/products/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/vnpay-return" element={<VNPayReturnPage />} />
+          <Route path="/order/success" element={<OrderSuccessPage />} />
+          <Route path="/order/failed" element={<OrderFailedPage />} />
           <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   FiCheckCircle,
   FiShoppingBag,
@@ -21,9 +21,23 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
+const parseDate = (value?: string | Date | null): Date | null => {
+  if (!value) {
+    return null
+  }
+
+  const parsedDate = new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate
+}
+
 // Format date
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
+const formatDate = (dateValue?: string | Date | null): string => {
+  const parsedDate = parseDate(dateValue)
+  if (!parsedDate) {
+    return '--'
+  }
+
+  return parsedDate.toLocaleDateString('vi-VN', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -36,11 +50,14 @@ const formatDate = (dateString: string): string => {
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusConfig: Record<string, { color: string; label: string }> = {
     PENDING: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending' },
+    PENDING_PAYMENT: { color: 'bg-orange-100 text-orange-700', label: 'Pending Payment' },
+    PAID: { color: 'bg-teal-100 text-teal-700', label: 'Paid' },
     PROCESSING: { color: 'bg-blue-100 text-blue-700', label: 'Processing' },
     CONFIRMED: { color: 'bg-green-100 text-green-700', label: 'Confirmed' },
     SHIPPED: { color: 'bg-purple-100 text-purple-700', label: 'Shipped' },
     DELIVERED: { color: 'bg-emerald-100 text-emerald-700', label: 'Delivered' },
-    RETURNED: { color: 'bg-red-100 text-red-700', label: 'Cancelled' },
+    RETURNED: { color: 'bg-red-100 text-red-700', label: 'Returned' },
+    CANCELLED: { color: 'bg-gray-100 text-gray-700', label: 'Cancelled' },
   }
 
   const config = statusConfig[status] || statusConfig.PENDING
@@ -54,22 +71,34 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 const OrderSuccessPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const orderNumberParam = searchParams.get('orderNumber')
+  const effectiveOrderId = orderId || orderNumberParam
+
   useEffect(() => {
-    if (orderId) {
-      loadOrder(orderId)
+    if (effectiveOrderId) {
+      loadOrder(effectiveOrderId)
     } else {
       navigate('/orders')
     }
-  }, [orderId])
+  }, [effectiveOrderId])
 
   const loadOrder = async (id: string) => {
     try {
-      const orderData = await orderApi.getOrderById(id)
+      // Try to get order by orderNumber first (for VNPAY callback), fallback to orderId
+      let orderData: Order
+      try {
+        // First try getting by order number (for VNPAY redirect)
+        orderData = await orderApi.getOrderByNumber(id)
+      } catch {
+        // Fallback to getting by ID (for existing flow)
+        orderData = await orderApi.getOrderById(id)
+      }
       setOrder(orderData)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load order'
@@ -120,8 +149,11 @@ const OrderSuccessPage: React.FC = () => {
   }
 
   // Calculate estimated delivery
-  const estimatedDelivery = new Date(order.createdAt)
-  estimatedDelivery.setDate(estimatedDelivery.getDate() + 5) // Standard 5 days
+  const createdAtDate = parseDate(order.createdAt)
+  const estimatedDelivery = createdAtDate ? new Date(createdAtDate) : null
+  if (estimatedDelivery) {
+    estimatedDelivery.setDate(estimatedDelivery.getDate() + 5) // Standard 5 days
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
@@ -175,7 +207,7 @@ const OrderSuccessPage: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-sm text-slate-500">Est. Delivery:</span>
                 <span className="text-sm font-semibold text-slate-900">
-                  {formatDate(estimatedDelivery.toISOString())}
+                  {formatDate(estimatedDelivery)}
                 </span>
               </div>
             </div>
@@ -188,12 +220,18 @@ const OrderSuccessPage: React.FC = () => {
               <h2 className="font-bold text-slate-900">Shipping Address</h2>
             </div>
             <div>
-              <p className="font-bold text-slate-900">{order.shippingAddress.fullName}</p>
-              <p className="text-sm text-slate-600">{order.shippingAddress.phone}</p>
-              <p className="text-sm text-slate-600 mt-2">
-                {order.shippingAddress.address}, {order.shippingAddress.ward ? `${order.shippingAddress.ward}, ` : ''}
-                {order.shippingAddress.district}, {order.shippingAddress.city}
-              </p>
+              {order.shippingAddress ? (
+                <>
+                  <p className="font-bold text-slate-900">{order.shippingAddress.fullName}</p>
+                  <p className="text-sm text-slate-600">{order.shippingAddress.phone}</p>
+                  <p className="text-sm text-slate-600 mt-2">
+                    {order.shippingAddress.address}, {order.shippingAddress.ward ? `${order.shippingAddress.ward}, ` : ''}
+                    {order.shippingAddress.district}, {order.shippingAddress.city}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-500">Shipping address not available</p>
+              )}
             </div>
           </div>
 
@@ -231,17 +269,17 @@ const OrderSuccessPage: React.FC = () => {
           <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <FiShoppingBag className="text-blue-600" />
-              Order Items ({order.items.length})
+              Order Items ({order.items?.length || 0})
             </h2>
           </div>
           <div className="p-6 space-y-4">
-            {order.items.map((item, index) => (
+            {order.items?.map((item, index) => (
               <div key={item._id || index} className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                   {item.productImage ? (
                     <img
                       src={formatImageUrl(item.productImage)}
-                      alt={item.productName}
+                      alt={item.productName || 'Product'}
                       className="w-full h-full object-contain"
                     />
                   ) : (
@@ -260,7 +298,7 @@ const OrderSuccessPage: React.FC = () => {
                   <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
                 </div>
                 <p className="font-bold text-slate-900">
-                  {formatPrice(item.priceAtOrder * item.quantity)}
+                  {formatPrice((item.priceAtOrder || 0) * (item.quantity || 0))}
                 </p>
               </div>
             ))}
@@ -280,10 +318,6 @@ const OrderSuccessPage: React.FC = () => {
             <div className="flex justify-between text-sm text-slate-600">
               <span>Shipping Fee</span>
               <span>{formatPrice(order.shippingFee)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>Tax (10%)</span>
-              <span>{formatPrice(order.tax)}</span>
             </div>
             <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
               <span className="text-base font-bold text-slate-900">Total</span>

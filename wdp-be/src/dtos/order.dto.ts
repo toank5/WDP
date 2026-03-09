@@ -161,6 +161,19 @@ export class OrderItemResponseDto {
     size?: string;
     color?: string;
   };
+
+  // Pre-order fields
+  @ApiProperty({ required: false })
+  isPreorder?: boolean;
+
+  @ApiProperty({ required: false, enum: ['PENDING_STOCK', 'PARTIALLY_RESERVED', 'READY_TO_FULFILL', 'FULFILLED', 'CANCELED'] })
+  preorderStatus?: string;
+
+  @ApiProperty({ required: false })
+  expectedShipDate?: Date;
+
+  @ApiProperty({ required: false })
+  reservedQuantity?: number;
 }
 
 /**
@@ -291,6 +304,16 @@ export class UpdateOrderStatusDto {
 }
 
 /**
+ * Sales approval DTO
+ */
+export class ApproveOrderDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+/**
  * Cancel order DTO
  */
 export class CancelOrderDto {
@@ -307,6 +330,11 @@ export class OrderListQueryDto {
   @IsOptional()
   @IsEnum(ORDER_STATUS)
   status?: ORDER_STATUS;
+
+  @ApiProperty({ required: false, description: 'Set to true to show all orders regardless of status' })
+  @IsOptional()
+  @IsString()
+  showAll?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

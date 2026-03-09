@@ -9,10 +9,13 @@ import { Model, Types } from 'mongoose';
 import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Supplier } from '../commons/schemas/supplier.schema';
+import { Order } from '../commons/schemas/order.schema';
+import { ORDER_STATUS } from '../commons/enums/order.enum';
 import {
   InventoryMovement,
   MovementType,
 } from '../commons/schemas/inventory-movement.schema';
+import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
@@ -54,9 +57,97 @@ export class InventoryService {
     @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(Supplier.name) private supplierModel: Model<Supplier>,
+    @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(InventoryMovement.name)
     private movementModel: Model<InventoryMovement>,
   ) {}
+
+  /**
+   * Allocate newly received stock to waiting paid pre-orders in FIFO order.
+   * This is triggered only on stock receipt, not at payment time.
+   */
+  private async allocatePreorders(sku: string): Promise<void> {
+    const eligibleOrders = await this.orderModel
+      .find({
+        orderStatus: {
+          $in: [
+            ORDER_STATUS.PAID,
+            ORDER_STATUS.PROCESSING,
+            ORDER_STATUS.CONFIRMED,
+          ],
+        },
+        items: {
+          $elemMatch: {
+            variantSku: sku,
+            isPreorder: true,
+            preorderStatus: {
+              $in: [
+                PREORDER_STATUS.PENDING_STOCK,
+                PREORDER_STATUS.PARTIALLY_RESERVED,
+              ],
+            },
+          },
+        },
+      })
+      .sort({ createdAt: 1, _id: 1 });
+
+    for (const order of eligibleOrders) {
+      const orderId = order._id?.toString();
+      if (!orderId) {
+        continue;
+      }
+
+      let orderChanged = false;
+
+      for (const item of order.items) {
+        if (!item.isPreorder || item.variantSku !== sku) {
+          continue;
+        }
+
+        const reservedSoFar = item.reservedQuantity || 0;
+        const remainingNeed = item.quantity - reservedSoFar;
+
+        if (remainingNeed <= 0) {
+          if (item.preorderStatus !== PREORDER_STATUS.READY_TO_FULFILL) {
+            item.preorderStatus = PREORDER_STATUS.READY_TO_FULFILL;
+            orderChanged = true;
+          }
+          continue;
+        }
+
+        const latestInventory = await this.inventoryModel.findOne({ sku });
+        if (!latestInventory || latestInventory.availableQuantity <= 0) {
+          break;
+        }
+
+        const reserveQty = Math.min(
+          latestInventory.availableQuantity,
+          remainingNeed,
+        );
+        if (reserveQty <= 0) {
+          continue;
+        }
+
+        await this.reserveStock(
+          sku,
+          orderId,
+          reserveQty,
+          'Allocated to pre-order after stock receipt',
+        );
+
+        item.reservedQuantity = reservedSoFar + reserveQty;
+        item.preorderStatus =
+          item.reservedQuantity >= item.quantity
+            ? PREORDER_STATUS.READY_TO_FULFILL
+            : PREORDER_STATUS.PARTIALLY_RESERVED;
+        orderChanged = true;
+      }
+
+      if (orderChanged) {
+        await order.save();
+      }
+    }
+  }
 
   /**
    * Get all inventory items with optional filtering and enrichment
@@ -440,7 +531,7 @@ export class InventoryService {
     await this.movementModel.create(movementData);
 
     // Update inventory
-    return this.inventoryModel
+    const updatedInventory = await this.inventoryModel
       .findOneAndUpdate(
         { sku },
         {
@@ -450,6 +541,13 @@ export class InventoryService {
         { new: true },
       )
       .exec();
+
+    // When stock is received, allocate it to waiting paid pre-orders (FIFO).
+    if (adjustmentDto.delta > 0) {
+      await this.allocatePreorders(sku);
+    }
+
+    return updatedInventory;
   }
 
   /**
@@ -740,16 +838,27 @@ export class InventoryService {
   }
 
   /**
-   * Reserve stock for an order
-   * Moves stock from available to reserved
+   * Reserve stock for an order on successful payment
+   * Locks items so they cannot be sold to other customers
+   *
+   * Stock State During Reservation:
+   * - onHand (stockQuantity): Unchanged - items are still physically present
+   * - reserved (reservedQuantity): Increased - items are locked to this order
+   * - available (availableQuantity): Decreased - items cannot be sold to others
+   *
+   * Validation:
+   * - Check: onHand - reserved >= quantity to reserve
+   * - Formula: availableQuantity >= quantity
+   *
    * @param sku Variant SKU
-   * @param orderId Order ID reserving the stock
-   * @param quantity Quantity to reserve (defaults to full order quantity)
+   * @param orderId Order ID reserving the stock (for audit trail)
+   * @param quantity Quantity to reserve (REQUIRED - from order item)
    */
   async reserveStock(
     sku: string,
     orderId: string,
     quantity?: number,
+    reason = 'Reserved for order (Payment confirmed)',
   ): Promise<Inventory> {
     const inventory = await this.inventoryModel.findOne({ sku });
 
@@ -757,31 +866,45 @@ export class InventoryService {
       throw new NotFoundException(`Inventory not found for SKU: ${sku}`);
     }
 
-    // If quantity specified, reserve only that amount
-    const quantityToReserve = quantity || inventory.availableQuantity;
-
-    if (quantityToReserve > inventory.availableQuantity) {
+    // Ensure quantity is provided and valid
+    if (!quantity || quantity <= 0) {
       throw new BadRequestException(
-        `Insufficient stock for SKU ${sku}. Available: ${inventory.availableQuantity}, Requested: ${quantityToReserve}`,
+        `Invalid quantity for stock reservation. SKU: ${sku}, Quantity: ${quantity}`,
       );
     }
 
-    // Update quantities
-    inventory.reservedQuantity += quantityToReserve;
-    inventory.availableQuantity -= quantityToReserve;
+    // Core Validation: Check available stock
+    // Available = onHand - reserved
+    // Requirement: available >= quantity_to_reserve
+    if (quantity > inventory.availableQuantity) {
+      throw new BadRequestException(
+        `Insufficient available stock for SKU ${sku}. ` +
+          `OnHand: ${inventory.stockQuantity}, ` +
+          `Already Reserved: ${inventory.reservedQuantity}, ` +
+          `Available: ${inventory.availableQuantity}, ` +
+          `Needed: ${quantity}`,
+      );
+    }
+
+    // Perform Reservation
+    const previousReserved = inventory.reservedQuantity;
+    const previousAvailable = inventory.availableQuantity;
+
+    inventory.reservedQuantity += quantity;
+    inventory.availableQuantity -= quantity;
 
     await inventory.save();
 
-    // Record movement
+    // Create audit trail (InventoryMovement record)
     await this.movementModel.create({
       sku,
       movementType: MovementType.RESERVATION,
-      quantity: quantityToReserve,
-      stockBefore: inventory.stockQuantity,
-      stockAfter: inventory.stockQuantity,
-      reason: `Reserved for order ${orderId}`,
+      quantity: quantity, // Positive for reservation action
+      stockBefore: inventory.stockQuantity, // Unchanged
+      stockAfter: inventory.stockQuantity, // Unchanged
+      reason: `${reason}: ${orderId}`,
       orderId: new Types.ObjectId(orderId),
-      note: `Reserved for order ${orderId}`,
+      note: `${reason}. Reservation: ${quantity} units locked. Reserved: ${previousReserved}->${inventory.reservedQuantity}, Available: ${previousAvailable}->${inventory.availableQuantity}`,
     });
 
     return inventory;
@@ -796,9 +919,8 @@ export class InventoryService {
   async releaseStock(orderId: string, sku?: string): Promise<void> {
     // Find all reservation movements for this order
     const reservationMovements = await this.movementModel.find({
-      referenceId: orderId,
-      referenceType: 'ORDER',
-      type: MovementType.RESERVATION,
+      orderId: new Types.ObjectId(orderId),
+      movementType: MovementType.RESERVATION,
     });
 
     if (reservationMovements.length === 0) {
@@ -823,7 +945,10 @@ export class InventoryService {
         0,
         inventory.reservedQuantity - quantityToRelease,
       );
-      inventory.availableQuantity += quantityToRelease;
+      inventory.availableQuantity = Math.max(
+        0,
+        inventory.stockQuantity - inventory.reservedQuantity,
+      );
 
       await inventory.save();
 
@@ -857,7 +982,7 @@ export class InventoryService {
     // Get movements that have already been confirmed for this order
     const confirmedMovements = await this.movementModel.find({
       orderId: new Types.ObjectId(orderId),
-      movementType: MovementType.SALE,
+      movementType: MovementType.CONFIRMED,
     });
 
     const confirmedSkus = new Set(confirmedMovements.map((m) => m.sku));
@@ -888,7 +1013,7 @@ export class InventoryService {
       );
       inventory.availableQuantity = Math.max(
         0,
-        inventory.availableQuantity - quantityToConfirm,
+        inventory.stockQuantity - inventory.reservedQuantity,
       );
 
       await inventory.save();

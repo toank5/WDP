@@ -42,6 +42,7 @@ export interface ProductDraft {
   images3D: string[]
   tags: string[]
   isActive: boolean
+  isPreorderEnabled: boolean
 
   // Frame-specific fields (use string for flexibility)
   frameType?: string

@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
-import { getAllProducts, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
+import { getAllProducts, checkInventoryAvailability, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
 import { cartApi } from '@/lib/cart-api'
+
 import { wishlistApi } from '@/lib/wishlist-api'
+import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
 import {
   Box,
   Container,
@@ -757,6 +759,13 @@ export function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
 
+  // Inventory state
+  const [inventory, setInventory] = useState<{
+    availableQuantity: number
+    isInStock: boolean
+  } | null>(null)
+  const [checkingInventory, setCheckingInventory] = useState(false)
+
   // Media state
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [zoomOpen, setZoomOpen] = useState(false)
@@ -872,28 +881,94 @@ export function ProductDetailPage() {
     return 'Out of Stock'
   }
 
-  // Check if pre-order is enabled for selected variant
+  // Check if pre-order is enabled for the product
   const isPreorderEnabled = () => {
-    if (!selectedVariant) return false
-    return selectedVariant.isPreorderEnabled === true
+    if (!product) return false
+    return product.isPreorderEnabled === true
   }
 
-  // Get expected ship date range for pre-order
+  // Get actual stock status considering inventory
+  const getStockStatus = () => {
+    // If we have inventory data, use it
+    if (inventory !== null) {
+      return {
+        isInStock: inventory.isInStock,
+        availableQuantity: inventory.availableQuantity,
+      }
+    }
+
+    // Fallback to variant active status
+    const variantActive = selectedVariant?.isActive !== false
+    return {
+      isInStock: variantActive,
+      availableQuantity: variantActive ? 999 : 0, // Large number for "in stock"
+    }
+  }
+
+  // Get appropriate stock message and status for display
+  const getStockDisplayInfo = () => {
+    if (!product || !selectedVariant) {
+      return { message: 'Select options', showPreorderBadge: false, stockStatus: 'select' }
+    }
+
+    const variantActive = selectedVariant.isActive !== false
+    const preorderEnabled = isPreorderEnabled()
+    const stockStatus = getStockStatus()
+
+    console.log('[StockDisplay] variantActive:', variantActive, 'preorderEnabled:', preorderEnabled, 'stockStatus:', stockStatus)
+
+    // Case 1: In Stock (has inventory available)
+    if (stockStatus.isInStock && stockStatus.availableQuantity > 0) {
+      return {
+        message: stockStatus.availableQuantity > 10
+          ? 'In Stock'
+          : `Only ${stockStatus.availableQuantity} left`,
+        showPreorderBadge: false,
+        stockStatus: 'in-stock',
+      }
+    }
+
+    // Case 2: Out of stock but pre-order enabled
+    if (preorderEnabled && !stockStatus.isInStock) {
+      const shipRange = getExpectedShipDateRange()
+      return {
+        message: shipRange
+          ? `Expected shipping: ${shipRange}`
+          : 'Available for pre-order',
+        showPreorderBadge: true,
+        stockStatus: 'preorder',
+      }
+    }
+
+    // Case 3: Out of stock and not pre-orderable
+    if (!stockStatus.isInStock && !preorderEnabled) {
+      return {
+        message: 'Out of Stock',
+        showPreorderBadge: false,
+        stockStatus: 'out-of-stock',
+      }
+    }
+
+    // Case 4: Variant inactive
+    if (!variantActive) {
+      return {
+        message: 'This variant is unavailable',
+        showPreorderBadge: false,
+        stockStatus: 'unavailable',
+      }
+    }
+
+    // Default fallback
+    return {
+      message: 'Select options',
+      showPreorderBadge: false,
+      stockStatus: 'select',
+    }
+  }
+
+  // Get expected ship date range for pre-order (no longer used - dates removed)
   const getExpectedShipDateRange = () => {
-    if (!selectedVariant?.preorderExpectedShipStart) return null
-    const start = new Date(selectedVariant.preorderExpectedShipStart)
-    const end = selectedVariant.preorderExpectedShipEnd
-      ? new Date(selectedVariant.preorderExpectedShipEnd)
-      : null
-
-    const formatDate = (date: Date) => {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }
-
-    if (end) {
-      return `${formatDate(start)} – ${formatDate(end)}`
-    }
-    return `from ${formatDate(start)}`
+    return null
   }
 
   // ==================== Handlers ====================
@@ -969,6 +1044,46 @@ export function ProductDetailPage() {
     }
   }, [selectedColor, selectedSize, product])
 
+  // Fetch inventory when selected variant changes
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!selectedVariant?.sku) {
+        setInventory(null)
+        return
+      }
+
+      setCheckingInventory(true)
+      try {
+        const inventoryData = await checkInventoryAvailability(selectedVariant.sku)
+        console.log('[Inventory] Fetched inventory for SKU:', selectedVariant.sku, inventoryData)
+        console.log('[Inventory] Variant isPreorderEnabled:', selectedVariant.isPreorderEnabled)
+        if (inventoryData) {
+          setInventory({
+            availableQuantity: inventoryData.availableQuantity,
+            isInStock: inventoryData.isInStock,
+          })
+        } else {
+          // Fallback: if inventory API fails, use variant active status
+          setInventory({
+            availableQuantity: selectedVariant.isActive !== false ? 999 : 0,
+            isInStock: selectedVariant.isActive !== false,
+          })
+        }
+      } catch (err) {
+        console.error('[Inventory] Error fetching inventory:', err)
+        // On error, fallback to variant active status
+        setInventory({
+          availableQuantity: selectedVariant.isActive !== false ? 999 : 0,
+          isInStock: selectedVariant.isActive !== false,
+        })
+      } finally {
+        setCheckingInventory(false)
+      }
+    }
+
+    fetchInventory()
+  }, [selectedVariant])
+
   // Handle color selection
   const handleColorSelect = (color: string) => {
     setSelectedColor(color)
@@ -1017,7 +1132,7 @@ export function ProductDetailPage() {
     setIsAdding(true)
     try {
       const result = await cartApi.addItem({
-        variantId: selectedVariant?.sku,
+        variantSku: selectedVariant?.sku,
         productId: product._id,
         quantity,
         productData: {
@@ -1223,34 +1338,82 @@ export function ProductDetailPage() {
                   </Typography>
                 </Box>
 
+                {/* Pre-order Info Message */}
+                {(() => {
+                  const stockInfo = getStockDisplayInfo()
+                  if (stockInfo.showPreorderBadge) {
+                    return (
+                      <Alert
+                        severity="info"
+                        variant="outlined"
+                        sx={{
+                          mt: 1,
+                          py: 0.5,
+                          '& .MuiAlert-message': { py: 0 },
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {stockInfo.message}. Pre-order now to reserve yours before it's back in stock.
+                        </Typography>
+                      </Alert>
+                    )
+                  }
+                  return null
+                })()}
+
                 {/* Stock Status */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {isPreorderEnabled() ? (
-                    <>
-                      <Chip
-                        label="Pre-order"
-                        color="info"
-                        size="small"
-                        sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                      />
-                      {getExpectedShipDateRange() && (
-                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                          Expected shipping: {getExpectedShipDateRange()}
+                  {(() => {
+                    const stockInfo = getStockDisplayInfo()
+
+                    if (stockInfo.stockStatus === 'select') {
+                      return (
+                        <Typography variant="body2" color="text.secondary">
+                          {stockInfo.message}
                         </Typography>
-                      )}
-                    </>
-                  ) : isInStock() ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
-                      <CheckIcon fontSize="small" />
-                      <Typography variant="body2" color="success.main" fontWeight={500}>
-                        {getStockMessage()}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="error.main" fontWeight={500}>
-                      {getStockMessage()}
-                    </Typography>
-                  )}
+                      )
+                    }
+
+                    // Pre-order case
+                    if (stockInfo.showPreorderBadge) {
+                      return (
+                        <>
+                          <Chip
+                            label="Pre-order"
+                            color="info"
+                            size="small"
+                            sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                          />
+                          <Box>
+                            <Typography variant="body2" color="info.main" fontWeight={500}>
+                              {stockInfo.message}
+                            </Typography>
+                          </Box>
+                        </>
+                      )
+                    }
+
+                    // In stock case
+                    if (stockInfo.stockStatus === 'in-stock') {
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
+                          <CheckIcon fontSize="small" />
+                          <Typography variant="body2" color="success.main" fontWeight={500}>
+                            {stockInfo.message}
+                          </Typography>
+                        </Box>
+                      )
+                    }
+
+                    // Out of stock case
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography variant="body2" color="error.main" fontWeight={500}>
+                          {stockInfo.message}
+                        </Typography>
+                      </Box>
+                    )
+                  })()}
                 </Box>
 
                 <Divider />
@@ -1362,45 +1525,71 @@ export function ProductDetailPage() {
                   </Box>
                 </Box>
 
+
+                {/* Virtual Try-On */}
+                <TryOnButton
+                  productId={product?.id || ''}
+                  variantId={selectedVariant?.id || ''}
+                  disabled={!product || !selectedVariant}
+                />
                 {/* Action Buttons */}
                 <Stack spacing={1}>
-                  <Button
-                    fullWidth
-                    variant={isPreorderEnabled() ? 'outlined' : 'contained'}
-                    size="large"
-                    startIcon={isPreorderEnabled() ? <ShoppingCartOutlined /> : <CartIcon />}
-                    disabled={(!isInStock() && !isPreorderEnabled()) || isAdding}
-                    onClick={handleAddToCart}
-                    sx={{
-                      py: 1.5,
-                      ...(isPreorderEnabled() && {
-                        borderColor: 'info.main',
-                        color: 'info.main',
-                        '&:hover': {
-                          borderColor: 'info.dark',
-                          bgcolor: 'info.50',
-                        },
-                      }),
-                    }}
-                  >
-                    {isAdding
-                      ? 'Adding...'
-                      : isPreorderEnabled()
-                        ? 'Pre-order Now'
-                        : 'Add to Cart'}
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="secondary"
-                    size="large"
-                    startIcon={<BuyNowIcon />}
-                    disabled={!isInStock() && !isPreorderEnabled()}
-                    onClick={handleBuyNow}
-                    sx={{ py: 1.5 }}
-                  >
-                    Buy Now
-                  </Button>
+                  {(() => {
+                    const stockInfo = getStockDisplayInfo()
+
+                    // Determine button style and text based on stock status
+                    const isPreorder = stockInfo.showPreorderBadge
+                    const isOutOfStock = stockInfo.stockStatus === 'out-of-stock' || stockInfo.stockStatus === 'unavailable'
+                    const isSelecting = stockInfo.stockStatus === 'select'
+
+                    return (
+                      <>
+                        <Button
+                          fullWidth
+                          variant={isPreorder ? 'outlined' : 'contained'}
+                          size="large"
+                          startIcon={isPreorder ? <ShoppingCartOutlined /> : <CartIcon />}
+                          disabled={isOutOfStock || isSelecting || isAdding}
+                          onClick={handleAddToCart}
+                          sx={{
+                            py: 1.5,
+                            ...(isPreorder && {
+                              borderColor: 'info.main',
+                              color: 'info.main',
+                              '&:hover': {
+                                borderColor: 'info.dark',
+                                bgcolor: 'info.50',
+                              },
+                            }),
+                            ...(isOutOfStock && {
+                              bgcolor: 'action.disabled',
+                              color: 'text.disabled',
+                              '&:hover': {
+                                bgcolor: 'action.disabled',
+                              },
+                            }),
+                          }}
+                        >
+                          {isAdding
+                            ? 'Adding...'
+                            : isPreorder
+                              ? 'Pre-order Now'
+                              : isOutOfStock
+                                ? 'Out of Stock'
+                                : 'Add to Cart'}
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          color="secondary"
+                          size="large"
+                          startIcon={<BuyNowIcon />}
+                          disabled={isOutOfStock || isSelecting || isAdding}
+                          onClick={handleBuyNow}
+                          sx={{ py: 1.5 }}
+                        >
+                          Buy Now
+                        </Button>
                   <Button
                     fullWidth
                     variant={isInWishlist ? 'contained' : 'outlined'}
@@ -1412,6 +1601,9 @@ export function ProductDetailPage() {
                   >
                     {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
                   </Button>
+                      </>
+                    )
+                  })()}
                 </Stack>
 
                 {/* Reassurance Points */}

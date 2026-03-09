@@ -108,6 +108,12 @@ export class Product {
     type: Boolean,
     default: false,
   })
+  isPreorderEnabled: boolean;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
   isDeleted: boolean;
 
   // Frame-specific fields

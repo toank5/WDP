@@ -23,6 +23,7 @@ import { MediaService } from './commons/services/media.service';
 import { MediaController } from './controllers/media.controller';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
+import { PublicInventoryController } from './controllers/public-inventory.controller';
 import { InventoryService } from './services/inventory.service';
 import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
 import {
@@ -39,6 +40,8 @@ import { CartController } from './controllers/cart.controller';
 import { CartService } from './services/cart.service';
 import { Cart, CartSchema } from './commons/schemas/cart.schema';
 import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
+import { CheckoutController } from './controllers/checkout.controller';
+import { CheckoutService } from './services/checkout.service';
 import { OrderController } from './controllers/order.controller';
 import { OrderService } from './services/order.service';
 import { Order, OrderSchema } from './commons/schemas/order.schema';
@@ -137,11 +140,13 @@ import { PreorderModule } from './preorder.module';
     PolicyController,
     ProductController,
     InventoryController,
+    PublicInventoryController,
     SupplierController,
     PublicSupplierController,
     MediaController,
     CartController,
     OrderController,
+    CheckoutController,
   ],
   providers: [
     AppService,
@@ -158,6 +163,7 @@ import { PreorderModule } from './preorder.module';
     MediaService,
     CartService,
     OrderService,
+    CheckoutService,
     VNPayService,
   ],
 })

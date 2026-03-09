@@ -18,8 +18,26 @@ export enum UserRole {
 
 interface RequestWithUser {
   user?: {
-    role: UserRole;
+    role: UserRole | string | number;
   };
+}
+
+function normalizeRole(role: UserRole | string | number): UserRole | null {
+  if (typeof role === 'number') {
+    return Number.isInteger(role) ? (role as UserRole) : null;
+  }
+
+  if (typeof role === 'string') {
+    const numericRole = Number.parseInt(role, 10);
+    if (!Number.isNaN(numericRole)) {
+      return numericRole as UserRole;
+    }
+
+    const enumValue = (UserRole as unknown as Record<string, number>)[role];
+    return typeof enumValue === 'number' ? (enumValue as UserRole) : null;
+  }
+
+  return null;
 }
 
 @Injectable()
@@ -44,18 +62,17 @@ export class RbacGuard implements CanActivate {
       throw new UnauthorizedException('User not authenticated');
     }
 
-    // Check if user has required role
-    console.log('User role:', user.role, 'Type:', typeof user.role);
-    console.log(
-      'Required roles:',
-      requiredRoles,
-      'Types:',
-      requiredRoles.map((r) => typeof r),
-    );
-    const hasRole = requiredRoles.includes(user.role);
+    const normalizedRole = normalizeRole(user.role);
+    if (normalizedRole === null) {
+      throw new ForbiddenException(
+        `User role '${String(user.role)}' is invalid for authorization`,
+      );
+    }
+
+    const hasRole = requiredRoles.includes(normalizedRole);
     if (!hasRole) {
       throw new ForbiddenException(
-        `User role '${user.role}' is not authorized. Required roles: ${requiredRoles.join(', ')}`,
+        `User role '${String(normalizedRole)}' is not authorized. Required roles: ${requiredRoles.join(', ')}`,
       );
     }
 
