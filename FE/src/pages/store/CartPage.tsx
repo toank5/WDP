@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   FiShoppingCart,
@@ -11,7 +11,8 @@ import {
   FiInfo,
 } from 'react-icons/fi'
 import { formatImageUrl } from '@/lib/product-api'
-import { useUserCart, type CartItem } from '@/hooks/useUserCart'
+import { useCart } from '@/store/cart.store'
+import type { CartItem } from '@/lib/cart-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -23,23 +24,29 @@ const formatPrice = (price: number): string => {
 }
 
 const CartPage: React.FC = () => {
+  const cart = useCart()
   const {
     items,
-    email,
-    cartKey,
+    totalItems,
+    subtotal,
     loading,
     error,
-    setItems,
-    removeItem,
     updateQuantity,
+    removeItem,
     clearCart,
     refreshCart,
-  } = useUserCart()
+    loadCart,
+  } = cart
 
   const [notification, setNotification] = React.useState<string>('')
   const [updating, setUpdating] = React.useState<Set<string>>(new Set())
 
   const navigate = useNavigate()
+
+  // Load cart on mount
+  useEffect(() => {
+    loadCart()
+  }, [loadCart])
 
   // Listen for cart updates from other components (e.g., add to cart from product page)
   useEffect(() => {
@@ -62,16 +69,16 @@ const CartPage: React.FC = () => {
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
-      handleRemove(itemId)
+      await handleRemove(itemId)
       return
     }
 
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      updateQuantity(itemId, newQty)
+      await updateQuantity(itemId, newQty)
     } catch (err) {
       console.error('Failed to update quantity:', err)
-      refreshCart()
+      await refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -84,12 +91,12 @@ const CartPage: React.FC = () => {
   const handleRemove = async (itemId: string) => {
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      removeItem(itemId)
+      await removeItem(itemId)
       setNotification('Item removed from cart')
       setTimeout(() => setNotification(''), 3000)
     } catch (err) {
       console.error('Failed to remove item:', err)
-      refreshCart()
+      await refreshCart()
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
@@ -99,22 +106,12 @@ const CartPage: React.FC = () => {
     }
   }
 
-  const total = useMemo(
-    () => items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0),
-    [items]
-  )
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
           <p className="mt-4 text-slate-600">Loading cart...</p>
-          {cartKey && (
-            <p className="mt-2 text-xs text-slate-400">
-              Using cart key: <code className="bg-slate-200 px-1 rounded">{cartKey}</code>
-            </p>
-          )}
         </div>
       </div>
     )
@@ -142,17 +139,13 @@ const CartPage: React.FC = () => {
         <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-xs">
           <div className="max-w-6xl mx-auto flex items-center gap-4">
             <span className="font-semibold">Debug:</span>
-            <span>Email: {email || 'Not logged in'}</span>
-            <span>Cart Key: <code>{cartKey || 'None'}</code></span>
             <span>Items: {items.length}</span>
-            {email && (
-              <button
-                onClick={refreshCart}
-                className="px-2 py-1 bg-blue-200 hover:bg-blue-300 rounded"
-              >
-                Refresh
-              </button>
-            )}
+            <button
+              onClick={refreshCart}
+              className="px-2 py-1 bg-blue-200 hover:bg-blue-300 rounded"
+            >
+              Refresh
+            </button>
           </div>
         </div>
       )}
@@ -182,11 +175,6 @@ const CartPage: React.FC = () => {
                   <p className="text-slate-500 font-medium">
                     Your shopping cart is currently empty.
                   </p>
-                  {email && (
-                    <p className="text-sm text-slate-400">
-                      Logged in as <span className="font-mono">{email}</span>
-                    </p>
-                  )}
                   <Link
                     to="/products"
                     className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest rounded-xs transition-colors"
@@ -272,7 +260,14 @@ const CartPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm font-bold text-slate-900">
-                                {formatPrice((item.price || 0) * item.quantity)}
+                                {formatPrice(
+                                  (() => {
+                                    const price = item.price
+                                    if (typeof price === 'number') return price * item.quantity
+                                    if (price && typeof price === 'object' && 'price' in price) return (price as { price: number }).price * item.quantity
+                                    return 0
+                                  })()
+                                )}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
@@ -317,22 +312,18 @@ const CartPage: React.FC = () => {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Subtotal</span>
-                  <span>{formatPrice(total)}</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
                   <span className="text-emerald-600">FREE</span>
-                </div>
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span className="uppercase">Est. Tax (10%)</span>
-                  <span>{formatPrice(total * 0.1)}</span>
                 </div>
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">
                     Total
                   </span>
                   <span className="text-xl font-bold text-blue-700">
-                    {formatPrice(total * 1.1)}
+                    {formatPrice(subtotal)}
                   </span>
                 </div>
 

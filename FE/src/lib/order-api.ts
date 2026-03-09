@@ -1,5 +1,6 @@
 // Order API
 
+import axios from 'axios'
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 
@@ -165,28 +166,54 @@ class OrderAPI {
 
   /**
    * Checkout - Create order from cart
+   * This uses the new checkout endpoint with VNPAY integration
    */
   async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
     try {
-      // Prepare the create order DTO
+      // Use the new checkout endpoint
+      // Map postalCode to zipCode for backend compatibility
+      const { postalCode, ...addressRest } = request.shippingAddress
       const payload = {
-        items: request.items,
-        shippingAddress: request.shippingAddress,
-        shippingMethod: request.shippingMethod,
-        payment: {
-          method: request.payment.method,
+        shippingAddress: {
+          ...addressRest,
+          zipCode: postalCode,
         },
-        orderType: request.orderType,
         notes: request.notes,
       }
 
-      const response = await api.post('/orders/checkout', payload)
+      console.log('Sending checkout request:', payload)
+      const response = await api.post('/checkout/create-payment', payload)
+      console.log('Received response:', response)
 
-      // Clear all cart data after successful checkout
-      this.clearAllCarts()
+      // The response structure is: { statusCode, message, metadata: { paymentUrl, orderId, ... } }
+      const data = response.data.metadata || response.data
 
-      return response.data.data
+      return {
+        order: {
+          _id: data.orderId,
+          orderNumber: data.orderNumber,
+          customerId: '',
+          orderType: request.orderType || OrderType.READY,
+          orderStatus: OrderStatus.PENDING,
+          items: [],
+          subtotal: 0,
+          shippingFee: 0,
+          tax: 0,
+          totalAmount: data.amount,
+          shippingAddress: request.shippingAddress,
+          payment: { method: 'VNPAY', amount: data.amount },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        paymentUrl: data.paymentUrl,
+      }
     } catch (error) {
+      console.error('Full checkout error:', error)
+      if (axios.isAxiosError(error)) {
+        console.error('Error response:', error.response)
+        console.error('Error request:', error.request)
+        console.error('Error config:', error.config)
+      }
       const message = extractApiMessage(error)
       throw new Error(message)
     }
@@ -224,6 +251,20 @@ class OrderAPI {
   async getOrderById(orderId: string): Promise<Order> {
     try {
       const response = await api.get(`/orders/${orderId}`)
+
+      return response.data.data
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Get order by order number (for VNPAY callback)
+   */
+  async getOrderByNumber(orderNumber: string): Promise<Order> {
+    try {
+      const response = await api.get(`/checkout/order?orderNumber=${orderNumber}`)
 
       return response.data.data
     } catch (error) {

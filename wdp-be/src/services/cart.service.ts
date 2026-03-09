@@ -8,7 +8,6 @@ import mongoose, { Model, PipelineStage, HydratedDocument } from 'mongoose';
 import { Cart } from '../commons/schemas/cart.schema';
 import { CartItem } from '../commons/schemas/cart-item.schema';
 import { Product } from '../commons/schemas/product.schema';
-import { ProductVariant } from '../commons/schemas/product-variant.schema';
 import {
   AddToCartDto,
   UpdateCartItemDto,
@@ -50,8 +49,6 @@ export class CartService {
   constructor(
     @InjectModel(Cart.name) private cartModel: Model<Cart>,
     @InjectModel(Product.name) private productModel: Model<Product>,
-    @InjectModel(ProductVariant.name)
-    private productVariantModel: Model<ProductVariant>,
     private readonly inventoryService: InventoryService,
   ) {}
 
@@ -98,22 +95,28 @@ export class CartService {
           'items.productName': '$product.name',
           'items.productImage': { $arrayElemAt: ['$product.images2D', 0] },
           'items.price': {
-            $cond: [
-              { $ifNull: ['$items.variantSku', false] },
-              {
+            $cond: {
+              if: { $ifNull: ['$items.variantSku', false] },
+              then: {
                 $arrayElemAt: [
                   {
-                    $filter: {
-                      input: '$product.variants',
-                      as: 'variant',
-                      cond: { $eq: ['$$variant.sku', '$items.variantSku'] },
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: '$product.variants',
+                          as: 'variant',
+                          cond: { $eq: ['$$variant.sku', '$items.variantSku'] },
+                        },
+                      },
+                      as: 'matchedVariant',
+                      in: '$$matchedVariant.price',
                     },
                   },
                   0,
                 ],
               },
-              '$product.basePrice',
-            ],
+              else: '$product.basePrice',
+            },
           },
           'items.variantDetails': {
             $cond: [
@@ -195,10 +198,19 @@ export class CartService {
 
     // If variant SKU provided, validate it exists and is active
     if (addItemDto.variantSku) {
-      const variant = await this.productVariantModel.findOne({
-        sku: addItemDto.variantSku,
-        productId: addItemDto.productId,
-      });
+      // Variants are embedded in the Product document, query the Product model
+      const product = await this.productModel
+        .findById(addItemDto.productId)
+        .exec();
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      // Find variant within the product's variants array
+      const variant = product.variants?.find(
+        (v) => v.sku === addItemDto.variantSku,
+      );
 
       if (!variant) {
         throw new NotFoundException('Variant not found');
@@ -363,10 +375,10 @@ export class CartService {
       let price = product.basePrice;
 
       if (item.variantSku) {
-        const variant = await this.productVariantModel.findOne({
-          sku: item.variantSku,
-          productId: item.productId,
-        });
+        // Find variant within the product's variants array
+        const variant = product.variants?.find(
+          (v) => v.sku === item.variantSku,
+        );
         if (variant && variant.price) {
           price = variant.price;
         }
@@ -414,10 +426,10 @@ export class CartService {
       }
 
       if (item.variantSku) {
-        const variant = await this.productVariantModel.findOne({
-          sku: item.variantSku,
-          productId: item.productId,
-        });
+        // Find variant within the product's variants array
+        const variant = product.variants?.find(
+          (v) => v.sku === item.variantSku,
+        );
 
         if (!variant || variant.isActive === false) {
           invalidItems.push({

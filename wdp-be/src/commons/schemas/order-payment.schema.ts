@@ -13,6 +13,24 @@ export class OrderPayment {
 
   @Prop()
   paidAt: Date;
+
+  @Prop()
+  bankCode?: string;
+
+  @Prop()
+  bankTransactionNo?: string;
+
+  @Prop()
+  cardType?: string;
+
+  @Prop()
+  txnRef?: string;
+
+  @Prop()
+  responseCode?: string;
+
+  @Prop()
+  vnpPayDate?: Date;
 }
 
 export const OrderPaymentSchema = SchemaFactory.createForClass(OrderPayment);

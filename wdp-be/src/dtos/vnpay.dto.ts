@@ -57,8 +57,16 @@ export class VNPayPaymentRequestDto {
   @ApiProperty({
     description: 'Return URL after payment',
     example: 'http://localhost:5173/order-success',
+    required: false,
   })
-  returnUrl: string;
+  returnUrl?: string;
+
+  @ApiProperty({
+    description: 'IPN URL for VNPay server-to-server callback',
+    example: 'http://localhost:8386/checkout/vnpay-ipn',
+    required: false,
+  })
+  ipnUrl?: string;
 
   @ApiProperty({
     description: 'Payment language',
@@ -219,9 +227,11 @@ export const VNPAY_RESPONSE_CODES = {
 export class VNPayHelpers {
   /**
    * Format amount for VNPay (multiply by 100, no decimals)
+   * VNPay requires amounts in the smallest currency unit
+   * For VND: 10,000 VND = 1,000,000 (multiply by 100)
    */
   static formatAmount(amount: number): number {
-    return Math.round(amount);
+    return Math.round(amount * 100);
   }
 
   /**

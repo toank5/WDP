@@ -39,7 +39,7 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/store/auth-store'
-import { cartApi } from '@/lib/cart-api'
+import { useCart } from '@/store/cart.store'
 import { wishlistApi } from '@/lib/wishlist-api'
 
 const roleLabels: Record<number, string> = {
@@ -64,9 +64,9 @@ export function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, logout, user } = useAuthStore()
+  const { totalItems: cartCount, loadCart } = useCart()
 
   // State
-  const [cartCount, setCartCount] = useState(0)
   const [wishlistCount, setWishlistCount] = useState(0)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -77,11 +77,11 @@ export function Navbar() {
   useEffect(() => {
     const updateCounts = async () => {
       try {
-        const [cart, wishlist] = await Promise.all([
-          cartApi.getCartCount(),
-          wishlistApi.getWishlistCount(),
-        ])
-        setCartCount(cart)
+        // Load cart from store (handles both guest and authenticated users)
+        await loadCart()
+
+        // Update wishlist count
+        const wishlist = await wishlistApi.getWishlistCount()
         setWishlistCount(wishlist)
       } catch (err) {
         console.error('Failed to get counts:', err)
@@ -100,7 +100,7 @@ export function Navbar() {
       window.removeEventListener('cartUpdated', handleCartUpdate)
       window.removeEventListener('wishlistUpdated', handleWishlistUpdate)
     }
-  }, [])
+  }, [loadCart])
 
   // Close mobile menu on route change
   useEffect(() => {

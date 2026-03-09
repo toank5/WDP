@@ -11,8 +11,11 @@ import {
   FiLock,
   FiLoader,
   FiAlertCircle,
+  FiClock,
+  FiEye,
 } from 'react-icons/fi'
-import { cartApi, CartResponse } from '@/lib/cart-api'
+import { cartApi, CartResponse, CartItem } from '@/lib/cart-api'
+import { useCartStore } from '@/store/cart.store'
 import { orderApi, CheckoutRequest, OrderType, PaymentMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
@@ -106,7 +109,7 @@ interface FormErrors {
   district?: string
 }
 
-type CheckoutStep = 'address' | 'shipping' | 'payment' | 'review'
+type CheckoutStep = 'address' | 'payment' | 'review'
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate()
@@ -129,8 +132,7 @@ const CheckoutPage: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  // Shipping & Payment
-  const [shippingMethod, setShippingMethod] = useState<'STANDARD' | 'EXPRESS'>('STANDARD')
+  // Payment
   const [paymentMethod] = useState<PaymentMethod>(PaymentMethod.VNPAY) // Only VNPAY for now
 
   // Order type (default to READY)
@@ -151,11 +153,32 @@ const CheckoutPage: React.FC = () => {
 
   const loadCart = async () => {
     try {
-      const cartData = await cartApi.getCart()
+      // The cart store automatically handles migration from localStorage to backend
+      // and loads the cart from the appropriate source
+      const cartStore = useCartStore.getState()
+
+      // Ensure cart is loaded
+      if (cartStore.items.length === 0 && !cartStore._hydrated) {
+        await cartStore.loadCart()
+      }
+
+      // Get updated cart data
+      const updatedCartStore = useCartStore.getState()
+      const cartData: CartResponse = {
+        _id: '',
+        customerId: '',
+        items: updatedCartStore.items,
+        totalItems: updatedCartStore.totalItems,
+        subtotal: updatedCartStore.subtotal,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
       if (!cartData || cartData.items.length === 0) {
         navigate('/cart')
         return
       }
+
       setCart(cartData)
     } catch (err) {
       console.error('Failed to load cart:', err)
@@ -192,12 +215,8 @@ const CheckoutPage: React.FC = () => {
 
   const handleAddressNext = () => {
     if (validateAddress()) {
-      setCurrentStep('shipping')
+      setCurrentStep('payment')
     }
-  }
-
-  const handleShippingNext = () => {
-    setCurrentStep('payment')
   }
 
   const handlePaymentNext = () => {
@@ -205,15 +224,14 @@ const CheckoutPage: React.FC = () => {
   }
 
   const calculateShippingFee = () => {
-    return shippingMethod === 'EXPRESS' ? 50000 : 30000
-  }
-
-  const calculateTax = (subtotal: number) => {
-    return Math.round(subtotal * 0.1)
+    return 0 // Free shipping
   }
 
   const handlePlaceOrder = async () => {
-    if (!cart) return
+    if (!cart) {
+      console.error('No cart found')
+      return
+    }
 
     setProcessing(true)
     setError(null)
@@ -227,7 +245,7 @@ const CheckoutPage: React.FC = () => {
           priceAtOrder: item.price || 0,
         })),
         shippingAddress,
-        shippingMethod,
+        shippingMethod: 'STANDARD', // Default shipping method
         payment: {
           method: paymentMethod,
         },
@@ -245,6 +263,7 @@ const CheckoutPage: React.FC = () => {
         navigate(`/order-success/${response.order._id}`)
       }
     } catch (err) {
+      console.error('Checkout error:', err)
       const message = err instanceof Error ? err.message : 'Failed to place order'
       setError(message)
       setProcessing(false)
@@ -278,13 +297,11 @@ const CheckoutPage: React.FC = () => {
 
   const subtotal = cart.subtotal || 0
   const shippingFee = calculateShippingFee()
-  const tax = calculateTax(subtotal)
-  const total = subtotal + shippingFee + tax
+  const total = subtotal + shippingFee
 
   // Step indicator
   const steps: { key: CheckoutStep; label: string; icon: React.ReactNode }[] = [
     { key: 'address', label: 'Address', icon: <FiMapPin /> },
-    { key: 'shipping', label: 'Shipping', icon: <FiTruck /> },
     { key: 'payment', label: 'Payment', icon: <FiCreditCard /> },
     { key: 'review', label: 'Review', icon: <FiCheck /> },
   ]
@@ -514,98 +531,6 @@ const CheckoutPage: React.FC = () => {
                       onClick={handleAddressNext}
                       className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors shadow-sm"
                     >
-                      Continue to Shipping
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Shipping Method */}
-            {currentStep === 'shipping' && (
-              <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
-                <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <FiTruck className="text-blue-600" />
-                    Shipping Method
-                  </h2>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      shippingMethod === 'STANDARD'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                    onClick={() => setShippingMethod('STANDARD')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            shippingMethod === 'STANDARD'
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-slate-300'
-                          }`}
-                        >
-                          {shippingMethod === 'STANDARD' && (
-                            <FiCheck size={12} className="text-white" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">Standard Delivery</p>
-                          <p className="text-sm text-slate-500">
-                            Delivery in 3-5 business days
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-lg font-bold text-blue-600">{formatPrice(30000)}</p>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      shippingMethod === 'EXPRESS'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                    onClick={() => setShippingMethod('EXPRESS')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            shippingMethod === 'EXPRESS'
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-slate-300'
-                          }`}
-                        >
-                          {shippingMethod === 'EXPRESS' && (
-                            <FiCheck size={12} className="text-white" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">Express Delivery</p>
-                          <p className="text-sm text-slate-500">
-                            Delivery in 1-2 business days
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-lg font-bold text-blue-600">{formatPrice(50000)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between pt-4">
-                    <button
-                      onClick={() => setCurrentStep('address')}
-                      className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleShippingNext}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors shadow-sm"
-                    >
                       Continue to Payment
                     </button>
                   </div>
@@ -613,7 +538,7 @@ const CheckoutPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 3: Payment Method */}
+            {/* Step 2: Payment Method */}
             {currentStep === 'payment' && (
               <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
                 <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
@@ -671,41 +596,87 @@ const CheckoutPage: React.FC = () => {
             {/* Step 4: Review */}
             {currentStep === 'review' && (
               <div className="space-y-6">
-                {/* Order Items */}
+                {/* Order Items - Detailed List */}
                 <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
                   <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                     <h2 className="text-lg font-bold text-slate-900">Order Items ({cart.items.length})</h2>
                   </div>
-                  <div className="p-6 space-y-4">
-                    {cart.items.map((item) => (
-                      <div key={item._id} className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {item.productImage ? (
-                            <img
-                              src={formatImageUrl(item.productImage)}
-                              alt={item.productName}
-                              className="w-full h-full object-contain"
-                            />
-                          ) : (
-                            <span className="text-2xl">📦</span>
-                          )}
+                  <div className="divide-y divide-slate-200">
+                    {cart.items.map((item) => {
+                      // Get the actual price value
+                      const itemPrice = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                      const lineTotal = itemPrice * item.quantity
+                      const isPreorder = item.variantDetails?.isPreorder || false
+                      const isPrescription = item.variantDetails?.isPrescription || false
+
+                      return (
+                        <div key={item._id} className="p-6">
+                          <div className="flex gap-4">
+                            {/* Product Image */}
+                            <div className="w-24 h-24 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {item.productImage ? (
+                                <img
+                                  src={formatImageUrl(item.productImage)}
+                                  alt={item.productName}
+                                  className="w-full h-full object-contain p-2"
+                                />
+                              ) : (
+                                <span className="text-3xl">📦</span>
+                              )}
+                            </div>
+
+                            {/* Product Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <h3 className="font-bold text-slate-900 text-lg mb-1">
+                                    {item.productName || 'Product'}
+                                  </h3>
+
+                                  {/* Badges */}
+                                  <div className="flex flex-wrap gap-2 mb-2">
+                                    {isPreorder && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
+                                        <FiClock size={12} />
+                                        Pre-order
+                                      </span>
+                                    )}
+                                    {isPrescription && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                                        <FiEye size={12} />
+                                        Custom Lens
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Variant Details */}
+                                  {item.variantDetails && (
+                                    <div className="text-sm text-slate-600 space-y-1">
+                                      {item.variantDetails.size && (
+                                        <p>Size: <span className="font-medium text-slate-800">{item.variantDetails.size}</span></p>
+                                      )}
+                                      {item.variantDetails.color && (
+                                        <p>Color: <span className="font-medium text-slate-800">{item.variantDetails.color}</span></p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Price & Quantity */}
+                                <div className="text-right">
+                                  <p className="text-lg font-bold text-blue-700">
+                                    {formatPrice(lineTotal)}
+                                  </p>
+                                  <p className="text-sm text-slate-500">
+                                    {formatPrice(itemPrice)} × {item.quantity}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 truncate">
-                            {item.productName || 'Product'}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {item.variantDetails?.size && `Size: ${item.variantDetails.size}`}
-                            {item.variantDetails?.size && item.variantDetails?.color && ' | '}
-                            {item.variantDetails?.color && `Color: ${item.variantDetails.color}`}
-                          </p>
-                          <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
-                        </div>
-                        <p className="font-bold text-slate-900">
-                          {formatPrice((item.price || 0) * item.quantity)}
-                        </p>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -737,14 +708,8 @@ const CheckoutPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <FiTruck className="text-slate-400" />
                       <div>
-                        <p className="font-bold text-slate-900">
-                          {shippingMethod === 'STANDARD' ? 'Standard Delivery' : 'Express Delivery'}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {shippingMethod === 'STANDARD'
-                            ? '3-5 business days'
-                            : '1-2 business days'}
-                        </p>
+                        <p className="font-bold text-slate-900">Standard Delivery</p>
+                        <p className="text-sm text-slate-500">3-5 business days</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -814,11 +779,7 @@ const CheckoutPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
-                  <span>{formatPrice(shippingFee)}</span>
-                </div>
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span className="uppercase">Est. Tax (10%)</span>
-                  <span>{formatPrice(tax)}</span>
+                  <span className="text-green-600 font-medium">Free</span>
                 </div>
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">

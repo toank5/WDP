@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   FiCheckCircle,
   FiShoppingBag,
@@ -36,11 +36,13 @@ const formatDate = (dateString: string): string => {
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusConfig: Record<string, { color: string; label: string }> = {
     PENDING: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending' },
+    PENDING_PAYMENT: { color: 'bg-orange-100 text-orange-700', label: 'Pending Payment' },
     PROCESSING: { color: 'bg-blue-100 text-blue-700', label: 'Processing' },
     CONFIRMED: { color: 'bg-green-100 text-green-700', label: 'Confirmed' },
     SHIPPED: { color: 'bg-purple-100 text-purple-700', label: 'Shipped' },
     DELIVERED: { color: 'bg-emerald-100 text-emerald-700', label: 'Delivered' },
-    RETURNED: { color: 'bg-red-100 text-red-700', label: 'Cancelled' },
+    RETURNED: { color: 'bg-red-100 text-red-700', label: 'Returned' },
+    CANCELLED: { color: 'bg-gray-100 text-gray-700', label: 'Cancelled' },
   }
 
   const config = statusConfig[status] || statusConfig.PENDING
@@ -54,22 +56,34 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 const OrderSuccessPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const orderNumberParam = searchParams.get('orderNumber')
+  const effectiveOrderId = orderId || orderNumberParam
+
   useEffect(() => {
-    if (orderId) {
-      loadOrder(orderId)
+    if (effectiveOrderId) {
+      loadOrder(effectiveOrderId)
     } else {
       navigate('/orders')
     }
-  }, [orderId])
+  }, [effectiveOrderId])
 
   const loadOrder = async (id: string) => {
     try {
-      const orderData = await orderApi.getOrderById(id)
+      // Try to get order by orderNumber first (for VNPAY callback), fallback to orderId
+      let orderData: Order
+      try {
+        // First try getting by order number (for VNPAY redirect)
+        orderData = await orderApi.getOrderByNumber(id)
+      } catch {
+        // Fallback to getting by ID (for existing flow)
+        orderData = await orderApi.getOrderById(id)
+      }
       setOrder(orderData)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load order'
@@ -280,10 +294,6 @@ const OrderSuccessPage: React.FC = () => {
             <div className="flex justify-between text-sm text-slate-600">
               <span>Shipping Fee</span>
               <span>{formatPrice(order.shippingFee)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>Tax (10%)</span>
-              <span>{formatPrice(order.tax)}</span>
             </div>
             <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
               <span className="text-base font-bold text-slate-900">Total</span>

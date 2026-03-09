@@ -3,7 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
 import { getAllProducts, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
 import { cartApi } from '@/lib/cart-api'
+
 import { wishlistApi } from '@/lib/wishlist-api'
+import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
 import {
   Box,
   Container,
@@ -1017,7 +1019,7 @@ export function ProductDetailPage() {
     setIsAdding(true)
     try {
       const result = await cartApi.addItem({
-        variantId: selectedVariant?.sku,
+        variantSku: selectedVariant?.sku,
         productId: product._id,
         quantity,
         productData: {
@@ -1362,6 +1364,13 @@ export function ProductDetailPage() {
                   </Box>
                 </Box>
 
+
+                {/* Virtual Try-On */}
+                <TryOnButton
+                  productId={product?.id || ''}
+                  variantId={selectedVariant?.id || ''}
+                  disabled={!product || !selectedVariant}
+                />
                 {/* Action Buttons */}
                 <Stack spacing={1}>
                   <Button

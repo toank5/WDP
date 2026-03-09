@@ -330,11 +330,13 @@ export class OrderController {
 
     const statusCounts: Record<ORDER_STATUS, number> = {
       [ORDER_STATUS.PENDING]: 0,
+      [ORDER_STATUS.PENDING_PAYMENT]: 0,
       [ORDER_STATUS.PROCESSING]: 0,
       [ORDER_STATUS.CONFIRMED]: 0,
       [ORDER_STATUS.SHIPPED]: 0,
       [ORDER_STATUS.DELIVERED]: 0,
       [ORDER_STATUS.RETURNED]: 0,
+      [ORDER_STATUS.CANCELLED]: 0,
     };
 
     for (const status of Object.values(ORDER_STATUS)) {

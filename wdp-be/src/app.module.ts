@@ -39,6 +39,8 @@ import { CartController } from './controllers/cart.controller';
 import { CartService } from './services/cart.service';
 import { Cart, CartSchema } from './commons/schemas/cart.schema';
 import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
+import { CheckoutController } from './controllers/checkout.controller';
+import { CheckoutService } from './services/checkout.service';
 import { OrderController } from './controllers/order.controller';
 import { OrderService } from './services/order.service';
 import { Order, OrderSchema } from './commons/schemas/order.schema';
@@ -142,6 +144,7 @@ import { PreorderModule } from './preorder.module';
     MediaController,
     CartController,
     OrderController,
+    CheckoutController,
   ],
   providers: [
     AppService,
@@ -158,6 +161,7 @@ import { PreorderModule } from './preorder.module';
     MediaService,
     CartService,
     OrderService,
+    CheckoutService,
     VNPayService,
   ],
 })
