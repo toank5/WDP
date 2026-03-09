@@ -8,7 +8,8 @@
     "allow": [
       "Bash(ls -la FE/vite.config.*)",
       "Bash(npm install terser --save-dev)",
-      "Bash(ls -lh FE/dist/assets/*.js)"
+      "Bash(ls -lh FE/dist/assets/*.js)",
+      "Bash(mongod --version)"
     ],
     "additionalDirectories": [
       "D:\\Code\\Project\\WDP\\FE\\src\\components\\virtual-tryon"

@@ -19,12 +19,14 @@ import {
   OrderResponseDto,
   CheckoutResponseDto,
   UpdateOrderStatusDto,
+  ApproveOrderDto,
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
   SHIPPING_METHODS,
 } from '../dtos/order.dto';
 import { ORDER_STATUS, ORDER_TYPES } from '../commons/enums/order.enum';
+import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
 import { Request } from 'express';
 import {
   VNPayCallbackParamsDto,
@@ -114,7 +116,7 @@ export class OrderService {
       orderNumber,
       customerId: new Types.ObjectId(customerId),
       orderType: orderType || ORDER_TYPES.READY,
-      orderStatus: ORDER_STATUS.PENDING,
+      orderStatus: ORDER_STATUS.PENDING_PAYMENT,
       items: items.map((item) => ({
         productId: new mongoose.Types.ObjectId(item.productId),
         variantSku: item.variantSku,
@@ -134,9 +136,9 @@ export class OrderService {
       notes: notes || '',
       history: [
         {
-          status: ORDER_STATUS.PENDING,
+          status: ORDER_STATUS.PENDING_PAYMENT,
           timestamp: new Date(),
-          note: 'Order placed',
+          note: 'Order placed, awaiting payment',
         },
       ],
     });
@@ -194,14 +196,14 @@ export class OrderService {
       order.payment.paidAt = new Date();
       order.payment.transactionId =
         result.transactionId || callback.vnp_TransactionNo;
-      order.orderStatus = ORDER_STATUS.CONFIRMED;
+      order.orderStatus = ORDER_STATUS.PAID;
 
       // Reserve stock
       await this.reserveStock(order.items, order._id.toString());
 
       // Add to history
       order.history.push({
-        status: ORDER_STATUS.CONFIRMED,
+        status: ORDER_STATUS.PAID,
         timestamp: new Date(),
         note: 'Payment successful via VNPay',
       });
@@ -222,16 +224,33 @@ export class OrderService {
   }
 
   /**
-   * Reserve stock for order items
+   * Reserve stock for order items on successful payment
+   * Skips reservation for pre-order items (they don't have stock yet)
+   *
+   * @param orderItems Array of order items
+   * @param orderId Order ID for tracking
    */
   private async reserveStock(
     orderItems: OrderItem[],
     orderId: string,
   ): Promise<void> {
     for (const item of orderItems) {
-      if (item.variantSku) {
-        await this.inventoryService.reserveStock(item.variantSku, orderId);
+      if (!item.variantSku) {
+        continue;
       }
+
+      // Exception: Skip reservation for pre-order items
+      // Pre-orders don't have stock available yet, they will be reserved when stock arrives
+      if (item.isPreorder) {
+        continue;
+      }
+
+      // Reserve the specific quantity from the order item
+      await this.inventoryService.reserveStock(
+        item.variantSku,
+        orderId,
+        item.quantity,
+      );
     }
   }
 
@@ -338,6 +357,175 @@ export class OrderService {
   }
 
   /**
+   * Get operations order queue with pagination
+   * (no customer scoping, restricted by controller RBAC)
+   */
+  async getOperationsOrders(
+    query: OrderListQueryDto,
+  ): Promise<OrderListResponseDto> {
+    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Operations can see:
+    // 1. PROCESSING orders (ready to fulfill - approved by sales)
+    // 2. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
+    const baseQuery = {
+      $or: [
+        { orderStatus: ORDER_STATUS.PROCESSING },
+        {
+          orderStatus: { $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED] },
+          'items.isPreorder': true,
+        },
+      ],
+    };
+
+    const orderQuery = this.orderModel.find(baseQuery);
+
+    if (search) {
+      orderQuery.or([
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+      ]);
+    }
+
+    // Count total - clone the query conditions
+    const countQuery = this.orderModel.find(baseQuery);
+    if (search) {
+      countQuery.or([
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+      ]);
+    }
+    const total = await countQuery.countDocuments();
+
+    // Get orders
+    const orders = await orderQuery
+      .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .exec();
+
+    // Enrich with product details
+    const enrichedOrders = await Promise.all(
+      orders.map(async (order) =>
+        this.getOrderWithDetails(order._id.toString()),
+      ),
+    );
+
+    return {
+      orders: enrichedOrders,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
+
+  /**
+   * Get sales pending-approval queue:
+    * - normal orders: PAID/CONFIRMED
+    * - pre-orders: PAID/CONFIRMED (visibility), approval still requires stock-ready
+   */
+  async getSalesPendingApprovalOrders(
+    query: OrderListQueryDto,
+  ): Promise<OrderListResponseDto> {
+    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const paidOrderQuery = this.orderModel.find({
+      orderStatus: {
+        $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED],
+      },
+    });
+
+    if (search) {
+      paidOrderQuery.or([
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+      ]);
+    }
+
+    const paidOrders = await paidOrderQuery
+      .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+      .exec();
+
+    const total = paidOrders.length;
+    const pagedOrders = paidOrders.slice(skip, skip + limitNum);
+
+    const enrichedOrders = await Promise.all(
+      pagedOrders.map(async (order) =>
+        this.getOrderWithDetails(order._id.toString()),
+      ),
+    );
+
+    return {
+      orders: enrichedOrders,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
+
+  /**
+   * Sales gatekeeper action:
+   * Approve order and send to operations queue.
+   */
+  async approveOrderForOperations(
+    orderId: string,
+    approvalDto: ApproveOrderDto,
+    approvedBy?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      order.orderStatus !== ORDER_STATUS.PAID &&
+      order.orderStatus !== ORDER_STATUS.CONFIRMED
+    ) {
+      throw new BadRequestException(
+        `Only PAID/CONFIRMED orders can be approved. Current status: ${order.orderStatus}`,
+      );
+    }
+
+    const preorderItems = order.items.filter((item) => item.isPreorder);
+    if (preorderItems.length > 0) {
+      const notReady = preorderItems.find(
+        (item) => item.preorderStatus !== PREORDER_STATUS.READY_TO_FULFILL,
+      );
+
+      if (notReady) {
+        throw new BadRequestException(
+          'Pre-order stock is not ready. Wait until preorder status is READY_TO_FULFILL.',
+        );
+      }
+    }
+
+    order.orderStatus = ORDER_STATUS.PROCESSING;
+
+    order.history.push({
+      status: ORDER_STATUS.PROCESSING,
+      changedBy: approvedBy ? new Types.ObjectId(approvedBy) : undefined,
+      timestamp: new Date(),
+      note:
+        approvalDto.note ||
+        'Approved by Sales and sent to Operations queue',
+    });
+
+    await order.save();
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
    * Get order by ID
    */
   async getOrderById(
@@ -401,6 +589,11 @@ export class OrderService {
           productName: product?.name || 'Unknown Product',
           productImage: product?.images2D?.[0],
           variantDetails,
+          // Pre-order fields
+          isPreorder: item.isPreorder,
+          preorderStatus: item.preorderStatus,
+          expectedShipDate: item.expectedShipDate,
+          reservedQuantity: item.reservedQuantity,
         };
       }),
     );
@@ -465,7 +658,8 @@ export class OrderService {
     // Validate status transition
     if (!this.isValidStatusTransition(order.orderStatus, updateDto.status)) {
       throw new BadRequestException(
-        `Cannot change order status from ${order.orderStatus} to ${updateDto.status}`,
+        `Cannot change order status from ${order.orderStatus} to ${updateDto.status}. ` +
+        `Please follow the valid order status flow.`,
       );
     }
 
@@ -475,10 +669,10 @@ export class OrderService {
     // Handle stock based on status changes
     if (
       updateDto.status === ORDER_STATUS.SHIPPED &&
-      previousStatus === ORDER_STATUS.CONFIRMED
+      (previousStatus === ORDER_STATUS.CONFIRMED ||
+        previousStatus === ORDER_STATUS.PROCESSING ||
+        previousStatus === ORDER_STATUS.PAID)
     ) {
-      await this.confirmStock(orderId);
-
       // Add tracking placeholder
       if (!order.tracking) {
         order.tracking = {
@@ -513,13 +707,18 @@ export class OrderService {
     newStatus: ORDER_STATUS,
   ): boolean {
     const validTransitions: Record<ORDER_STATUS, ORDER_STATUS[]> = {
-      [ORDER_STATUS.PENDING]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
-      [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
-      [ORDER_STATUS.PROCESSING]: [
-        ORDER_STATUS.CONFIRMED,
+      [ORDER_STATUS.PENDING]: [ORDER_STATUS.PENDING_PAYMENT],
+      [ORDER_STATUS.PENDING_PAYMENT]: [
+        ORDER_STATUS.PAID,
         ORDER_STATUS.CANCELLED,
       ],
-      [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.SHIPPED],
+      // PAID must go through Sales approval first.
+      [ORDER_STATUS.PAID]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
+      [ORDER_STATUS.PROCESSING]: [
+        ORDER_STATUS.SHIPPED,
+        ORDER_STATUS.CANCELLED,
+      ],
+      [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.SHIPPED],
       [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
       [ORDER_STATUS.DELIVERED]: [],
       [ORDER_STATUS.RETURNED]: [],
@@ -596,6 +795,55 @@ export class OrderService {
       trackingNumber,
       estimatedDelivery,
     };
+
+    await order.save();
+
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
+   * Confirm receipt (Operations Staff action)
+   * Marks order as DELIVERED and performs final inventory deduction
+   * Requirements:
+   * - Order must be in SHIPPED status
+   * - Deducts physical stock (onHand) for each item
+   * - Releases reservation for each item
+   * - Creates inventory movement records
+   * - Sets deliveredAt timestamp
+   */
+  async confirmReceipt(orderId: string): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Validate order status is SHIPPED
+    if (order.orderStatus !== ORDER_STATUS.SHIPPED) {
+      throw new BadRequestException(
+        `Order must be in SHIPPED status to confirm receipt. Current status: ${order.orderStatus}`,
+      );
+    }
+
+    // Confirm stock through InventoryService - this handles reservation release and stock deduction
+    await this.inventoryService.confirmStock(orderId);
+
+    // Update order status and set deliveredAt
+    order.orderStatus = ORDER_STATUS.DELIVERED;
+    if (!order.tracking) {
+      order.tracking = {
+        carrier: '',
+        trackingNumber: '',
+      };
+    }
+    order.tracking.actualDelivery = new Date();
+
+    // Add to history
+    order.history.push({
+      status: ORDER_STATUS.DELIVERED,
+      timestamp: new Date(),
+      note: 'Customer receipt confirmed by operations staff',
+    });
 
     await order.save();
 

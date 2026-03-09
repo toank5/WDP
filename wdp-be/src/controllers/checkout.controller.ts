@@ -206,10 +206,14 @@ export class CheckoutController {
     @Query() params: Record<string, string>,
     @Res() res: Response,
   ): Promise<void> {
-    this.logger.log('Received VNPAY return callback', { params });
+    this.logger.log('===== VNPAY RETURN CALLBACK START =====');
+    this.logger.log('Received params:', JSON.stringify(params, null, 2));
 
     try {
+      this.logger.log('Calling handleVnpayReturn service...');
       const result = await this.checkoutService.handleVnpayReturn(params);
+      
+      this.logger.log('Service returned result:', JSON.stringify(result, null, 2));
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -217,19 +221,20 @@ export class CheckoutController {
         // Payment successful - redirect to success page
         const orderNumber = result.orderNumber || '';
         const redirectUrl = `${frontendUrl}/order/success?orderNumber=${encodeURIComponent(orderNumber)}`;
-        this.logger.log(`Redirecting to success page: ${redirectUrl}`);
+        this.logger.log(`✓ Success - Redirecting to: ${redirectUrl}`);
         res.redirect(HttpStatus.FOUND, redirectUrl);
       } else {
         // Payment failed - redirect to failed page
         const orderNumber = result.orderNumber || '';
         const redirectUrl = `${frontendUrl}/order/failed?orderNumber=${encodeURIComponent(orderNumber)}&reason=${encodeURIComponent(result.message)}`;
-        this.logger.log(`Redirecting to failed page: ${redirectUrl}`);
+        this.logger.warn(`✗ Failed - Redirecting to: ${redirectUrl}`);
         res.redirect(HttpStatus.FOUND, redirectUrl);
       }
     } catch (error) {
-      this.logger.error('Error processing VNPAY return', {
-        error: error.message,
-      });
+      this.logger.error('===== EXCEPTION IN VNPAY RETURN HANDLER =====');
+      this.logger.error('Error message:', error.message);
+      this.logger.error('Error stack:', error.stack);
+      this.logger.error('Params received:', JSON.stringify(params, null, 2));
 
       // On error, redirect to failed page
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -263,20 +268,10 @@ export class CheckoutController {
       return { success: false, message: 'Order not found' };
     }
 
+    // Return complete order object (toObject handles ObjectId conversion)
     return {
       success: true,
-      data: {
-        orderNumber: order.orderNumber,
-        orderStatus: order.orderStatus,
-        orderType: order.orderType,
-        totalAmount: order.totalAmount,
-        subtotal: order.subtotal,
-        shippingFee: order.shippingFee,
-        items: order.items,
-        shippingAddress: order.shippingAddress,
-        payment: order.payment,
-        createdAt: order.createdAt,
-      },
+      data: (order as any).toObject(),
     };
   }
 }

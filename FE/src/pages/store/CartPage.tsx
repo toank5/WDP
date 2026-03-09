@@ -222,6 +222,11 @@ const CartPage: React.FC = () => {
                                   >
                                     {item.productName || 'Product'}
                                   </Link>
+                                  {item.variantDetails?.isPreorder && (
+                                    <span className="inline-block ml-2 px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-100 text-blue-700 rounded">
+                                      Pre-order
+                                    </span>
+                                  )}
                                   {item.variantDetails && (
                                     <span className="text-[10px] text-slate-400 uppercase font-bold">
                                       {item.variantDetails.size && `Size: ${item.variantDetails.size}`}

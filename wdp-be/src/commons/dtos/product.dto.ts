@@ -742,6 +742,14 @@ export class CreateProductDto {
   @IsBoolean()
   isActive?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Whether pre-order is enabled for this product',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPreorderEnabled?: boolean;
+
   // Frame-specific
   @ApiPropertyOptional({
     description: 'Frame type (for frame products)',
@@ -951,6 +959,14 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether pre-order is enabled for this product',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPreorderEnabled?: boolean;
 
   // All optional category-specific fields for updates
   @ApiPropertyOptional({

@@ -171,7 +171,7 @@ export class PreorderService {
             onHand: 0,
             incoming: 0,
             preordered: 0,
-            remainingPreorderCapacity: variant.preorderLimit || undefined,
+            remainingPreorderCapacity: undefined,
             nextIncomingDate: undefined,
             preorderStatus: 'OK',
           });
@@ -446,10 +446,7 @@ export class PreorderService {
         remainingToFulfill: Math.max(0, preordered - inv.onHand),
       },
       preorderConfig: {
-        isEnabled: variant.isPreorderEnabled || false,
-        expectedShipStart: variant.preorderExpectedShipStart,
-        expectedShipEnd: variant.preorderExpectedShipEnd,
-        limit: variant.preorderLimit,
+        isEnabled: product.isPreorderEnabled || false,
       },
       preorderItems: preorderItemsDto,
       upcomingDeliveries,

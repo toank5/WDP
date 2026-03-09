@@ -149,6 +149,7 @@ interface FormData {
   basePrice: number
   tags: string[]
   isActive: boolean
+  isPreorderEnabled: boolean
   images2D: string[]
   images3D: string[]
 }
@@ -429,6 +430,7 @@ export function ProductManagementPage() {
     basePrice: 0,
     tags: [],
     isActive: true,
+    isPreorderEnabled: false,
     images2D: [],
     images3D: [],
   })
@@ -526,6 +528,7 @@ export function ProductManagementPage() {
         images3D: formData.images3D,
         tags: formData.tags,
         isActive: formData.isActive,
+        isPreorderEnabled: formData.isPreorderEnabled,
 
         // Frame-specific fields
         frameType: frameData.frameType,
@@ -590,6 +593,7 @@ export function ProductManagementPage() {
       images3D: formData.images3D,
       tags: formData.tags,
       isActive: formData.isActive,
+      isPreorderEnabled: formData.isPreorderEnabled,
 
       // Frame-specific fields
       frameType: frameData.frameType,
@@ -712,6 +716,7 @@ export function ProductManagementPage() {
       basePrice: 0,
       tags: [],
       isActive: true,
+      isPreorderEnabled: false,
       images2D: [],
       images3D: [],
     })
@@ -749,6 +754,7 @@ export function ProductManagementPage() {
       images2DFiles: [],
       images3DFiles: [],
       isActive: true,
+      isPreorderEnabled: false,
     })
     setEditingVariantIndex(null)
     setValidationErrors({})
@@ -822,6 +828,7 @@ export function ProductManagementPage() {
       images2DFiles: [],
       images3DFiles: [],
       isActive: true,
+      isPreorderEnabled: false,
     })
     setValidationErrors({})
   }, [variantForm, variants, editingVariantIndex, showSnackbar])
@@ -1015,6 +1022,7 @@ export function ProductManagementPage() {
         images3D: finalProductImages3D,
         tags: formData.tags,
         isActive: formData.isActive,
+        isPreorderEnabled: formData.isPreorderEnabled,
       }
 
       let payload: any
@@ -1197,6 +1205,7 @@ export function ProductManagementPage() {
         basePrice: product.basePrice,
         tags: product.tags || [],
         isActive: product.isActive ?? true,
+        isPreorderEnabled: product.isPreorderEnabled ?? false,
         images2D: product.images2D || [],
         images3D: product.images3D || [],
       }
@@ -1700,6 +1709,40 @@ export function ProductManagementPage() {
                                   setFormData({ ...formData, isActive: e.target.checked })
                                 }
                                 color="success"
+                              />
+                            }
+                            label=""
+                          />
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+
+                  <Grid size={12}>
+                    <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
+                      <Box display="flex" alignItems="center" justifyContent="space-between" p={2}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2" fontWeight={500}>
+                            Pre-order
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Allow customers to order this product even when out of stock
+                          </Typography>
+                        </Box>
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Chip
+                            label={formData.isPreorderEnabled ? 'Enabled' : 'Disabled'}
+                            color={formData.isPreorderEnabled ? 'primary' : 'default'}
+                            size="small"
+                          />
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={formData.isPreorderEnabled}
+                                onChange={(e) =>
+                                  setFormData({ ...formData, isPreorderEnabled: e.target.checked })
+                                }
+                                color="primary"
                               />
                             }
                             label=""
@@ -2528,6 +2571,7 @@ export function ProductManagementPage() {
                                   images2DFiles: [],
                                   images3DFiles: [],
                                   isActive: true,
+                                  isPreorderEnabled: false,
                                 })
                               }}
                             >

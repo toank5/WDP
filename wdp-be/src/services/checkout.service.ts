@@ -50,10 +50,9 @@ interface AggregatedCartItem {
       color: string;
       price: number;
       isActive: boolean;
-      isPreorderEnabled: boolean;
-      preorderLimit?: number;
     }>;
     isActive: boolean;
+    isPreorderEnabled: boolean;
   };
 }
 
@@ -214,26 +213,17 @@ export class CheckoutService {
       }
 
       // Resolve order by txnRef first (most reliable), then fallback to orderInfo parsing.
-      const txnRef = String(params['vnp_TxnRef'] || '').trim();
-      let order = txnRef
-        ? await this.orderModel.findOne({ orderNumber: txnRef })
-        : null;
-
-      if (!order) {
-        const orderInfo = this.extractOrderInfo(params['vnp_OrderInfo']);
-        if (orderInfo) {
-          order = await this.orderModel.findOne({
-            orderNumber: orderInfo.orderNumber,
-          });
-        }
-      }
+      const order = await this.resolveOrderFromVnpParams(params);
 
       if (!order) {
         return { RspCode: '01', Message: 'Order not found' };
       }
 
       // IDEMPOTENCY: Check if order is already paid
-      if (order.orderStatus === ORDER_STATUS.CONFIRMED) {
+      if (
+        order.orderStatus === ORDER_STATUS.PAID ||
+        order.orderStatus === ORDER_STATUS.CONFIRMED
+      ) {
         this.logger.log(
           `Order ${order.orderNumber} already processed, skipping`,
         );
@@ -242,11 +232,12 @@ export class CheckoutService {
 
       // Process successful payment
       if (verification.responseCode === '00') {
-        await this.processSuccessfulPayment(
-          order._id.toString(),
-          verification,
-          params,
-        );
+        const orderId = order._id?.toString();
+        if (!orderId) {
+          return { RspCode: '99', Message: 'Order ID is invalid' };
+        }
+
+        await this.processSuccessfulPayment(orderId, verification, params);
 
         this.logger.log(
           `Payment processed successfully for order ${order.orderNumber}`,
@@ -263,10 +254,10 @@ export class CheckoutService {
       await this.orderModel.updateOne(
         { _id: order._id },
         {
-          orderStatus: ORDER_STATUS.PENDING,
+          orderStatus: ORDER_STATUS.PENDING_PAYMENT,
           $push: {
             history: {
-              status: ORDER_STATUS.PENDING,
+              status: ORDER_STATUS.PENDING_PAYMENT,
               timestamp: new Date(),
               note: `Payment failed: ${verification.message}`,
             },
@@ -291,13 +282,38 @@ export class CheckoutService {
     message: string;
   }> {
     const verification = await this.vnpayService.verifyCallback(params as any);
+    const order = await this.resolveOrderFromVnpParams(params);
 
-    const orderInfo = this.extractOrderInfo(params['vnp_OrderInfo']);
+    if (!order) {
+      return {
+        success: false,
+        message: 'Order not found',
+      };
+    }
+
+    // Fallback flow: if IPN did not arrive, return handler finalizes payment once.
+    if (
+      verification.success &&
+      verification.responseCode === '00' &&
+      order.orderStatus === ORDER_STATUS.PENDING_PAYMENT
+    ) {
+      const orderId = order._id?.toString();
+      if (!orderId) {
+        return {
+          success: false,
+          message: 'Order ID is invalid',
+        };
+      }
+
+      await this.processSuccessfulPayment(orderId, verification, params);
+    }
+
+    const orderId = order._id?.toString();
 
     return {
       success: verification.success,
-      orderId: orderInfo?.orderId,
-      orderNumber: orderInfo?.orderNumber,
+      orderId,
+      orderNumber: order.orderNumber,
       message: verification.message,
     };
   }
@@ -324,7 +340,7 @@ export class CheckoutService {
     const paidAt = this.parseVnpPayDate(String(params['vnp_PayDate'] || ''));
 
     // Update order status
-    order.orderStatus = ORDER_STATUS.CONFIRMED;
+    order.orderStatus = ORDER_STATUS.PAID;
     order.payment = {
       method: 'VNPAY',
       amount: order.totalAmount,
@@ -344,10 +360,13 @@ export class CheckoutService {
         // Pre-order: Update preorder status to PENDING_STOCK
         item.preorderStatus = PREORDER_STATUS.PENDING_STOCK;
       } else {
-        // Ready-made: Decrease inventory by confirming the reserved stock
+        // Ready-made: Reserve stock only after payment success
         if (item.variantSku) {
-          // Use confirmStock to decrease the actual inventory
-          await this.inventoryService.confirmStock(orderId, item.variantSku);
+          await this.inventoryService.reserveStock(
+            item.variantSku,
+            orderId,
+            item.quantity,
+          );
         }
       }
     }
@@ -356,7 +375,7 @@ export class CheckoutService {
 
     // Add to order history
     order.history.push({
-      status: ORDER_STATUS.CONFIRMED,
+      status: ORDER_STATUS.PAID,
       timestamp: new Date(),
       note: `Payment received via VNPAY. Transaction ID: ${transactionId}`,
     });
@@ -491,32 +510,26 @@ export class CheckoutService {
       }
 
       price = variant.price;
-      isPreorder = variant.isPreorderEnabled || false;
+      const inventory = await this.inventoryService.findBySku(item.variantSku);
 
-      // Check inventory for non-preorder items
-      if (!isPreorder) {
-        const inventory = await this.inventoryService.findBySku(
-          item.variantSku,
+      if (!inventory) {
+        throw new BadRequestException(
+          'Inventory information not found for this variant',
         );
+      }
 
-        if (!inventory) {
-          throw new BadRequestException(
-            'Inventory information not found for this variant',
-          );
-        }
+      // Pre-order is only allowed when there is no sellable stock.
+      const availableStock = inventory.availableQuantity;
+      const preorderEnabled = product.isPreorderEnabled || false;
+      const canFulfillFromStock = item.quantity <= availableStock;
+      const canProceedAsPreorder =
+        item.quantity > availableStock && preorderEnabled;
+      isPreorder = canProceedAsPreorder;
 
-        if (inventory.availableQuantity < item.quantity) {
-          throw new BadRequestException(
-            `Insufficient stock for ${product.name} (${variant.size}/${variant.color}). Only ${inventory.availableQuantity} available.`,
-          );
-        }
-      } else {
-        // For pre-order items, check if quantity exceeds preorder limit
-        if (variant.preorderLimit && item.quantity > variant.preorderLimit) {
-          throw new BadRequestException(
-            `Pre-order limit exceeded for ${product.name}. Maximum ${variant.preorderLimit} per order.`,
-          );
-        }
+      if (!canFulfillFromStock && !canProceedAsPreorder) {
+        throw new BadRequestException(
+          `Insufficient stock for ${product.name} (${variant.size}/${variant.color}). Only ${availableStock} available.`,
+        );
       }
     } else {
       // Product without variant - check base inventory
@@ -597,30 +610,6 @@ export class CheckoutService {
       reservedQuantity: 0,
     }));
 
-    // Reserve stock for ready-made items
-    for (const item of orderItems) {
-      if (!item.isPreorder && item.variantSku) {
-        try {
-          // Reserve the stock immediately for ready-made items
-          const inventory = await this.inventoryService.findBySku(
-            item.variantSku,
-          );
-          if (inventory && inventory.availableQuantity >= item.quantity) {
-            await this.inventoryService.reserveStock(
-              item.variantSku,
-              'TEMP_CHECKOUT', // Will be replaced with actual order ID after creation
-              item.quantity,
-            );
-          }
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          this.logger.warn(
-            `Failed to reserve stock for ${item.variantSku}: ${errorMsg}`,
-          );
-        }
-      }
-    }
-
     // Create order
     const order = await this.orderModel.create({
       orderNumber,
@@ -642,28 +631,6 @@ export class CheckoutService {
         },
       ],
     });
-
-    // Update the reserved stock with the actual order ID
-    for (const item of orderItems) {
-      if (!item.isPreorder && item.variantSku) {
-        try {
-          await this.inventoryService.confirmStock(
-            'TEMP_CHECKOUT',
-            item.variantSku,
-          );
-          await this.inventoryService.reserveStock(
-            item.variantSku,
-            order._id.toString(),
-            item.quantity,
-          );
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          this.logger.warn(
-            `Failed to update stock reservation for ${item.variantSku}: ${errorMsg}`,
-          );
-        }
-      }
-    }
 
     return {
       orderId: order._id.toString(),
@@ -696,6 +663,25 @@ export class CheckoutService {
 
     const orderNumber = match[1];
     return { orderNumber, orderId: '' }; // orderId can be fetched from DB
+  }
+
+  private async resolveOrderFromVnpParams(
+    params: Record<string, any>,
+  ): Promise<Order | null> {
+    const txnRef = String(params['vnp_TxnRef'] || '').trim();
+    if (txnRef) {
+      const byTxnRef = await this.orderModel.findOne({ orderNumber: txnRef });
+      if (byTxnRef) {
+        return byTxnRef;
+      }
+    }
+
+    const orderInfo = this.extractOrderInfo(params['vnp_OrderInfo']);
+    if (orderInfo?.orderNumber) {
+      return this.orderModel.findOne({ orderNumber: orderInfo.orderNumber });
+    }
+
+    return null;
   }
 
   private parseVnpPayDate(vnpPayDate?: string): Date {

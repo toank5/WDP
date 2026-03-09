@@ -43,6 +43,16 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       label: 'Pending',
       icon: <FiFileText className="w-4 h-4" />,
     },
+    PENDING_PAYMENT: {
+      color: 'bg-orange-100 text-orange-700 border-orange-200',
+      label: 'Pending Payment',
+      icon: <FiFileText className="w-4 h-4" />,
+    },
+    PAID: {
+      color: 'bg-teal-100 text-teal-700 border-teal-200',
+      label: 'Paid',
+      icon: <FiCheckCircle className="w-4 h-4" />,
+    },
     PROCESSING: {
       color: 'bg-blue-100 text-blue-700 border-blue-200',
       label: 'Processing',
@@ -64,7 +74,12 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       icon: <FiCheckCircle className="w-4 h-4" />,
     },
     RETURNED: {
-      color: 'bg-red-100 text-red-700 border-red-200',
+      color: 'bg-rose-100 text-rose-700 border-rose-200',
+      label: 'Returned',
+      icon: <FiXCircle className="w-4 h-4" />,
+    },
+    CANCELLED: {
+      color: 'bg-gray-100 text-gray-700 border-gray-200',
       label: 'Cancelled',
       icon: <FiXCircle className="w-4 h-4" />,
     },
@@ -114,6 +129,8 @@ const OrderDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -159,8 +176,33 @@ const OrderDetailPage: React.FC = () => {
     }
   }
 
+  const handleConfirmReceipt = async () => {
+    if (!order) return
+
+    if (!confirm('Mark this order as delivered? This will finalize the inventory.')) {
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const updatedOrder = await orderApi.confirmReceipt(order._id)
+      setOrder(updatedOrder)
+      setToastMessage({ text: 'Order marked as delivered successfully', type: 'success' })
+      setTimeout(() => setToastMessage(null), 3000)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to confirm receipt'
+      setToastMessage({ text: message, type: 'error' })
+      setTimeout(() => setToastMessage(null), 5000)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
   // Check if order can be cancelled
   const canCancelOrder = order && [OrderStatus.PENDING, OrderStatus.PROCESSING].includes(order.orderStatus as OrderStatus)
+
+  // Check if order can have receipt confirmed
+  const canConfirmReceipt = order && order.orderStatus === OrderStatus.SHIPPED
 
   if (loading) {
     return (
@@ -193,6 +235,19 @@ const OrderDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold shadow-lg z-50 ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}
+        >
+          {toastMessage.text}
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="bg-slate-100 border-b border-slate-300">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -417,6 +472,16 @@ const OrderDetailPage: React.FC = () => {
 
             {/* Actions */}
             <div className="space-y-3">
+              {canConfirmReceipt && (
+                <button
+                  onClick={handleConfirmReceipt}
+                  disabled={confirming}
+                  className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <FiCheckCircle size={16} />
+                  {confirming ? 'Confirming...' : 'Confirm Received'}
+                </button>
+              )}
               <Link
                 to="/orders"
                 className="w-full px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"

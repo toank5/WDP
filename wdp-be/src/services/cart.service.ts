@@ -228,9 +228,16 @@ export class CartService {
         throw new BadRequestException('Inventory not found for this variant');
       }
 
-      if (inventory.availableQuantity < addItemDto.quantity) {
+      const availableStock =
+        inventory.stockQuantity - inventory.reservedQuantity;
+      const canFulfillFromStock = addItemDto.quantity <= availableStock;
+      const canProceedAsPreorder =
+        addItemDto.quantity > availableStock &&
+        (product.isPreorderEnabled || false);
+
+      if (!canFulfillFromStock && !canProceedAsPreorder) {
         throw new BadRequestException(
-          `Insufficient stock. Only ${inventory.availableQuantity} available.`,
+          `Insufficient stock. Only ${availableStock} available.`,
         );
       }
     }
@@ -293,9 +300,27 @@ export class CartService {
       const inventory = await this.inventoryService.findBySku(
         cartItem.variantSku,
       );
-      if (inventory && inventory.availableQuantity < updateDto.quantity) {
+
+      const product = await this.productModel
+        .findOne({ 'variants.sku': cartItem.variantSku })
+        .exec();
+      const preorderEnabled = product?.isPreorderEnabled || false;
+
+      if (inventory) {
+        const availableStock =
+          inventory.stockQuantity - inventory.reservedQuantity;
+        const canFulfillFromStock = updateDto.quantity <= availableStock;
+        const canProceedAsPreorder =
+          updateDto.quantity > availableStock && preorderEnabled;
+
+        if (!canFulfillFromStock && !canProceedAsPreorder) {
+          throw new BadRequestException(
+            `Insufficient stock. Only ${availableStock} available.`,
+          );
+        }
+      } else if (!preorderEnabled) {
         throw new BadRequestException(
-          `Insufficient stock. Only ${inventory.availableQuantity} available.`,
+          'Insufficient stock. Only 0 available.',
         );
       }
     }
@@ -442,7 +467,15 @@ export class CartService {
         const inventory = await this.inventoryService.findBySku(
           item.variantSku,
         );
-        if (!inventory || inventory.availableQuantity < item.quantity) {
+
+        const availableStock = inventory
+          ? inventory.stockQuantity - inventory.reservedQuantity
+          : 0;
+        const canFulfillFromStock = item.quantity <= availableStock;
+        const canProceedAsPreorder =
+          item.quantity > availableStock && (product.isPreorderEnabled || false);
+
+        if (!canFulfillFromStock && !canProceedAsPreorder) {
           invalidItems.push({
             itemId: String(item._id),
             reason: 'Insufficient stock',

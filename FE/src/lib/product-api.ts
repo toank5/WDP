@@ -340,3 +340,38 @@ export async function getProductsCatalog(
 export async function getProductById(id: string): Promise<Product> {
   return handleRequest<Product>(api.get(`/products/${id}`))
 }
+
+/**
+ * Check inventory availability for a variant SKU
+ */
+export async function checkInventoryAvailability(sku: string): Promise<{
+  sku: string
+  stockQuantity: number
+  reservedQuantity: number
+  availableQuantity: number
+  isInStock: boolean
+} | null> {
+  try {
+    return await handleRequest(api.get(`/inventory/${sku}`))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Batch check inventory availability for multiple SKUs
+ */
+export async function checkMultipleInventoryAvailability(skus: string[]): Promise<
+  Record<string, {
+    sku: string
+    availableQuantity: number
+    isInStock: boolean
+  }>
+> {
+  try {
+    const response = await api.post('/inventory/check-availability', { skus })
+    return handleRequest(response)
+  } catch {
+    return {}
+  }
+}

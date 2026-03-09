@@ -58,32 +58,6 @@ export class ProductVariant {
 
   @Prop({ type: Date, default: Date.now })
   createdAt?: Date;
-
-  // Pre-order configuration
-  @Prop({
-    type: Boolean,
-    default: false,
-  })
-  isPreorderEnabled: boolean;
-
-  @Prop({
-    type: Date,
-    default: null,
-  })
-  preorderExpectedShipStart?: Date;
-
-  @Prop({
-    type: Date,
-    default: null,
-  })
-  preorderExpectedShipEnd?: Date;
-
-  @Prop({
-    type: Number,
-    min: 0,
-    default: null,
-  })
-  preorderLimit?: number; // Max quantity allowed for pre-order
 }
 
 export const ProductVariantSchema =

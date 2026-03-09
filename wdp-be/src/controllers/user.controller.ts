@@ -45,7 +45,7 @@ export class UserController {
         message: 'User created successfully',
         data: {
           _id: 'user-id',
-          name: 'John Doe',
+          fullName: 'John Doe',
           email: 'john@example.com',
           role: 'customer',
           createdAt: '2024-01-01T00:00:00.000Z',
@@ -77,7 +77,7 @@ export class UserController {
         data: [
           {
             _id: 'user-id',
-            name: 'John Doe',
+            fullName: 'John Doe',
             email: 'john@example.com',
             role: 'customer',
           },
@@ -102,7 +102,7 @@ export class UserController {
         message: 'User retrieved successfully',
         data: {
           _id: 'user-id',
-          name: 'John Doe',
+          fullName: 'John Doe',
           email: 'john@example.com',
           role: 'customer',
           addresses: [],
@@ -131,7 +131,7 @@ export class UserController {
         message: 'User updated successfully',
         data: {
           _id: 'user-id',
-          name: 'John Smith',
+          fullName: 'John Smith',
           email: 'john.smith@example.com',
         },
       },

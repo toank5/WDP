@@ -23,6 +23,7 @@ import { MediaService } from './commons/services/media.service';
 import { MediaController } from './controllers/media.controller';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
+import { PublicInventoryController } from './controllers/public-inventory.controller';
 import { InventoryService } from './services/inventory.service';
 import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
 import {
@@ -139,6 +140,7 @@ import { PreorderModule } from './preorder.module';
     PolicyController,
     ProductController,
     InventoryController,
+    PublicInventoryController,
     SupplierController,
     PublicSupplierController,
     MediaController,
