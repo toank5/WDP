@@ -20,12 +20,20 @@ import {
   CheckoutResponseDto,
   UpdateOrderStatusDto,
   ApproveOrderDto,
+  ApprovePrescriptionDto,
+  RequestPrescriptionUpdateDto,
+  UpdateManufacturingStatusDto,
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
   SHIPPING_METHODS,
 } from '../dtos/order.dto';
-import { ORDER_STATUS, ORDER_TYPES } from '../commons/enums/order.enum';
+import {
+  VerifyOrderPrescriptionDto,
+  OrderPrescriptionVerificationResponseDto,
+  OrdersAwaitingVerificationResponse,
+} from '../dtos/prescription.dto';
+import { ORDER_STATUS, ORDER_TYPES, PRESCRIPTION_STATUS } from '../commons/enums/order.enum';
 import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
 import { Request } from 'express';
 import {
@@ -560,6 +568,196 @@ export class OrderService {
   }
 
   /**
+   * Sales: Approve prescription and send to lab (Operations)
+   */
+  async approvePrescription(
+    orderId: string,
+    dto: ApprovePrescriptionDto,
+    approvedBy?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.orderType !== ORDER_TYPES.PRESCRIPTION) {
+      throw new BadRequestException('This is not a prescription order');
+    }
+
+    // Find the item
+    const item = order.items.find(
+      (item) => String(item.productId) === dto.itemId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('Order item not found');
+    }
+
+    if (!item.isPrescription) {
+      throw new BadRequestException('This item is not a prescription item');
+    }
+
+    if (item.prescriptionStatus === PRESCRIPTION_STATUS.APPROVED) {
+      throw new BadRequestException('Prescription already approved');
+    }
+
+    // Update item prescription status
+    item.prescriptionStatus = PRESCRIPTION_STATUS.APPROVED;
+
+    // Check if all prescription items are approved
+    const allApproved = order.items
+      .filter((item) => item.isPrescription)
+      .every(
+        (item) => item.prescriptionStatus === PRESCRIPTION_STATUS.APPROVED,
+      );
+
+    // If all approved, move order to PROCESSING
+    if (allApproved) {
+      order.orderStatus = ORDER_STATUS.PROCESSING;
+      order.history.push({
+        status: ORDER_STATUS.PROCESSING,
+        changedBy: approvedBy ? new Types.ObjectId(approvedBy) : undefined,
+        timestamp: new Date(),
+        note:
+          dto.note ||
+          'All prescriptions approved. Sent to Operations for manufacturing.',
+      });
+    } else {
+      order.history.push({
+        status: order.orderStatus,
+        changedBy: approvedBy ? new Types.ObjectId(approvedBy) : undefined,
+        timestamp: new Date(),
+        note: `Prescription approved for item ${dto.itemId}`,
+      });
+    }
+
+    await order.save();
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
+   * Sales: Request prescription update from customer
+   */
+  async requestPrescriptionUpdate(
+    orderId: string,
+    dto: RequestPrescriptionUpdateDto,
+    requestedBy?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.orderType !== ORDER_TYPES.PRESCRIPTION) {
+      throw new BadRequestException('This is not a prescription order');
+    }
+
+    // Find the item
+    const item = order.items.find(
+      (item) => String(item.productId) === dto.itemId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('Order item not found');
+    }
+
+    if (!item.isPrescription) {
+      throw new BadRequestException('This item is not a prescription item');
+    }
+
+    // Update item prescription status
+    item.prescriptionStatus = PRESCRIPTION_STATUS.NEEDS_UPDATE;
+
+    // Set order to ON_HOLD
+    order.orderStatus = ORDER_STATUS.ON_HOLD;
+
+    order.history.push({
+      status: ORDER_STATUS.ON_HOLD,
+      changedBy: requestedBy ? new Types.ObjectId(requestedBy) : undefined,
+      timestamp: new Date(),
+      note: `Prescription update requested: ${dto.message}`,
+    });
+
+    await order.save();
+
+    // TODO: Send notification to customer with dto.message
+    // You can integrate with your notification service here
+
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
+   * Operations: Update manufacturing status
+   */
+  async updateManufacturingStatus(
+    orderId: string,
+    dto: UpdateManufacturingStatusDto,
+    updatedBy?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.orderType !== ORDER_TYPES.PRESCRIPTION) {
+      throw new BadRequestException('This is not a prescription order');
+    }
+
+    if (order.orderStatus !== ORDER_STATUS.PROCESSING) {
+      throw new BadRequestException(
+        'Only orders in PROCESSING status can be updated',
+      );
+    }
+
+    // Find the item
+    const item = order.items.find(
+      (item) => String(item.productId) === dto.itemId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('Order item not found');
+    }
+
+    if (!item.isPrescription) {
+      throw new BadRequestException('This item is not a prescription item');
+    }
+
+    // Update item prescription status
+    item.prescriptionStatus = dto.status as PRESCRIPTION_STATUS;
+
+    order.history.push({
+      status: order.orderStatus,
+      changedBy: updatedBy ? new Types.ObjectId(updatedBy) : undefined,
+      timestamp: new Date(),
+      note:
+        dto.note ||
+        `Manufacturing status updated to ${dto.status} for item ${dto.itemId}`,
+    });
+
+    // Check if all prescription items are READY_TO_SHIP
+    const prescriptionItems = order.items.filter((item) => item.isPrescription);
+    const allReady = prescriptionItems.every(
+      (item) => item.prescriptionStatus === PRESCRIPTION_STATUS.READY_TO_SHIP,
+    );
+
+    if (allReady && dto.status === 'READY_TO_SHIP') {
+      // Mark order as ready for shipping - Ops can now ship it
+      order.history.push({
+        status: order.orderStatus,
+        changedBy: updatedBy ? new Types.ObjectId(updatedBy) : undefined,
+        timestamp: new Date(),
+        note: 'All prescription items manufactured. Order ready to ship.',
+      });
+    }
+
+    await order.save();
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
    * Get order by ID
    */
   async getOrderById(
@@ -628,6 +826,19 @@ export class OrderService {
           preorderStatus: item.preorderStatus,
           expectedShipDate: item.expectedShipDate,
           reservedQuantity: item.reservedQuantity,
+          // Prescription fields
+          isPrescription: item.isPrescription,
+          prescriptionStatus: item.prescriptionStatus,
+          prescriptionData: item.prescriptionData
+            ? {
+                pd: item.prescriptionData.pd,
+                sph: item.prescriptionData.sph,
+                cyl: item.prescriptionData.cyl,
+                axis: item.prescriptionData.axis,
+                add: item.prescriptionData.add,
+              }
+            : undefined,
+          prescriptionUrl: item.prescriptionUrl,
         };
       }),
     );
@@ -747,7 +958,16 @@ export class OrderService {
         ORDER_STATUS.CANCELLED,
       ],
       // PAID must go through Sales approval first.
-      [ORDER_STATUS.PAID]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
+      [ORDER_STATUS.PAID]: [
+        ORDER_STATUS.PROCESSING,
+        ORDER_STATUS.ON_HOLD,
+        ORDER_STATUS.CANCELLED,
+      ],
+      [ORDER_STATUS.ON_HOLD]: [
+        ORDER_STATUS.PAID,
+        ORDER_STATUS.PROCESSING,
+        ORDER_STATUS.CANCELLED,
+      ],
       [ORDER_STATUS.PROCESSING]: [
         ORDER_STATUS.SHIPPED,
         ORDER_STATUS.CANCELLED,
@@ -890,5 +1110,249 @@ export class OrderService {
   async getOrderCountByStatus(status?: ORDER_STATUS): Promise<number> {
     const filter = status ? { orderStatus: status } : {};
     return this.orderModel.countDocuments(filter);
+  }
+
+  /**
+   * Get orders awaiting prescription verification
+   * Returns PAID prescription orders with PENDING verification items
+   */
+  async getOrdersAwaitingVerification(
+    query: OrderListQueryDto,
+  ): Promise<OrdersAwaitingVerificationResponse> {
+    const { search, page = '1', limit = '20' } = query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Find prescription orders in PAID status with items needing verification
+    // Items needing verification are those with prescriptionStatus = PENDING_REVIEW or null (not set)
+    const baseQuery = {
+      orderType: ORDER_TYPES.PRESCRIPTION,
+      orderStatus: ORDER_STATUS.PAID,
+      'items.isPrescription': true,
+      $or: [
+        { 'items.prescriptionStatus': PRESCRIPTION_STATUS.PENDING_REVIEW },
+        { 'items.prescriptionStatus': null },
+        { 'items.prescriptionStatus': { $exists: false } },
+      ],
+    };
+
+    let orderQuery = this.orderModel.find(baseQuery);
+
+    if (search) {
+      orderQuery = orderQuery.or([
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+      ]);
+    }
+
+    const total = await this.orderModel.find(baseQuery).countDocuments();
+
+    const orders = await orderQuery
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .exec();
+
+    // Enrich with product details and format response
+    const verificationOrders: OrderPrescriptionVerificationResponseDto[] = [];
+
+    for (const order of orders) {
+      // Get customer info from order
+      const customerName = order.shippingAddress?.fullName || 'Unknown';
+
+      // Find items with pending prescription verification
+      const pendingItems = order.items.filter(
+        (item) =>
+          item.isPrescription &&
+          (!item.prescriptionStatus ||
+            item.prescriptionStatus === PRESCRIPTION_STATUS.PENDING_REVIEW),
+      );
+
+      for (const item of pendingItems) {
+        const product = await this.productModel.findById(item.productId);
+
+        verificationOrders.push({
+          orderId: String(order._id),
+          orderNumber: order.orderNumber,
+          customerName,
+          customerEmail: '', // Email not available in shipping address
+          orderItemId: String(item.productId),
+          productName: product?.name || 'Unknown Product',
+          productImage: product?.images2D?.[0],
+          prescriptionUrl: item.prescriptionUrl,
+          prescriptionData: item.prescriptionData
+            ? {
+                pd: item.prescriptionData.pd,
+                sph: item.prescriptionData.sph,
+                cyl: item.prescriptionData.cyl,
+                axis: item.prescriptionData.axis,
+                add: item.prescriptionData.add,
+              }
+            : undefined,
+          prescriptionStatus: item.prescriptionStatus || PRESCRIPTION_STATUS.PENDING_REVIEW,
+          orderStatus: order.orderStatus,
+        });
+      }
+    }
+
+    return {
+      orders: verificationOrders,
+      total,
+    };
+  }
+
+  /**
+   * Verify order prescription with editable data
+   * Sales staff can approve with corrections or approve as-is
+   */
+  async verifyOrderPrescription(
+    orderId: string,
+    orderItemId: string,
+    dto: VerifyOrderPrescriptionDto,
+    verifiedBy?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.orderType !== ORDER_TYPES.PRESCRIPTION) {
+      throw new BadRequestException('This is not a prescription order');
+    }
+
+    if (order.orderStatus !== ORDER_STATUS.PAID) {
+      throw new BadRequestException(
+        `Order must be in PAID status to verify prescription. Current: ${order.orderStatus}`,
+      );
+    }
+
+    // Find the item by productId (as stored in orderItemId in our DTO)
+    const item = order.items.find(
+      (item) => String(item.productId) === orderItemId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('Order item not found');
+    }
+
+    if (!item.isPrescription) {
+      throw new BadRequestException('This item is not a prescription item');
+    }
+
+    if (item.prescriptionStatus !== PRESCRIPTION_STATUS.PENDING_REVIEW) {
+      throw new BadRequestException(
+        `Prescription already processed. Status: ${item.prescriptionStatus}`,
+      );
+    }
+
+    // Track if any changes were made
+    let hasChanges = false;
+
+    // Update prescription data if provided
+    if (dto.rightEye || dto.leftEye || dto.pd || dto.prescriptionUrl) {
+      if (!item.prescriptionData) {
+        item.prescriptionData = {
+          pd: 0,
+          sph: { right: 0, left: 0 },
+          cyl: { right: 0, left: 0 },
+          axis: { right: 0, left: 0 },
+          add: { right: 0, left: 0 },
+        };
+      }
+
+      // Update right eye data
+      if (dto.rightEye) {
+        if (dto.rightEye.sph !== undefined) {
+          item.prescriptionData.sph.right = dto.rightEye.sph;
+          hasChanges = true;
+        }
+        if (dto.rightEye.cyl !== undefined) {
+          item.prescriptionData.cyl.right = dto.rightEye.cyl;
+          hasChanges = true;
+        }
+        if (dto.rightEye.axis !== undefined) {
+          item.prescriptionData.axis.right = dto.rightEye.axis;
+          hasChanges = true;
+        }
+        if (dto.rightEye.add !== undefined) {
+          item.prescriptionData.add.right = dto.rightEye.add;
+          hasChanges = true;
+        }
+      }
+
+      // Update left eye data
+      if (dto.leftEye) {
+        if (dto.leftEye.sph !== undefined) {
+          item.prescriptionData.sph.left = dto.leftEye.sph;
+          hasChanges = true;
+        }
+        if (dto.leftEye.cyl !== undefined) {
+          item.prescriptionData.cyl.left = dto.leftEye.cyl;
+          hasChanges = true;
+        }
+        if (dto.leftEye.axis !== undefined) {
+          item.prescriptionData.axis.left = dto.leftEye.axis;
+          hasChanges = true;
+        }
+        if (dto.leftEye.add !== undefined) {
+          item.prescriptionData.add.left = dto.leftEye.add;
+          hasChanges = true;
+        }
+      }
+
+      // Update PD data
+      if (dto.pd) {
+        if (dto.pd.total !== undefined) {
+          item.prescriptionData.pd = dto.pd.total;
+          hasChanges = true;
+        }
+      }
+
+      // Update prescription URL
+      if (dto.prescriptionUrl !== undefined) {
+        item.prescriptionUrl = dto.prescriptionUrl;
+        hasChanges = true;
+      }
+    }
+
+    // Mark as approved
+    item.prescriptionStatus = PRESCRIPTION_STATUS.APPROVED;
+
+    // Log the verification action
+    const action = hasChanges ? 'EDIT' : 'APPROVE';
+    order.history.push({
+      status: order.orderStatus,
+      changedBy: verifiedBy ? new Types.ObjectId(verifiedBy) : undefined,
+      timestamp: new Date(),
+      note: hasChanges
+        ? `Prescription verified with corrections for item ${orderItemId}`
+        : `Prescription approved for item ${orderItemId}`,
+    });
+
+    // Check if all prescription items are approved
+    const allApproved = order.items
+      .filter((item) => item.isPrescription)
+      .every((item) => item.prescriptionStatus === PRESCRIPTION_STATUS.APPROVED);
+
+    // If all approved, move order to PROCESSING
+    if (allApproved) {
+      order.orderStatus = ORDER_STATUS.PROCESSING;
+      order.history.push({
+        status: ORDER_STATUS.PROCESSING,
+        changedBy: verifiedBy ? new Types.ObjectId(verifiedBy) : undefined,
+        timestamp: new Date(),
+        note: 'All prescriptions approved. Sent to Operations for manufacturing.',
+      });
+    }
+
+    await order.save();
+
+    // TODO: Create audit log entry if changes were made
+    // This would require injecting PrescriptionAuditLog model
+
+    return this.getOrderWithDetails(orderId);
   }
 }

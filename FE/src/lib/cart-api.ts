@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/auth-store'
 
 /**
  * Cart item type from backend
+ * Note: price may be returned as number or as an object with price property
+ * Use normalizeCartItemPrice() to safely get the numeric value
  */
 export interface CartItem {
   _id: string
@@ -15,7 +17,7 @@ export interface CartItem {
   variantSku?: string
   productName?: string
   productImage?: string
-  price?: number | { price: number }  // Can be a number or object with price property
+  price?: number | { price: number }  // Backend may return as object or number
   quantity: number
   variantDetails?: {
     size?: string
@@ -24,6 +26,19 @@ export interface CartItem {
     isPrescription?: boolean
   }
   addedAt: string
+}
+
+/**
+ * Safely normalize cart item price to a number
+ * Handles both number and { price: number } formats
+ */
+export function normalizeCartItemPrice(item: CartItem): number {
+  if (typeof item.price === 'number') return item.price
+  if (typeof item.price === 'object' && item.price !== null && 'price' in item.price) {
+    const priceValue = item.price.price
+    return typeof priceValue === 'number' ? priceValue : 0
+  }
+  return 0
 }
 
 /**

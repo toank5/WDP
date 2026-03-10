@@ -14,7 +14,7 @@ import {
   FiClock,
   FiEye,
 } from 'react-icons/fi'
-import { cartApi, CartResponse, CartItem } from '@/lib/cart-api'
+import { cartApi, CartResponse, CartItem, normalizeCartItemPrice } from '@/lib/cart-api'
 import { useCartStore } from '@/store/cart.store'
 import { orderApi, CheckoutRequest, OrderType, PaymentMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
@@ -242,7 +242,7 @@ const CheckoutPage: React.FC = () => {
           productId: item.productId,
           variantSku: item.variantSku,
           quantity: item.quantity,
-          priceAtOrder: item.price || 0,
+          priceAtOrder: normalizeCartItemPrice(item),
         })),
         shippingAddress,
         shippingMethod: 'STANDARD', // Default shipping method
@@ -603,8 +603,8 @@ const CheckoutPage: React.FC = () => {
                   </div>
                   <div className="divide-y divide-slate-200">
                     {cart.items.map((item) => {
-                      // Get the actual price value
-                      const itemPrice = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                      // Get the actual price value using type-safe normalization
+                      const itemPrice = normalizeCartItemPrice(item)
                       const lineTotal = itemPrice * item.quantity
                       const isPreorder = item.variantDetails?.isPreorder || false
                       const isPrescription = item.variantDetails?.isPrescription || false

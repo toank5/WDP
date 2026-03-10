@@ -67,6 +67,10 @@ import {
   ProductVariantSchema,
 } from './commons/schemas/product-variant.schema';
 import { PreorderModule } from './preorder.module';
+import { PrescriptionModule } from './prescription.module';
+import { ReviewController } from './controllers/review.controller';
+import { ReviewService } from './services/review.service';
+import { Review, ReviewSchema } from './commons/schemas/review.schema';
 
 @Module({
   imports: [
@@ -130,8 +134,10 @@ import { PreorderModule } from './preorder.module';
       { name: OrderPayment.name, schema: OrderPaymentSchema },
       { name: OrderTracking.name, schema: OrderTrackingSchema },
       { name: OrderHistory.name, schema: OrderHistorySchema },
+      { name: Review.name, schema: ReviewSchema },
     ]),
     PreorderModule,
+    PrescriptionModule,
   ],
   controllers: [
     AppController,
@@ -147,6 +153,7 @@ import { PreorderModule } from './preorder.module';
     CartController,
     OrderController,
     CheckoutController,
+    ReviewController,
   ],
   providers: [
     AppService,
@@ -165,6 +172,7 @@ import { PreorderModule } from './preorder.module';
     OrderService,
     CheckoutService,
     VNPayService,
+    ReviewService,
   ],
 })
 export class AppModule {}

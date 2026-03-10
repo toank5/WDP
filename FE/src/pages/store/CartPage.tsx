@@ -13,6 +13,7 @@ import {
 import { formatImageUrl } from '@/lib/product-api'
 import { useCart } from '@/store/cart.store'
 import type { CartItem } from '@/lib/cart-api'
+import { normalizeCartItemPrice } from '@/lib/cart-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -239,7 +240,7 @@ const CartPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm font-bold text-slate-700">
-                                {formatPrice(item.price || 0)}
+                                {formatPrice(normalizeCartItemPrice(item))}
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -265,14 +266,7 @@ const CartPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm font-bold text-slate-900">
-                                {formatPrice(
-                                  (() => {
-                                    const price = item.price
-                                    if (typeof price === 'number') return price * item.quantity
-                                    if (price && typeof price === 'object' && 'price' in price) return (price as { price: number }).price * item.quantity
-                                    return 0
-                                  })()
-                                )}
+                                {formatPrice(normalizeCartItemPrice(item) * item.quantity)}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">

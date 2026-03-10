@@ -87,6 +87,7 @@ export class CheckoutItemDto {
     color?: string;
   };
   isPreorder?: boolean;
+  isPrescription?: boolean;
 }
 
 /**
@@ -144,5 +145,6 @@ export interface CheckoutOrderInfo {
     quantity: number;
     priceAtOrder: number;
     isPreorder: boolean;
+    isPrescription: boolean;
   }>;
 }

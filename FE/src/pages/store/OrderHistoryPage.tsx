@@ -8,9 +8,11 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiBox,
+  FiStar,
 } from 'react-icons/fi'
 import { orderApi, Order, OrderStatus } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
+import { ReviewFormModal } from '@/components/review'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -96,6 +98,19 @@ const OrderHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('')
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Review modal state
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean
+    productId: string
+    productName: string
+    productImage?: string
+    orderId: string
+    variantSku?: string
+    orderNumber: string
+  } | null>(null)
+
+  const [reviewableItems, setReviewableItems] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     loadOrders()
   }, [page, statusFilter])
@@ -131,6 +146,57 @@ const OrderHistoryPage: React.FC = () => {
   const handleStatusFilter = (status: OrderStatus | '') => {
     setStatusFilter(status)
     setPage(1)
+  }
+
+  // Check if an item can be reviewed (delivered order, not yet reviewed)
+  const checkCanReview = async (orderId: string, productId: string, variantSku?: string): Promise<boolean> => {
+    try {
+      // Check if this specific item can be reviewed
+      const key = variantSku ? `${orderId}-${productId}-${variantSku}` : `${orderId}-${productId}`
+
+      // If we already checked this item, return cached result
+      if (reviewableItems.has(key)) {
+        return true
+      }
+
+      // Only delivered orders can be reviewed
+      const order = orders.find(o => o._id === orderId)
+      if (!order || order.orderStatus !== OrderStatus.DELIVERED) {
+        return false
+      }
+
+      // For now, we'll allow review if order is delivered
+      // In production, you'd check with the API
+      setReviewableItems(prev => new Set([...prev, key]))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const handleOpenReviewModal = (
+    productId: string,
+    productName: string,
+    productImage: string | undefined,
+    orderId: string,
+    variantSku: string | undefined,
+    orderNumber: string,
+  ) => {
+    setReviewModal({
+      open: true,
+      productId,
+      productName,
+      productImage,
+      orderId,
+      variantSku,
+      orderNumber,
+    })
+  }
+
+  const handleCloseReviewModal = () => {
+    setReviewModal(null)
+    // Refresh orders to update reviewable status
+    loadOrders()
   }
 
   return (
@@ -385,12 +451,33 @@ const OrderHistoryPage: React.FC = () => {
                     <div className="text-sm text-slate-500">
                       {order.payment?.method} • {order.items.length} items
                     </div>
-                    <Link
-                      to={`/orders/${order._id}`}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
-                    >
-                      View Details
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/orders/${order._id}`}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                      >
+                        View Details
+                      </Link>
+                      {/* Write Review Button for Delivered Orders */}
+                      {order.orderStatus === OrderStatus.DELIVERED && (
+                        <button
+                          onClick={() =>
+                            handleOpenReviewModal(
+                              order.items[0]?.productId || '',
+                              order.items[0]?.productName || 'Product',
+                              order.items[0]?.productImage,
+                              order._id,
+                              order.items[0]?.variantSku,
+                              order.orderNumber,
+                            )
+                          }
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                        >
+                          <FiStar className="text-sm" />
+                          Write Review
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -419,6 +506,21 @@ const OrderHistoryPage: React.FC = () => {
               <FiChevronRight />
             </button>
           </div>
+        )}
+
+        {/* Review Form Modal */}
+        {reviewModal && (
+          <ReviewFormModal
+            open={reviewModal.open}
+            onClose={handleCloseReviewModal}
+            productId={reviewModal.productId}
+            productName={reviewModal.productName}
+            productImage={reviewModal.productImage}
+            orderId={reviewModal.orderId}
+            variantSku={reviewModal.variantSku}
+            orderNumber={reviewModal.orderNumber}
+            onReviewSubmitted={handleCloseReviewModal}
+          />
         )}
       </div>
     </div>

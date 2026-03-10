@@ -20,7 +20,7 @@ import {
   CheckoutOrderInfo,
   VNPayIpnResponseDto,
 } from '../dtos/checkout.dto';
-import { VNPayVerificationResultDto } from '../dtos/vnpay.dto';
+import { VNPayVerificationResultDto, VNPayCallbackParamsDto } from '../dtos/vnpay.dto';
 import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
@@ -197,13 +197,12 @@ export class CheckoutService {
    * CRITICAL: Must be idempotent and secure
    */
   async handleVnpayIpn(
-    params: Record<string, any>,
+    params: Record<string, string | number | undefined>,
   ): Promise<VNPayIpnResponseDto> {
     try {
-      // Verify VNPAY signature
-      const verification = await this.vnpayService.verifyCallback(
-        params as any,
-      );
+      // Verify VNPAY signature - convert params to proper format
+      const callbackParams = this.normalizeVnpayParams(params);
+      const verification = await this.vnpayService.verifyCallback(callbackParams);
 
       if (!verification.success) {
         this.logger.warn(
@@ -281,7 +280,23 @@ export class CheckoutService {
     orderNumber?: string;
     message: string;
   }> {
-    const verification = await this.vnpayService.verifyCallback(params as any);
+    // Convert string params to proper format for verification
+    const callbackParams: VNPayCallbackParamsDto = {
+      vnp_Amount: params.vnp_Amount || '',
+      vnp_BankCode: params.vnp_BankCode || '',
+      vnp_BankTranNo: params.vnp_BankTranNo || '',
+      vnp_CardType: params.vnp_CardType || '',
+      vnp_OrderInfo: params.vnp_OrderInfo || '',
+      vnp_PayDate: params.vnp_PayDate || '',
+      vnp_ResponseCode: params.vnp_ResponseCode || '',
+      vnp_TmnCode: params.vnp_TmnCode || '',
+      vnp_TransactionNo: params.vnp_TransactionNo || '',
+      vnp_TxnRef: params.vnp_TxnRef || '',
+      vnp_SecureHash: params.vnp_SecureHash || '',
+      vnp_SecureHashType: params.vnp_SecureHashType,
+    };
+
+    const verification = await this.vnpayService.verifyCallback(callbackParams);
     const order = await this.resolveOrderFromVnpParams(params);
 
     if (!order) {
@@ -327,7 +342,7 @@ export class CheckoutService {
   private async processSuccessfulPayment(
     orderId: string,
     verification: VNPayVerificationResultDto,
-    params: Record<string, any>,
+    params: Record<string, string | number | undefined>,
   ): Promise<void> {
     const order = await this.orderModel.findById(orderId);
     if (!order) {
@@ -335,9 +350,9 @@ export class CheckoutService {
     }
 
     const transactionId =
-      verification.transactionId || String(params['vnp_TransactionNo'] || '');
-    const txnRef = String(params['vnp_TxnRef'] || '');
-    const paidAt = this.parseVnpPayDate(String(params['vnp_PayDate'] || ''));
+      verification.transactionId || this.safeString(params['vnp_TransactionNo']);
+    const txnRef = this.safeString(params['vnp_TxnRef']);
+    const paidAt = this.parseVnpPayDate(this.safeString(params['vnp_PayDate']));
 
     // Update order status
     order.orderStatus = ORDER_STATUS.PAID;
@@ -346,9 +361,9 @@ export class CheckoutService {
       amount: order.totalAmount,
       transactionId,
       paidAt,
-      bankCode: verification.bankCode || String(params['vnp_BankCode'] || ''),
-      bankTransactionNo: String(params['vnp_BankTranNo'] || ''),
-      cardType: String(params['vnp_CardType'] || ''),
+      bankCode: verification.bankCode || this.safeString(params['vnp_BankCode']),
+      bankTransactionNo: this.safeString(params['vnp_BankTranNo']),
+      cardType: this.safeString(params['vnp_CardType']),
       txnRef,
       responseCode: verification.responseCode,
       vnpPayDate: paidAt,
@@ -608,6 +623,7 @@ export class CheckoutService {
         : undefined,
       expectedShipDate: item.isPreorder ? undefined : undefined,
       reservedQuantity: 0,
+      isPrescription: item.isPrescription || false,
     }));
 
     // Create order
@@ -643,6 +659,7 @@ export class CheckoutService {
         quantity: item.quantity,
         priceAtOrder: item.priceAtOrder,
         isPreorder: item.isPreorder,
+        isPrescription: item.isPrescription,
       })),
     };
   }
@@ -698,6 +715,42 @@ export class CheckoutService {
 
     const parsed = new Date(year, month, day, hour, minute, second);
     return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  /**
+   * Normalize VNPAY callback params to proper DTO format
+   * Handles string/number conversion and undefined values
+   */
+  private normalizeVnpayParams(
+    params: Record<string, string | number | undefined>,
+  ): VNPayCallbackParamsDto {
+    const toString = (val: string | number | undefined): string => {
+      if (val === undefined || val === null) return '';
+      return String(val);
+    };
+
+    return {
+      vnp_Amount: toString(params.vnp_Amount),
+      vnp_BankCode: toString(params.vnp_BankCode),
+      vnp_BankTranNo: toString(params.vnp_BankTranNo),
+      vnp_CardType: toString(params.vnp_CardType),
+      vnp_OrderInfo: toString(params.vnp_OrderInfo),
+      vnp_PayDate: toString(params.vnp_PayDate),
+      vnp_ResponseCode: toString(params.vnp_ResponseCode),
+      vnp_TmnCode: toString(params.vnp_TmnCode),
+      vnp_TransactionNo: toString(params.vnp_TransactionNo),
+      vnp_TxnRef: toString(params.vnp_TxnRef),
+      vnp_SecureHash: toString(params.vnp_SecureHash),
+      vnp_SecureHashType: params.vnp_SecureHashType ? toString(params.vnp_SecureHashType) : undefined,
+    };
+  }
+
+  /**
+   * Safely convert a value to string, handling undefined and null
+   */
+  private safeString(value: string | number | undefined | null): string {
+    if (value === undefined || value === null) return '';
+    return String(value);
   }
 
   private getBackendBaseUrl(): string {

@@ -13,11 +13,11 @@ import {
   DialogActions,
   Alert,
   CircularProgress,
-  Grid,
   Fab,
   Switch,
   FormControlLabel,
 } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import {
   Close as CloseIcon,
   ShoppingCart as CartIcon,
@@ -43,7 +43,7 @@ import { SnapshotCard } from './SnapshotCard';
 import { ShareDialog } from './ShareDialog';
 import { SimpleGlassesOverlay } from './Glasses3DOverlay';
 
-import type { ProductVariant3D, FaceTrackingData } from '@/types/virtual-tryon.types';
+import type { ProductVariant3D, FaceTrackingData, FaceShape } from '@/types/virtual-tryon.types';
 
 // Lazy load 3D components for better performance
 const Glasses3DOverlay = lazy(() =>
@@ -140,7 +140,7 @@ export function VirtualTryOnView() {
   const { isTracking, startTracking, stopTracking } = useFaceTracking({
     videoElement: videoRef.current,
     enabled: cameraStatus === 'granted' && !demoMode,
-    onFaceDetected: useCallback((data) => {
+    onFaceDetected: useCallback((data: FaceTrackingData) => {
       setFaceDetectionState(data.state);
       setFaceData(data);
 
@@ -153,7 +153,7 @@ export function VirtualTryOnView() {
       setFaceDetectionState('lost');
       setFaceData(null);
     }, [setFaceDetectionState]),
-    onFaceShapeDetected: useCallback((shape) => {
+    onFaceShapeDetected: useCallback((shape: FaceShape) => {
       setFaceShape(shape);
       tryOnAnalytics.trackFaceShapeDetected(shape, 0.9);
     }, [setFaceShape]),
@@ -169,10 +169,10 @@ export function VirtualTryOnView() {
 
   // Demo variants
   const demoVariants: ProductVariant3D[] = [
-    { id: 'v1', productId: 'p1', name: 'Silver', color: 'Silver', colorCode: '#C0C0C0', price: 189, inStock: true },
-    { id: 'v2', productId: 'p1', name: 'Gold', color: 'Gold', colorCode: '#FFD700', price: 189, inStock: true },
-    { id: 'v3', productId: 'p1', name: 'Rose Gold', color: 'Rose Gold', colorCode: '#B76E79', price: 189, inStock: true },
-    { id: 'v4', productId: 'p1', name: 'Black', color: 'Black', colorCode: '#1a1a1a', price: 189, inStock: true },
+    { id: 'v1', productId: 'p1', name: 'Silver', color: 'Silver', colorCode: '#C0C0C0', price: 189, inStock: true, thumbnail: '/images/silver-glasses.jpg' },
+    { id: 'v2', productId: 'p1', name: 'Gold', color: 'Gold', colorCode: '#FFD700', price: 189, inStock: true, thumbnail: '/images/gold-glasses.jpg' },
+    { id: 'v3', productId: 'p1', name: 'Rose Gold', color: 'Rose Gold', colorCode: '#B76E79', price: 189, inStock: true, thumbnail: '/images/rosegold-glasses.jpg' },
+    { id: 'v4', productId: 'p1', name: 'Black', color: 'Black', colorCode: '#1a1a1a', price: 189, inStock: true, thumbnail: '/images/black-glasses.jpg' },
   ];
 
   // Initialize session with analytics
@@ -279,7 +279,7 @@ export function VirtualTryOnView() {
     try {
       await cartApi.addItem({
         productId: snapshot.productId,
-        variantId: snapshot.variantId,
+        variantSku: snapshot.variantId,
         quantity: 1,
       });
 
@@ -565,7 +565,7 @@ export function VirtualTryOnView() {
             </Typography>
             <Grid container spacing={1} columns={4}>
               {snapshots.slice(0, 4).map((snapshot) => (
-                <Grid item xs={1} key={snapshot.id}>
+                <Grid size={{ xs: 1 }} key={snapshot.id}>
                   <SnapshotCard
                     snapshot={snapshot}
                     variantName={currentVariant.name}
