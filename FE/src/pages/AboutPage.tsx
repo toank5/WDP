@@ -1,5 +1,16 @@
-import { Box, Container, Typography, Stack, Card, CardContent, Button, useTheme, Avatar, Divider } from '@mui/material'
-import Grid from '@mui/material/Grid2'
+import {
+  Box,
+  Container,
+  Typography,
+  Stack,
+  Card,
+  CardContent,
+  Button,
+  useTheme,
+  Avatar,
+  Divider,
+  Grid,
+} from '@mui/material'
 import {
   VisibilityOutlined,
   ShoppingBagOutlined,
@@ -21,17 +32,20 @@ export default function AboutPage() {
     {
       icon: <ViewInAr sx={{ fontSize: 36 }} />,
       title: 'Virtual Try-On',
-      description: 'See how you look before you buy. Our advanced AR technology lets you try frames instantly from your device.',
+      description:
+        'See how you look before you buy. Our advanced AR technology lets you try frames instantly from your device.',
     },
     {
       icon: <ShoppingBagOutlined sx={{ fontSize: 36 }} />,
       title: 'Wide Selection',
-      description: 'Hundreds of frames, unlimited possibilities. From classic to trendy, find your perfect style.',
+      description:
+        'Hundreds of frames, unlimited possibilities. From classic to trendy, find your perfect style.',
     },
     {
       icon: <VerifiedUserOutlined sx={{ fontSize: 36 }} />,
       title: 'Prescription Experts',
-      description: 'Our opticians verify every prescription for accuracy. Your vision is our priority.',
+      description:
+        'Our opticians verify every prescription for accuracy. Your vision is our priority.',
     },
     {
       icon: <MonetizationOnOutlined sx={{ fontSize: 36 }} />,
@@ -49,12 +63,14 @@ export default function AboutPage() {
     {
       icon: '📸',
       title: 'Virtual Try-On',
-      description: 'Upload a selfie or use your camera to see how frames look on your face in real-time.',
+      description:
+        'Upload a selfie or use your camera to see how frames look on your face in real-time.',
     },
     {
       icon: '🔬',
       title: 'Prescription Lens Builder',
-      description: 'Customize your lenses with coatings, materials, and tints tailored to your needs.',
+      description:
+        'Customize your lenses with coatings, materials, and tints tailored to your needs.',
     },
     {
       icon: '🏠',
@@ -64,7 +80,11 @@ export default function AboutPage() {
   ]
 
   const values = [
-    { icon: '✓', title: 'Quality First', description: 'Premium materials and expert craftsmanship' },
+    {
+      icon: '✓',
+      title: 'Quality First',
+      description: 'Premium materials and expert craftsmanship',
+    },
     { icon: '♥', title: 'Customer Focused', description: 'Your satisfaction is our success' },
     { icon: '∞', title: 'Always Improving', description: 'Continuously enhancing our technology' },
   ]
@@ -133,7 +153,9 @@ export default function AboutPage() {
                 >
                   See the World
                   <br />
-                  <Box component="span" sx={{ color: 'primary.light' }}>Differently</Box>
+                  <Box component="span" sx={{ color: 'primary.light' }}>
+                    Differently
+                  </Box>
                 </Typography>
                 <Typography
                   variant="h5"
@@ -143,7 +165,8 @@ export default function AboutPage() {
                     maxWidth: 550,
                   }}
                 >
-                  Redefining how you buy glasses. Convenience, style, and clarity delivered to your door.
+                  Redefining how you buy glasses. Convenience, style, and clarity delivered to your
+                  door.
                 </Typography>
                 <Stack direction="row" spacing={2}>
                   <Button
@@ -209,25 +232,49 @@ export default function AboutPage() {
         <Grid container spacing={6} alignItems="center">
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack spacing={3}>
-              <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}>
+              <Typography
+                variant="overline"
+                sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}
+              >
                 OUR STORY
               </Typography>
               <Typography variant="h3" fontWeight={800}>
                 Why We Started EyeWear
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
-                We've all been there—spending hours traveling to optical stores, waiting in line, only to find limited options and pushy salespeople. The frames you want are out of stock, and the ones available don't quite fit your style.
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}
+              >
+                We've all been there—spending hours traveling to optical stores, waiting in line,
+                only to find limited options and pushy salespeople. The frames you want are out of
+                stock, and the ones available don't quite fit your style.
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}
+              >
                 <Box component="span" sx={{ fontWeight: 600, color: 'primary.main' }}>
                   We knew there had to be a better way.
                 </Box>
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
-                EyeWear was born from a simple idea: what if you could browse hundreds of frames, try them on virtually, and get prescription glasses delivered to your door—all from the comfort of your home?
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}
+              >
+                EyeWear was born from a simple idea: what if you could browse hundreds of frames,
+                try them on virtually, and get prescription glasses delivered to your door—all from
+                the comfort of your home?
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
-                Today, we're making that vision a reality. No more traffic. No more waiting. Just great glasses, exactly how you want them.
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}
+              >
+                Today, we're making that vision a reality. No more traffic. No more waiting. Just
+                great glasses, exactly how you want them.
               </Typography>
             </Stack>
           </Grid>
@@ -251,7 +298,9 @@ export default function AboutPage() {
                   Built for You
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Every feature we build is designed to solve a real problem. From our virtual try-on to our prescription verification system, everything is about making your experience better.
+                  Every feature we build is designed to solve a real problem. From our virtual
+                  try-on to our prescription verification system, everything is about making your
+                  experience better.
                 </Typography>
               </Stack>
             </Box>
@@ -263,14 +312,18 @@ export default function AboutPage() {
       <Box sx={{ bgcolor: 'grey.50', py: { xs: 10, md: 16 } }}>
         <Container maxWidth="lg">
           <Stack spacing={3} sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}
+            >
               WHY CHOOSE US
             </Typography>
             <Typography variant="h3" fontWeight={800}>
               The EyeWear Difference
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-              We're not just another online store. We're reimagining the entire experience of buying glasses.
+              We're not just another online store. We're reimagining the entire experience of buying
+              glasses.
             </Typography>
           </Stack>
 
@@ -324,14 +377,18 @@ export default function AboutPage() {
       {/* Our Technology Section */}
       <Container maxWidth="lg" sx={{ py: { xs: 10, md: 16 } }}>
         <Stack spacing={3} sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}
+          >
             OUR TECHNOLOGY
           </Typography>
           <Typography variant="h3" fontWeight={800}>
             Innovation You Can See
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-            We leverage cutting-edge technology to give you the best online eyewear shopping experience.
+            We leverage cutting-edge technology to give you the best online eyewear shopping
+            experience.
           </Typography>
         </Stack>
 
@@ -387,7 +444,10 @@ export default function AboutPage() {
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: { xs: 10, md: 16 } }}>
         <Container maxWidth="lg">
           <Stack spacing={3} sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, letterSpacing: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, letterSpacing: 2 }}
+            >
               OUR VALUES
             </Typography>
             <Typography variant="h3" fontWeight={800}>
@@ -399,7 +459,9 @@ export default function AboutPage() {
             {values.map((value, index) => (
               <Grid size={{ xs: 12, md: 4 }} key={index}>
                 <Stack spacing={2} alignItems="center" sx={{ textAlign: 'center' }}>
-                  <Avatar sx={{ width: 64, height: 64, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 32 }}>
+                  <Avatar
+                    sx={{ width: 64, height: 64, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 32 }}
+                  >
                     {value.icon}
                   </Avatar>
                   <Typography variant="h6" fontWeight={700}>
@@ -418,14 +480,18 @@ export default function AboutPage() {
       {/* Team Section */}
       <Container maxWidth="lg" sx={{ py: { xs: 10, md: 16 } }}>
         <Stack spacing={3} sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: 2 }}
+          >
             OUR TEAM
           </Typography>
           <Typography variant="h3" fontWeight={800}>
             Meet the Experts Behind EyeWear
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-            Our team of optometrists, designers, and engineers work together to bring you the best eyewear experience.
+            Our team of optometrists, designers, and engineers work together to bring you the best
+            eyewear experience.
           </Typography>
         </Stack>
 

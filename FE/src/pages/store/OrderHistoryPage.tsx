@@ -14,6 +14,8 @@ import { orderApi, Order, OrderStatus } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { ReviewFormModal } from '@/components/review'
 
+import { reviewApi, UnreviewedProduct } from '@/lib/review-api'
+
 // VND Price formatter
 const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('vi-VN', {
@@ -109,11 +111,26 @@ const OrderHistoryPage: React.FC = () => {
     orderNumber: string
   } | null>(null)
 
-  const [reviewableItems, setReviewableItems] = useState<Set<string>>(new Set())
+  const [reviewableItems, setReviewableItems] = useState<UnreviewedProduct[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
 
   useEffect(() => {
     loadOrders()
+    loadUnreviewedProducts()
   }, [page, statusFilter])
+
+  const loadUnreviewedProducts = async () => {
+    setReviewsLoading(true)
+    try {
+      const products = await reviewApi.getUnreviewedProducts()
+      setReviewableItems(Array.isArray(products) ? products : [])
+    } catch (err) {
+      console.error('Failed to load unreviewed products:', err)
+      setReviewableItems([])
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
 
   const loadOrders = async () => {
     setLoading(true)
@@ -148,31 +165,7 @@ const OrderHistoryPage: React.FC = () => {
     setPage(1)
   }
 
-  // Check if an item can be reviewed (delivered order, not yet reviewed)
-  const checkCanReview = async (orderId: string, productId: string, variantSku?: string): Promise<boolean> => {
-    try {
-      // Check if this specific item can be reviewed
-      const key = variantSku ? `${orderId}-${productId}-${variantSku}` : `${orderId}-${productId}`
-
-      // If we already checked this item, return cached result
-      if (reviewableItems.has(key)) {
-        return true
-      }
-
-      // Only delivered orders can be reviewed
-      const order = orders.find(o => o._id === orderId)
-      if (!order || order.orderStatus !== OrderStatus.DELIVERED) {
-        return false
-      }
-
-      // For now, we'll allow review if order is delivered
-      // In production, you'd check with the API
-      setReviewableItems(prev => new Set([...prev, key]))
-      return true
-    } catch {
-      return false
-    }
-  }
+  // Removed checkCanReview as we now use reviewableItems list natively
 
   const handleOpenReviewModal = (
     productId: string,
@@ -195,8 +188,22 @@ const OrderHistoryPage: React.FC = () => {
 
   const handleCloseReviewModal = () => {
     setReviewModal(null)
-    // Refresh orders to update reviewable status
-    loadOrders()
+    // Refresh unreviewed products
+    loadUnreviewedProducts()
+  }
+
+  // Helper to find the first unreviewed item in an order
+  const getFirstUnreviewedItem = (order: Order) => {
+    if (order.orderStatus !== OrderStatus.DELIVERED) return null
+    return order.items.find((item) => {
+      const match = (reviewableItems || []).some(
+        (ri) =>
+          ri.orderId === order._id &&
+          ri.productId === item.productId &&
+          (ri.variantSku || '') === (item.variantSku || '')
+      )
+      return match;
+    })
   }
 
   return (
@@ -459,24 +466,43 @@ const OrderHistoryPage: React.FC = () => {
                         View Details
                       </Link>
                       {/* Write Review Button for Delivered Orders */}
-                      {order.orderStatus === OrderStatus.DELIVERED && (
-                        <button
-                          onClick={() =>
-                            handleOpenReviewModal(
-                              order.items[0]?.productId || '',
-                              order.items[0]?.productName || 'Product',
-                              order.items[0]?.productImage,
-                              order._id,
-                              order.items[0]?.variantSku,
-                              order.orderNumber,
-                            )
+                      {(() => {
+                        if (order.orderStatus !== OrderStatus.DELIVERED) return null
+
+                        const unreviewedItem = getFirstUnreviewedItem(order)
+
+                        if (unreviewedItem) {
+                          return (
+                            <button
+                              onClick={() =>
+                                handleOpenReviewModal(
+                                  unreviewedItem.productId || '',
+                                  unreviewedItem.productName || 'Product',
+                                  unreviewedItem.productImage,
+                                  order._id,
+                                  unreviewedItem.variantSku,
+                                  order.orderNumber,
+                                )
+                              }
+                              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                            >
+                              <FiStar className="text-sm" />
+                              Write Review
+                            </button>
+                          )
+                        } else {
+                          // All items reviewed (or loading)
+                          if (reviewsLoading) {
+                             return <span className="text-xs text-slate-400">Loading...</span>
                           }
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
-                        >
-                          <FiStar className="text-sm" />
-                          Write Review
-                        </button>
-                      )}
+                          return (
+                            <span className="flex items-center gap-1.5 px-3 py-2 text-emerald-600 font-bold text-xs uppercase tracking-wider border border-emerald-200 bg-emerald-50 rounded-[2px]">
+                              <FiStar className="text-sm border-emerald-600" />
+                              Reviews Submitted
+                            </span>
+                          )
+                        }
+                      })()}
                     </div>
                   </div>
                 </div>

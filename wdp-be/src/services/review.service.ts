@@ -56,12 +56,16 @@ export class ReviewService {
       throw new BadRequestException('Product not found in this order');
     }
 
-    // Check for duplicate review
-    const existingReview = await this.reviewModel.findOne({
+        // Check for duplicate review
+    const existingReviewQuery: any = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
       orderId: new Types.ObjectId(orderId),
-    });
+    };
+    if (variantSku) {
+      existingReviewQuery.variantSku = variantSku;
+    }
+    const existingReview = await this.reviewModel.findOne(existingReviewQuery);
 
     if (existingReview) {
       throw new BadRequestException('You have already reviewed this product for this order');
@@ -350,7 +354,7 @@ export class ReviewService {
     // Check if order exists and belongs to user
     const order = await this.orderModel.findOne({
       _id: orderId,
-      customerId: userId,
+      customerId: new Types.ObjectId(userId),
     });
 
     if (!order) {
@@ -375,12 +379,16 @@ export class ReviewService {
       return { canReview: false, reason: 'Product not found in this order' };
     }
 
-    // Check for existing review
-    const existingReview = await this.reviewModel.findOne({
+        // Check for existing review
+    const existingReviewQuery: any = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
       orderId: new Types.ObjectId(orderId),
-    });
+    };
+    if (variantSku) {
+      existingReviewQuery.variantSku = variantSku;
+    }
+    const existingReview = await this.reviewModel.findOne(existingReviewQuery);
 
     if (existingReview) {
       return { canReview: false, reason: 'You have already reviewed this product' };
@@ -406,7 +414,7 @@ export class ReviewService {
     // Get delivered orders for the user
     const deliveredOrders = await this.orderModel
       .find({
-        customerId: userId,
+        customerId: new Types.ObjectId(userId),
         orderStatus: ORDER_STATUS.DELIVERED,
       })
       .lean()
@@ -424,13 +432,21 @@ export class ReviewService {
 
     // Check each order item
     for (const order of deliveredOrders) {
+      if (!order.items || !Array.isArray(order.items)) continue;
+
       for (const item of order.items) {
+        if (!item.productId) continue;
+
         // Check if review exists for this product+order combination
-        const existingReview = await this.reviewModel.findOne({
+        const existingReviewQuery: any = {
           userId: new Types.ObjectId(userId),
-          productId: item.productId,
-          orderId: order._id,
-        });
+          productId: new Types.ObjectId(item.productId.toString()),
+          orderId: new Types.ObjectId(order._id.toString()),
+        };
+        if (item.variantSku) {
+          existingReviewQuery.variantSku = item.variantSku;
+        }
+        const existingReview = await this.reviewModel.findOne(existingReviewQuery);
 
         if (!existingReview && item.productId) {
           // Find delivered date from order history

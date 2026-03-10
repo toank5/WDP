@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ReviewService } from '../services/review.service';
@@ -41,7 +42,8 @@ export class ReviewController {
     @Request() req,
     @Body() createReviewDto: CreateReviewDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     const userName = req.user.fullName;
     const userAvatar = req.user.avatar;
 
@@ -124,7 +126,8 @@ export class ReviewController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     const result = await this.reviewService.getUserReviews(userId, page, limit);
     return {
       success: true,
@@ -152,7 +155,8 @@ export class ReviewController {
     @Param('orderId') orderId: string,
     @Query('variantSku') variantSku?: string,
   ) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     const result = await this.reviewService.canUserReviewProduct(
       userId,
       productId,
@@ -177,7 +181,8 @@ export class ReviewController {
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Unreviewed products retrieved successfully' })
   async getUnreviewedProducts(@Request() req) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     const products = await this.reviewService.getUnreviewedProducts(userId);
 
     // Populate product details
@@ -233,7 +238,8 @@ export class ReviewController {
     @Request() req,
     @Body() updateReviewDto: UpdateReviewDto,
   ) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     const review = await this.reviewService.updateReview(reviewId, userId, updateReviewDto);
 
     return {
@@ -259,7 +265,8 @@ export class ReviewController {
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not the review owner' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
   async deleteReview(@Param('reviewId') reviewId: string, @Request() req) {
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
+    if (!userId) throw new BadRequestException('User ID not found in request');
     await this.reviewService.deleteReview(reviewId, userId);
   }
 

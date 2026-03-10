@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -215,7 +215,7 @@ const StaffOrdersPage: React.FC = () => {
         page: 1,
         limit: 100,
         sortBy: 'createdAt',
-        sortOrder: 'desc',
+        sortOrder: 'desc' as const,
       }
 
       console.log('🔍 Loading orders with params:', { statusFilter, showAll, statusParam, params })

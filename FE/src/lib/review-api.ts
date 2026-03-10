@@ -183,7 +183,15 @@ class ReviewAPI {
   async getUnreviewedProducts(): Promise<UnreviewedProduct[]> {
     try {
       const response = await api.get('/reviews/unreviewed')
-      return unwrapApiPayload<UnreviewedProduct[]>(response.data)
+      console.log('reviewApi.getUnreviewedProducts raw response:', response.data)
+      const payload = unwrapApiPayload<any>(response.data)
+      
+      // If the backend wraps the array in an object (e.g., { success: true, data: [...] })
+      const productsArray = Array.isArray(payload) 
+        ? payload 
+        : (payload && Array.isArray(payload.data) ? payload.data : [])
+        
+      return productsArray
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
