@@ -13,13 +13,60 @@ interface GuestCartItem {
   variantSku?: string
   productName?: string
   productImage?: string
-  price?: number | { price: number }  // Can be a number or object with price property
+  price: number // Always normalized to number
   quantity: number
   variantDetails?: {
     size?: string
     color?: string
   }
   addedAt: string
+}
+
+/**
+ * Helper to normalize price from various formats to number
+ */
+function normalizePrice(price: unknown): number {
+  if (typeof price === 'number') return price
+  if (typeof price === 'object' && price !== null && 'price' in price) {
+    const priceValue = (price as { price: unknown }).price
+    return typeof priceValue === 'number' ? priceValue : 0
+  }
+  return 0
+}
+
+/**
+ * Create a normalized GuestCartItem
+ */
+function createGuestCartItem(
+  productId: string,
+  variantSku: string | undefined,
+  quantity: number,
+  productData?: {
+    name?: string
+    image?: string
+    price?: number
+    variantName?: string
+    variantSku?: string
+  }
+): GuestCartItem {
+  const now = new Date().toISOString()
+  const cartItemId = variantSku ? `${productId}-${variantSku}` : productId
+
+  return {
+    _id: cartItemId,
+    productId,
+    variantSku,
+    productName: productData?.name,
+    productImage: productData?.image,
+    price: normalizePrice(productData?.price),
+    quantity,
+    variantDetails: productData?.variantName
+      ? {
+          color: productData.variantName,
+        }
+      : undefined,
+    addedAt: now,
+  }
 }
 
 /**
@@ -127,7 +174,9 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: load from localStorage (guest cart)
        */
       loadCart: async () => {
-        const { isAuthenticated, accessToken, user } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+        const { isAuthenticated, accessToken, user } = await import('@/store/auth-store').then(
+          (m) => m.useAuthStore.getState()
+        )
 
         set({ loading: true, error: null })
 
@@ -148,7 +197,7 @@ export const useCartStore = create<CartState>()(
               items: guestItems,
               totalItems: guestItems.reduce((sum, item) => sum + item.quantity, 0),
               subtotal: guestItems.reduce((sum, item) => {
-                const price = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
               loading: false,
@@ -169,7 +218,9 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: save to localStorage
        */
       addItem: async (item) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
+          m.useAuthStore.getState()
+        )
         const { items } = get()
 
         set({ loading: true, error: null })
@@ -192,7 +243,9 @@ export const useCartStore = create<CartState>()(
             return result
           } else {
             // Guest user: add to localStorage
-            const cartItemId = item.variantSku ? `${item.productId}-${item.variantSku}` : item.productId
+            const cartItemId = item.variantSku
+              ? `${item.productId}-${item.variantSku}`
+              : item.productId
 
             const existingIndex = items.findIndex(
               (i) => i.productId === item.productId && i.variantSku === item.variantSku
@@ -201,29 +254,21 @@ export const useCartStore = create<CartState>()(
             let updatedItems: GuestCartItem[]
 
             if (existingIndex >= 0) {
-              // Update existing item
-              updatedItems = items.map((item, index) =>
+              // Update existing item - add new quantity to existing
+              updatedItems = items.map((existingItem, index) =>
                 index === existingIndex
-                  ? { ...item, quantity: item.quantity + item.quantity }
-                  : item
+                  ? { ...existingItem, quantity: existingItem.quantity + item.quantity }
+                  : existingItem
               ) as GuestCartItem[]
             } else {
-              // Add new item
-              const newItem: GuestCartItem = {
-                _id: cartItemId,
-                productId: item.productId,
-                variantSku: item.variantSku,
-                productName: item.productData?.name,
-                productImage: item.productData?.image,
-                // Ensure price is a number, not an object
-                price: typeof item.productData?.price === 'number' ? item.productData.price : (typeof item.productData?.price === 'object' && item.productData.price?.price) ? item.productData.price.price : 0,
-                quantity: item.quantity,
-                variantDetails: item.productData?.variantName ? {
-                  color: item.productData.variantName,
-                } : undefined,
-                addedAt: new Date().toISOString(),
-              }
-              updatedItems = [...items, newItem] as GuestCartItem[]
+              // Add new item - use createGuestCartItem helper
+              const newItem: GuestCartItem = createGuestCartItem(
+                item.productId,
+                item.variantSku,
+                item.quantity,
+                item.productData
+              )
+              updatedItems = [...items, newItem]
             }
 
             saveGuestCart(updatedItems)
@@ -233,7 +278,7 @@ export const useCartStore = create<CartState>()(
               totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
               // Handle both number and object types for price
               subtotal: updatedItems.reduce((sum, item) => {
-                const price = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
               loading: false,
@@ -257,7 +302,9 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: update in localStorage
        */
       updateQuantity: async (itemId, quantity) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
+          m.useAuthStore.getState()
+        )
 
         set({ loading: true, error: null })
 
@@ -286,7 +333,7 @@ export const useCartStore = create<CartState>()(
               totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
               // Handle both number and object types for price
               subtotal: updatedItems.reduce((sum, item) => {
-                const price = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
               loading: false,
@@ -307,7 +354,9 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: remove from localStorage
        */
       removeItem: async (itemId) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
+          m.useAuthStore.getState()
+        )
 
         set({ loading: true, error: null })
 
@@ -328,7 +377,7 @@ export const useCartStore = create<CartState>()(
               totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
               // Handle both number and object types for price
               subtotal: updatedItems.reduce((sum, item) => {
-                const price = typeof item.price === 'number' ? item.price : (typeof item.price === 'object' && item.price?.price) ? item.price.price : 0
+                const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
               loading: false,
@@ -349,7 +398,9 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: clear from localStorage
        */
       clearCart: async () => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
+          m.useAuthStore.getState()
+        )
 
         set({ loading: true, error: null })
 
@@ -413,7 +464,9 @@ export async function migrateGuestCartToUserCart(): Promise<void> {
     return
   }
 
-  const { isAuthenticated, accessToken } = await import('@/store/auth-store').then(m => m.useAuthStore.getState())
+  const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
+    m.useAuthStore.getState()
+  )
 
   if (!isAuthenticated || !accessToken) {
     return

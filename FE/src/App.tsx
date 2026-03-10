@@ -3,6 +3,12 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
+import PrescriptionPage from './pages/PrescriptionPage'
+import FavoritesPage from './pages/FavoritesPage'
+import AboutPage from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
+import PrescriptionsPage from './pages/account/PrescriptionsPage'
+import EditPrescriptionPage from './pages/account/EditPrescriptionPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { DashboardLayout } from './pages/dashboard/DashboardLayout'
 import { DashboardOverview } from './pages/dashboard/DashboardOverview'
@@ -11,6 +17,7 @@ import { ProductManagementPage } from './pages/manager/ProductManagementPage'
 import PolicyListPage from './pages/manager/PolicyListPage'
 import PolicyFormPage from './pages/manager/PolicyFormPage'
 import PolicyDetailPage from './pages/PolicyDetailPage'
+import { CUSTOMER_ROLE } from './lib/constants'
 
 // Customer pages (store/)
 import { StorePage } from './pages/store/StorePage'
@@ -27,6 +34,7 @@ import VirtualTryOnPage from './pages/store/VirtualTryOnPage'
 
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
+import { PrescriptionManagementPage } from './pages/staff/PrescriptionManagementPage'
 
 // Operations pages
 import OperationsDashboard from './pages/OperationsDashboard'
@@ -61,6 +69,10 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/prescription" element={<PrescriptionPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
           {/* Customer routes - Storefront */}
           <Route path="/store" element={<StorePage />} />
@@ -81,6 +93,24 @@ function App() {
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
           <Route path="/policies/:type" element={<PolicyDetailPage />} />
 
+          {/* Prescriptions routes */}
+          <Route
+            path="/account/prescriptions"
+            element={
+              <ProtectedRoute allowedRoles={[CUSTOMER_ROLE]}>
+                <PrescriptionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/prescriptions/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={[CUSTOMER_ROLE]}>
+                <EditPrescriptionPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Admin/Staff/Operations routes */}
           <Route
             path="/dashboard"
@@ -99,6 +129,7 @@ function App() {
             <Route path="all-products" element={<ProductCatalogPage />} />
             <Route path="products-catalog/:id" element={<ProductDetailAdminPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="prescriptions" element={<PrescriptionManagementPage />} />
             <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />

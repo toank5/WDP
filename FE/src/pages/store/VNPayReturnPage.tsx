@@ -57,8 +57,10 @@ const VNPayReturnPage: React.FC = () => {
   }
 
   const formatAmount = (amount: string | null): string => {
-    if (!amount) return '0đ'
-    const amountNumber = parseInt(amount) / 100 // VNPay returns amount * 100
+    if (!amount) return '0₫'
+    const parsedAmount = parseInt(amount, 10)
+    if (Number.isNaN(parsedAmount)) return '0₫'
+    const amountNumber = parsedAmount / 100 // VNPay returns amount * 100
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',

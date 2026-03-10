@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../store/auth-store'
+import { hasProperty, isObject, isNonEmptyArray, isNonEmptyString } from './type-guards'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
@@ -48,10 +49,20 @@ export type ApiError = {
  */
 export function handleApiError(error: unknown): never {
   if (axios.isAxiosError(error) && error.response) {
-    const data = error.response.data as ApiError
+    const data = error.response.data
+
+    // Use type guards instead of unsafe casting
+    const message = isObject(data) && hasProperty(data, 'message') && isNonEmptyString(data.message)
+      ? data.message
+      : 'An error occurred'
+
+    const errors = isObject(data) && hasProperty(data, 'errors')
+      ? (typeof data.errors === 'object' ? data.errors : {})
+      : {}
+
     throw {
-      message: data.message || 'An error occurred',
-      errors: data.errors || {},
+      message,
+      errors,
       statusCode: error.response.status,
     }
   }
@@ -67,14 +78,28 @@ export function handleApiError(error: unknown): never {
  */
 export function extractApiMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as {
-      message?: string
-      errors?: Array<{ path: string; message: string }>
+    const data = error.response?.data
+
+    if (isObject(data)) {
+      // Check for errors array
+      if (hasProperty(data, 'errors') && isNonEmptyArray(data.errors)) {
+        const errors = data.errors as unknown[]
+        return errors
+          .filter((e): e is { path?: string; message?: string } => isObject(e))
+          .map((e) => {
+            const path = hasProperty(e, 'path') && isNonEmptyString(e.path) ? e.path : 'unknown'
+            const message = hasProperty(e, 'message') && isNonEmptyString(e.message) ? e.message : 'error'
+            return `${path}: ${message}`
+          })
+          .join(', ')
+      }
+
+      // Check for message
+      if (hasProperty(data, 'message') && isNonEmptyString(data.message)) {
+        return data.message
+      }
     }
-    if (data?.errors && Array.isArray(data.errors)) {
-      return data.errors.map((e) => `${e.path}: ${e.message}`).join(', ')
-    }
-    if (data?.message) return data.message
+
     if (error.message) return error.message
   }
   return 'Request failed'
@@ -82,15 +107,29 @@ export function extractApiMessage(error: unknown): string {
 
 /**
  * Generic request handler that extracts data from API response
+ * Uses type guards to safely extract data from API responses
  */
 async function handleRequest<T>(
   promise: Promise<{ data: ApiResponse<T> }>,
 ): Promise<T> {
   try {
     const response = await promise
-    const data = response.data?.data || response.data?.metadata
-    if (!data) throw new Error('Missing response payload')
-    return data
+
+    // Use type guards to safely extract data
+    if (!isObject(response.data)) {
+      throw new Error('Invalid API response: response data is not an object')
+    }
+
+    // Check for data or metadata property
+    if (hasProperty(response.data, 'data') && response.data.data !== undefined) {
+      return response.data.data as T
+    }
+
+    if (hasProperty(response.data, 'metadata') && response.data.metadata !== undefined) {
+      return response.data.metadata as T
+    }
+
+    throw new Error('Missing response payload: no data or metadata found')
   } catch (error) {
     const message = extractApiMessage(error)
     throw new Error(message)

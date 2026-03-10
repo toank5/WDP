@@ -6,6 +6,7 @@ import { cartApi } from '@/lib/cart-api'
 
 import { wishlistApi } from '@/lib/wishlist-api'
 import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
+import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
 import {
   Box,
   Container,
@@ -27,6 +28,7 @@ import {
   DialogContent,
   Skeleton,
   Fab,
+  CircularProgress,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
@@ -39,12 +41,6 @@ import {
   FlashOn as BuyNowIcon,
   ViewInAr as ThreeDIcon,
   Check as CheckIcon,
-  LocalShipping as ShippingIcon,
-  AssignmentReturn as ReturnIcon,
-  Verified as WarrantyIcon,
-  Star as StarIcon,
-  Add as AddIcon,
-  Remove as RemoveIcon,
   Close as CloseIcon,
   ArrowUpward as ArrowUpIcon,
   ZoomIn as ZoomInIcon,
@@ -52,17 +48,11 @@ import {
   ChevronRight,
   KeyboardArrowLeft,
   KeyboardArrowRight,
-  Category as FrameIcon,
-  Square as ShapeIcon,
-  Texture as MaterialIcon,
-  Wc as GenderIcon,
-  Straighten as StraightenIcon,
-  Visibility as LensIcon,
   Lens as LensIndexIcon,
-  Science as CoatingIcon,
-  Medication as PrescriptionIcon,
-  Build as ServiceIcon,
-  Schedule as DurationIcon,
+  FiberManualRecord,
+  ThumbUpOffAlt,
+  Remove as RemoveIcon,
+  Add as AddIcon,
 } from '@mui/icons-material'
 
 // ==================== Constants ====================
@@ -76,9 +66,11 @@ const VND_FORMATTER = new Intl.NumberFormat('vi-VN', {
 const formatPrice = (price: number): string => VND_FORMATTER.format(price)
 
 const REASSURANCE_POINTS = [
-  { icon: <ShippingIcon fontSize="small" />, text: 'Free shipping on orders over 2.000.000 ₫' },
-  { icon: <ReturnIcon fontSize="small" />, text: '30-day return policy' },
-  { icon: <WarrantyIcon fontSize="small" />, text: '1-year warranty' },
+  { icon: '🚚', text: 'Free shipping on orders over 2.000.000 ₫' },
+  { icon: '🔄', text: '30-day return policy' },
+  { icon: '✅', text: '1-year warranty' },
+  { icon: '🔒', text: 'Secure payment' },
+  { icon: '📞', text: '24/7 customer support' },
 ]
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -124,6 +116,9 @@ const MOCK_REVIEWS = [
   },
 ]
 
+// Use mock reviews as fallback if API fails
+const REVIEWS_FALLBACK = MOCK_REVIEWS
+
 // ==================== Types ====================
 
 interface MediaItem {
@@ -149,23 +144,23 @@ interface SpecsTableProps {
 }
 
 function SpecsTable({ product }: SpecsTableProps) {
-  const getSpecs = (): Spec[] => {
-    const specs: Spec[] = []
+  const getSpecs = (): { label: string; value: string; emoji?: string }[] => {
+    const specs: { label: string; value: string; emoji?: string }[] = []
 
     if (product.category === 'frame') {
-      specs.push({ label: 'Frame Type', value: product.frameType || 'N/A', icon: <FrameIcon fontSize="small" /> })
-      specs.push({ label: 'Shape', value: product.shape || 'N/A', icon: <ShapeIcon fontSize="small" /> })
-      specs.push({ label: 'Material', value: product.material || 'N/A', icon: <MaterialIcon fontSize="small" /> })
-      if (product.gender) specs.push({ label: 'Gender', value: product.gender, icon: <GenderIcon fontSize="small" /> })
-      if (product.bridgeFit) specs.push({ label: 'Bridge Fit', value: product.bridgeFit, icon: <StraightenIcon fontSize="small" /> })
+      specs.push({ label: 'Frame Type', value: product.frameType || 'N/A', emoji: '👓' })
+      specs.push({ label: 'Shape', value: product.shape || 'N/A', emoji: '🔷' })
+      specs.push({ label: 'Material', value: product.material || 'N/A', emoji: '✨' })
+      if (product.gender) specs.push({ label: 'Gender', value: product.gender, emoji: '👤' })
+      if (product.bridgeFit) specs.push({ label: 'Bridge Fit', value: product.bridgeFit, emoji: '📏' })
     } else if (product.category === 'lens') {
-      specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', icon: <LensIcon fontSize="small" /> })
-      specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', icon: <LensIndexIcon fontSize="small" /> })
-      if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), icon: <CoatingIcon fontSize="small" /> })
-      specs.push({ label: 'Prescription Required', value: product.isPrescriptionRequired ? 'Yes' : 'No', icon: <PrescriptionIcon fontSize="small" /> })
+      specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', emoji: '👁️' })
+      specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', emoji: '🔍' })
+      if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), emoji: '🛡️' })
+      specs.push({ label: 'Prescription Required', value: product.isPrescriptionRequired ? 'Yes' : 'No', emoji: '💊' })
     } else if (product.category === 'service') {
-      specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', icon: <ServiceIcon fontSize="small" /> })
-      specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, icon: <DurationIcon fontSize="small" /> })
+      specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', emoji: '🔧' })
+      specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, emoji: '⏱️' })
     }
 
     return specs
@@ -176,27 +171,35 @@ function SpecsTable({ product }: SpecsTableProps) {
   if (specs.length === 0) return null
 
   return (
-    <Box>
-      <Typography variant="h6" fontWeight={600} gutterBottom>
-        Specifications
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-        {specs.map((spec) => (
-          <Box key={spec.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <Box sx={{ color: 'primary.main', mt: 0.3 }}>
-              {spec.icon}
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                {spec.label}
-              </Typography>
-              <Typography variant="body1" fontWeight={500}>
-                {spec.value}
-              </Typography>
-            </Box>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+      {specs.map((spec) => (
+        <Box
+          key={spec.label}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: 'grey.50',
+            transition: 'all 0.2s',
+            '&:hover': {
+              bgcolor: 'primary.50',
+              transform: 'translateX(4px)',
+            },
+          }}
+        >
+          <Box sx={{ fontSize: 20 }}>{spec.emoji || '📋'}</Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {spec.label}
+            </Typography>
+            <Typography variant="body2" fontWeight={600} color="text.primary">
+              {spec.value}
+            </Typography>
           </Box>
-        ))}
-      </Box>
+        </Box>
+      ))}
     </Box>
   )
 }
@@ -224,6 +227,7 @@ function MediaGallery({
 }: MediaGalleryProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const [hoveredImage, setHoveredImage] = useState<number | null>(null)
 
   const allMedia: MediaItem[] = [
     ...images2D.map((url) => ({ type: '2d' as const, url })),
@@ -292,13 +296,13 @@ function MediaGallery({
   if (loading) {
     return (
       <Paper
-        elevation={0}
-        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}
+        elevation={3}
+        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}
       >
-        <Skeleton variant="rectangular" sx={{ aspectRatio: '4 / 3' }} />
-        <Box sx={{ p: 2, display: 'flex', gap: 1 }}>
+        <Skeleton variant="rectangular" sx={{ aspectRatio: '4 / 3' }} animation="wave" />
+        <Box sx={{ p: 2.5, display: 'flex', gap: 1.5 }}>
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} variant="rectangular" width={64} height={64} />
+            <Skeleton key={i} variant="rectangular" width={72} height={72} sx={{ borderRadius: 2 }} animation="wave" />
           ))}
         </Box>
       </Paper>
@@ -307,12 +311,13 @@ function MediaGallery({
 
   return (
     <Paper
-      elevation={0}
+      elevation={3}
       sx={{
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: 3,
+        borderRadius: 4,
         overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
       }}
     >
       {/* Main Viewer */}
@@ -322,6 +327,7 @@ function MediaGallery({
           aspectRatio: '4 / 3',
           bgcolor: 'grey.50',
           cursor: activeMedia?.type === '2d' ? 'zoom-in' : 'default',
+          overflow: 'hidden',
         }}
         onClick={() => activeMedia?.type === '2d' && onZoomOpen()}
         onTouchStart={handleTouchStart}
@@ -340,6 +346,7 @@ function MediaGallery({
               width: '100%',
               height: '100%',
               objectFit: 'contain',
+              transition: 'transform 0.3s ease',
             }}
           />
         ) : activeMedia?.type === '3d' ? (
@@ -354,15 +361,15 @@ function MediaGallery({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'primary.dark',
+              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
             }}
           >
-            <ThreeDIcon sx={{ fontSize: 64, color: 'white', mb: 1 }} />
-            <Typography variant="h6" color="white" fontWeight={600}>
+            <ThreeDIcon sx={{ fontSize: 80, color: 'white', mb: 2, animation: 'pulse 2s infinite' }} />
+            <Typography variant="h5" color="white" fontWeight={700}>
               3D View
             </Typography>
-            <Typography variant="body2" color="white" sx={{ opacity: 0.8 }}>
-              Drag to rotate
+            <Typography variant="body2" color="white" sx={{ opacity: 0.9, mt: 1 }}>
+              Drag to rotate • Scroll to zoom
             </Typography>
           </Box>
         ) : (
@@ -376,14 +383,15 @@ function MediaGallery({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 60,
+              fontSize: 80,
+              bgcolor: 'grey.100',
             }}
           >
             👓
           </Box>
         )}
 
-        {/* Previous/Next Navigation Arrows */}
+        {/* Previous/Next Navigation Arrows - Enhanced */}
         {hasMultipleImages && (
           <>
             <IconButton
@@ -394,19 +402,22 @@ function MediaGallery({
               sx={{
                 position: 'absolute',
                 top: '50%',
-                left: 8,
+                left: 12,
                 transform: 'translateY(-50%)',
-                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
                 color: 'text.primary',
-                boxShadow: 1,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: 44,
+                height: 44,
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 1)',
+                  bgcolor: 'white',
                   color: 'primary.main',
+                  transform: 'translateY(-50%) scale(1.1)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
                 },
-                transition: 'all 0.2s',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 zIndex: 2,
               }}
-              size={isMobile ? 'small' : 'medium'}
               aria-label="Previous image"
             >
               {isMobile ? <KeyboardArrowLeft /> : <ChevronLeft />}
@@ -420,19 +431,22 @@ function MediaGallery({
               sx={{
                 position: 'absolute',
                 top: '50%',
-                right: 8,
+                right: 12,
                 transform: 'translateY(-50%)',
-                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
                 color: 'text.primary',
-                boxShadow: 1,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: 44,
+                height: 44,
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 1)',
+                  bgcolor: 'white',
                   color: 'primary.main',
+                  transform: 'translateY(-50%) scale(1.1)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
                 },
-                transition: 'all 0.2s',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 zIndex: 2,
               }}
-              size={isMobile ? 'small' : 'medium'}
               aria-label="Next image"
             >
               {isMobile ? <KeyboardArrowRight /> : <ChevronRight />}
@@ -440,76 +454,125 @@ function MediaGallery({
           </>
         )}
 
-        {/* Image counter indicator */}
+        {/* Enhanced Image counter */}
         {hasMultipleImages && (
           <Box
             sx={{
               position: 'absolute',
-              bottom: 8,
-              left: 8,
-              bgcolor: 'rgba(0, 0, 0, 0.6)',
+              bottom: 12,
+              left: 12,
+              bgcolor: 'rgba(0, 0, 0, 0.7)',
               color: 'white',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
-              fontWeight: 500,
+              px: 2,
+              py: 0.75,
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              backdropFilter: 'blur(8px)',
               zIndex: 2,
             }}
           >
-            {activeImageIndex + 1} / {allMedia.length}
+            {activeImageIndex + 1} <Box component="span" sx={{ opacity: 0.6, mx: 0.5 }}>/</Box> {allMedia.length}
           </Box>
         )}
 
+        {/* Dots indicator */}
+        {hasMultipleImages && allMedia.length > 1 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: 0.75,
+              zIndex: 2,
+            }}
+          >
+            {allMedia.map((_, index) => (
+              <Box
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onImageSelect(index)
+                }}
+                sx={{
+                  width: index === activeImageIndex ? 24 : 8,
+                  height: 8,
+                  borderRadius: 1,
+                  bgcolor: index === activeImageIndex ? 'white' : 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  '&:hover': {
+                    bgcolor: index === activeImageIndex ? 'white' : 'rgba(255,255,255,0.6)',
+                    width: index === activeImageIndex ? 24 : 12,
+                  },
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
+        {/* Enhanced zoom button */}
         {activeMedia?.type === '2d' && (
           <IconButton
             sx={{
               position: 'absolute',
-              bottom: 8,
-              right: 8,
-              bgcolor: 'rgba(255, 255, 255, 0.9)',
-              boxShadow: 1,
-              '&:hover': { bgcolor: 'rgba(255, 255, 255, 1)' },
+              bottom: 12,
+              right: 12,
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              width: 40,
+              height: 40,
+              '&:hover': {
+                bgcolor: 'white',
+                transform: 'scale(1.1)',
+              },
               transition: 'all 0.2s',
               zIndex: 2,
             }}
-            size="small"
             onClick={(e) => {
               e.stopPropagation()
               onZoomOpen()
             }}
             aria-label="Zoom image"
           >
-            <ZoomInIcon fontSize="small" />
+            <ZoomInIcon />
           </IconButton>
         )}
 
-        {/* 3D badge */}
+        {/* Enhanced 3D badge */}
         {activeMedia?.type === '3d' && (
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              left: 8,
-              bgcolor: 'primary.main',
-              color: 'white',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
-              fontWeight: 600,
+              top: 12,
+              left: 12,
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              color: 'primary.main',
+              px: 2,
+              py: 0.75,
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
             }}
           >
-            3D
+            <ThreeDIcon sx={{ fontSize: 16 }} />
+            3D View
           </Box>
         )}
       </Box>
 
-      {/* Thumbnails */}
+      {/* Enhanced Thumbnails */}
       {hasMultipleImages && (
         <Box sx={{
-          p: 2,
+          p: 2.5,
           display: 'flex',
           gap: 1.5,
           overflowX: 'auto',
@@ -529,20 +592,25 @@ function MediaGallery({
             <Box
               key={`${media.type}-${media.url}-${index}`}
               onClick={() => onImageSelect(index)}
+              onMouseEnter={() => setHoveredImage(index)}
+              onMouseLeave={() => setHoveredImage(null)}
               sx={{
-                minWidth: 64,
-                height: 64,
+                minWidth: 72,
+                width: 72,
+                height: 72,
                 flexShrink: 0,
-                borderRadius: 2,
+                borderRadius: 3,
                 overflow: 'hidden',
                 cursor: 'pointer',
                 border: '2px solid',
-                borderColor: index === activeImageIndex ? 'primary.main' : 'transparent',
+                borderColor: index === activeImageIndex ? 'primary.main' : 'divider',
                 position: 'relative',
-                transition: 'all 0.2s',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: index === activeImageIndex ? 'scale(1.05)' : (hoveredImage === index ? 'scale(1.02)' : 'scale(1)'),
+                boxShadow: index === activeImageIndex ? `0 0 0 3px ${theme.palette.primary.main}25` : 'none',
                 '&:hover': {
                   borderColor: index === activeImageIndex ? 'primary.main' : 'text.secondary',
-                  transform: 'scale(1.05)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 },
               }}
             >
@@ -565,10 +633,10 @@ function MediaGallery({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    bgcolor: 'primary.dark',
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
                   }}
                 >
-                  <ThreeDIcon sx={{ color: 'white', fontSize: 24 }} />
+                  <ThreeDIcon sx={{ color: 'white', fontSize: 28 }} />
                 </Box>
               )}
               {media.type === '3d' && (
@@ -577,13 +645,13 @@ function MediaGallery({
                   size="small"
                   sx={{
                     position: 'absolute',
-                    bottom: 2,
-                    right: 2,
-                    height: 16,
-                    fontSize: '0.6rem',
+                    bottom: 4,
+                    right: 4,
+                    height: 18,
+                    fontSize: '0.65rem',
                     bgcolor: 'primary.main',
                     color: 'white',
-                    fontWeight: 600,
+                    fontWeight: 700,
                   }}
                 />
               )}
@@ -591,16 +659,20 @@ function MediaGallery({
                 <Box
                   sx={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    border: '2px solid',
-                    borderColor: 'primary.main',
-                    borderRadius: 1,
-                    pointerEvents: 'none',
+                    top: 6,
+                    left: 6,
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   }}
-                />
+                >
+                  <CheckIcon sx={{ color: 'white', fontSize: 14 }} />
+                </Box>
               )}
             </Box>
           ))}
@@ -614,18 +686,21 @@ function MediaGallery({
 
 function DetailPanelSkeleton() {
   return (
-    <Paper elevation={1} sx={{ p: 2.5, borderRadius: 3 }}>
-      <Stack spacing={2}>
-        <Skeleton variant="text" width="80%" height={32} />
-        <Skeleton variant="text" width="40%" />
-        <Skeleton variant="text" width="60%" height={40} />
+    <Paper elevation={3} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+      <Stack spacing={2.5}>
+        <Skeleton variant="text" width="90%" height={36} />
+        <Skeleton variant="text" width="50%" height={24} />
+        <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
         <Divider />
-        <Skeleton variant="rectangular" height={40} />
-        <Skeleton variant="rectangular" height={40} />
+        <Skeleton variant="text" width="40%" height={20} />
         <Stack direction="row" spacing={1}>
-          <Skeleton variant="rectangular" width={60} height={36} />
-          <Skeleton variant="rectangular" width={36} height={36} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
         </Stack>
+        <Skeleton variant="rectangular" height={50} sx={{ borderRadius: 2 }} />
+        <Skeleton variant="rectangular" height={50} sx={{ borderRadius: 2 }} />
       </Stack>
     </Paper>
   )
@@ -646,24 +721,36 @@ function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
     <Paper
       onClick={onClick}
       sx={{
-        borderRadius: 3,
+        borderRadius: 4,
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        border: '1px solid',
+        borderColor: 'divider',
+        overflow: 'hidden',
+        height: '100%',
         '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 4,
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+          borderColor: 'primary.main',
         },
       }}
-      elevation={0}
+      elevation={1}
     >
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 2.5 }}>
         {/* Category Badge */}
         {product.category && (
           <Chip
             size="small"
             label={CATEGORY_LABELS[product.category] || product.category}
             color={CATEGORY_COLORS[product.category] || 'default'}
-            sx={{ mb: 2, fontWeight: 600, textTransform: 'lowercase' }}
+            sx={{
+              mb: 2,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              fontSize: '0.65rem',
+              letterSpacing: 0.5,
+              height: 20,
+            }}
           />
         )}
 
@@ -673,12 +760,13 @@ function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            mb: 2,
+            mb: 2.5,
             height: 160,
             bgcolor: 'grey.50',
-            borderRadius: 2,
+            borderRadius: 3,
             overflow: 'hidden',
             position: 'relative',
+            transition: 'all 0.3s',
           }}
         >
           {mainImage ? (
@@ -686,50 +774,82 @@ function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
               component="img"
               src={mainImage}
               alt={product.name}
-              sx={{ height: 160, width: '100%', objectFit: 'contain' }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-                const fallback = e.currentTarget.nextElementSibling as HTMLElement
-                if (fallback) fallback.style.display = 'flex'
+              sx={{
+                height: 140,
+                width: '100%',
+                objectFit: 'contain',
+                transition: 'transform 0.3s',
               }}
             />
           ) : null}
           {!mainImage && (
             <Box sx={{ fontSize: 60, display: mainImage ? 'none' : 'flex' }}>👓</Box>
           )}
-          {/* 3D Badge */}
+
+          {/* 3D Badge - Enhanced */}
           {product.images3D && product.images3D.length > 0 && (
             <Chip
-              icon={<ThreeDIcon sx={{ fontSize: 10 }} />}
+              icon={<ThreeDIcon sx={{ fontSize: 11 }} />}
               label="3D"
               size="small"
               sx={{
                 position: 'absolute',
                 bottom: 8,
                 right: 8,
-                height: 18,
-                fontSize: 9,
+                height: 22,
+                fontSize: '0.7rem',
+                fontWeight: 700,
                 bgcolor: 'primary.main',
                 color: 'white',
               }}
             />
           )}
+
+          {/* Quick View Overlay on Hover */}
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              bgcolor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0,
+              transition: 'opacity 0.3s',
+              '&:hover': {
+                opacity: 1,
+              },
+            }}
+          >
+            <Button
+              variant="contained"
+              size="small"
+              sx={{
+                borderRadius: 2,
+                fontWeight: 600,
+              }}
+            >
+              Quick View
+            </Button>
+          </Box>
         </Box>
 
         {/* Product Name */}
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, lineHeight: 1.3, minHeight: 34 }}>
           {product.name}
         </Typography>
 
-        {/* Price */}
-        <Typography variant="h6" color="primary" fontWeight={700}>
-          {formatPrice(product.basePrice)}
-        </Typography>
+        {/* Price - Enhanced */}
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+          <Typography variant="h6" color="primary.main" fontWeight={800}>
+            {formatPrice(product.basePrice)}
+          </Typography>
+        </Box>
 
         {/* Variants */}
         {variantCount > 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {variantCount} variant{variantCount > 1 ? 's' : ''} available
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontWeight: 500 }}>
+            {variantCount} {variantCount > 1 ? 'variants' : 'variant'} available
           </Typography>
         )}
       </Box>
@@ -781,11 +901,16 @@ export function ProductDetailPage() {
     severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   })
 
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState<string | null>(null)
+
   // ==================== Computed Values ====================
 
-  const averageRating = MOCK_REVIEWS.length > 0
-    ? MOCK_REVIEWS.reduce((sum, r) => sum + r.rating, 0) / MOCK_REVIEWS.length
-    : 0
+  const averageRating = reviewStats?.averageRating ?? 0
+  const totalReviews = reviewStats?.totalReviews ?? 0
 
   // Get current images based on selected variant
   // Shows ALL variant images from all variants, plus base product images
@@ -1026,6 +1151,36 @@ export function ProductDetailPage() {
     loadProduct()
   }, [loadProduct])
 
+  // Fetch reviews when product changes
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!product?._id) return
+
+      setReviewsLoading(true)
+      setReviewsError(null)
+
+      try {
+        // Fetch reviews and stats in parallel
+        const [reviewsData, statsData] = await Promise.all([
+          reviewApi.getProductReviews(product._id, 1, 10, 'recent'),
+          reviewApi.getProductStats(product._id),
+        ])
+
+        setReviews(reviewsData.reviews)
+        setReviewStats(statsData)
+      } catch (err) {
+        console.error('Failed to fetch reviews:', err)
+        setReviewsError(err instanceof Error ? err.message : 'Failed to load reviews')
+        // Use fallback reviews on error
+        setReviews(REVIEWS_FALLBACK as unknown as Review[])
+      } finally {
+        setReviewsLoading(false)
+      }
+    }
+
+    fetchReviews()
+  }, [product?._id])
+
   // Reset variant state when product changes
   // Note: This is handled by the auto-selection logic in loadProduct()
   useEffect(() => {
@@ -1211,9 +1366,21 @@ export function ProductDetailPage() {
   if (loading) {
     return (
       <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />
-          <Skeleton variant="text" width={400} height={24} sx={{ mb: 4 }} />
+        {/* Enhanced Loading Skeleton */}
+        <Box
+          sx={{
+            bgcolor: 'background.paper',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Container maxWidth="lg">
+            <Skeleton variant="text" width={200} height={32} sx={{ py: 2.5 }} />
+          </Container>
+        </Box>
+
+        <Container maxWidth="lg" sx={{ py: 5 }}>
+          <Skeleton variant="rectangular" width={150} height={40} sx={{ mb: 4, borderRadius: 3 }} />
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 7, lg: 8 }}>
               <MediaGallery loading={true} images2D={[]} images3D={[]} activeImageIndex={0} onImageSelect={() => {}} onZoomOpen={() => {}} productName="" />
@@ -1243,40 +1410,82 @@ export function ProductDetailPage() {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
+      {/* Enhanced Breadcrumb */}
       <Box
         sx={{
           bgcolor: 'background.paper',
-          borderBottom: 1,
+          borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
         <Container maxWidth="lg">
-          <Breadcrumbs sx={{ py: 2 }} aria-label="breadcrumb">
-            <MuiLink component={Link} to="/" underline="hover" color="text.primary">
+          <Breadcrumbs
+            sx={{
+              py: 2.5,
+              '& .MuiBreadcrumbs-separator': { mx: 1 },
+            }}
+            aria-label="breadcrumb"
+          >
+            <MuiLink
+              component={Link}
+              to="/"
+              underline="hover"
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
               Home
             </MuiLink>
-            <MuiLink component={Link} to="/products" underline="hover" color="text.primary">
-              All Products
+            <MuiLink
+              component={Link}
+              to="/products"
+              underline="hover"
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              Products
             </MuiLink>
             {product.category && (
               <MuiLink
                 component={Link}
                 to={`/products?category=${product.category}`}
                 underline="hover"
-                color="text.primary"
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'text.secondary',
+                  '&:hover': { color: 'primary.main' },
+                }}
               >
                 {CATEGORY_LABELS[product.category] || product.category}
               </MuiLink>
             )}
-            <Typography color="text.primary">{product.name}</Typography>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'primary.main' }}>
+              {product.name}
+            </Typography>
           </Breadcrumbs>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Back Link */}
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 3 }}>
+      <Container maxWidth="lg" sx={{ py: 5 }}>
+        {/* Enhanced Back Link */}
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          sx={{
+            mb: 4,
+            borderRadius: 3,
+            fontWeight: 600,
+            textTransform: 'none',
+          }}
+        >
           Back to Products
         </Button>
 
@@ -1294,48 +1503,85 @@ export function ProductDetailPage() {
             />
           </Grid>
 
-          {/* Purchase Panel (Right) */}
+          {/* Purchase Panel (Right) - Enhanced */}
           <Grid size={{ xs: 12, md: 5, lg: 4 }}>
             <Paper
-              elevation={1}
+              elevation={3}
               sx={{
-                p: 2.5,
-                borderRadius: 3,
+                p: 3,
+                borderRadius: 4,
                 position: { md: 'sticky' },
                 top: { md: 96 },
                 maxHeight: { md: 'calc(100vh - 120px)' },
                 overflowY: 'auto',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'divider',
               }}
             >
-              <Stack spacing={1.5}>
-                {/* Product Name */}
-                <Typography variant="h5" fontWeight={700}>
-                  {product.name}
-                </Typography>
-
-                {/* Category Badge */}
-                {product.category && (
-                  <Chip
-                    label={CATEGORY_LABELS[product.category] || product.category}
-                    color={CATEGORY_COLORS[product.category] || 'default'}
-                    size="small"
-                    sx={{ alignSelf: 'flex-start' }}
-                  />
-                )}
-
-                {/* Rating */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Rating value={averageRating} precision={0.5} readOnly size="small" />
-                  <Typography variant="caption" color="text.secondary">
-                    ({MOCK_REVIEWS.length} reviews)
+              <Stack spacing={2}>
+                {/* Product Name & Brand */}
+                <Box>
+                  {product.category && (
+                    <Chip
+                      label={CATEGORY_LABELS[product.category] || product.category}
+                      color={CATEGORY_COLORS[product.category] || 'default'}
+                      size="small"
+                      sx={{
+                        mb: 1.5,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        fontSize: '0.7rem',
+                        letterSpacing: 0.5,
+                      }}
+                    />
+                  )}
+                  <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.2 }}>
+                    {product.name}
                   </Typography>
+                  {product.brand && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
+                      by {product.brand}
+                    </Typography>
+                  )}
                 </Box>
 
-                {/* Price */}
-                <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
-                  <Typography variant="h4" color="primary.main" fontWeight={700}>
-                    {formatPrice(getDisplayPrice())}
+                {/* Rating with stars */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Rating value={averageRating} precision={0.5} readOnly size="small" sx={{ color: 'warning.main' }} />
+                    <Typography variant="body2" fontWeight={600}>
+                      {averageRating.toFixed(1)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    ({totalReviews} reviews)
                   </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                    <FiberManualRecord sx={{ fontSize: 8, color: 'success.main' }} />
+                    <Typography variant="body2" color="success.main" fontWeight={500}>
+                      Verified
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Enhanced Price Display */}
+                <Box sx={{ bgcolor: 'primary.50', p: 2, borderRadius: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
+                    <Typography variant="h3" color="primary.main" fontWeight={800} sx={{ lineHeight: 1 }}>
+                      {formatPrice(getDisplayPrice())}
+                    </Typography>
+                    {product.basePrice !== getDisplayPrice() && (
+                      <Typography variant="h6" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
+                        {formatPrice(product.basePrice)}
+                      </Typography>
+                    )}
+                  </Box>
+                  {selectedVariant && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      {selectedVariant.size} • {selectedVariant.color}
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* Pre-order Info Message */}
@@ -1418,34 +1664,89 @@ export function ProductDetailPage() {
 
                 <Divider />
 
-                {/* Variant Selectors */}
+                {/* Enhanced Variant Selectors */}
                 {uniqueColors.length > 0 && (
                   <Box>
-                    <Typography variant="caption" fontWeight={600} gutterBottom display="block">
-                      Color: {selectedColor || 'Select a color'}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        Color
+                      </Typography>
+                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                        {selectedColor || 'Select'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                       {uniqueColors.map((color) => {
                         const isSelected = selectedColor === color
                         const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
                           (v) => v.color === color && v.isActive !== false
                         )
+
+                        // Get color hex from common color names
+                        const colorMap: Record<string, string> = {
+                          'Black': '#1a1a1a',
+                          'White': '#ffffff',
+                          'Red': '#e53935',
+                          'Blue': '#1e88e5',
+                          'Green': '#43a047',
+                          'Yellow': '#fdd835',
+                          'Brown': '#795548',
+                          'Gray': '#9e9e9e',
+                          'Silver': '#bdbdbd',
+                          'Gold': '#ffc107',
+                          'Pink': '#e91e63',
+                          'Purple': '#9c27b0',
+                          'Orange': '#ff9800',
+                          'Beige': '#d7ccc8',
+                          'Clear': '#e0f7fa',
+                          'Tortoise': '#8d6e63',
+                        }
+
+                        const colorHex = colorMap[color] || '#9e9e9e'
+
                         return (
-                          <Chip
+                          <Box
                             key={color}
-                            label={color}
-                            onClick={() => handleColorSelect(color)}
-                            disabled={!hasVariantInStock}
-                            size="small"
-                            variant={isSelected ? 'filled' : 'outlined'}
-                            color={isSelected ? 'primary' : 'default'}
+                            onClick={() => hasVariantInStock && handleColorSelect(color)}
                             sx={{
-                              minWidth: 60,
-                              height: 28,
-                              fontSize: '0.75rem',
-                              opacity: hasVariantInStock ? 1 : 0.4,
+                              position: 'relative',
+                              width: 48,
+                              height: 48,
+                              borderRadius: '50%',
+                              bgcolor: colorHex,
+                              cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
+                              border: '3px solid',
+                              borderColor: isSelected ? 'primary.main' : 'divider',
+                              opacity: hasVariantInStock ? 1 : 0.3,
+                              transition: 'all 0.2s',
+                              boxShadow: isSelected ? `0 0 0 3px ${theme.palette.primary.main}25` : '0 2px 4px rgba(0,0,0,0.1)',
+                              '&:hover': hasVariantInStock ? {
+                                transform: 'scale(1.1)',
+                                boxShadow: `0 0 0 3px ${theme.palette.primary.main}40`,
+                              } : {},
                             }}
-                          />
+                            title={color}
+                          >
+                            {isSelected && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: -4,
+                                  right: -4,
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: '50%',
+                                  bgcolor: 'primary.main',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                }}
+                              >
+                                <CheckIcon sx={{ color: 'white', fontSize: 12 }} />
+                              </Box>
+                            )}
+                          </Box>
                         )
                       })}
                     </Box>
@@ -1454,40 +1755,57 @@ export function ProductDetailPage() {
 
                 {uniqueSizes.length > 0 && (
                   <Box>
-                    <Typography variant="caption" fontWeight={600} gutterBottom display="block">
-                      Size: {selectedSize || 'Select a size'}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        Size
+                      </Typography>
+                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                        {selectedSize || 'Select'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       {uniqueSizes.map((size) => {
                         const isSelected = selectedSize === size
                         const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
                           (v) => v.size === size && v.isActive !== false
                         )
                         return (
-                          <Chip
+                          <Box
                             key={size}
-                            label={size}
-                            onClick={() => handleSizeSelect(size)}
-                            disabled={!hasVariantInStock}
-                            size="small"
-                            variant={isSelected ? 'filled' : 'outlined'}
-                            color={isSelected ? 'primary' : 'default'}
+                            onClick={() => hasVariantInStock && handleSizeSelect(size)}
                             sx={{
-                              minWidth: 50,
-                              height: 28,
-                              fontSize: '0.75rem',
-                              opacity: hasVariantInStock ? 1 : 0.4,
+                              px: 2.5,
+                              py: 1,
+                              borderRadius: 3,
+                              border: '2px solid',
+                              borderColor: isSelected ? 'primary.main' : 'divider',
+                              bgcolor: isSelected ? 'primary.main' : 'background.paper',
+                              color: isSelected ? 'white' : 'text.primary',
+                              cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
+                              opacity: hasVariantInStock ? 1 : 0.3,
+                              transition: 'all 0.2s',
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                              minWidth: 60,
+                              textAlign: 'center',
+                              boxShadow: isSelected ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+                              '&:hover': hasVariantInStock ? {
+                                borderColor: isSelected ? 'primary.main' : 'text.secondary',
+                                transform: 'translateY(-2px)',
+                              } : {},
                             }}
-                          />
+                          >
+                            {size}
+                          </Box>
                         )
                       })}
                     </Box>
                   </Box>
                 )}
 
-                {/* Quantity */}
+                {/* Enhanced Quantity */}
                 <Box>
-                  <Typography variant="caption" fontWeight={600} gutterBottom display="block">
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                     Quantity
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1495,30 +1813,44 @@ export function ProductDetailPage() {
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        border: 1,
+                        border: '2px solid',
                         borderColor: 'divider',
-                        borderRadius: 2,
+                        borderRadius: 3,
+                        overflow: 'hidden',
                       }}
                     >
                       <IconButton
-                        size="small"
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                         disabled={quantity <= 1}
+                        sx={{
+                          borderRadius: 0,
+                          bgcolor: quantity > 1 ? 'grey.50' : 'transparent',
+                          '&:hover': { bgcolor: 'grey.100' },
+                          '&:disabled': { bgcolor: 'transparent' },
+                        }}
                       >
                         <RemoveIcon fontSize="small" />
                       </IconButton>
                       <Typography
                         sx={{
-                          px: 2,
-                          py: 1,
-                          minWidth: 40,
+                          px: 3,
+                          py: 1.5,
+                          minWidth: 50,
                           textAlign: 'center',
-                          fontSize: '0.875rem',
+                          fontSize: '1rem',
+                          fontWeight: 600,
                         }}
                       >
                         {quantity}
                       </Typography>
-                      <IconButton size="small" onClick={() => setQuantity(quantity + 1)}>
+                      <IconButton
+                        onClick={() => setQuantity(quantity + 1)}
+                        sx={{
+                          borderRadius: 0,
+                          bgcolor: 'grey.50',
+                          '&:hover': { bgcolor: 'grey.100' },
+                        }}
+                      >
                         <AddIcon fontSize="small" />
                       </IconButton>
                     </Box>
@@ -1526,14 +1858,15 @@ export function ProductDetailPage() {
                 </Box>
 
 
-                {/* Virtual Try-On */}
+                {/* Virtual Try-On Button */}
                 <TryOnButton
                   productId={product?.id || ''}
                   variantId={selectedVariant?.id || ''}
                   disabled={!product || !selectedVariant}
                 />
-                {/* Action Buttons */}
-                <Stack spacing={1}>
+
+                {/* Enhanced Action Buttons */}
+                <Stack spacing={1.5}>
                   {(() => {
                     const stockInfo = getStockDisplayInfo()
 
@@ -1552,21 +1885,24 @@ export function ProductDetailPage() {
                           disabled={isOutOfStock || isSelecting || isAdding}
                           onClick={handleAddToCart}
                           sx={{
-                            py: 1.5,
+                            py: 1.75,
+                            borderRadius: 3,
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            textTransform: 'none',
+                            boxShadow: isPreorder ? 'none' : `0 4px 14px ${theme.palette.primary.main}40`,
                             ...(isPreorder && {
                               borderColor: 'info.main',
                               color: 'info.main',
+                              borderWidth: 2,
                               '&:hover': {
                                 borderColor: 'info.dark',
                                 bgcolor: 'info.50',
                               },
                             }),
                             ...(isOutOfStock && {
-                              bgcolor: 'action.disabled',
+                              bgcolor: 'action.disabledBackground',
                               color: 'text.disabled',
-                              '&:hover': {
-                                bgcolor: 'action.disabled',
-                              },
                             }),
                           }}
                         >
@@ -1578,51 +1914,77 @@ export function ProductDetailPage() {
                                 ? 'Out of Stock'
                                 : 'Add to Cart'}
                         </Button>
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          color="secondary"
-                          size="large"
-                          startIcon={<BuyNowIcon />}
-                          disabled={isOutOfStock || isSelecting || isAdding}
-                          onClick={handleBuyNow}
-                          sx={{ py: 1.5 }}
-                        >
-                          Buy Now
-                        </Button>
-                  <Button
-                    fullWidth
-                    variant={isInWishlist ? 'contained' : 'outlined'}
-                    color={isInWishlist ? 'error' : 'primary'}
-                    size="large"
-                    onClick={toggleWishlist}
-                    startIcon={isInWishlist ? <WishlistIcon /> : <WishlistBorderIcon />}
-                    sx={{ py: 1 }}
-                  >
-                    {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                  </Button>
+
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="secondary"
+                            size="large"
+                            startIcon={<BuyNowIcon />}
+                            disabled={isOutOfStock || isSelecting || isAdding}
+                            onClick={handleBuyNow}
+                            sx={{
+                              py: 1.75,
+                              borderRadius: 3,
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              boxShadow: `0 4px 14px ${theme.palette.secondary.main}40`,
+                            }}
+                          >
+                            Buy Now
+                          </Button>
+                          <Button
+                            variant={isInWishlist ? 'contained' : 'outlined'}
+                            color={isInWishlist ? 'error' : 'default'}
+                            size="large"
+                            onClick={toggleWishlist}
+                            sx={{
+                              px: 2,
+                              minWidth: 'auto',
+                              borderRadius: 3,
+                              ...(isInWishlist && {
+                                boxShadow: `0 4px 14px ${theme.palette.error.main}40`,
+                              }),
+                            }}
+                          >
+                            {isInWishlist ? <WishlistIcon /> : <WishlistBorderIcon />}
+                          </Button>
+                        </Box>
                       </>
                     )
                   })()}
                 </Stack>
 
-                {/* Reassurance Points */}
-                <Stack direction="column" spacing={0.5} sx={{ pt: 0.5 }}>
-                  {REASSURANCE_POINTS.map((point) => (
-                    <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ color: 'success.main', fontSize: 16 }}>{point.icon}</Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {point.text}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
+                {/* Enhanced Reassurance Points */}
+                <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 3 }}>
+                  <Stack spacing={1.5}>
+                    {REASSURANCE_POINTS.map((point) => (
+                      <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ fontSize: 18 }}>{point.icon}</Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                          {point.text}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
 
                 {/* Tags */}
                 {product.tags && product.tags.length > 0 && (
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                     {product.tags.map((tag) => (
-                      <Chip key={tag} label={tag} size="small" variant="outlined" />
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 2,
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                        }}
+                      />
                     ))}
                   </Box>
                 )}
@@ -1631,147 +1993,247 @@ export function ProductDetailPage() {
           </Grid>
         </Grid>
 
-        {/* Below-Fold Sections */}
-        <Stack spacing={3} sx={{ mt: 6 }}>
-          {/* Description */}
-          <Paper elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
-            <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-              <Typography variant="h5" fontWeight={700} gutterBottom>
-                Description
-              </Typography>
-              <Divider />
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body1" sx={{ lineHeight: 1.8, maxWidth: 800 }}>
-                  {product.description}
+        {/* Enhanced Below-Fold Sections */}
+        <Stack spacing={4} sx={{ mt: 8 }}>
+          {/* Description - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Description
                 </Typography>
               </Box>
+              <Typography variant="body1" sx={{ lineHeight: 2, color: 'text.secondary', fontSize: '1.05rem' }}>
+                {product.description}
+              </Typography>
             </Box>
           </Paper>
 
-          {/* Specifications */}
-          <Paper elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
-            <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-              <Typography variant="h5" fontWeight={700} gutterBottom>
-                Specifications
-              </Typography>
-              <Divider />
-              <Box sx={{ mt: 2 }}>
-                <SpecsTable product={product} />
+          {/* Specifications - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Specifications
+                </Typography>
               </Box>
+              <SpecsTable product={product} />
             </Box>
           </Paper>
 
-          {/* Reviews */}
-          <Paper elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
-            <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-              <Typography variant="h5" fontWeight={700} gutterBottom>
-                Reviews ({MOCK_REVIEWS.length})
-              </Typography>
-              <Divider />
-              <Box sx={{ mt: 2 }}>
-                {/* Rating Summary */}
-                <Box
-                  sx={{ display: 'flex', alignItems: 'center', gap: 4, mb: 4, flexWrap: 'wrap' }}
-                >
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h3" fontWeight={700} color="primary.main">
-                      {averageRating.toFixed(1)}
-                    </Typography>
-                    <Rating
-                      value={averageRating}
-                      precision={0.5}
-                      readOnly
-                      size="large"
-                      sx={{ mt: 1 }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      {MOCK_REVIEWS.length} reviews
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flexGrow: 1 }}>
-                    {[5, 4, 3, 2, 1].map((stars) => {
-                      const count = MOCK_REVIEWS.filter((r) => Math.floor(r.rating) === stars).length
-                      const percentage = MOCK_REVIEWS.length > 0 ? (count / MOCK_REVIEWS.length) * 100 : 0
-                      return (
-                        <Box
-                          key={stars}
-                          sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}
-                        >
-                          <Typography variant="body2">{stars}</Typography>
-                          <StarIcon sx={{ fontSize: 16 }} />
-                          <Box
-                            sx={{ flexGrow: 1, height: 8, bgcolor: 'grey.200', borderRadius: 1 }}
-                          >
-                            <Box
-                              sx={{
-                                height: '100%',
-                                bgcolor: 'warning.main',
-                                borderRadius: 1,
-                                width: `${percentage}%`,
-                              }}
-                            />
-                          </Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {count}
-                          </Typography>
-                        </Box>
-                      )
-                    })}
-                  </Box>
-                </Box>
+          {/* Reviews - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Customer Reviews ({totalReviews})
+                </Typography>
+              </Box>
 
-                {/* Reviews List */}
-                <Stack spacing={2}>
-                  {MOCK_REVIEWS.map((review) => (
-                    <Paper key={review.id} variant="outlined" sx={{ p: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              {/* Rating Summary - Enhanced */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  mb: 5,
+                  p: 3,
+                  bgcolor: 'grey.50',
+                  borderRadius: 3,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Box sx={{ textAlign: 'center', minWidth: 120 }}>
+                  <Typography variant="h2" fontWeight={800} color="primary.main" sx={{ fontSize: '3.5rem' }}>
+                    {averageRating.toFixed(1)}
+                  </Typography>
+                  <Rating
+                    value={averageRating}
+                    precision={0.5}
+                    readOnly
+                    size="large"
+                    sx={{ mt: 1, color: 'warning.main' }}
+                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 500 }}>
+                    Based on {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flexGrow: 1, minWidth: 200 }}>
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = reviewStats?.ratingDistribution?.[stars] ?? 0
+                    const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0
+                    return (
+                      <Box
+                        key={stars}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          mb: 1.25,
+                        }}
+                      >
+                        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 45 }}>
+                          {stars} star
+                        </Typography>
                         <Box
                           sx={{
-                            width: 40,
-                            height: 40,
+                            flexGrow: 1,
+                            height: 10,
+                            bgcolor: 'grey.200',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              height: '100%',
+                              bgcolor: 'warning.main',
+                              borderRadius: 2,
+                              width: `${percentage}%`,
+                              transition: 'width 0.5s ease',
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 30, textAlign: 'right' }}>
+                          {count}
+                        </Typography>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              </Box>
+
+              {/* Reviews List - Enhanced */}
+              <Stack spacing={2.5}>
+                {reviewsLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={32} />
+                  </Box>
+                ) : reviews.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No reviews yet. Be the first to review this product!
+                    </Typography>
+                  </Box>
+                ) : (
+                  reviews.map((review) => (
+                    <Paper
+                      key={review._id}
+                      variant="outlined"
+                      sx={{
+                        p: 3,
+                        borderRadius: 3,
+                        borderColor: 'divider',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          boxShadow: 3,
+                          borderColor: 'primary.main',
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5, mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
                             borderRadius: '50%',
                             bgcolor: 'primary.main',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: 'white',
-                            fontWeight: 600,
+                            fontWeight: 700,
+                            fontSize: '1.25rem',
+                            flexShrink: 0,
                           }}
                         >
-                          {review.user.charAt(0)}
+                          {review.userName?.charAt(0) || 'U'}
                         </Box>
                         <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="subtitle2" fontWeight={600}>
-                            {review.user}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Rating value={review.rating} readOnly size="small" />
-                            <Typography variant="caption" color="text.secondary">
-                              {review.date}
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="subtitle1" fontWeight={700}>
+                                {review.userName || 'Anonymous'}
+                              </Typography>
+                              {review.isVerifiedPurchase && (
+                                <Chip
+                                  label="Verified Purchase"
+                                  size="small"
+                                  icon={<CheckIcon sx={{ fontSize: 14 }} />}
+                                  sx={{
+                                    bgcolor: 'success.light',
+                                    color: 'success.dark',
+                                    fontWeight: 600,
+                                    fontSize: '0.7rem',
+                                    height: 20,
+                                  }}
+                                />
+                              )}
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Rating value={review.rating} readOnly size="small" sx={{ color: 'warning.main' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {review.title && (
+                            <Typography variant="h6" fontWeight={700} sx={{ mt: 1.5, color: 'text.primary' }}>
+                              {review.title}
                             </Typography>
+                          )}
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+                            {review.comment}
+                          </Typography>
+                          {review.images && review.images.length > 0 && (
+                            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                              {review.images.map((image, idx) => (
+                                <Box
+                                  key={idx}
+                                  component="img"
+                                  src={formatImageUrl(image)}
+                                  alt={`Review image ${idx + 1}`}
+                                  sx={{
+                                    width: 60,
+                                    height: 60,
+                                    objectFit: 'cover',
+                                    borderRadius: 2,
+                                    cursor: 'pointer',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                  }}
+                                />
+                              ))}
+                            </Box>
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                            <Button size="small" startIcon={<ThumbUpOffAlt sx={{ fontSize: 16 }} />}>
+                              Helpful ({review.helpfulCount})
+                            </Button>
+                            <Button size="small">Report</Button>
                           </Box>
                         </Box>
                       </Box>
-                      <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                        {review.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {review.comment}
-                      </Typography>
                     </Paper>
-                  ))}
-                </Stack>
-              </Box>
+                  ))
+                )}
+              </Stack>
             </Box>
           </Paper>
         </Stack>
 
-        {/* Related Products */}
+        {/* Enhanced Related Products */}
         {relatedProducts.length > 0 && (
-          <Box sx={{ mt: 6 }}>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
-              You May Also Like
-            </Typography>
+          <Box sx={{ mt: 8 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 4 }}>
+              <Box sx={{ width: 4, height: 28, borderRadius: 2, bgcolor: 'primary.main' }} />
+              <Typography variant="h5" fontWeight={800}>
+                You May Also Like
+              </Typography>
+            </Box>
             <Grid container spacing={3}>
               {relatedProducts.map((relatedProduct) => (
                 <Grid size={{ xs: 6, sm: 4, md: 3 }} key={relatedProduct._id}>
@@ -1786,25 +2248,56 @@ export function ProductDetailPage() {
         )}
       </Container>
 
-      {/* Zoom Dialog */}
-      <Dialog open={zoomOpen} onClose={() => setZoomOpen(false)} maxWidth="lg" fullWidth>
+      {/* Enhanced Zoom Dialog */}
+      <Dialog
+        open={zoomOpen}
+        onClose={() => setZoomOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            overflow: 'hidden',
+          },
+        }}
+      >
         <DialogTitle
-          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            bgcolor: 'grey.50',
+            px: 3,
+            py: 2,
+          }}
         >
-          {product.name}
-          <IconButton onClick={() => setZoomOpen(false)} size="small">
+          <Typography variant="h6" fontWeight={700}>
+            {product.name}
+          </Typography>
+          <IconButton
+            onClick={() => setZoomOpen(false)}
+            sx={{
+              bgcolor: 'grey.200',
+              '&:hover': { bgcolor: 'grey.300' },
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent
+          dividers
+          sx={{
+            p: 0,
+            bgcolor: 'grey.900',
+          }}
+        >
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'grey.50',
-              borderRadius: 2,
-              p: 2,
+              minHeight: '60vh',
+              p: 3,
             }}
           >
             {images2D[activeImageIndex] ? (
@@ -1812,15 +2305,20 @@ export function ProductDetailPage() {
                 component="img"
                 src={images2D[activeImageIndex]}
                 alt={product.name}
-                sx={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: 2,
+                }}
               />
             ) : (
               <Box sx={{ textAlign: 'center', py: 8 }}>
-                <ThreeDIcon sx={{ fontSize: 80, color: 'primary.main' }} />
-                <Typography variant="h6" sx={{ mt: 2 }}>
+                <ThreeDIcon sx={{ fontSize: 100, color: 'primary.main', mb: 2 }} />
+                <Typography variant="h6" color="white" fontWeight={700}>
                   3D Model Viewer
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="rgba(255,255,255,0.7)">
                   Full 3D viewer coming soon
                 </Typography>
               </Box>
@@ -1845,12 +2343,21 @@ export function ProductDetailPage() {
         </Alert>
       </Snackbar>
 
-      {/* Scroll to Top Button */}
+      {/* Enhanced Scroll to Top Button */}
       <Fab
         color="primary"
-        size="small"
+        size="medium"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+          '&:hover': {
+            transform: 'scale(1.1)',
+          },
+          transition: 'all 0.2s',
+        }}
       >
         <ArrowUpIcon />
       </Fab>

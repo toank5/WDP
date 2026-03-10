@@ -8,9 +8,13 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiBox,
+  FiStar,
 } from 'react-icons/fi'
 import { orderApi, Order, OrderStatus } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
+import { ReviewFormModal } from '@/components/review'
+
+import { reviewApi, UnreviewedProduct } from '@/lib/review-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -96,9 +100,37 @@ const OrderHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('')
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Review modal state
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean
+    productId: string
+    productName: string
+    productImage?: string
+    orderId: string
+    variantSku?: string
+    orderNumber: string
+  } | null>(null)
+
+  const [reviewableItems, setReviewableItems] = useState<UnreviewedProduct[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+
   useEffect(() => {
     loadOrders()
+    loadUnreviewedProducts()
   }, [page, statusFilter])
+
+  const loadUnreviewedProducts = async () => {
+    setReviewsLoading(true)
+    try {
+      const products = await reviewApi.getUnreviewedProducts()
+      setReviewableItems(Array.isArray(products) ? products : [])
+    } catch (err) {
+      console.error('Failed to load unreviewed products:', err)
+      setReviewableItems([])
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
 
   const loadOrders = async () => {
     setLoading(true)
@@ -131,6 +163,47 @@ const OrderHistoryPage: React.FC = () => {
   const handleStatusFilter = (status: OrderStatus | '') => {
     setStatusFilter(status)
     setPage(1)
+  }
+
+  // Removed checkCanReview as we now use reviewableItems list natively
+
+  const handleOpenReviewModal = (
+    productId: string,
+    productName: string,
+    productImage: string | undefined,
+    orderId: string,
+    variantSku: string | undefined,
+    orderNumber: string,
+  ) => {
+    setReviewModal({
+      open: true,
+      productId,
+      productName,
+      productImage,
+      orderId,
+      variantSku,
+      orderNumber,
+    })
+  }
+
+  const handleCloseReviewModal = () => {
+    setReviewModal(null)
+    // Refresh unreviewed products
+    loadUnreviewedProducts()
+  }
+
+  // Helper to find the first unreviewed item in an order
+  const getFirstUnreviewedItem = (order: Order) => {
+    if (order.orderStatus !== OrderStatus.DELIVERED) return null
+    return order.items.find((item) => {
+      const match = (reviewableItems || []).some(
+        (ri) =>
+          ri.orderId === order._id &&
+          ri.productId === item.productId &&
+          (ri.variantSku || '') === (item.variantSku || '')
+      )
+      return match;
+    })
   }
 
   return (
@@ -385,12 +458,52 @@ const OrderHistoryPage: React.FC = () => {
                     <div className="text-sm text-slate-500">
                       {order.payment?.method} • {order.items.length} items
                     </div>
-                    <Link
-                      to={`/orders/${order._id}`}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
-                    >
-                      View Details
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/orders/${order._id}`}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                      >
+                        View Details
+                      </Link>
+                      {/* Write Review Button for Delivered Orders */}
+                      {(() => {
+                        if (order.orderStatus !== OrderStatus.DELIVERED) return null
+
+                        const unreviewedItem = getFirstUnreviewedItem(order)
+
+                        if (unreviewedItem) {
+                          return (
+                            <button
+                              onClick={() =>
+                                handleOpenReviewModal(
+                                  unreviewedItem.productId || '',
+                                  unreviewedItem.productName || 'Product',
+                                  unreviewedItem.productImage,
+                                  order._id,
+                                  unreviewedItem.variantSku,
+                                  order.orderNumber,
+                                )
+                              }
+                              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                            >
+                              <FiStar className="text-sm" />
+                              Write Review
+                            </button>
+                          )
+                        } else {
+                          // All items reviewed (or loading)
+                          if (reviewsLoading) {
+                             return <span className="text-xs text-slate-400">Loading...</span>
+                          }
+                          return (
+                            <span className="flex items-center gap-1.5 px-3 py-2 text-emerald-600 font-bold text-xs uppercase tracking-wider border border-emerald-200 bg-emerald-50 rounded-[2px]">
+                              <FiStar className="text-sm border-emerald-600" />
+                              Reviews Submitted
+                            </span>
+                          )
+                        }
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -419,6 +532,21 @@ const OrderHistoryPage: React.FC = () => {
               <FiChevronRight />
             </button>
           </div>
+        )}
+
+        {/* Review Form Modal */}
+        {reviewModal && (
+          <ReviewFormModal
+            open={reviewModal.open}
+            onClose={handleCloseReviewModal}
+            productId={reviewModal.productId}
+            productName={reviewModal.productName}
+            productImage={reviewModal.productImage}
+            orderId={reviewModal.orderId}
+            variantSku={reviewModal.variantSku}
+            orderNumber={reviewModal.orderNumber}
+            onReviewSubmitted={handleCloseReviewModal}
+          />
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -26,10 +26,12 @@ import {
   LocalShipping as ShippingIcon,
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
+  RemoveRedEye as ReviewIcon,
 } from '@mui/icons-material'
 import { toast } from 'sonner'
+import { useNavigate } from 'react-router-dom'
 import OrderDetailDrawer from '@/components/staff/OrderDetailDrawer'
-import { orderApi, Order, OrderStatus, OrderType } from '@/lib/order-api'
+import { orderApi, Order, OrderStatus, OrderType, PreorderStatus } from '@/lib/order-api'
 import { useAuthStore } from '@/store/auth-store'
 
 type StatusFilter = 'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
@@ -52,7 +54,10 @@ const TYPE_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
   { value: 'READY', label: 'Standard' },
 ]
 
-const PREORDER_WAITING_STATUSES = new Set(['PENDING_STOCK', 'PARTIALLY_RESERVED'])
+const PREORDER_WAITING_STATUSES = new Set<PreorderStatus>([
+  PreorderStatus.PENDING_STOCK,
+  PreorderStatus.PARTIALLY_RESERVED,
+])
 
 const formatDateTime = (dateInput?: string | Date): string => {
   if (!dateInput) {
@@ -164,6 +169,7 @@ const toEndOfDayIso = (dateValue?: string): string | undefined => {
 }
 
 const StaffOrdersPage: React.FC = () => {
+  const navigate = useNavigate()
   const userRole = useAuthStore((state) => state.user?.role)
   const isSalesMode = Number(userRole) === 3
 
@@ -209,7 +215,7 @@ const StaffOrdersPage: React.FC = () => {
         page: 1,
         limit: 100,
         sortBy: 'createdAt',
-        sortOrder: 'desc',
+        sortOrder: 'desc' as const,
       }
 
       console.log('🔍 Loading orders with params:', { statusFilter, showAll, statusParam, params })
@@ -328,14 +334,26 @@ const StaffOrdersPage: React.FC = () => {
           </Typography>
         </Stack>
 
-        <Button
-          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
-          onClick={handleApplyFilters}
-          disabled={loading}
-          variant="outlined"
-        >
-          Refresh
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {isSalesMode ? (
+            <Button
+              startIcon={<ReviewIcon fontSize="small" />}
+              onClick={() => navigate('/dashboard/prescription-verification')}
+              variant="contained"
+              color="secondary"
+            >
+              Prescription Verification
+            </Button>
+          ) : null}
+          <Button
+            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
+            onClick={handleApplyFilters}
+            disabled={loading}
+            variant="outlined"
+          >
+            Refresh
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>

@@ -18,6 +18,7 @@ export enum OrderStatus {
   PENDING = 'PENDING',
   PENDING_PAYMENT = 'PENDING_PAYMENT',
   PAID = 'PAID',
+  ON_HOLD = 'ON_HOLD',
   PROCESSING = 'PROCESSING',
   CONFIRMED = 'CONFIRMED',
   SHIPPED = 'SHIPPED',
@@ -26,10 +27,34 @@ export enum OrderStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum PrescriptionStatus {
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  NEEDS_UPDATE = 'NEEDS_UPDATE',
+  APPROVED = 'APPROVED',
+  IN_MANUFACTURING = 'IN_MANUFACTURING',
+  READY_TO_SHIP = 'READY_TO_SHIP',
+  COMPLETED = 'COMPLETED',
+}
+
 export enum PaymentMethod {
   VNPAY = 'VNPAY',
   CASH = 'CASH',
   BANK_TRANSFER = 'BANK_TRANSFER',
+}
+
+export enum PreorderStatus {
+  PENDING_STOCK = 'PENDING_STOCK',
+  PARTIALLY_RESERVED = 'PARTIALLY_RESERVED',
+  READY_TO_FULFILL = 'READY_TO_FULFILL',
+  FULFILLED = 'FULFILLED',
+  CANCELED = 'CANCELED',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
 }
 
 // Order types
@@ -57,17 +82,42 @@ export interface OrderItem {
   }
   // Pre-order fields
   isPreorder?: boolean
-  preorderStatus?: 'PENDING_STOCK' | 'PARTIALLY_RESERVED' | 'READY_TO_FULFILL' | 'FULFILLED' | 'CANCELED'
+  preorderStatus?: PreorderStatus
   expectedShipDate?: string
   reservedQuantity?: number
+  // Prescription fields
+  isPrescription?: boolean
+  prescriptionStatus?: PrescriptionStatus
+  prescriptionData?: PrescriptionData
+  prescriptionUrl?: string
+}
+
+export interface PrescriptionData {
+  pd: number
+  sph: {
+    right: number
+    left: number
+  }
+  cyl: {
+    right: number
+    left: number
+  }
+  axis: {
+    right: number
+    left: number
+  }
+  add: {
+    right: number
+    left: number
+  }
 }
 
 export interface OrderPayment {
   method: string
   amount: number
   transactionId?: string
-  paidAt?: Date
-  status?: 'PENDING' | 'PAID' | 'FAILED'
+  paidAt?: Date | string
+  status?: PaymentStatus
 }
 
 export interface OrderTracking {
@@ -150,6 +200,22 @@ export interface ApproveOrderRequest {
   note?: string
 }
 
+export interface ApprovePrescriptionRequest {
+  itemId: string
+  note?: string
+}
+
+export interface RequestPrescriptionUpdateRequest {
+  itemId: string
+  message: string
+}
+
+export interface UpdateManufacturingStatusRequest {
+  itemId: string
+  status: 'IN_MANUFACTURING' | 'READY_TO_SHIP' | 'COMPLETED'
+  note?: string
+}
+
 export interface OrderListResponse {
   orders: Order[]
   total: number
@@ -168,15 +234,41 @@ interface ApiResponse<T> {
   message: string
   data?: T
   metadata?: T
+  success?: boolean
 }
 
+/**
+ * Safely unwrap API response payload
+ * Uses type guards to ensure runtime safety
+ */
 function unwrapApiPayload<T>(raw: unknown): T {
-  const response = raw as ApiResponse<T> & { success?: boolean; data?: T } & T
-  // Handle both standard API responses and custom responses with { success: true, data: ... }
-  if (response?.success && response?.data) {
-    return response.data as T
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid API response: response is not an object')
   }
-  return (response?.data ?? response?.metadata ?? response) as T
+
+  const response = raw as Partial<ApiResponse<T> & { success?: boolean; data?: T; metadata?: T }>
+
+  // Check for success + data pattern
+  if (response.success === true && response.data !== undefined) {
+    return response.data
+  }
+
+  // Check for metadata pattern
+  if (response.metadata !== undefined) {
+    return response.metadata
+  }
+
+  // Check for data pattern
+  if (response.data !== undefined) {
+    return response.data
+  }
+
+  // The response itself might be the data (rare case)
+  if ('statusCode' in response || 'message' in response) {
+    throw new Error('No valid data found in API response')
+  }
+
+  return raw as T
 }
 
 class OrderAPI {
@@ -375,6 +467,45 @@ class OrderAPI {
   async approveOrderForOperations(orderId: string, request: ApproveOrderRequest = {}): Promise<Order> {
     try {
       const response = await api.post(`/orders/${orderId}/approve`, request)
+      return unwrapApiPayload<Order>(response.data)
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Approve prescription (Sales Staff)
+   */
+  async approvePrescription(orderId: string, request: ApprovePrescriptionRequest): Promise<Order> {
+    try {
+      const response = await api.post(`/orders/${orderId}/prescription/approve`, request)
+      return unwrapApiPayload<Order>(response.data)
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Request prescription update from customer (Sales Staff)
+   */
+  async requestPrescriptionUpdate(orderId: string, request: RequestPrescriptionUpdateRequest): Promise<Order> {
+    try {
+      const response = await api.post(`/orders/${orderId}/prescription/request-update`, request)
+      return unwrapApiPayload<Order>(response.data)
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
+  }
+
+  /**
+   * Update manufacturing status (Operations Staff)
+   */
+  async updateManufacturingStatus(orderId: string, request: UpdateManufacturingStatusRequest): Promise<Order> {
+    try {
+      const response = await api.post(`/orders/${orderId}/prescription/manufacturing`, request)
       return unwrapApiPayload<Order>(response.data)
     } catch (error) {
       const message = extractApiMessage(error)

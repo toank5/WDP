@@ -48,7 +48,9 @@ function analyzeFaceShapeOptimized(landmarks: Landmark[]): FaceShape {
   // Cache result (limit cache size)
   if (faceShapeCache.size > 100) {
     const firstKey = faceShapeCache.keys().next().value;
-    faceShapeCache.delete(firstKey);
+    if (firstKey !== undefined) {
+      faceShapeCache.delete(firstKey);
+    }
   }
   faceShapeCache.set(cacheKey, shape);
 

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -18,6 +17,7 @@ import {
   Stack,
   Tooltip,
   Typography,
+  Alert,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -28,7 +28,7 @@ import {
   WarningAmber as WarningIcon,
   Inventory2 as InventoryIcon,
 } from '@mui/icons-material'
-import { orderApi, Order, OrderStatus } from '@/lib/order-api'
+import { orderApi, Order, OrderStatus, PrescriptionData, PrescriptionStatus, PreorderStatus, OrderType } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { toast } from 'sonner'
 
@@ -40,7 +40,10 @@ interface OrderDetailDrawerProps {
   onOrderUpdated: (nextOrder: Order) => void
 }
 
-const PREORDER_WAITING_STATUSES = new Set(['PENDING_STOCK', 'PARTIALLY_RESERVED'])
+const PREORDER_WAITING_STATUSES = new Set<PreorderStatus>([
+  PreorderStatus.PENDING_STOCK,
+  PreorderStatus.PARTIALLY_RESERVED,
+])
 
 const isPreorderReadyForApproval = (order: Order): boolean => {
   const preorderItems = order.items.filter((item) => item.isPreorder)
@@ -49,7 +52,7 @@ const isPreorderReadyForApproval = (order: Order): boolean => {
   }
 
   return preorderItems.every(
-    (item) => item.preorderStatus === 'READY_TO_FULFILL',
+    (item) => item.preorderStatus === PreorderStatus.READY_TO_FULFILL,
   )
 }
 
@@ -79,14 +82,17 @@ const formatDateTime = (dateInput?: string | Date): string => {
   })
 }
 
-const FULFILLMENT_COLOR: Record<string, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
-  PAID: 'info',
-  PROCESSING: 'info',
-  CONFIRMED: 'info',
-  SHIPPED: 'warning',
-  DELIVERED: 'success',
-  RETURNED: 'error',
-  CANCELLED: 'error',
+const FULFILLMENT_COLOR: Record<OrderStatus, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
+  [OrderStatus.PENDING]: 'default',
+  [OrderStatus.PENDING_PAYMENT]: 'warning',
+  [OrderStatus.PAID]: 'info',
+  [OrderStatus.ON_HOLD]: 'warning',
+  [OrderStatus.PROCESSING]: 'info',
+  [OrderStatus.CONFIRMED]: 'info',
+  [OrderStatus.SHIPPED]: 'warning',
+  [OrderStatus.DELIVERED]: 'success',
+  [OrderStatus.RETURNED]: 'error',
+  [OrderStatus.CANCELLED]: 'error',
 }
 
 export default function OrderDetailDrawer({
@@ -103,7 +109,7 @@ export default function OrderDetailDrawer({
   const [prescriptionOpen, setPrescriptionOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const hasPrescription = order?.orderType === 'PRESCRIPTION'
+  const hasPrescription = order?.orderType === OrderType.PRESCRIPTION
 
   const preorderWaitingStock = useMemo(() => {
     if (!order) {
@@ -126,16 +132,16 @@ export default function OrderDetailDrawer({
     }
 
     // Get all items if order type is PREORDER, or filter by isPreorder flag
-    const relevantItems = order.orderType === 'PREORDER' 
-      ? order.items 
+    const relevantItems = order.orderType === OrderType.PREORDER
+      ? order.items
       : order.items.filter((item) => item.isPreorder)
 
     return relevantItems.map((item) => {
         const reserved = item.reservedQuantity || 0
         const required = item.quantity
-        const status = item.preorderStatus || 'PENDING_STOCK'
+        const status = item.preorderStatus || PreorderStatus.PENDING_STOCK
         const isFullyReserved = reserved >= required
-        const isStatusReady = status === 'READY_TO_FULFILL'
+        const isStatusReady = status === PreorderStatus.READY_TO_FULFILL
         
         // Debug log
         console.log('Preorder item check:', {
@@ -188,6 +194,33 @@ export default function OrderDetailDrawer({
   )
 
   const canConfirmReceived = Boolean(!isSalesMode && order && order.orderStatus === OrderStatus.SHIPPED)
+
+  const prescriptionItems = useMemo(() => {
+    const items = order?.items.filter((item) => item.isPrescription) || []
+    console.log('Prescription items:', items.map(i => ({
+      name: i.productName,
+      isPrescription: i.isPrescription,
+      prescriptionStatus: i.prescriptionStatus,
+      _id: i._id,
+    })))
+    return items
+  }, [order])
+
+  // Debug log - placed after all variables are defined
+  console.log('OrderDetailDrawer render:', {
+    isSalesMode,
+    hasPrescription,
+    prescriptionItemsCount: prescriptionItems.length
+  })
+
+  const hasPrescriptionItems = prescriptionItems.length > 0
+
+  const canUpdateManufacturing = Boolean(
+    !isSalesMode &&
+    order &&
+    order.orderStatus === OrderStatus.PROCESSING &&
+    hasPrescriptionItems,
+  )
 
   const timeline = useMemo(() => {
     if (!order?.history) {
@@ -254,6 +287,44 @@ export default function OrderDetailDrawer({
       toast.success(`Order ${updated.orderNumber} approved for operations`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to approve order'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleApprovePrescription = async (orderItemId: string) => {
+    if (!order) return
+
+    try {
+      setSubmitting(true)
+      const updated = await orderApi.approvePrescription(order._id, {
+        itemId: orderItemId,
+        note: 'Prescription verified and approved by sales staff',
+      })
+      onOrderUpdated(updated)
+      toast.success('Prescription approved and sent to manufacturing')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to approve prescription'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRequestPrescriptionUpdate = async (orderItemId: string) => {
+    if (!order) return
+
+    try {
+      setSubmitting(true)
+      const updated = await orderApi.requestPrescriptionUpdate(order._id, {
+        itemId: orderItemId,
+        message: 'Please update your prescription information',
+      })
+      onOrderUpdated(updated)
+      toast.success('Update request sent to customer')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to request update'
       toast.error(message)
     } finally {
       setSubmitting(false)
@@ -391,6 +462,22 @@ export default function OrderDetailDrawer({
                             {item.variantDetails?.size ? ` • Size: ${item.variantDetails.size}` : ''}
                             {item.variantDetails?.color ? ` • Color: ${item.variantDetails.color}` : ''}
                           </Typography>
+
+                          {item.isPrescription && item.prescriptionStatus ? (
+                            <Chip
+                              size="small"
+                              color={
+                                item.prescriptionStatus === PrescriptionStatus.APPROVED ||
+                                item.prescriptionStatus === PrescriptionStatus.READY_TO_SHIP
+                                  ? 'success'
+                                  : item.prescriptionStatus === PrescriptionStatus.NEEDS_UPDATE
+                                    ? 'error'
+                                    : 'warning'
+                              }
+                              sx={{ mt: 0.5 }}
+                              label={`Rx: ${item.prescriptionStatus}`}
+                            />
+                          ) : null}
 
                           {item.isPreorder && item.preorderStatus ? (
                             <Chip
@@ -632,10 +719,115 @@ export default function OrderDetailDrawer({
       <Dialog open={prescriptionOpen} onClose={() => setPrescriptionOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Prescription Details</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
-            {order?.notes ||
-              'Prescription metadata is not available in this order payload. Connect this button to the prescription document endpoint to render PDF/text details.'}
-          </Typography>
+          {/* Debug info */}
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ display: 'block' }}>
+              DEBUG: isSalesMode={String(isSalesMode)} | Items={prescriptionItems.length}
+            </Typography>
+            {prescriptionItems.map((item, i) => (
+              <Typography key={i} variant="caption" sx={{ display: 'block' }}>
+                Item {i+1}: status={item.prescriptionStatus || 'null'} | isPrescription={String(item.isPrescription)}
+              </Typography>
+            ))}
+          </Alert>
+
+          {prescriptionItems.length === 0 ? (
+            <Alert severity="info">No prescription items in this order</Alert>
+          ) : (
+            <Stack spacing={2}>
+              {prescriptionItems.map((item, idx) => (
+                <Box key={`${item._id}-${idx}`} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        {item.productName || 'Prescription Item'}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={item.prescriptionStatus || 'Unknown'}
+                        color={
+                          item.prescriptionStatus === PrescriptionStatus.APPROVED ||
+                          item.prescriptionStatus === PrescriptionStatus.READY_TO_SHIP
+                            ? 'success'
+                            : item.prescriptionStatus === PrescriptionStatus.NEEDS_UPDATE
+                              ? 'error'
+                              : 'warning'
+                        }
+                      />
+                    </Box>
+
+                    {/* Action buttons for pending prescriptions */}
+                    {isSalesMode && (!item.prescriptionStatus || item.prescriptionStatus === PrescriptionStatus.PENDING_REVIEW) && (
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleRequestPrescriptionUpdate(item._id)}
+                          disabled={submitting}
+                        >
+                          Request Update
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          onClick={() => handleApprovePrescription(item._id)}
+                          disabled={submitting}
+                        >
+                          Approve
+                        </Button>
+                      </Stack>
+                    )}
+                  </Stack>
+
+                  {item.prescriptionData ? (
+                    <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">PD (Pupillary Distance)</Typography>
+                        <Typography variant="body2" fontWeight={600}>{item.prescriptionData.pd} mm</Typography>
+                      </Box>
+                      <Stack direction="row" spacing={2}>
+                        <Box flex={1}>
+                          <Typography variant="caption" color="text.secondary">OD (Right Eye)</Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            SPH: {item.prescriptionData.sph.right} | CYL: {item.prescriptionData.cyl.right}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            AXIS: {item.prescriptionData.axis.right}° | ADD: {item.prescriptionData.add.right}
+                          </Typography>
+                        </Box>
+                        <Box flex={1}>
+                          <Typography variant="caption" color="text.secondary">OS (Left Eye)</Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            SPH: {item.prescriptionData.sph.left} | CYL: {item.prescriptionData.cyl.left}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            AXIS: {item.prescriptionData.axis.left}° | ADD: {item.prescriptionData.add.left}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Stack>
+                  ) : (
+                    <Alert severity="warning">No prescription data available</Alert>
+                  )}
+
+                  {item.prescriptionUrl && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Uploaded Prescription Image
+                      </Typography>
+                      <img
+                        src={item.prescriptionUrl}
+                        alt="Prescription"
+                        style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #ddd' }}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPrescriptionOpen(false)}>Close</Button>

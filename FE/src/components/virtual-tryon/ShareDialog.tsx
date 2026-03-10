@@ -120,7 +120,7 @@ export function ShareDialog({
 
         <Stack spacing={2}>
           {/* Native Share */}
-          {navigator.share && (
+          {typeof navigator.share !== 'undefined' && (
             <Button
               variant="contained"
               fullWidth

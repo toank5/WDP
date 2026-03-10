@@ -369,8 +369,9 @@ export async function checkMultipleInventoryAvailability(skus: string[]): Promis
   }>
 > {
   try {
-    const response = await api.post('/inventory/check-availability', { skus })
-    return handleRequest(response)
+    return handleRequest(
+      api.post('/inventory/check-availability', { skus })
+    )
   } catch {
     return {}
   }
