@@ -3,7 +3,15 @@
     "allow": [
       "Bash(find:*)",
       "Bash(npx tsc --noEmit --skipLibCheck)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\")",
+      "Bash(npm install react-hook-form)",
+      "Bash(npx eslint \"src/pages/AboutPage.tsx\" --no-eslintrc)",
+      "Bash(node -c \"src/pages/AboutPage.tsx\")",
+      "Bash(curl -s http://localhost:8386/)",
+      "Bash(curl -s http://localhost:8386/reviews/product/123)",
+      "Read(//c/Users/lapto/.claude/projects/d--Code-Project-WDP/**)",
+      "Bash(npm install date-fns)"
     ]
   }
 }

@@ -23,8 +23,54 @@ import { MediaService } from './commons/services/media.service';
 import { MediaController } from './controllers/media.controller';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { InventoryController } from './controllers/inventory.controller';
+import { PublicInventoryController } from './controllers/public-inventory.controller';
 import { InventoryService } from './services/inventory.service';
 import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
+import {
+  SupplierController,
+  PublicSupplierController,
+} from './controllers/supplier.controller';
+import { SupplierService } from './services/supplier.service';
+import { Supplier, SupplierSchema } from './commons/schemas/supplier.schema';
+import {
+  InventoryMovement,
+  InventoryMovementSchema,
+} from './commons/schemas/inventory-movement.schema';
+import { CartController } from './controllers/cart.controller';
+import { CartService } from './services/cart.service';
+import { Cart, CartSchema } from './commons/schemas/cart.schema';
+import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
+import { CheckoutController } from './controllers/checkout.controller';
+import { CheckoutService } from './services/checkout.service';
+import { OrderController } from './controllers/order.controller';
+import { OrderService } from './services/order.service';
+import { Order, OrderSchema } from './commons/schemas/order.schema';
+import {
+  OrderItem,
+  OrderItemSchema,
+} from './commons/schemas/order-item.schema';
+import {
+  OrderPayment,
+  OrderPaymentSchema,
+} from './commons/schemas/order-payment.schema';
+import {
+  OrderTracking,
+  OrderTrackingSchema,
+} from './commons/schemas/order-tracking.schema';
+import {
+  OrderHistory,
+  OrderHistorySchema,
+} from './commons/schemas/order-history.schema';
+import { VNPayService } from './services/vnpay.service';
+import {
+  ProductVariant,
+  ProductVariantSchema,
+} from './commons/schemas/product-variant.schema';
+import { PreorderModule } from './preorder.module';
+import { PrescriptionModule } from './prescription.module';
+import { ReviewController } from './controllers/review.controller';
+import { ReviewService } from './services/review.service';
+import { Review, ReviewSchema } from './commons/schemas/review.schema';
 
 @Module({
   imports: [
@@ -69,7 +115,29 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
         name: Inventory.name,
         schema: InventorySchema,
       },
+      {
+        name: Supplier.name,
+        schema: SupplierSchema,
+      },
+      {
+        name: InventoryMovement.name,
+        schema: InventoryMovementSchema,
+      },
+      {
+        name: ProductVariant.name,
+        schema: ProductVariantSchema,
+      },
+      { name: Cart.name, schema: CartSchema },
+      { name: CartItem.name, schema: CartItemSchema },
+      { name: Order.name, schema: OrderSchema },
+      { name: OrderItem.name, schema: OrderItemSchema },
+      { name: OrderPayment.name, schema: OrderPaymentSchema },
+      { name: OrderTracking.name, schema: OrderTrackingSchema },
+      { name: OrderHistory.name, schema: OrderHistorySchema },
+      { name: Review.name, schema: ReviewSchema },
     ]),
+    PreorderModule,
+    PrescriptionModule,
   ],
   controllers: [
     AppController,
@@ -78,7 +146,14 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyController,
     ProductController,
     InventoryController,
+    PublicInventoryController,
+    SupplierController,
+    PublicSupplierController,
     MediaController,
+    CartController,
+    OrderController,
+    CheckoutController,
+    ReviewController,
   ],
   providers: [
     AppService,
@@ -89,9 +164,15 @@ import { Inventory, InventorySchema } from './commons/schemas/inventory.schema';
     PolicyService,
     ProductService,
     InventoryService,
+    SupplierService,
     CloudinaryService,
     FileUploadService,
     MediaService,
+    CartService,
+    OrderService,
+    CheckoutService,
+    VNPayService,
+    ReviewService,
   ],
 })
 export class AppModule {}

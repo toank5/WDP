@@ -57,7 +57,8 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Upload 2D product images',
-    description: 'Upload up to 10 2D images (JPEG, PNG, WebP) and get their Cloudinary URLs.',
+    description:
+      'Upload up to 10 2D images (JPEG, PNG, WebP) and get their Cloudinary URLs.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -78,7 +79,13 @@ export class MediaController {
       example: {
         statusCode: 200,
         message: 'Successfully uploaded 2 image(s)',
-        data: { count: 2, urls: ['https://cdn.example.com/img1.jpg', 'https://cdn.example.com/img2.jpg'] },
+        data: {
+          count: 2,
+          urls: [
+            'https://cdn.example.com/img1.jpg',
+            'https://cdn.example.com/img2.jpg',
+          ],
+        },
       },
     },
   })
@@ -136,7 +143,8 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Upload 3D product models',
-    description: 'Upload up to 5 3D model files (.glb, .gltf, .usdz) and get their Cloudinary URLs.',
+    description:
+      'Upload up to 5 3D model files (.glb, .gltf, .usdz) and get their Cloudinary URLs.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

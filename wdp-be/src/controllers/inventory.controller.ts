@@ -20,8 +20,6 @@ import {
   ApiNotFoundResponse,
   ApiConflictResponse,
   ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
-  ApiQuery,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { InventoryService } from '../services/inventory.service';
@@ -33,12 +31,25 @@ import {
   ReserveInventoryDto,
   ReleaseReservationDto,
 } from '../commons/dtos/inventory.dto';
-import { RbacGuard } from '../commons/guards/rbac.guard';
+import {
+  RbacGuard,
+  UserRole,
+  Roles,
+  MANAGER_OR_ADMIN,
+} from '../commons/guards/rbac.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
+
+// Roles that can access inventory endpoints (Operation, Manager, Admin)
+export const INVENTORY_ACCESS_ROLES = [
+  UserRole.OPERATION,
+  UserRole.MANAGER,
+  UserRole.ADMIN,
+];
 
 @ApiTags('Inventory')
 @Controller('manager/inventory')
-@UseGuards(RbacGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
@@ -48,9 +59,11 @@ export class InventoryController {
    * Query params: sku, lowStock, activeOnly, page, limit
    */
   @Get()
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
     summary: 'List inventory items',
-    description: 'Get paginated list of inventory items with optional filtering by SKU, low stock, or active status.',
+    description:
+      'Get paginated list of inventory items with optional filtering by SKU, low stock, or active status.',
   })
   @ApiOkResponse({
     description: 'Inventory items retrieved successfully',
@@ -63,8 +76,14 @@ export class InventoryController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid query parameters',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async findAll(
     @Query('sku') sku?: string,
     @Query('lowStock') lowStock?: string,
@@ -84,8 +103,8 @@ export class InventoryController {
       return {
         statusCode: HttpStatus.OK,
         message: 'Inventory items retrieved successfully',
-        data: result.items,
         metadata: {
+          items: result.items,
           total: result.total,
           page: result.page,
           limit: result.limit,
@@ -102,6 +121,7 @@ export class InventoryController {
    * GET /manager/inventory/:sku
    */
   @Get(':sku')
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
     summary: 'Get inventory item by SKU',
     description: 'Retrieve detailed inventory information for a specific SKU.',
@@ -122,8 +142,14 @@ export class InventoryController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Inventory item not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async findOne(@Param('sku') sku: string) {
     try {
       const inventoryItem = await this.inventoryService.findBySku(sku);
@@ -152,6 +178,7 @@ export class InventoryController {
    * POST /manager/inventory
    */
   @Post()
+  @Roles(...MANAGER_OR_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create inventory item',
@@ -173,9 +200,18 @@ export class InventoryController {
       },
     },
   })
-  @ApiConflictResponse({ description: 'SKU already exists', type: ErrorResponseDto })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'SKU already exists',
+    type: ErrorResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async create(
     @Body() createInventoryDto: CreateInventoryDto,
     @Res() res?: Response,
@@ -216,9 +252,11 @@ export class InventoryController {
    * PATCH /manager/inventory/:sku
    */
   @Patch(':sku')
+  @Roles(...MANAGER_OR_ADMIN)
   @ApiOperation({
     summary: 'Update inventory item',
-    description: 'Update stock quantities, reorder level, or supplier info for a specific SKU.',
+    description:
+      'Update stock quantities, reorder level, or supplier info for a specific SKU.',
   })
   @ApiOkResponse({
     description: 'Inventory item updated successfully',
@@ -236,9 +274,18 @@ export class InventoryController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Inventory item not found',
+    type: ErrorResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async updateBySku(
     @Param('sku') sku: string,
     @Body() updateInventoryDto: UpdateInventoryDto,
@@ -297,13 +344,15 @@ export class InventoryController {
   }
 
   /**
-   * Adjust stock quantity
+   * Adjust stock quantity (used by Operation Staff to receive stock)
    * POST /manager/inventory/:sku/adjust
    */
   @Post(':sku/adjust')
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
-    summary: 'Adjust stock quantity',
-    description: 'Increase or decrease stock quantity for a specific SKU (e.g., for restocking or damage).',
+    summary: 'Adjust stock quantity / Receive stock',
+    description:
+      'Increase or decrease stock quantity for a specific SKU. Use positive delta for receiving stock, negative for adjustments (damage, loss, etc.).',
   })
   @ApiOkResponse({
     description: 'Stock adjusted successfully',
@@ -321,9 +370,18 @@ export class InventoryController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
-  @ApiBadRequestResponse({ description: 'Invalid adjustment', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Inventory item not found',
+    type: ErrorResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid adjustment',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async adjustStock(
     @Param('sku') sku: string,
     @Body() adjustmentDto: StockAdjustmentDto,
@@ -386,9 +444,11 @@ export class InventoryController {
    * POST /manager/inventory/bulk-update
    */
   @Post('bulk-update')
+  @Roles(...MANAGER_OR_ADMIN)
   @ApiOperation({
     summary: 'Bulk update stock levels',
-    description: 'Update stock quantities for multiple SKUs in a single request.',
+    description:
+      'Update stock quantities for multiple SKUs in a single request.',
   })
   @ApiOkResponse({
     description: 'Bulk stock update completed',
@@ -400,8 +460,14 @@ export class InventoryController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Invalid request', type: ErrorResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid request',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async bulkUpdate(
     @Body() bulkUpdateDto: BulkStockUpdateDto,
     @Res() res?: Response,
@@ -429,9 +495,11 @@ export class InventoryController {
    * POST /manager/inventory/:sku/reserve
    */
   @Post(':sku/reserve')
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
     summary: 'Reserve inventory for an order',
-    description: 'Reserve a specific quantity of stock for an order (reduces available quantity).',
+    description:
+      'Reserve a specific quantity of stock for an order (reduces available quantity).',
   })
   @ApiOkResponse({
     description: 'Inventory reserved successfully',
@@ -449,12 +517,18 @@ export class InventoryController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Inventory item not found',
+    type: ErrorResponseDto,
+  })
   @ApiBadRequestResponse({
     description: 'Insufficient stock or invalid quantity',
     type: ErrorResponseDto,
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async reserve(
     @Param('sku') sku: string,
     @Body() reserveDto: ReserveInventoryDto,
@@ -514,9 +588,11 @@ export class InventoryController {
    * POST /manager/inventory/:sku/release
    */
   @Post(':sku/release')
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
     summary: 'Release reservation',
-    description: 'Release reserved inventory back to available stock (e.g., when order is cancelled).',
+    description:
+      'Release reserved inventory back to available stock (e.g., when order is cancelled).',
   })
   @ApiOkResponse({
     description: 'Reservation released successfully',
@@ -534,12 +610,18 @@ export class InventoryController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Inventory item not found', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Inventory item not found',
+    type: ErrorResponseDto,
+  })
   @ApiBadRequestResponse({
     description: 'Invalid release quantity (exceeds reserved amount)',
     type: ErrorResponseDto,
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async releaseReservation(
     @Param('sku') sku: string,
     @Body() releaseDto: ReleaseReservationDto,
@@ -599,9 +681,11 @@ export class InventoryController {
    * GET /manager/inventory/reports/low-stock
    */
   @Get('reports/low-stock')
+  @Roles(...INVENTORY_ACCESS_ROLES)
   @ApiOperation({
     summary: 'Get low stock items',
-    description: 'Retrieve all inventory items where stock quantity is at or below the reorder level.',
+    description:
+      'Retrieve all inventory items where stock quantity is at or below the reorder level.',
   })
   @ApiOkResponse({
     description: 'Low stock items retrieved successfully',
@@ -622,7 +706,10 @@ export class InventoryController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
   async getLowStockItems() {
     try {
       const items = await this.inventoryService.getLowStockItems();
@@ -635,6 +722,117 @@ export class InventoryController {
       };
     } catch (error) {
       console.error('Low stock report error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get movement history for a specific SKU
+   * GET /manager/inventory/:sku/movements
+   */
+  @Get(':sku/movements')
+  @Roles(...INVENTORY_ACCESS_ROLES)
+  @ApiOperation({
+    summary: 'Get movement history for SKU',
+    description:
+      'Retrieve the movement history for a specific SKU including receipts, adjustments, reservations, etc.',
+  })
+  @ApiOkResponse({
+    description: 'Movement history retrieved successfully',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Movement history retrieved successfully',
+        data: {
+          movements: [
+            {
+              sku: 'FR-ROUND-52-BLK',
+              movementType: 'receipt',
+              quantity: 100,
+              stockBefore: 50,
+              stockAfter: 150,
+              reason: 'Stock received',
+              reference: 'PO-2024-12345',
+              supplier: {
+                supplierCode: 'ACME',
+                supplierName: 'Acme Eyewear Supplies',
+                supplierRef: 'INV-2024-001',
+              },
+              createdAt: '2024-01-15T10:30:00.000Z',
+            },
+          ],
+          total: 1,
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  async getMovements(
+    @Param('sku') sku: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    try {
+      const result = await this.inventoryService.getMovements(sku, {
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Movement history retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.error('Movement history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all movements (with optional filtering)
+   * GET /manager/inventory/movements/all
+   */
+  @Get('movements/all')
+  @Roles(...INVENTORY_ACCESS_ROLES)
+  @ApiOperation({
+    summary: 'Get all inventory movements',
+    description:
+      'Retrieve all inventory movements with optional filtering by SKU, movement type, or supplier.',
+  })
+  @ApiOkResponse({
+    description: 'Movements retrieved successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  async getAllMovements(
+    @Query('sku') sku?: string,
+    @Query('movementType') movementType?: string,
+    @Query('supplierId') supplierId?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    try {
+      const result = await this.inventoryService.getAllMovements({
+        sku,
+        movementType: movementType as any,
+        supplierId,
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Movements retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.error('All movements error:', error);
       throw error;
     }
   }

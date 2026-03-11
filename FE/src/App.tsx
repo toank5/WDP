@@ -3,6 +3,12 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
+import PrescriptionPage from './pages/PrescriptionPage'
+import FavoritesPage from './pages/FavoritesPage'
+import AboutPage from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
+import PrescriptionsPage from './pages/account/PrescriptionsPage'
+import EditPrescriptionPage from './pages/account/EditPrescriptionPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { DashboardLayout } from './pages/dashboard/DashboardLayout'
 import { DashboardOverview } from './pages/dashboard/DashboardOverview'
@@ -11,33 +17,46 @@ import { ProductManagementPage } from './pages/manager/ProductManagementPage'
 import PolicyListPage from './pages/manager/PolicyListPage'
 import PolicyFormPage from './pages/manager/PolicyFormPage'
 import PolicyDetailPage from './pages/PolicyDetailPage'
+import { CUSTOMER_ROLE } from './lib/constants'
 
-// Customer pages
-import ProductsPage from './pages/ProductsPage'
-import ProductDetailPage from './pages/ProductDetailPage'
-import CartPage from './pages/CartPage'
-import CheckoutPage from './pages/CheckoutPage'
+// Customer pages (store/)
+import { StorePage } from './pages/store/StorePage'
+import { ProductDetailPage } from './pages/store/ProductDetailPage'
+import CartPage from './pages/store/CartPage'
+import CheckoutPage from './pages/store/CheckoutPage'
+import OrderSuccessPage from './pages/store/OrderSuccessPage'
+import OrderFailedPage from './pages/store/OrderFailedPage'
 import AccountPage from './pages/AccountPage'
-import OrderHistoryPage from './pages/OrderHistoryPage'
-import OrderDetailPage from './pages/OrderDetailPage'
-import PrescriptionUploadPage from './pages/PrescriptionUploadPage'
-import VirtualTryOnPage from './pages/VirtualTryOnPage'
+import OrderHistoryPage from './pages/store/OrderHistoryPage'
+import OrderDetailPage from './pages/store/OrderDetailPage'
+import PrescriptionUploadPage from './pages/store/PrescriptionUploadPage'
+import VirtualTryOnPage from './pages/store/VirtualTryOnPage'
 
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
+import { PrescriptionManagementPage } from './pages/staff/PrescriptionManagementPage'
 
 // Operations pages
 import OperationsDashboard from './pages/OperationsDashboard'
 import ShippingPage from './pages/ShippingPage'
 
 // Manager pages
-import PromotionsPage from './pages/PromotionsPage'
-import AnalyticsPage from './pages/AnalyticsPage'
+import PromotionsPage from './pages/manager/PromotionsPage'
+import AnalyticsPage from './pages/manager/AnalyticsPage'
+import { ProductCatalogPage } from './pages/manager/ProductCatalogPage'
+import { ProductDetailAdminPage } from './pages/manager/ProductDetailAdminPage'
 import { InventoryManagementPage } from './pages/manager/InventoryManagementPage'
 import { InventoryDetailPage } from './pages/manager/InventoryDetailPage'
+import { SupplierManagementPage } from './pages/manager/SupplierManagementPage'
+import { SupplierFormPage } from './pages/manager/SupplierFormPage'
+import PreorderManagementPage from './pages/manager/PreorderManagementPage'
+import PreorderDetailPage from './pages/manager/PreorderDetailPage'
 
 // Components
 import { Navbar } from './components/Navbar'
+import NotFoundPage from './pages/NotFoundPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import VNPayReturnPage from './pages/store/VNPayReturnPage'
 
 function App() {
   return (
@@ -49,18 +68,48 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/prescription" element={<PrescriptionPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
-          {/* Customer routes */}
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
+          {/* Customer routes - Storefront */}
+          <Route path="/store" element={<StorePage />} />
+          <Route path="/store/:category" element={<StorePage />} />
+          <Route path="/product/:slug" element={<ProductDetailPage />} />
+          <Route path="/products" element={<StorePage />} />
+          <Route path="/products/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/vnpay-return" element={<VNPayReturnPage />} />
+          <Route path="/order/success" element={<OrderSuccessPage />} />
+          <Route path="/order/failed" element={<OrderFailedPage />} />
+          <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/prescription/upload" element={<PrescriptionUploadPage />} />
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
           <Route path="/policies/:type" element={<PolicyDetailPage />} />
+
+          {/* Prescriptions routes */}
+          <Route
+            path="/account/prescriptions"
+            element={
+              <ProtectedRoute allowedRoles={[CUSTOMER_ROLE]}>
+                <PrescriptionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/prescriptions/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={[CUSTOMER_ROLE]}>
+                <EditPrescriptionPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin/Staff/Operations routes */}
           <Route
@@ -77,15 +126,24 @@ function App() {
             <Route path="policies/new" element={<PolicyFormPage />} />
             <Route path="policies/:id/edit" element={<PolicyFormPage />} />
             <Route path="products" element={<ProductManagementPage />} />
+            <Route path="all-products" element={<ProductCatalogPage />} />
+            <Route path="products-catalog/:id" element={<ProductDetailAdminPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="prescriptions" element={<PrescriptionManagementPage />} />
             <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="inventory" element={<InventoryManagementPage />} />
+            <Route path="suppliers/new" element={<SupplierFormPage />} />
+            <Route path="suppliers/:id/edit" element={<SupplierFormPage />} />
+            <Route path="suppliers" element={<SupplierManagementPage />} />
+            <Route path="preorders" element={<PreorderManagementPage />} />
+            <Route path="preorders/:sku" element={<PreorderDetailPage />} />
+            <Route path="inventory/:sku" element={<InventoryDetailPage />} />
           </Route>
 
-          {/* Inventory detail route (outside dashboard layout for standalone access from product variants) */}
+          {/* Inventory/Supplier detail routes (outside dashboard layout for standalone access) */}
           <Route
             path="/manager/inventory/:sku"
             element={
@@ -96,7 +154,7 @@ function App() {
           />
 
           {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
     </BrowserRouter>

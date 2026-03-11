@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Address } from './api.types'
+import type { Address } from '@/types/api.types'
+import { migrateGuestCartToUserCart, saveUserCartToGuestCart } from './cart.store'
 
 export type AuthUser = {
   fullName: string
@@ -29,13 +30,31 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       isAuthenticated: false,
-      setAuth: ({ user, accessToken }) =>
+      setAuth: async ({ user, accessToken }) => {
+        // First save current cart as guest cart (if there was one before)
+        await saveUserCartToGuestCart()
+
         set({
           user,
           accessToken,
           isAuthenticated: true,
-        }),
-      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+        })
+
+        // Migrate guest cart to user cart
+        await migrateGuestCartToUserCart()
+
+        // Trigger cart refresh to load the new user's cart
+        window.dispatchEvent(new CustomEvent('cartUpdated'))
+      },
+      logout: async () => {
+        // Save user cart to guest cart before logout
+        await saveUserCartToGuestCart()
+
+        set({ user: null, accessToken: null, isAuthenticated: false })
+
+        // Trigger cart refresh to load guest cart
+        window.dispatchEvent(new CustomEvent('cartUpdated'))
+      },
     }),
     {
       name: 'wdp-auth',

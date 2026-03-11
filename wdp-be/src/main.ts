@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
@@ -14,11 +15,23 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Enable global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
   const swagger = new DocumentBuilder()
     .setTitle('WDP Eyewear Admin API')
     .setDescription(
       'Admin and backend API for WDP Eyewear platform. ' +
-      'Manages products, variants, media uploads, inventory, policies, users, and orders.',
+        'Manages products, variants, media uploads, inventory, policies, users, and orders.',
     )
     .setVersion('1.0')
     .addBearerAuth()
@@ -39,6 +52,6 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new ResponseInterceptor());
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 8386);
 }
 void bootstrap();

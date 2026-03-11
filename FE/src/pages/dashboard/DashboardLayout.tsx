@@ -35,6 +35,8 @@ import {
   Assessment,
   Build,
   Warehouse,
+  Business,
+  Medication,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -48,7 +50,9 @@ type MenuItem = {
   adminOnly?: boolean
   managerOnly?: boolean
   operationOnly?: boolean
+  saleOnly?: boolean
   staffOnly?: boolean
+  managerOrOperationOnly?: boolean
 }
 
 export function DashboardLayout() {
@@ -81,6 +85,12 @@ export function DashboardLayout() {
       staffOnly: true, // Sale and Operation
     },
     {
+      title: 'Prescription Management',
+      icon: <Medication />,
+      url: '/dashboard/prescriptions',
+      staffOnly: true, // All staff can view prescriptions
+    },
+    {
       title: 'User Management',
       icon: <People />,
       url: '/dashboard/users',
@@ -102,6 +112,12 @@ export function DashboardLayout() {
       title: 'Inventory',
       icon: <Warehouse />,
       url: '/dashboard/inventory',
+      managerOrOperationOnly: true,
+    },
+    {
+      title: 'Suppliers',
+      icon: <Business />,
+      url: '/dashboard/suppliers',
       managerOnly: true,
     },
     {
@@ -152,7 +168,10 @@ export function DashboardLayout() {
           borderColor: 'divider',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        >
           <Avatar
             sx={{
               bgcolor: 'primary.main',
@@ -182,8 +201,10 @@ export function DashboardLayout() {
             (item.adminOnly && isAdmin) ||
             (item.managerOnly && isManager) ||
             (item.operationOnly && isOperation) ||
+            (item.saleOnly && isSale) ||
+            (item.managerOrOperationOnly && (isManager || isOperation)) ||
             (item.staffOnly && (isSale || isOperation || isManager)) ||
-            (!item.adminOnly && !item.managerOnly && !item.staffOnly && !item.operationOnly)
+            (!item.adminOnly && !item.managerOnly && !item.saleOnly && !item.staffOnly && !item.operationOnly && !item.managerOrOperationOnly)
 
           return shouldShow ? (
             <ListItem key={item.title} disablePadding>

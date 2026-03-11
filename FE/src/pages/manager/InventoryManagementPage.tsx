@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -15,7 +15,6 @@ import {
   Chip,
   Stack,
   Container,
-  IconButton,
   CircularProgress,
   Snackbar,
   Alert,
@@ -29,7 +28,6 @@ import {
   Search as SearchIcon,
   Edit as EditIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material'
 import {
   getInventoryList,
@@ -69,12 +67,6 @@ const getCategoryColor = (category: string): 'primary' | 'secondary' | 'success'
 
 export function InventoryManagementPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // Check if we're inside the dashboard layout
-  const isInDashboard = location.pathname.startsWith('/dashboard')
-
-  const [searchParams, setSearchParams] = useSearchParams()
 
   // State
   const [items, setItems] = useState<InventoryItemEnriched[]>([])
@@ -83,9 +75,9 @@ export function InventoryManagementPage() {
   const [page, setPage] = useState(1)
 
   // Filters
-  const [skuFilter, setSkuFilter] = useState(searchParams.get('sku') || '')
-  const [lowStockOnly, setLowStockOnly] = useState(searchParams.get('lowStock') === 'true')
-  const [activeOnly, setActiveOnly] = useState(searchParams.get('activeOnly') !== 'false')
+  const [skuFilter, setSkuFilter] = useState('')
+  const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [activeOnly, setActiveOnly] = useState(true)
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -132,15 +124,6 @@ export function InventoryManagementPage() {
   useEffect(() => {
     loadInventory()
   }, [loadInventory])
-
-  // Update URL params when filters change
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (skuFilter) params.set('sku', skuFilter)
-    if (lowStockOnly) params.set('lowStock', 'true')
-    if (!activeOnly) params.set('activeOnly', 'false')
-    setSearchParams(params, { replace: true })
-  }, [skuFilter, lowStockOnly, activeOnly, setSearchParams])
 
   // Handle search
   const handleSearch = () => {
@@ -220,8 +203,10 @@ export function InventoryManagementPage() {
                     handleSearch()
                   }
                 }}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                  },
                 }}
                 sx={{ minWidth: 250 }}
               />
@@ -395,7 +380,7 @@ export function InventoryManagementPage() {
                           size="small"
                           variant="outlined"
                           startIcon={<EditIcon />}
-                          onClick={() => navigate(`/manager/inventory/${item.sku}`)}
+                          onClick={() => navigate(`/dashboard/inventory/${item.sku}`)}
                         >
                           Manage
                         </Button>

@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { ROLES } from '../enums/role.enum';
 import { ADDRESS_TYPES } from '../enums/address.enum';
 
+const FullNameField = z
+  .string()
+  .min(5, 'Full name must be at least 5 characters')
+  .max(100, 'Full name must not exceed 100 characters')
+  .trim();
+
 /**
  * Strict Address Schema
  * - All fields required
@@ -46,18 +52,29 @@ export const RegisterUserSchema = z
       .string()
       .min(6, 'Password must be at least 6 characters')
       .max(100, 'Password must not exceed 100 characters'),
-    fullName: z
-      .string()
-      .min(5, 'Full name must be at least 5 characters')
-      .max(100, 'Full name must not exceed 100 characters')
-      .trim(),
-    role: z.nativeEnum(ROLES),
+    fullName: FullNameField.optional(),
+    // Backward-compatible alias for clients still sending `name`.
+    name: FullNameField.optional(),
+    role: z.nativeEnum(ROLES).optional().default(ROLES.CUSTOMER),
   })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (!data.fullName && !data.name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fullName'],
+        message: 'Full name is required',
+      });
+    }
+  })
+  .transform(({ name, fullName, ...rest }) => ({
+    ...rest,
+    fullName: fullName ?? name!,
+  }))
   .refine((data) => data.password.length >= 6, {
     message: 'Password must be at least 6 characters',
     path: ['password'],
-  })
-  .strict();
+  });
 
 /**
  * Strict Login Schema
@@ -97,16 +114,14 @@ export const UpdateUserSchema = z
       .toLowerCase()
       .trim()
       .optional(),
-    fullName: z
-      .string()
-      .min(5, 'Full name must be at least 5 characters')
-      .max(100, 'Full name must not exceed 100 characters')
-      .trim()
-      .optional(),
+    fullName: FullNameField.optional(),
+    // Backward-compatible alias for clients still sending `name`.
+    name: FullNameField.optional(),
     avatar: z.string().url('Avatar must be a valid URL').optional(),
     role: z.nativeEnum(ROLES).optional(),
     addresses: z.array(AddressSchema).optional(),
   })
+  .strict()
   .refine(
     (data) => {
       // At least one field must be provided
@@ -116,7 +131,10 @@ export const UpdateUserSchema = z
       message: 'At least one field must be provided for update',
     },
   )
-  .strict();
+  .transform(({ name, fullName, ...rest }) => ({
+    ...rest,
+    ...(fullName || name ? { fullName: fullName ?? name } : {}),
+  }));
 
 /**
  * Strict Add Address Schema

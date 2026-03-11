@@ -4,6 +4,40 @@
  * These types ensure frontend and backend alignment
  */
 
+// ==================== PRE-ORDER TYPES ====================
+
+/**
+ * Pre-order Status enum
+ */
+export type PreorderStatus =
+  | 'PENDING_STOCK'
+  | 'PARTIALLY_RESERVED'
+  | 'READY_TO_FULFILL'
+  | 'FULFILLED'
+  | 'CANCELED';
+
+/**
+ * Pre-order status display labels
+ */
+export const PREORDER_STATUS_LABELS: Record<PreorderStatus, string> = {
+  PENDING_STOCK: 'Waiting for Stock',
+  PARTIALLY_RESERVED: 'Partially Reserved',
+  READY_TO_FULFILL: 'Ready to Ship',
+  FULFILLED: 'Shipped',
+  CANCELED: 'Canceled',
+};
+
+/**
+ * Pre-order status colors for UI
+ */
+export const PREORDER_STATUS_COLORS: Record<PreorderStatus, 'warning' | 'info' | 'success' | 'default' | 'error'> = {
+  PENDING_STOCK: 'warning',
+  PARTIALLY_RESERVED: 'info',
+  READY_TO_FULFILL: 'success',
+  FULFILLED: 'default',
+  CANCELED: 'error',
+};
+
 // ==================== USER TYPES ====================
 
 /**
@@ -137,7 +171,16 @@ export type OrderType = 'READY' | 'PREORDER' | 'PRESCRIPTION';
 /**
  * Order Status - matches backend ORDER_STATUS enum
  */
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
+export type OrderStatus =
+  | 'PENDING'
+  | 'PENDING_PAYMENT'
+  | 'PAID'
+  | 'PROCESSING'
+  | 'CONFIRMED'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'RETURNED'
+  | 'CANCELLED';
 
 /**
  * Payment Methods - matches backend PAYMENT_METHOD enum
@@ -164,6 +207,11 @@ export interface OrderItem {
   variantSku: string;
   quantity: number;
   priceAtOrder: number;
+  // Pre-order fields
+  isPreorder?: boolean;
+  preorderStatus?: PreorderStatus;
+  expectedShipDate?: string;
+  reservedQuantity?: number;
 }
 
 /**
@@ -477,6 +525,11 @@ export interface ProductVariant {
   images2D?: string[];
   images3D?: string[];
   isActive?: boolean;
+  // Pre-order configuration
+  isPreorderEnabled?: boolean;
+  preorderExpectedShipStart?: string;
+  preorderExpectedShipEnd?: string;
+  preorderLimit?: number;
 }
 
 /**

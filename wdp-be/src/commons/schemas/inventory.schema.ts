@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { SupplierInfo, SupplierInfoSchema } from './supplier-info.schema';
 import { inventoryValidation } from '../validations/inventory.validation';
 
 @Schema({ timestamps: true })
 export class Inventory {
+  _id?: string;
+
   @Prop({
     type: String,
     required: inventoryValidation.sku.presence,
@@ -22,8 +23,8 @@ export class Inventory {
     required: inventoryValidation.reservedQuantity.presence,
     min: 0,
     validate: {
-      validator: function (this: void, value: number) {
-        return inventoryValidation.reservedQuantity.validator(value);
+      validator: function (value: number) {
+        return value <= this.stockQuantity;
       },
       message: inventoryValidation.reservedQuantity.errorMsg,
     },
@@ -35,8 +36,8 @@ export class Inventory {
     required: inventoryValidation.availableQuantity.presence,
     min: inventoryValidation.availableQuantity.min,
     validate: {
-      validator: function (this: void, value: number) {
-        return inventoryValidation.availableQuantity.validator(value);
+      validator: function (value: number) {
+        return value === this.stockQuantity - this.reservedQuantity;
       },
       message: inventoryValidation.availableQuantity.errorMsg,
     },
@@ -49,12 +50,11 @@ export class Inventory {
     min: inventoryValidation.reorderLevel.min,
   })
   reorderLevel: number;
-
-  @Prop({
-    type: SupplierInfoSchema,
-    required: inventoryValidation.supplier.presence,
-  })
-  supplierInfo: SupplierInfo;
 }
 
 export const InventorySchema = SchemaFactory.createForClass(Inventory);
+
+// Index for efficient queries
+InventorySchema.index({ sku: 1 }, { unique: true });
+InventorySchema.index({ stockQuantity: 1 });
+InventorySchema.index({ availableQuantity: 1 });

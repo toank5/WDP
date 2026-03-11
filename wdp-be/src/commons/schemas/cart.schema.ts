@@ -4,17 +4,22 @@ import { CartItem, CartItemSchema } from './cart-item.schema';
 
 @Schema({ timestamps: true })
 export class Cart {
+  _id?: string;
+
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   })
-  customerId: mongoose.ObjectId;
+  customerId: mongoose.Types.ObjectId;
 
   @Prop({
     type: [CartItemSchema],
     default: [],
   })
   items: CartItem[];
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const CartSchema = SchemaFactory.createForClass(Cart);

@@ -1,158 +1,373 @@
-import React, { FormEvent, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  IconButton,
+  InputAdornment,
+  Alert,
+  CircularProgress,
+} from '@mui/material'
+import {
+  Visibility,
+  VisibilityOff,
+  EmailRounded,
+  LockRounded,
+  PersonRounded,
+  ShoppingBagOutlined,
+  HowToRegRounded,
+} from '@mui/icons-material'
+import { register } from '@/lib/api'
+import { useAuthStore } from '@/store/auth-store'
 import { toast } from 'sonner'
-import { register } from '../lib/api'
-import { useAuthStore } from '../store/auth-store'
-import { FiUser, FiMail, FiLock, FiUserPlus, FiArrowRight } from 'react-icons/fi'
+
+interface FormValues {
+  fullName: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
+interface FormErrors {
+  fullName?: string
+  email?: string
+  password?: string
+  confirmPassword?: string
+}
 
 export function RegisterPage() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
+  // Form state
+  const [values, setValues] = useState<FormValues>({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [globalError, setGlobalError] = useState<string | null>(null)
+
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {}
+
+    // Full name validation
+    if (!values.fullName.trim()) {
+      errors.fullName = 'Full name is required'
+    } else if (values.fullName.trim().length < 5) {
+      errors.fullName = 'Full name must be at least 5 characters'
     }
-    setIsLoading(true)
-    try {
-      const data = await register({ fullName: name, email, password })
-      setAuth(data)
-      toast.success('Registration successful')
-      navigate('/dashboard')
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Registration failed'
-      toast.error(message)
-    } finally {
-      setIsLoading(false)
+
+    // Email validation
+    if (!values.email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+
+    // Password validation
+    if (!values.password) {
+      errors.password = 'Password is required'
+    } else if (values.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters'
+    }
+
+    // Confirm password validation
+    if (!values.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password'
+    } else if (values.password !== values.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match'
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleChange = (field: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValues((prev) => ({ ...prev, [field]: e.target.value }))
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }))
+    }
+    // Clear global error when user makes changes
+    if (globalError) {
+      setGlobalError(null)
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Clear previous global error
+    setGlobalError(null)
+
+    // Validate form
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const data = await register({
+        fullName: values.fullName,
+        email: values.email,
+        password: values.password,
+      })
+
+      // Auto-login after successful registration
+      setAuth(data)
+
+      toast.success('Registration successful! Please check your email to verify your account.')
+
+      // Redirect to home page
+      navigate('/', { replace: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.'
+      setGlobalError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMouseDownPassword = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
-        {/* Header with gradient */}
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 px-8 py-10 text-white text-center">
-          <h1 className="text-3xl font-black tracking-tight mb-2">Create Account</h1>
-          <p className="text-blue-100 text-sm font-medium italic">
-            Join the WDP Eyewear community today
-          </p>
-        </div>
-
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                Full Name
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                  <FiUser size={18} />
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                Email Address
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                  <FiMail size={18} />
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                  Password
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                    <FiLock size={18} />
-                  </div>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">
-                  Confirm
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                    <FiLock size={18} />
-                  </div>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fb 0%, #ffffff 50%, #e6f0ff 100%)',
+        p: 2,
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper
+          elevation={3}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            borderRadius: 3,
+          }}
+        >
+          {/* Logo/Brand */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                bgcolor: 'primary.main',
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+              }}
             >
-              {isLoading ? (
-                'Creating Account...'
-              ) : (
-                <>
-                  Register Now <FiArrowRight />
-                </>
-              )}
-            </button>
+              <HowToRegRounded sx={{ fontSize: 36, color: 'white' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Create your account
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sign up to track orders and save favorites
+            </Typography>
+          </Box>
 
-            <div className="pt-4 text-center">
-              <p className="text-sm text-slate-500">
-                Already member?{' '}
+          {/* Global Error Alert */}
+          {globalError && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setGlobalError(null)}>
+              {globalError}
+            </Alert>
+          )}
+
+          {/* Register Form */}
+          <Box component="form" onSubmit={handleSubmit}>
+            {/* Full Name Field */}
+            <TextField
+              fullWidth
+              label="Full name"
+              margin="normal"
+              value={values.fullName}
+              onChange={handleChange('fullName')}
+              error={!!formErrors.fullName}
+              helperText={formErrors.fullName}
+              autoComplete="name"
+              autoFocus
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonRounded color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 1 }}
+            />
+
+            {/* Email Field */}
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              margin="normal"
+              value={values.email}
+              onChange={handleChange('email')}
+              error={!!formErrors.email}
+              helperText={formErrors.email}
+              autoComplete="email"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailRounded color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 1 }}
+            />
+
+            {/* Password Field */}
+            <TextField
+              fullWidth
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              margin="normal"
+              value={values.password}
+              onChange={handleChange('password')}
+              error={!!formErrors.password}
+              helperText={formErrors.password || 'At least 6 characters'}
+              autoComplete="new-password"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockRounded color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 1 }}
+            />
+
+            {/* Confirm Password Field */}
+            <TextField
+              fullWidth
+              label="Confirm password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              margin="normal"
+              value={values.confirmPassword}
+              onChange={handleChange('confirmPassword')}
+              error={!!formErrors.confirmPassword}
+              helperText={formErrors.confirmPassword}
+              autoComplete="new-password"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockRounded color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle confirm password visibility"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ mb: 2 }}
+            />
+
+            {/* Submit Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              type="submit"
+              disabled={loading}
+              sx={{
+                py: 1.5,
+                mt: 1,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+                minHeight: 48, // 44px touch target + padding
+              }}
+            >
+              {loading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Creating account…
+                </>
+              ) : (
+                'Create account'
+              )}
+            </Button>
+
+            {/* Login Link */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Already have an account?{' '}
                 <Link
                   to="/login"
-                  className="text-blue-600 font-bold hover:underline underline-offset-4"
+                  style={{
+                    color: '#1976d2',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
                 >
-                  Sign in here
+                  Log in
                 </Link>
-              </p>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Footer */}
+        <Box sx={{ textAlign: 'center', mt: 3, color: 'text.secondary' }}>
+          <Typography variant="caption">
+            By creating an account, you agree to our Terms of Service and Privacy Policy
+          </Typography>
+        </Box>
+      </Container>
+    </Box>
   )
 }
 

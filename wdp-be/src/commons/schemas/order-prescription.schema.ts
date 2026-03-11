@@ -1,29 +1,40 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Schema } from 'mongoose';
 
-@Schema({ _id: false })
-export class OrderPrescription {
-  @Prop()
+export const OrderPrescriptionSchema = new Schema({
+  pd: { type: Number, required: true },
+  sph: {
+    right: { type: Number, required: true },
+    left: { type: Number, required: true },
+  },
+  cyl: {
+    right: { type: Number, required: true },
+    left: { type: Number, required: true },
+  },
+  axis: {
+    right: { type: Number, required: true },
+    left: { type: Number, required: true },
+  },
+  add: {
+    right: { type: Number, required: true },
+    left: { type: Number, required: true },
+  },
+}, { _id: false });
+
+// TypeScript type for the document
+export interface OrderPrescription {
   pd: number;
-
-  @Prop()
   sph: {
     right: number;
     left: number;
   };
-
-  @Prop()
   cyl: {
     right: number;
     left: number;
   };
-
-  @Prop()
   axis: {
     right: number;
     left: number;
   };
-
-  @Prop()
   add: {
     right: number;
     left: number;

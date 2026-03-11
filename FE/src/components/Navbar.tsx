@@ -1,18 +1,47 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../store/auth-store'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
-  FiLogOut,
-  FiLogIn,
-  FiUserPlus,
-  FiShoppingCart,
-  FiMinus,
-  FiMenu,
-  FiX,
-  FiUser,
-  FiGrid,
-  FiEye,
-} from 'react-icons/fi'
+  AppBar,
+  Toolbar,
+  Box,
+  Typography,
+  IconButton,
+  Badge,
+  TextField,
+  InputAdornment,
+  Menu,
+  MenuItem,
+  Divider,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Collapse,
+  Button,
+} from '@mui/material'
+import {
+  Search as SearchIcon,
+  Person as PersonIcon,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  ShoppingBag as ShoppingBagIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
+  Home as HomeIcon,
+  Category as CategoryIcon,
+  Visibility,
+  RemoveRedEye as GlassesIcon,
+  ContactPage as ContactIcon,
+  Info as InfoIcon,
+  Dashboard as DashboardIcon,
+  Logout as LogoutIcon,
+  Medication as PrescriptionIcon,
+} from '@mui/icons-material'
+import { useAuthStore } from '@/store/auth-store'
+import { useCart } from '@/store/cart.store'
+import { wishlistApi } from '@/lib/wishlist-api'
 
 const roleLabels: Record<number, string> = {
   0: 'Admin',
@@ -22,201 +51,558 @@ const roleLabels: Record<number, string> = {
   4: 'Customer',
 }
 
+// Navigation links config
+const navLinks = [
+  { label: 'Home', path: '/', icon: <HomeIcon /> },
+  { label: 'All Products', path: '/products', icon: <CategoryIcon /> },
+  { label: 'Prescription', path: '/prescription', icon: <PrescriptionIcon /> },
+  { label: 'About', path: '/about', icon: <InfoIcon /> },
+  { label: 'Contact', path: '/contact', icon: <ContactIcon /> },
+]
+
 export function Navbar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, logout, user } = useAuthStore()
-  const [cartCount, setCartCount] = useState(0)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { totalItems: cartCount, loadCart } = useCart()
 
+  // State
+  const [wishlistCount, setWishlistCount] = useState(0)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null)
+
+  // Update counts
   useEffect(() => {
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-      setCartCount(cart.length)
+    const updateCounts = async () => {
+      try {
+        // Load cart from store (handles both guest and authenticated users)
+        await loadCart()
+
+        // Update wishlist count
+        const wishlist = await wishlistApi.getWishlistCount()
+        setWishlistCount(wishlist)
+      } catch (err) {
+        console.error('Failed to get counts:', err)
+      }
     }
 
-    updateCartCount()
-    window.addEventListener('cartUpdated', updateCartCount)
-    window.addEventListener('storage', updateCartCount)
+    updateCounts()
+
+    const handleCartUpdate = () => updateCounts()
+    const handleWishlistUpdate = () => updateCounts()
+
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    window.addEventListener('wishlistUpdated', handleWishlistUpdate)
 
     return () => {
-      window.removeEventListener('cartUpdated', updateCartCount)
-      window.removeEventListener('storage', updateCartCount)
+      window.removeEventListener('cartUpdated', handleCartUpdate)
+      window.removeEventListener('wishlistUpdated', handleWishlistUpdate)
     }
-  }, [])
+  }, [loadCart])
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // Close account menu on route change
+  useEffect(() => {
+    setAccountMenuAnchor(null)
+  }, [location.pathname])
+
+  // Handlers
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery('')
+      setShowSearch(false)
+    }
+  }
+
+  const handleAccountMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAccountMenuAnchor(event.currentTarget)
+  }
+
+  const handleAccountMenuClose = () => {
+    setAccountMenuAnchor(null)
+  }
 
   const handleLogout = () => {
     logout()
     navigate('/')
-    setIsMenuOpen(false)
+    handleAccountMenuClose()
   }
 
-  return (
-    <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50 h-16 shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 h-full">
-        <div className="flex justify-between items-center h-full">
-          {/* Logo Area */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-lg shadow-blue-500/20 group-hover:bg-blue-700 transition-all">
-              <FiEye size={20} />
-            </div>
-            <span className="text-xl font-black tracking-tighter text-slate-900">
-              WDP<span className="text-blue-600">.</span>CORE
-            </span>
-          </Link>
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen)
+  }
 
-          {/* Navigation Links (Desktop) */}
-          <div className="hidden md:flex items-center h-full gap-1">
-            <Link
-              to="/products"
-              className="px-4 h-full flex items-center text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 border-b-2 border-transparent hover:border-blue-600 transition-all"
-            >
-              Inventory
-            </Link>
-            <Link
-              to="/virtual-tryon"
-              className="px-4 h-full flex items-center text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 border-b-2 border-transparent hover:border-blue-600 transition-all"
-            >
-              Try-On
-            </Link>
+  // Check if current path matches nav link
+  const isActivePath = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/'
+    }
+    return location.pathname.startsWith(path)
+  }
 
-            {isAuthenticated ? (
-              <div className="flex items-center gap-1 ml-4 border-l border-slate-200 pl-4 h-8">
-                {user?.role !== 4 && (
-                  <Link
-                    to="/dashboard"
-                    className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-blue-600 flex items-center gap-2"
-                  >
-                    <FiGrid size={14} /> Dash
-                  </Link>
-                )}
-                <Link
-                  to="/account"
-                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-blue-600 flex items-center gap-2"
-                >
-                  <FiUser size={14} /> Profile
-                </Link>
-                <Link
-                  to="/cart"
-                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-blue-600 flex items-center gap-2 relative"
-                >
-                  <FiShoppingCart size={14} />
-                  Bag
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-black h-4 px-1 min-w-[1rem] flex items-center justify-center rounded-[2px]">
-                      {cartCount}
-                    </span>
-                  )}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="ml-2 px-3 py-1.5 border border-slate-300 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-all rounded-[2px] flex items-center gap-2"
-                >
-                  <FiLogOut size={14} /> Exit
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 ml-4 border-l border-slate-200 pl-4 h-8">
-                <Link
-                  to="/login"
-                  className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 hover:text-blue-700 transition-colors border border-transparent"
-                >
-                  <FiLogIn size={15} /> Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all rounded-[2px]"
-                >
-                  <FiUserPlus size={15} /> Join
-                </Link>
-              </div>
+  // Mobile drawer content
+  const drawerContent = (
+    <Box sx={{ width: 280, height: '100%' }}>
+      {/* Logo in drawer */}
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography
+          variant="h5"
+          fontWeight={700}
+          sx={{ cursor: 'pointer', letterSpacing: 0.5 }}
+          onClick={() => {
+            navigate('/')
+            setMobileOpen(false)
+          }}
+        >
+          <Box component="span" sx={{ color: 'primary.main' }}>
+            Eye
+          </Box>
+          Wear
+        </Typography>
+        <IconButton onClick={handleDrawerToggle}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      {/* Navigation links */}
+      <List sx={{ px: 2, py: 1 }}>
+        {navLinks.map((link) => (
+          <ListItem key={link.path} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              selected={isActivePath(link.path)}
+              onClick={() => navigate(link.path)}
+              sx={{
+                borderRadius: 2,
+                '&.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'white',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{link.icon}</ListItemIcon>
+              <ListItemText primary={link.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+
+      <Divider sx={{ mx: 2 }} />
+
+      {/* User section */}
+      <List sx={{ px: 2, py: 1 }}>
+        {isAuthenticated ? (
+          <>
+            {/* User info */}
+            <ListItem disablePadding>
+              <Box sx={{ px: 2, py: 1, width: 1 }}>
+                <Typography variant="subtitle2" fontWeight={600} noWrap>
+                  {user?.fullName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {roleLabels[user?.role ?? 4] || 'Customer'}
+                </Typography>
+              </Box>
+            </ListItem>
+
+            <Divider sx={{ my: 1 }} />
+
+            {/* Account menu items */}
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton onClick={() => navigate('/account')}>
+                <ListItemIcon>
+                  <PersonIcon />
+                </ListItemIcon>
+                <ListItemText primary="My Account" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton onClick={() => navigate('/orders')}>
+                <ListItemIcon>
+                  <ShoppingBagIcon />
+                </ListItemIcon>
+                <ListItemText primary="My Orders" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton onClick={() => navigate('/favorites')}>
+                <ListItemIcon>
+                  <FavoriteBorderIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Favorites"
+                  secondary={wishlistCount > 0 ? `${wishlistCount} items` : undefined}
+                />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Dashboard link for non-customers */}
+            {user && user.role !== 4 && (
+              <ListItem disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton onClick={() => navigate('/dashboard')}>
+                  <ListItemIcon>
+                    <DashboardIcon />
+                  </ListItemIcon>
+                  <ListItemText primary="Dashboard" />
+                </ListItemButton>
+              </ListItem>
             )}
-          </div>
 
-          {/* Mobile Toggle */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-[2px] transition-colors"
-          >
-            {isMenuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-          </button>
-        </div>
-      </div>
+            <Divider sx={{ my: 1 }} />
 
-      {/* Mobile Dropdown */}
-      {isMenuOpen && (
-        <div className="md:hidden absolute top-14 left-0 w-full bg-white border-b border-slate-300 shadow-xl p-4 space-y-2 animate-in slide-in-from-top-4">
-          <Link
-            to="/products"
-            className="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-blue-600 bg-slate-50/50 border border-slate-200 rounded-[2px]"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Inventory
-          </Link>
-          <Link
-            to="/virtual-tryon"
-            className="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-blue-600 bg-slate-50/50 border border-slate-200 rounded-[2px]"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Virtual Try-On
-          </Link>
+            <ListItem disablePadding>
+              <ListItemButton onClick={handleLogout} sx={{ color: 'error.main' }}>
+                <ListItemIcon>
+                  <LogoutIcon color="error" />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            </ListItem>
+          </>
+        ) : (
+          <>
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton onClick={() => navigate('/login')}>
+                <ListItemIcon>
+                  <PersonIcon />
+                </ListItemIcon>
+                <ListItemText primary="Sign In" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <Button
+                fullWidth
+                variant="contained"
+                sx={{ mx: 2, mb: 1 }}
+                onClick={() => navigate('/register')}
+              >
+                Create Account
+              </Button>
+            </ListItem>
+          </>
+        )}
+      </List>
+    </Box>
+  )
 
-          {isAuthenticated ? (
-            <>
-              {user?.role !== 4 && (
-                <Link
-                  to="/dashboard"
-                  className="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-blue-600 bg-slate-50/50 border border-slate-200 rounded-[2px]"
-                  onClick={() => setIsMenuOpen(false)}
+  return (
+    <>
+      <AppBar
+        position="sticky"
+        color="inherit"
+        elevation={0}
+        sx={{
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          backdropFilter: 'blur(10px)',
+          backgroundColor: 'rgba(255,255,255,0.9)',
+        }}
+      >
+        <Toolbar sx={{ gap: 2 }}>
+          {/* Mobile menu button */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+            <IconButton
+              size="large"
+              edge="start"
+              color="inherit"
+              aria-label="open menu"
+              onClick={handleDrawerToggle}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Box>
+
+          {/* Logo/Brand */}
+          <Typography
+            variant="h5"
+            fontWeight={700}
+            sx={{
+              cursor: 'pointer',
+              letterSpacing: 0.5,
+              display: { xs: 'none', sm: 'block' },
+            }}
+            onClick={() => navigate('/')}
+          >
+            <Box component="span" sx={{ color: 'primary.main' }}>
+              Eye
+            </Box>
+            Wear
+          </Typography>
+
+          {/* Mobile Logo (smaller) */}
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            sx={{
+              cursor: 'pointer',
+              letterSpacing: 0.5,
+              display: { xs: 'block', sm: 'none' },
+            }}
+            onClick={() => navigate('/')}
+          >
+            <Box component="span" sx={{ color: 'primary.main' }}>
+              Eye
+            </Box>
+            Wear
+          </Typography>
+
+          {/* Desktop Navigation Links */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 0.5, alignItems: 'center' }}>
+            {navLinks.map((link) => (
+              <Button
+                key={link.path}
+                color="inherit"
+                onClick={() => navigate(link.path)}
+                sx={{
+                  px: 2,
+                  py: 1,
+                  minWidth: 'auto',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: 2,
+                  color: isActivePath(link.path) ? 'primary.main' : 'text.primary',
+                  bgcolor: isActivePath(link.path) ? 'primary.50' : 'transparent',
+                  '&:hover': {
+                    bgcolor: isActivePath(link.path) ? 'primary.100' : 'action.hover',
+                  },
+                }}
+              >
+                {link.label}
+              </Button>
+            ))}
+          </Box>
+
+          <Box sx={{ flex: 1 }} />
+
+          {/* Right side icons */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {/* Search */}
+            <Box sx={{ display: { xs: showSearch ? 'block' : 'none', sm: 'block' } }}>
+              <TextField
+                size="small"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onSubmit={handleSearchSubmit}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon color="action" />
+                      </InputAdornment>
+                    ),
+                    onKeyDown: (e) => {
+                      if (e.key === 'Enter') {
+                        handleSearchSubmit(e as any)
+                      }
+                    },
+                  },
+                }}
+                sx={{ width: { xs: 150, sm: 200 } }}
+                autoFocus
+              />
+            </Box>
+
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => {
+                if (showSearch) {
+                  setShowSearch(false)
+                  setSearchQuery('')
+                } else {
+                  setShowSearch(true)
+                }
+              }}
+              sx={{ display: { xs: showSearch ? 'none' : 'flex', sm: 'none' } }}
+            >
+              <SearchIcon />
+            </IconButton>
+
+            {/* Favorites */}
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => navigate('/favorites')}
+              sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 44, minHeight: 44 }}
+            >
+              <Badge badgeContent={wishlistCount} color="primary" max={99}>
+                <FavoriteBorderIcon />
+              </Badge>
+            </IconButton>
+
+            {/* Cart */}
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => navigate('/cart')}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              <Badge badgeContent={cartCount} color="primary" max={99}>
+                <ShoppingBagIcon />
+              </Badge>
+            </IconButton>
+
+            {/* Account */}
+            {isAuthenticated ? (
+              <>
+                <IconButton
+                  size="small"
+                  color="inherit"
+                  onClick={handleAccountMenuOpen}
+                  sx={{ minWidth: 44, minHeight: 44 }}
                 >
-                  Admin Console
-                </Link>
-              )}
-              <Link
-                to="/account"
-                className="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-blue-600 bg-slate-50/50 border border-slate-200 rounded-[2px]"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                User Profile
-              </Link>
-              <Link
-                to="/cart"
-                className="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-blue-600 bg-slate-50/50 border border-slate-200 rounded-[2px] flex items-center justify-between"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span>Shopping Bag</span>
-                {cartCount > 0 && (
-                  <span className="bg-rose-600 text-white px-2 py-0.5 rounded-[2px] text-[10px] font-black">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-rose-600 hover:bg-rose-50 bg-rose-50/30 border border-rose-100 rounded-[2px] transition-colors flex items-center gap-4"
-              >
-                <FiLogOut /> Terminate Session
-              </button>
-            </>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Link
-                to="/login"
-                className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 border border-slate-300 rounded-[2px] text-center"
-                onClick={() => setIsMenuOpen(false)}
+                  <PersonIcon />
+                </IconButton>
+
+                {/* Account dropdown menu */}
+                <Menu
+                  anchorEl={accountMenuAnchor}
+                  open={Boolean(accountMenuAnchor)}
+                  onClose={handleAccountMenuClose}
+                  onClick={handleAccountMenuClose}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                  PaperProps={{ sx: { minWidth: 200, mt: 1 } }}
+                >
+                  {/* User info */}
+                  <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight={600} noWrap>
+                      {user?.fullName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {roleLabels[user?.role ?? 4] || 'Customer'}
+                    </Typography>
+                  </Box>
+
+                  <MenuItem onClick={() => navigate('/account')}>
+                    <PersonIcon fontSize="small" sx={{ mr: 1 }} />
+                    My Account
+                  </MenuItem>
+                  <MenuItem onClick={() => navigate('/orders')}>
+                    <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
+                    My Orders
+                  </MenuItem>
+                  <MenuItem onClick={() => navigate('/favorites')}>
+                    <FavoriteBorderIcon fontSize="small" sx={{ mr: 1 }} />
+                    Favorites
+                    {wishlistCount > 0 && (
+                      <Badge
+                        badgeContent={wishlistCount}
+                        color="primary"
+                        sx={{ ml: 1 }}
+                        max={99}
+                      />
+                    )}
+                  </MenuItem>
+
+                  {/* Dashboard for non-customers */}
+                  {user && user.role !== 4 && (
+                    <MenuItem onClick={() => navigate('/dashboard')}>
+                      <DashboardIcon fontSize="small" sx={{ mr: 1 }} />
+                      Dashboard
+                    </MenuItem>
+                  )}
+
+                  <Divider />
+                  <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+                    <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
+                    Logout
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/login')}
+                sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 80 }}
               >
                 Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="px-4 py-3 bg-blue-600 text-white text-xs font-bold uppercase tracking-widest rounded-[2px] text-center"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Register
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-    </nav>
+              </Button>
+            )}
+          </Box>
+        </Toolbar>
+
+        {/* Search bar for desktop (expandable) */}
+        {showSearch && (
+          <Box sx={{ display: { xs: 'none', sm: 'block' }, px: 2, pb: 2 } }>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                  onKeyDown: (e) => {
+                    if (e.key === 'Enter') {
+                      handleSearchSubmit(e as any)
+                    }
+                  },
+                  endAdornment: searchQuery && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSearchQuery('')
+                          setShowSearch(false)
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              autoFocus
+            />
+          </Box>
+        )}
+      </AppBar>
+
+      {/* Mobile drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box' },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    </>
   )
 }

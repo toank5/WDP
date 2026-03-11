@@ -1,0 +1,2368 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/store/auth-store'
+import { getAllProducts, checkInventoryAvailability, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
+import { cartApi } from '@/lib/cart-api'
+
+import { wishlistApi } from '@/lib/wishlist-api'
+import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
+import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
+import {
+  Box,
+  Container,
+  Grid,
+  Typography,
+  Button,
+  Chip,
+  IconButton,
+  Stack,
+  Divider,
+  Paper,
+  Rating,
+  Breadcrumbs,
+  Link as MuiLink,
+  Alert,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Skeleton,
+  Fab,
+  CircularProgress,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material'
+import {
+  ArrowBack as ArrowBackIcon,
+  ShoppingCart as CartIcon,
+  ShoppingCartOutlined,
+  Favorite as WishlistIcon,
+  FavoriteBorder as WishlistBorderIcon,
+  FlashOn as BuyNowIcon,
+  ViewInAr as ThreeDIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
+  ArrowUpward as ArrowUpIcon,
+  ZoomIn as ZoomInIcon,
+  ChevronLeft,
+  ChevronRight,
+  KeyboardArrowLeft,
+  KeyboardArrowRight,
+  Lens as LensIndexIcon,
+  FiberManualRecord,
+  ThumbUpOffAlt,
+  Remove as RemoveIcon,
+  Add as AddIcon,
+} from '@mui/icons-material'
+
+// ==================== Constants ====================
+
+const VND_FORMATTER = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+})
+
+const formatPrice = (price: number): string => VND_FORMATTER.format(price)
+
+const REASSURANCE_POINTS = [
+  { icon: '🚚', text: 'Free shipping on orders over 2.000.000 ₫' },
+  { icon: '🔄', text: '30-day return policy' },
+  { icon: '✅', text: '1-year warranty' },
+  { icon: '🔒', text: 'Secure payment' },
+  { icon: '📞', text: '24/7 customer support' },
+]
+
+const CATEGORY_LABELS: Record<string, string> = {
+  frame: 'Frame',
+  lens: 'Lens',
+  service: 'Service',
+}
+
+const CATEGORY_COLORS: Record<string, 'primary' | 'info' | 'success'> = {
+  frame: 'primary',
+  lens: 'info',
+  service: 'success',
+}
+
+// Mock reviews data (replace with real API later)
+const MOCK_REVIEWS = [
+  {
+    id: '1',
+    user: 'John D.',
+    rating: 5,
+    title: 'Great product!',
+    comment: 'Very comfortable and stylish. Would recommend to anyone looking for quality eyewear.',
+    date: '2024-01-15',
+    helpful: 12,
+  },
+  {
+    id: '2',
+    user: 'Sarah M.',
+    rating: 4,
+    title: 'Good value',
+    comment: 'Nice frames for the price. Shipping was fast and packaging was secure.',
+    date: '2024-01-10',
+    helpful: 8,
+  },
+  {
+    id: '3',
+    user: 'Minh T.',
+    rating: 5,
+    title: 'Exceeded expectations',
+    comment: 'The quality is amazing and fits perfectly. Will definitely buy again!',
+    date: '2024-01-05',
+    helpful: 15,
+  },
+]
+
+// Use mock reviews as fallback if API fails
+const REVIEWS_FALLBACK = MOCK_REVIEWS
+
+// ==================== Types ====================
+
+interface MediaItem {
+  type: '2d' | '3d'
+  url: string
+}
+
+// Type guard for FrameProduct (has variants)
+function isFrameProduct(product: Product): product is FrameProduct {
+  return product.category === 'frame'
+}
+
+interface Spec {
+  label: string
+  value: string
+  icon: React.ReactElement
+}
+
+// ==================== Specifications Table ====================
+
+interface SpecsTableProps {
+  product: Product
+}
+
+function SpecsTable({ product }: SpecsTableProps) {
+  const getSpecs = (): { label: string; value: string; emoji?: string }[] => {
+    const specs: { label: string; value: string; emoji?: string }[] = []
+
+    if (product.category === 'frame') {
+      specs.push({ label: 'Frame Type', value: product.frameType || 'N/A', emoji: '👓' })
+      specs.push({ label: 'Shape', value: product.shape || 'N/A', emoji: '🔷' })
+      specs.push({ label: 'Material', value: product.material || 'N/A', emoji: '✨' })
+      if (product.gender) specs.push({ label: 'Gender', value: product.gender, emoji: '👤' })
+      if (product.bridgeFit) specs.push({ label: 'Bridge Fit', value: product.bridgeFit, emoji: '📏' })
+    } else if (product.category === 'lens') {
+      specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', emoji: '👁️' })
+      specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', emoji: '🔍' })
+      if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), emoji: '🛡️' })
+      specs.push({ label: 'Prescription Required', value: product.isPrescriptionRequired ? 'Yes' : 'No', emoji: '💊' })
+    } else if (product.category === 'service') {
+      specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', emoji: '🔧' })
+      specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, emoji: '⏱️' })
+    }
+
+    return specs
+  }
+
+  const specs = getSpecs()
+
+  if (specs.length === 0) return null
+
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+      {specs.map((spec) => (
+        <Box
+          key={spec.label}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: 'grey.50',
+            transition: 'all 0.2s',
+            '&:hover': {
+              bgcolor: 'primary.50',
+              transform: 'translateX(4px)',
+            },
+          }}
+        >
+          <Box sx={{ fontSize: 20 }}>{spec.emoji || '📋'}</Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {spec.label}
+            </Typography>
+            <Typography variant="body2" fontWeight={600} color="text.primary">
+              {spec.value}
+            </Typography>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+// ==================== Media Gallery Component ====================
+
+interface MediaGalleryProps {
+  images2D: string[]
+  images3D: string[]
+  activeImageIndex: number
+  onImageSelect: (index: number) => void
+  onZoomOpen: () => void
+  productName: string
+  loading?: boolean
+}
+
+function MediaGallery({
+  images2D,
+  images3D,
+  activeImageIndex,
+  onImageSelect,
+  onZoomOpen,
+  productName,
+  loading = false,
+}: MediaGalleryProps) {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const [hoveredImage, setHoveredImage] = useState<number | null>(null)
+
+  const allMedia: MediaItem[] = [
+    ...images2D.map((url) => ({ type: '2d' as const, url })),
+    ...images3D.map((url) => ({ type: '3d' as const, url })),
+  ]
+
+  const activeMedia = allMedia[activeImageIndex]
+  const hasMultipleImages = allMedia.length > 1
+
+  // Navigate to previous image
+  const goToPrevious = () => {
+    if (!hasMultipleImages) return
+    const newIndex = activeImageIndex === 0 ? allMedia.length - 1 : activeImageIndex - 1
+    onImageSelect(newIndex)
+  }
+
+  // Navigate to next image
+  const goToNext = () => {
+    if (!hasMultipleImages) return
+    const newIndex = activeImageIndex === allMedia.length - 1 ? 0 : activeImageIndex + 1
+    onImageSelect(newIndex)
+  }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        goToPrevious()
+      } else if (e.key === 'ArrowRight') {
+        goToNext()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeImageIndex, allMedia.length])
+
+  // Touch swipe support for mobile
+  const touchStartRef = useRef<number | null>(null)
+  const touchEndRef = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0].clientX
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndRef.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current || !touchEndRef.current) return
+
+    const swipeDistance = touchStartRef.current - touchEndRef.current
+    const minSwipeDistance = 50
+
+    if (swipeDistance > minSwipeDistance) {
+      goToNext() // Swipe left -> next image
+    } else if (swipeDistance < -minSwipeDistance) {
+      goToPrevious() // Swipe right -> previous image
+    }
+
+    touchStartRef.current = null
+    touchEndRef.current = null
+  }
+
+  if (loading) {
+    return (
+      <Paper
+        elevation={3}
+        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}
+      >
+        <Skeleton variant="rectangular" sx={{ aspectRatio: '4 / 3' }} animation="wave" />
+        <Box sx={{ p: 2.5, display: 'flex', gap: 1.5 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} variant="rectangular" width={72} height={72} sx={{ borderRadius: 2 }} animation="wave" />
+          ))}
+        </Box>
+      </Paper>
+    )
+  }
+
+  return (
+    <Paper
+      elevation={3}
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 4,
+        overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      }}
+    >
+      {/* Main Viewer */}
+      <Box
+        sx={{
+          position: 'relative',
+          aspectRatio: '4 / 3',
+          bgcolor: 'grey.50',
+          cursor: activeMedia?.type === '2d' ? 'zoom-in' : 'default',
+          overflow: 'hidden',
+        }}
+        onClick={() => activeMedia?.type === '2d' && onZoomOpen()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {activeMedia?.type === '2d' ? (
+          <Box
+            component="img"
+            src={activeMedia.url}
+            alt={productName}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              transition: 'transform 0.3s ease',
+            }}
+          />
+        ) : activeMedia?.type === '3d' ? (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+            }}
+          >
+            <ThreeDIcon sx={{ fontSize: 80, color: 'white', mb: 2, animation: 'pulse 2s infinite' }} />
+            <Typography variant="h5" color="white" fontWeight={700}>
+              3D View
+            </Typography>
+            <Typography variant="body2" color="white" sx={{ opacity: 0.9, mt: 1 }}>
+              Drag to rotate • Scroll to zoom
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 80,
+              bgcolor: 'grey.100',
+            }}
+          >
+            👓
+          </Box>
+        )}
+
+        {/* Previous/Next Navigation Arrows - Enhanced */}
+        {hasMultipleImages && (
+          <>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation()
+                goToPrevious()
+              }}
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: 12,
+                transform: 'translateY(-50%)',
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
+                color: 'text.primary',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: 44,
+                height: 44,
+                '&:hover': {
+                  bgcolor: 'white',
+                  color: 'primary.main',
+                  transform: 'translateY(-50%) scale(1.1)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                zIndex: 2,
+              }}
+              aria-label="Previous image"
+            >
+              {isMobile ? <KeyboardArrowLeft /> : <ChevronLeft />}
+            </IconButton>
+
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation()
+                goToNext()
+              }}
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                right: 12,
+                transform: 'translateY(-50%)',
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
+                color: 'text.primary',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                width: 44,
+                height: 44,
+                '&:hover': {
+                  bgcolor: 'white',
+                  color: 'primary.main',
+                  transform: 'translateY(-50%) scale(1.1)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                zIndex: 2,
+              }}
+              aria-label="Next image"
+            >
+              {isMobile ? <KeyboardArrowRight /> : <ChevronRight />}
+            </IconButton>
+          </>
+        )}
+
+        {/* Enhanced Image counter */}
+        {hasMultipleImages && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              left: 12,
+              bgcolor: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              px: 2,
+              py: 0.75,
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              backdropFilter: 'blur(8px)',
+              zIndex: 2,
+            }}
+          >
+            {activeImageIndex + 1} <Box component="span" sx={{ opacity: 0.6, mx: 0.5 }}>/</Box> {allMedia.length}
+          </Box>
+        )}
+
+        {/* Dots indicator */}
+        {hasMultipleImages && allMedia.length > 1 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: 0.75,
+              zIndex: 2,
+            }}
+          >
+            {allMedia.map((_, index) => (
+              <Box
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onImageSelect(index)
+                }}
+                sx={{
+                  width: index === activeImageIndex ? 24 : 8,
+                  height: 8,
+                  borderRadius: 1,
+                  bgcolor: index === activeImageIndex ? 'white' : 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  '&:hover': {
+                    bgcolor: index === activeImageIndex ? 'white' : 'rgba(255,255,255,0.6)',
+                    width: index === activeImageIndex ? 24 : 12,
+                  },
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
+        {/* Enhanced zoom button */}
+        {activeMedia?.type === '2d' && (
+          <IconButton
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              right: 12,
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              width: 40,
+              height: 40,
+              '&:hover': {
+                bgcolor: 'white',
+                transform: 'scale(1.1)',
+              },
+              transition: 'all 0.2s',
+              zIndex: 2,
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onZoomOpen()
+            }}
+            aria-label="Zoom image"
+          >
+            <ZoomInIcon />
+          </IconButton>
+        )}
+
+        {/* Enhanced 3D badge */}
+        {activeMedia?.type === '3d' && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              color: 'primary.main',
+              px: 2,
+              py: 0.75,
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+            }}
+          >
+            <ThreeDIcon sx={{ fontSize: 16 }} />
+            3D View
+          </Box>
+        )}
+      </Box>
+
+      {/* Enhanced Thumbnails */}
+      {hasMultipleImages && (
+        <Box sx={{
+          p: 2.5,
+          display: 'flex',
+          gap: 1.5,
+          overflowX: 'auto',
+          bgcolor: 'background.paper',
+          '&::-webkit-scrollbar': {
+            height: 6,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'divider',
+            borderRadius: 3,
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            bgcolor: 'text.secondary',
+          },
+        }}>
+          {allMedia.map((media, index) => (
+            <Box
+              key={`${media.type}-${media.url}-${index}`}
+              onClick={() => onImageSelect(index)}
+              onMouseEnter={() => setHoveredImage(index)}
+              onMouseLeave={() => setHoveredImage(null)}
+              sx={{
+                minWidth: 72,
+                width: 72,
+                height: 72,
+                flexShrink: 0,
+                borderRadius: 3,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                border: '2px solid',
+                borderColor: index === activeImageIndex ? 'primary.main' : 'divider',
+                position: 'relative',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: index === activeImageIndex ? 'scale(1.05)' : (hoveredImage === index ? 'scale(1.02)' : 'scale(1)'),
+                boxShadow: index === activeImageIndex ? `0 0 0 3px ${theme.palette.primary.main}25` : 'none',
+                '&:hover': {
+                  borderColor: index === activeImageIndex ? 'primary.main' : 'text.secondary',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                },
+              }}
+            >
+              {media.type === '2d' ? (
+                <Box
+                  component="img"
+                  src={media.url}
+                  alt={`${productName} thumbnail ${index + 1}`}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                  }}
+                >
+                  <ThreeDIcon sx={{ color: 'white', fontSize: 28 }} />
+                </Box>
+              )}
+              {media.type === '3d' && (
+                <Chip
+                  label="3D"
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    height: 18,
+                    fontSize: '0.65rem',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+              {index === activeImageIndex && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 6,
+                    left: 6,
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <CheckIcon sx={{ color: 'white', fontSize: 14 }} />
+                </Box>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Paper>
+  )
+}
+
+// ==================== Detail Panel Skeleton ====================
+
+function DetailPanelSkeleton() {
+  return (
+    <Paper elevation={3} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+      <Stack spacing={2.5}>
+        <Skeleton variant="text" width="90%" height={36} />
+        <Skeleton variant="text" width="50%" height={24} />
+        <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
+        <Divider />
+        <Skeleton variant="text" width="40%" height={20} />
+        <Stack direction="row" spacing={1}>
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+          <Skeleton variant="rectangular" width={50} height={50} sx={{ borderRadius: '50%' }} />
+        </Stack>
+        <Skeleton variant="rectangular" height={50} sx={{ borderRadius: 2 }} />
+        <Skeleton variant="rectangular" height={50} sx={{ borderRadius: 2 }} />
+      </Stack>
+    </Paper>
+  )
+}
+
+// ==================== Related Product Card ====================
+
+interface RelatedProductCardProps {
+  product: Product
+  onClick: () => void
+}
+
+function RelatedProductCard({ product, onClick }: RelatedProductCardProps) {
+  const mainImage = formatImageUrl(product.images2D?.[0])
+  const variantCount = isFrameProduct(product) ? product.variants?.length || 0 : 0
+
+  return (
+    <Paper
+      onClick={onClick}
+      sx={{
+        borderRadius: 4,
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        border: '1px solid',
+        borderColor: 'divider',
+        overflow: 'hidden',
+        height: '100%',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+          borderColor: 'primary.main',
+        },
+      }}
+      elevation={1}
+    >
+      <Box sx={{ p: 2.5 }}>
+        {/* Category Badge */}
+        {product.category && (
+          <Chip
+            size="small"
+            label={CATEGORY_LABELS[product.category] || product.category}
+            color={CATEGORY_COLORS[product.category] || 'default'}
+            sx={{
+              mb: 2,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              fontSize: '0.65rem',
+              letterSpacing: 0.5,
+              height: 20,
+            }}
+          />
+        )}
+
+        {/* Main Image */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            mb: 2.5,
+            height: 160,
+            bgcolor: 'grey.50',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            transition: 'all 0.3s',
+          }}
+        >
+          {mainImage ? (
+            <Box
+              component="img"
+              src={mainImage}
+              alt={product.name}
+              sx={{
+                height: 140,
+                width: '100%',
+                objectFit: 'contain',
+                transition: 'transform 0.3s',
+              }}
+            />
+          ) : null}
+          {!mainImage && (
+            <Box sx={{ fontSize: 60, display: mainImage ? 'none' : 'flex' }}>👓</Box>
+          )}
+
+          {/* 3D Badge - Enhanced */}
+          {product.images3D && product.images3D.length > 0 && (
+            <Chip
+              icon={<ThreeDIcon sx={{ fontSize: 11 }} />}
+              label="3D"
+              size="small"
+              sx={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                height: 22,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                bgcolor: 'primary.main',
+                color: 'white',
+              }}
+            />
+          )}
+
+          {/* Quick View Overlay on Hover */}
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              bgcolor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0,
+              transition: 'opacity 0.3s',
+              '&:hover': {
+                opacity: 1,
+              },
+            }}
+          >
+            <Button
+              variant="contained"
+              size="small"
+              sx={{
+                borderRadius: 2,
+                fontWeight: 600,
+              }}
+            >
+              Quick View
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Product Name */}
+        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, lineHeight: 1.3, minHeight: 34 }}>
+          {product.name}
+        </Typography>
+
+        {/* Price - Enhanced */}
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+          <Typography variant="h6" color="primary.main" fontWeight={800}>
+            {formatPrice(product.basePrice)}
+          </Typography>
+        </Box>
+
+        {/* Variants */}
+        {variantCount > 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontWeight: 500 }}>
+            {variantCount} {variantCount > 1 ? 'variants' : 'variant'} available
+          </Typography>
+        )}
+      </Box>
+    </Paper>
+  )
+}
+
+// ==================== Main Component ====================
+
+export function ProductDetailPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
+
+  // ==================== State ====================
+
+  const [product, setProduct] = useState<Product | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Variant state
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  const [quantity, setQuantity] = useState(1)
+
+  // Inventory state
+  const [inventory, setInventory] = useState<{
+    availableQuantity: number
+    isInStock: boolean
+  } | null>(null)
+  const [checkingInventory, setCheckingInventory] = useState(false)
+
+  // Media state
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [zoomOpen, setZoomOpen] = useState(false)
+
+  // Cart/Wishlist state
+  const [isAdding, setIsAdding] = useState(false)
+  const [isInWishlist, setIsInWishlist] = useState(false)
+
+  // Snackbar state
+  const [snackbar, setSnackbarState] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+  })
+
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState<string | null>(null)
+
+  // ==================== Computed Values ====================
+
+  const averageRating = reviewStats?.averageRating ?? 0
+  const totalReviews = reviewStats?.totalReviews ?? 0
+
+  // Get current images based on selected variant
+  // Shows ALL variant images from all variants, plus base product images
+  const getCurrentImages = () => {
+    const baseImages2D = product?.images2D || []
+    const baseImages3D = product?.images3D || []
+
+    // Collect images from ALL variants (for frame products)
+    let allVariantImages2D: string[] = []
+    let allVariantImages3D: string[] = []
+
+    if (product && isFrameProduct(product) && product.variants) {
+      product.variants.forEach((variant) => {
+        if (variant.isActive !== false) {
+          if (variant.images2D?.length) {
+            allVariantImages2D.push(
+              ...variant.images2D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+            )
+          }
+          if (variant.images3D?.length) {
+            allVariantImages3D.push(
+              ...variant.images3D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+            )
+          }
+        }
+      })
+    }
+
+    // Format base images (filter out undefined)
+    const formattedBaseImages2D = baseImages2D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+    const formattedBaseImages3D = baseImages3D.map(formatImageUrl).filter((url): url is string => url !== undefined)
+
+    // Combine: all variant images + base images (deduplicated)
+    const images2D: string[] = [...new Set([...allVariantImages2D, ...formattedBaseImages2D])]
+    const images3D: string[] = [...new Set([...allVariantImages3D, ...formattedBaseImages3D])]
+
+    return { images2D, images3D }
+  }
+
+  const { images2D, images3D } = getCurrentImages()
+
+  // Get unique colors and sizes from variants
+  const getUniqueColors = () => {
+    if (!product || !isFrameProduct(product)) return []
+    return (
+      product.variants
+        ?.filter((v) => v.isActive !== false)
+        .map((v) => v.color)
+        .filter((c, i, arr) => c && arr.indexOf(c) === i) || []
+    )
+  }
+
+  const getUniqueSizes = () => {
+    if (!product || !isFrameProduct(product)) return []
+    return (
+      product.variants
+        ?.filter((v) => v.isActive !== false)
+        .map((v) => v.size)
+        .filter((s, i, arr) => s && arr.indexOf(s) === i) || []
+    )
+  }
+
+  // Get display price
+  const getDisplayPrice = () => {
+    if (!product) return 0
+    return selectedVariant?.price || product.basePrice
+  }
+
+  // Check stock - more lenient: allow add to cart if product is active OR if any variant exists
+  const isInStock = () => {
+    if (!product) return false
+    // If a variant is selected, check if that specific variant is active
+    if (selectedVariant) return selectedVariant.isActive !== false
+    // If no variant selected, allow if product is active OR if product has any active variants
+    if (product.isActive) return true
+    // Check for variants (only frame products have variants)
+    if ('variants' in product && product.variants && product.variants.length > 0) {
+      return product.variants.some((v: any) => v.isActive !== false)
+    }
+    return false
+  }
+
+  // Get stock message
+  const getStockMessage = () => {
+    if (!product) return ''
+    if (selectedVariant) {
+      return selectedVariant.isActive !== false ? 'In Stock' : 'Out of Stock'
+    }
+    if (product.isActive) return 'In Stock'
+    if ('variants' in product && product.variants && product.variants.length > 0) {
+      return product.variants.some((v: any) => v.isActive !== false) ? 'Select options' : 'Out of Stock'
+    }
+    return 'Out of Stock'
+  }
+
+  // Check if pre-order is enabled for the product
+  const isPreorderEnabled = () => {
+    if (!product) return false
+    return product.isPreorderEnabled === true
+  }
+
+  // Get actual stock status considering inventory
+  const getStockStatus = () => {
+    // If we have inventory data, use it
+    if (inventory !== null) {
+      return {
+        isInStock: inventory.isInStock,
+        availableQuantity: inventory.availableQuantity,
+      }
+    }
+
+    // Fallback to variant active status
+    const variantActive = selectedVariant?.isActive !== false
+    return {
+      isInStock: variantActive,
+      availableQuantity: variantActive ? 999 : 0, // Large number for "in stock"
+    }
+  }
+
+  // Get appropriate stock message and status for display
+  const getStockDisplayInfo = () => {
+    if (!product || !selectedVariant) {
+      return { message: 'Select options', showPreorderBadge: false, stockStatus: 'select' }
+    }
+
+    const variantActive = selectedVariant.isActive !== false
+    const preorderEnabled = isPreorderEnabled()
+    const stockStatus = getStockStatus()
+
+    console.log('[StockDisplay] variantActive:', variantActive, 'preorderEnabled:', preorderEnabled, 'stockStatus:', stockStatus)
+
+    // Case 1: In Stock (has inventory available)
+    if (stockStatus.isInStock && stockStatus.availableQuantity > 0) {
+      return {
+        message: stockStatus.availableQuantity > 10
+          ? 'In Stock'
+          : `Only ${stockStatus.availableQuantity} left`,
+        showPreorderBadge: false,
+        stockStatus: 'in-stock',
+      }
+    }
+
+    // Case 2: Out of stock but pre-order enabled
+    if (preorderEnabled && !stockStatus.isInStock) {
+      const shipRange = getExpectedShipDateRange()
+      return {
+        message: shipRange
+          ? `Expected shipping: ${shipRange}`
+          : 'Available for pre-order',
+        showPreorderBadge: true,
+        stockStatus: 'preorder',
+      }
+    }
+
+    // Case 3: Out of stock and not pre-orderable
+    if (!stockStatus.isInStock && !preorderEnabled) {
+      return {
+        message: 'Out of Stock',
+        showPreorderBadge: false,
+        stockStatus: 'out-of-stock',
+      }
+    }
+
+    // Case 4: Variant inactive
+    if (!variantActive) {
+      return {
+        message: 'This variant is unavailable',
+        showPreorderBadge: false,
+        stockStatus: 'unavailable',
+      }
+    }
+
+    // Default fallback
+    return {
+      message: 'Select options',
+      showPreorderBadge: false,
+      stockStatus: 'select',
+    }
+  }
+
+  // Get expected ship date range for pre-order (no longer used - dates removed)
+  const getExpectedShipDateRange = () => {
+    return null
+  }
+
+  // ==================== Handlers ====================
+
+  // Load product by slug
+  const loadProduct = useCallback(async () => {
+    if (!slug) {
+      setError('Product slug is required')
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Load all products and find by slug (since API doesn't have slug lookup)
+      const allProducts = await getAllProducts()
+      const found = allProducts.find((p) => p.slug === slug)
+
+      if (!found) {
+        throw new Error('Product not found')
+      }
+
+      setProduct(found)
+
+      // Auto-select first in-stock variant (only for frame products)
+      if (isFrameProduct(found) && found.variants && found.variants.length > 0) {
+        const firstInStock = found.variants.find((v) => v.isActive !== false) || found.variants[0]
+        setSelectedVariant(firstInStock)
+        setSelectedColor(firstInStock.color)
+        setSelectedSize(firstInStock.size)
+      }
+
+      setActiveImageIndex(0)
+
+      // Load related products
+      const related = allProducts
+        .filter(
+          (p) => p.category === found.category && p._id !== found._id && !p.isDeleted && p.isActive
+        )
+        .slice(0, 8)
+      setRelatedProducts(related)
+
+      window.scrollTo(0, 0)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load product'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [slug])
+
+  useEffect(() => {
+    loadProduct()
+  }, [loadProduct])
+
+  // Fetch reviews when product changes
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!product?._id) return
+
+      setReviewsLoading(true)
+      setReviewsError(null)
+
+      try {
+        // Fetch reviews and stats in parallel
+        const [reviewsData, statsData] = await Promise.all([
+          reviewApi.getProductReviews(product._id, 1, 10, 'recent'),
+          reviewApi.getProductStats(product._id),
+        ])
+
+        setReviews(reviewsData.reviews)
+        setReviewStats(statsData)
+      } catch (err) {
+        console.error('Failed to fetch reviews:', err)
+        setReviewsError(err instanceof Error ? err.message : 'Failed to load reviews')
+        // Use fallback reviews on error
+        setReviews(REVIEWS_FALLBACK as unknown as Review[])
+      } finally {
+        setReviewsLoading(false)
+      }
+    }
+
+    fetchReviews()
+  }, [product?._id])
+
+  // Reset variant state when product changes
+  // Note: This is handled by the auto-selection logic in loadProduct()
+  useEffect(() => {
+    setActiveImageIndex(0)
+  }, [product?._id])
+
+  // Update selected variant when color or size changes
+  useEffect(() => {
+    if (!product || !isFrameProduct(product)) return
+
+    if (selectedColor && selectedSize) {
+      const variant = product.variants?.find(
+        (v) => v.color === selectedColor && v.size === selectedSize && v.isActive !== false
+      )
+      setSelectedVariant(variant || null)
+    }
+  }, [selectedColor, selectedSize, product])
+
+  // Fetch inventory when selected variant changes
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!selectedVariant?.sku) {
+        setInventory(null)
+        return
+      }
+
+      setCheckingInventory(true)
+      try {
+        const inventoryData = await checkInventoryAvailability(selectedVariant.sku)
+        console.log('[Inventory] Fetched inventory for SKU:', selectedVariant.sku, inventoryData)
+        console.log('[Inventory] Variant isPreorderEnabled:', selectedVariant.isPreorderEnabled)
+        if (inventoryData) {
+          setInventory({
+            availableQuantity: inventoryData.availableQuantity,
+            isInStock: inventoryData.isInStock,
+          })
+        } else {
+          // Fallback: if inventory API fails, use variant active status
+          setInventory({
+            availableQuantity: selectedVariant.isActive !== false ? 999 : 0,
+            isInStock: selectedVariant.isActive !== false,
+          })
+        }
+      } catch (err) {
+        console.error('[Inventory] Error fetching inventory:', err)
+        // On error, fallback to variant active status
+        setInventory({
+          availableQuantity: selectedVariant.isActive !== false ? 999 : 0,
+          isInStock: selectedVariant.isActive !== false,
+        })
+      } finally {
+        setCheckingInventory(false)
+      }
+    }
+
+    fetchInventory()
+  }, [selectedVariant])
+
+  // Handle color selection
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color)
+    // If a size is already selected, the useEffect will update the variant
+    // If not, select the first available size for this color
+    if (!selectedSize) {
+      const uniqueSizes = getUniqueSizes()
+      if (uniqueSizes.length > 0) {
+        setSelectedSize(uniqueSizes[0])
+      }
+    }
+  }
+
+  // Handle size selection
+  const handleSizeSelect = (size: string) => {
+    setSelectedSize(size)
+    // If a color is already selected, the useEffect will update the variant
+    // If not, select the first available color for this size
+    if (!selectedColor) {
+      const uniqueColors = getUniqueColors()
+      if (uniqueColors.length > 0) {
+        setSelectedColor(uniqueColors[0])
+      }
+    }
+  }
+
+  // Add to cart
+  const handleAddToCart = async () => {
+    if (!product) return
+
+    // Check if user is authenticated
+    const authState = useAuthStore.getState()
+    if (!authState.isAuthenticated) {
+      setSnackbarState({
+        open: true,
+        message: 'Please login to add items to cart',
+        severity: 'warning',
+      })
+      // Show toast for a moment before navigating
+      setTimeout(() => {
+        navigate('/login')
+      }, 1500)
+      return
+    }
+
+    setIsAdding(true)
+    try {
+      const result = await cartApi.addItem({
+        variantSku: selectedVariant?.sku,
+        productId: product._id,
+        quantity,
+        productData: {
+          name: product.name,
+          price: getDisplayPrice(),
+          variantSku: selectedVariant?.sku,
+          variantName: selectedVariant
+            ? `${selectedVariant.size} - ${selectedVariant.color}`
+            : 'Standard',
+          image: images2D[0] ? formatImageUrl(images2D[0]) : '',
+        },
+      })
+
+      setSnackbarState({
+        open: true,
+        message: result.message,
+        severity: result.success ? ('success' as const) : ('error' as const),
+      })
+    } catch (err) {
+      setSnackbarState({ open: true, message: 'Failed to add to cart', severity: 'error' as const })
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  // Buy now
+  const handleBuyNow = async () => {
+    await handleAddToCart()
+    navigate('/checkout')
+  }
+
+  // Toggle wishlist
+  const toggleWishlist = async () => {
+    if (!product) return
+
+    try {
+      const result = await wishlistApi.toggleItem({
+        productId: product._id,
+        productName: product.name,
+        variantId: selectedVariant?.sku,
+        variantName: selectedVariant
+          ? `${selectedVariant.size} - ${selectedVariant.color}`
+          : undefined,
+        image: formatImageUrl(images2D[0]) || '',
+      })
+
+      setIsInWishlist(result.isFavorited)
+      setSnackbarState({
+        open: true,
+        message: result.message,
+        severity: result.success ? ('success' as const) : ('error' as const),
+      })
+    } catch (err) {
+      setSnackbarState({ open: true, message: 'Failed to update wishlist', severity: 'error' as const })
+    }
+  }
+
+  // Load wishlist state when product or variant changes
+  useEffect(() => {
+    if (!product) return
+
+    const checkWishlistStatus = async () => {
+      const isFavorited = await wishlistApi.isFavorited(product._id, selectedVariant?.sku)
+      setIsInWishlist(isFavorited)
+    }
+
+    checkWishlistStatus()
+  }, [product, selectedVariant])
+
+  // ==================== Render ====================
+
+  const uniqueColors = getUniqueColors()
+  const uniqueSizes = getUniqueSizes()
+
+  // Loading state
+  if (loading) {
+    return (
+      <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+        {/* Enhanced Loading Skeleton */}
+        <Box
+          sx={{
+            bgcolor: 'background.paper',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Container maxWidth="lg">
+            <Skeleton variant="text" width={200} height={32} sx={{ py: 2.5 }} />
+          </Container>
+        </Box>
+
+        <Container maxWidth="lg" sx={{ py: 5 }}>
+          <Skeleton variant="rectangular" width={150} height={40} sx={{ mb: 4, borderRadius: 3 }} />
+          <Grid container spacing={4}>
+            <Grid size={{ xs: 12, md: 7, lg: 8 }}>
+              <MediaGallery loading={true} images2D={[]} images3D={[]} activeImageIndex={0} onImageSelect={() => {}} onZoomOpen={() => {}} productName="" />
+            </Grid>
+            <Grid size={{ xs: 12, md: 5, lg: 4 }}>
+              <DetailPanelSkeleton />
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+    )
+  }
+
+  // Error state
+  if (error || !product) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error || 'Product not found'}
+        </Alert>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
+          Back to Products
+        </Button>
+      </Container>
+    )
+  }
+
+  return (
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+      {/* Enhanced Breadcrumb */}
+      <Box
+        sx={{
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Breadcrumbs
+            sx={{
+              py: 2.5,
+              '& .MuiBreadcrumbs-separator': { mx: 1 },
+            }}
+            aria-label="breadcrumb"
+          >
+            <MuiLink
+              component={Link}
+              to="/"
+              underline="hover"
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              Home
+            </MuiLink>
+            <MuiLink
+              component={Link}
+              to="/products"
+              underline="hover"
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              Products
+            </MuiLink>
+            {product.category && (
+              <MuiLink
+                component={Link}
+                to={`/products?category=${product.category}`}
+                underline="hover"
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'text.secondary',
+                  '&:hover': { color: 'primary.main' },
+                }}
+              >
+                {CATEGORY_LABELS[product.category] || product.category}
+              </MuiLink>
+            )}
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'primary.main' }}>
+              {product.name}
+            </Typography>
+          </Breadcrumbs>
+        </Container>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ py: 5 }}>
+        {/* Enhanced Back Link */}
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          sx={{
+            mb: 4,
+            borderRadius: 3,
+            fontWeight: 600,
+            textTransform: 'none',
+          }}
+        >
+          Back to Products
+        </Button>
+
+        {/* Main Section: Media Gallery + Purchase Panel */}
+        <Grid container spacing={4}>
+          {/* Media Gallery (Left) */}
+          <Grid size={{ xs: 12, md: 7, lg: 8 }}>
+            <MediaGallery
+              images2D={images2D}
+              images3D={images3D}
+              activeImageIndex={activeImageIndex}
+              onImageSelect={setActiveImageIndex}
+              onZoomOpen={() => setZoomOpen(true)}
+              productName={product.name}
+            />
+          </Grid>
+
+          {/* Purchase Panel (Right) - Enhanced */}
+          <Grid size={{ xs: 12, md: 5, lg: 4 }}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 4,
+                position: { md: 'sticky' },
+                top: { md: 96 },
+                maxHeight: { md: 'calc(100vh - 120px)' },
+                overflowY: 'auto',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Stack spacing={2}>
+                {/* Product Name & Brand */}
+                <Box>
+                  {product.category && (
+                    <Chip
+                      label={CATEGORY_LABELS[product.category] || product.category}
+                      color={CATEGORY_COLORS[product.category] || 'default'}
+                      size="small"
+                      sx={{
+                        mb: 1.5,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        fontSize: '0.7rem',
+                        letterSpacing: 0.5,
+                      }}
+                    />
+                  )}
+                  <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.2 }}>
+                    {product.name}
+                  </Typography>
+                  {product.brand && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
+                      by {product.brand}
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Rating with stars */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Rating value={averageRating} precision={0.5} readOnly size="small" sx={{ color: 'warning.main' }} />
+                    <Typography variant="body2" fontWeight={600}>
+                      {averageRating.toFixed(1)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    ({totalReviews} reviews)
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                    <FiberManualRecord sx={{ fontSize: 8, color: 'success.main' }} />
+                    <Typography variant="body2" color="success.main" fontWeight={500}>
+                      Verified
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Enhanced Price Display */}
+                <Box sx={{ bgcolor: 'primary.50', p: 2, borderRadius: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
+                    <Typography variant="h3" color="primary.main" fontWeight={800} sx={{ lineHeight: 1 }}>
+                      {formatPrice(getDisplayPrice())}
+                    </Typography>
+                    {product.basePrice !== getDisplayPrice() && (
+                      <Typography variant="h6" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
+                        {formatPrice(product.basePrice)}
+                      </Typography>
+                    )}
+                  </Box>
+                  {selectedVariant && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      {selectedVariant.size} • {selectedVariant.color}
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Pre-order Info Message */}
+                {(() => {
+                  const stockInfo = getStockDisplayInfo()
+                  if (stockInfo.showPreorderBadge) {
+                    return (
+                      <Alert
+                        severity="info"
+                        variant="outlined"
+                        sx={{
+                          mt: 1,
+                          py: 0.5,
+                          '& .MuiAlert-message': { py: 0 },
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {stockInfo.message}. Pre-order now to reserve yours before it's back in stock.
+                        </Typography>
+                      </Alert>
+                    )
+                  }
+                  return null
+                })()}
+
+                {/* Stock Status */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {(() => {
+                    const stockInfo = getStockDisplayInfo()
+
+                    if (stockInfo.stockStatus === 'select') {
+                      return (
+                        <Typography variant="body2" color="text.secondary">
+                          {stockInfo.message}
+                        </Typography>
+                      )
+                    }
+
+                    // Pre-order case
+                    if (stockInfo.showPreorderBadge) {
+                      return (
+                        <>
+                          <Chip
+                            label="Pre-order"
+                            color="info"
+                            size="small"
+                            sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                          />
+                          <Box>
+                            <Typography variant="body2" color="info.main" fontWeight={500}>
+                              {stockInfo.message}
+                            </Typography>
+                          </Box>
+                        </>
+                      )
+                    }
+
+                    // In stock case
+                    if (stockInfo.stockStatus === 'in-stock') {
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
+                          <CheckIcon fontSize="small" />
+                          <Typography variant="body2" color="success.main" fontWeight={500}>
+                            {stockInfo.message}
+                          </Typography>
+                        </Box>
+                      )
+                    }
+
+                    // Out of stock case
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography variant="body2" color="error.main" fontWeight={500}>
+                          {stockInfo.message}
+                        </Typography>
+                      </Box>
+                    )
+                  })()}
+                </Box>
+
+                <Divider />
+
+                {/* Enhanced Variant Selectors */}
+                {uniqueColors.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        Color
+                      </Typography>
+                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                        {selectedColor || 'Select'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                      {uniqueColors.map((color) => {
+                        const isSelected = selectedColor === color
+                        const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
+                          (v) => v.color === color && v.isActive !== false
+                        )
+
+                        // Get color hex from common color names
+                        const colorMap: Record<string, string> = {
+                          'Black': '#1a1a1a',
+                          'White': '#ffffff',
+                          'Red': '#e53935',
+                          'Blue': '#1e88e5',
+                          'Green': '#43a047',
+                          'Yellow': '#fdd835',
+                          'Brown': '#795548',
+                          'Gray': '#9e9e9e',
+                          'Silver': '#bdbdbd',
+                          'Gold': '#ffc107',
+                          'Pink': '#e91e63',
+                          'Purple': '#9c27b0',
+                          'Orange': '#ff9800',
+                          'Beige': '#d7ccc8',
+                          'Clear': '#e0f7fa',
+                          'Tortoise': '#8d6e63',
+                        }
+
+                        const colorHex = colorMap[color] || '#9e9e9e'
+
+                        return (
+                          <Box
+                            key={color}
+                            onClick={() => hasVariantInStock && handleColorSelect(color)}
+                            sx={{
+                              position: 'relative',
+                              width: 48,
+                              height: 48,
+                              borderRadius: '50%',
+                              bgcolor: colorHex,
+                              cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
+                              border: '3px solid',
+                              borderColor: isSelected ? 'primary.main' : 'divider',
+                              opacity: hasVariantInStock ? 1 : 0.3,
+                              transition: 'all 0.2s',
+                              boxShadow: isSelected ? `0 0 0 3px ${theme.palette.primary.main}25` : '0 2px 4px rgba(0,0,0,0.1)',
+                              '&:hover': hasVariantInStock ? {
+                                transform: 'scale(1.1)',
+                                boxShadow: `0 0 0 3px ${theme.palette.primary.main}40`,
+                              } : {},
+                            }}
+                            title={color}
+                          >
+                            {isSelected && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: -4,
+                                  right: -4,
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: '50%',
+                                  bgcolor: 'primary.main',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                }}
+                              >
+                                <CheckIcon sx={{ color: 'white', fontSize: 12 }} />
+                              </Box>
+                            )}
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                )}
+
+                {uniqueSizes.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        Size
+                      </Typography>
+                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                        {selectedSize || 'Select'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {uniqueSizes.map((size) => {
+                        const isSelected = selectedSize === size
+                        const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
+                          (v) => v.size === size && v.isActive !== false
+                        )
+                        return (
+                          <Box
+                            key={size}
+                            onClick={() => hasVariantInStock && handleSizeSelect(size)}
+                            sx={{
+                              px: 2.5,
+                              py: 1,
+                              borderRadius: 3,
+                              border: '2px solid',
+                              borderColor: isSelected ? 'primary.main' : 'divider',
+                              bgcolor: isSelected ? 'primary.main' : 'background.paper',
+                              color: isSelected ? 'white' : 'text.primary',
+                              cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
+                              opacity: hasVariantInStock ? 1 : 0.3,
+                              transition: 'all 0.2s',
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                              minWidth: 60,
+                              textAlign: 'center',
+                              boxShadow: isSelected ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+                              '&:hover': hasVariantInStock ? {
+                                borderColor: isSelected ? 'primary.main' : 'text.secondary',
+                                transform: 'translateY(-2px)',
+                              } : {},
+                            }}
+                          >
+                            {size}
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Enhanced Quantity */}
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                    Quantity
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '2px solid',
+                        borderColor: 'divider',
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <IconButton
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        disabled={quantity <= 1}
+                        sx={{
+                          borderRadius: 0,
+                          bgcolor: quantity > 1 ? 'grey.50' : 'transparent',
+                          '&:hover': { bgcolor: 'grey.100' },
+                          '&:disabled': { bgcolor: 'transparent' },
+                        }}
+                      >
+                        <RemoveIcon fontSize="small" />
+                      </IconButton>
+                      <Typography
+                        sx={{
+                          px: 3,
+                          py: 1.5,
+                          minWidth: 50,
+                          textAlign: 'center',
+                          fontSize: '1rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {quantity}
+                      </Typography>
+                      <IconButton
+                        onClick={() => setQuantity(quantity + 1)}
+                        sx={{
+                          borderRadius: 0,
+                          bgcolor: 'grey.50',
+                          '&:hover': { bgcolor: 'grey.100' },
+                        }}
+                      >
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
+
+
+                {/* Virtual Try-On Button */}
+                <TryOnButton
+                  productId={product?.id || ''}
+                  variantId={selectedVariant?.id || ''}
+                  disabled={!product || !selectedVariant}
+                />
+
+                {/* Enhanced Action Buttons */}
+                <Stack spacing={1.5}>
+                  {(() => {
+                    const stockInfo = getStockDisplayInfo()
+
+                    // Determine button style and text based on stock status
+                    const isPreorder = stockInfo.showPreorderBadge
+                    const isOutOfStock = stockInfo.stockStatus === 'out-of-stock' || stockInfo.stockStatus === 'unavailable'
+                    const isSelecting = stockInfo.stockStatus === 'select'
+
+                    return (
+                      <>
+                        <Button
+                          fullWidth
+                          variant={isPreorder ? 'outlined' : 'contained'}
+                          size="large"
+                          startIcon={isPreorder ? <ShoppingCartOutlined /> : <CartIcon />}
+                          disabled={isOutOfStock || isSelecting || isAdding}
+                          onClick={handleAddToCart}
+                          sx={{
+                            py: 1.75,
+                            borderRadius: 3,
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            textTransform: 'none',
+                            boxShadow: isPreorder ? 'none' : `0 4px 14px ${theme.palette.primary.main}40`,
+                            ...(isPreorder && {
+                              borderColor: 'info.main',
+                              color: 'info.main',
+                              borderWidth: 2,
+                              '&:hover': {
+                                borderColor: 'info.dark',
+                                bgcolor: 'info.50',
+                              },
+                            }),
+                            ...(isOutOfStock && {
+                              bgcolor: 'action.disabledBackground',
+                              color: 'text.disabled',
+                            }),
+                          }}
+                        >
+                          {isAdding
+                            ? 'Adding...'
+                            : isPreorder
+                              ? 'Pre-order Now'
+                              : isOutOfStock
+                                ? 'Out of Stock'
+                                : 'Add to Cart'}
+                        </Button>
+
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="secondary"
+                            size="large"
+                            startIcon={<BuyNowIcon />}
+                            disabled={isOutOfStock || isSelecting || isAdding}
+                            onClick={handleBuyNow}
+                            sx={{
+                              py: 1.75,
+                              borderRadius: 3,
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              boxShadow: `0 4px 14px ${theme.palette.secondary.main}40`,
+                            }}
+                          >
+                            Buy Now
+                          </Button>
+                          <Button
+                            variant={isInWishlist ? 'contained' : 'outlined'}
+                            color={isInWishlist ? 'error' : 'default'}
+                            size="large"
+                            onClick={toggleWishlist}
+                            sx={{
+                              px: 2,
+                              minWidth: 'auto',
+                              borderRadius: 3,
+                              ...(isInWishlist && {
+                                boxShadow: `0 4px 14px ${theme.palette.error.main}40`,
+                              }),
+                            }}
+                          >
+                            {isInWishlist ? <WishlistIcon /> : <WishlistBorderIcon />}
+                          </Button>
+                        </Box>
+                      </>
+                    )
+                  })()}
+                </Stack>
+
+                {/* Enhanced Reassurance Points */}
+                <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 3 }}>
+                  <Stack spacing={1.5}>
+                    {REASSURANCE_POINTS.map((point) => (
+                      <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ fontSize: 18 }}>{point.icon}</Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                          {point.text}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+
+                {/* Tags */}
+                {product.tags && product.tags.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                    {product.tags.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 2,
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* Enhanced Below-Fold Sections */}
+        <Stack spacing={4} sx={{ mt: 8 }}>
+          {/* Description - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Description
+                </Typography>
+              </Box>
+              <Typography variant="body1" sx={{ lineHeight: 2, color: 'text.secondary', fontSize: '1.05rem' }}>
+                {product.description}
+              </Typography>
+            </Box>
+          </Paper>
+
+          {/* Specifications - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Specifications
+                </Typography>
+              </Box>
+              <SpecsTable product={product} />
+            </Box>
+          </Paper>
+
+          {/* Reviews - Enhanced */}
+          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
+            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={800}>
+                  Customer Reviews ({totalReviews})
+                </Typography>
+              </Box>
+
+              {/* Rating Summary - Enhanced */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  mb: 5,
+                  p: 3,
+                  bgcolor: 'grey.50',
+                  borderRadius: 3,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Box sx={{ textAlign: 'center', minWidth: 120 }}>
+                  <Typography variant="h2" fontWeight={800} color="primary.main" sx={{ fontSize: '3.5rem' }}>
+                    {averageRating.toFixed(1)}
+                  </Typography>
+                  <Rating
+                    value={averageRating}
+                    precision={0.5}
+                    readOnly
+                    size="large"
+                    sx={{ mt: 1, color: 'warning.main' }}
+                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 500 }}>
+                    Based on {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flexGrow: 1, minWidth: 200 }}>
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = reviewStats?.ratingDistribution?.[stars] ?? 0
+                    const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0
+                    return (
+                      <Box
+                        key={stars}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          mb: 1.25,
+                        }}
+                      >
+                        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 45 }}>
+                          {stars} star
+                        </Typography>
+                        <Box
+                          sx={{
+                            flexGrow: 1,
+                            height: 10,
+                            bgcolor: 'grey.200',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              height: '100%',
+                              bgcolor: 'warning.main',
+                              borderRadius: 2,
+                              width: `${percentage}%`,
+                              transition: 'width 0.5s ease',
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 30, textAlign: 'right' }}>
+                          {count}
+                        </Typography>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              </Box>
+
+              {/* Reviews List - Enhanced */}
+              <Stack spacing={2.5}>
+                {reviewsLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={32} />
+                  </Box>
+                ) : reviews.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No reviews yet. Be the first to review this product!
+                    </Typography>
+                  </Box>
+                ) : (
+                  reviews.map((review) => (
+                    <Paper
+                      key={review._id}
+                      variant="outlined"
+                      sx={{
+                        p: 3,
+                        borderRadius: 3,
+                        borderColor: 'divider',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          boxShadow: 3,
+                          borderColor: 'primary.main',
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5, mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '50%',
+                            bgcolor: 'primary.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '1.25rem',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {review.userName?.charAt(0) || 'U'}
+                        </Box>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="subtitle1" fontWeight={700}>
+                                {review.userName || 'Anonymous'}
+                              </Typography>
+                              {review.isVerifiedPurchase && (
+                                <Chip
+                                  label="Verified Purchase"
+                                  size="small"
+                                  icon={<CheckIcon sx={{ fontSize: 14 }} />}
+                                  sx={{
+                                    bgcolor: 'success.light',
+                                    color: 'success.dark',
+                                    fontWeight: 600,
+                                    fontSize: '0.7rem',
+                                    height: 20,
+                                  }}
+                                />
+                              )}
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Rating value={review.rating} readOnly size="small" sx={{ color: 'warning.main' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {review.title && (
+                            <Typography variant="h6" fontWeight={700} sx={{ mt: 1.5, color: 'text.primary' }}>
+                              {review.title}
+                            </Typography>
+                          )}
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+                            {review.comment}
+                          </Typography>
+                          {review.images && review.images.length > 0 && (
+                            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                              {review.images.map((image, idx) => (
+                                <Box
+                                  key={idx}
+                                  component="img"
+                                  src={formatImageUrl(image)}
+                                  alt={`Review image ${idx + 1}`}
+                                  sx={{
+                                    width: 60,
+                                    height: 60,
+                                    objectFit: 'cover',
+                                    borderRadius: 2,
+                                    cursor: 'pointer',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                  }}
+                                />
+                              ))}
+                            </Box>
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                            <Button size="small" startIcon={<ThumbUpOffAlt sx={{ fontSize: 16 }} />}>
+                              Helpful ({review.helpfulCount})
+                            </Button>
+                            <Button size="small">Report</Button>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  ))
+                )}
+              </Stack>
+            </Box>
+          </Paper>
+        </Stack>
+
+        {/* Enhanced Related Products */}
+        {relatedProducts.length > 0 && (
+          <Box sx={{ mt: 8 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 4 }}>
+              <Box sx={{ width: 4, height: 28, borderRadius: 2, bgcolor: 'primary.main' }} />
+              <Typography variant="h5" fontWeight={800}>
+                You May Also Like
+              </Typography>
+            </Box>
+            <Grid container spacing={3}>
+              {relatedProducts.map((relatedProduct) => (
+                <Grid size={{ xs: 6, sm: 4, md: 3 }} key={relatedProduct._id}>
+                  <RelatedProductCard
+                    product={relatedProduct}
+                    onClick={() => navigate(`/product/${relatedProduct.slug}`)}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
+      </Container>
+
+      {/* Enhanced Zoom Dialog */}
+      <Dialog
+        open={zoomOpen}
+        onClose={() => setZoomOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            bgcolor: 'grey.50',
+            px: 3,
+            py: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>
+            {product.name}
+          </Typography>
+          <IconButton
+            onClick={() => setZoomOpen(false)}
+            sx={{
+              bgcolor: 'grey.200',
+              '&:hover': { bgcolor: 'grey.300' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          dividers
+          sx={{
+            p: 0,
+            bgcolor: 'grey.900',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '60vh',
+              p: 3,
+            }}
+          >
+            {images2D[activeImageIndex] ? (
+              <Box
+                component="img"
+                src={images2D[activeImageIndex]}
+                alt={product.name}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: 2,
+                }}
+              />
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <ThreeDIcon sx={{ fontSize: 100, color: 'primary.main', mb: 2 }} />
+                <Typography variant="h6" color="white" fontWeight={700}>
+                  3D Model Viewer
+                </Typography>
+                <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                  Full 3D viewer coming soon
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarState({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbarState({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Enhanced Scroll to Top Button */}
+      <Fab
+        color="primary"
+        size="medium"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+          '&:hover': {
+            transform: 'scale(1.1)',
+          },
+          transition: 'all 0.2s',
+        }}
+      >
+        <ArrowUpIcon />
+      </Fab>
+    </Box>
+  )
+}
+
+export default ProductDetailPage

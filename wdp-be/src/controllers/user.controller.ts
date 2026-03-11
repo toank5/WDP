@@ -45,7 +45,7 @@ export class UserController {
         message: 'User created successfully',
         data: {
           _id: 'user-id',
-          name: 'John Doe',
+          fullName: 'John Doe',
           email: 'john@example.com',
           role: 'customer',
           createdAt: '2024-01-01T00:00:00.000Z',
@@ -53,7 +53,10 @@ export class UserController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error or email already exists', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Validation error or email already exists',
+    type: ErrorResponseDto,
+  })
   async create(
     @Body(new ZodValidationPipe(CreateUserSchema)) userData: CreateUserInput,
   ) {
@@ -74,7 +77,7 @@ export class UserController {
         data: [
           {
             _id: 'user-id',
-            name: 'John Doe',
+            fullName: 'John Doe',
             email: 'john@example.com',
             role: 'customer',
           },
@@ -99,7 +102,7 @@ export class UserController {
         message: 'User retrieved successfully',
         data: {
           _id: 'user-id',
-          name: 'John Doe',
+          fullName: 'John Doe',
           email: 'john@example.com',
           role: 'customer',
           addresses: [],
@@ -107,7 +110,10 @@ export class UserController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'User not found', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+    type: ErrorResponseDto,
+  })
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
@@ -125,14 +131,20 @@ export class UserController {
         message: 'User updated successfully',
         data: {
           _id: 'user-id',
-          name: 'John Smith',
+          fullName: 'John Smith',
           email: 'john.smith@example.com',
         },
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiNotFoundResponse({ description: 'User not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+    type: ErrorResponseDto,
+  })
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateUserSchema)) updateData: UpdateUserInput,
@@ -162,8 +174,14 @@ export class UserController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorResponseDto })
-  @ApiNotFoundResponse({ description: 'User not found', type: ErrorResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+    type: ErrorResponseDto,
+  })
   async addAddress(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(AddAddressSchema)) addressData: AddAddressInput,
@@ -186,7 +204,10 @@ export class UserController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'User not found', type: ErrorResponseDto })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+    type: ErrorResponseDto,
+  })
   async remove(@Param('id') id: string) {
     return this.userService.remove(id);
   }
