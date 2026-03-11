@@ -1,15 +1,8 @@
-// API Configuration
-export const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000' // Development backend URL
-  : 'https://your-production-api.com' // Production backend URL
+// Import environment configuration
+import { API_BASE_URL, APP_CONFIG, __DEV__ } from './utils/env'
 
-// App Configuration
-export const APP_CONFIG = {
-  name: 'WDP Glasses Shop',
-  version: '1.0.0',
-  currency: 'VND',
-  locale: 'vi-VN',
-}
+// Re-export for convenience
+export { API_BASE_URL, APP_CONFIG, __DEV__ }
 
 // API Endpoints
 export const API_ENDPOINTS = {
