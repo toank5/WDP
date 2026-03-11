@@ -131,7 +131,7 @@ export default function PrescriptionPage() {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
               <Button
                 component={Link}
-                to="/account/prescriptions?create=true"
+                to="/prescription/upload"
                 variant="contained"
                 size="large"
                 startIcon={<AddCircleOutlined />}
@@ -147,11 +147,11 @@ export default function PrescriptionPage() {
                   boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
                 }}
               >
-                Create Prescription
+                Upload Prescription
               </Button>
               <Button
                 component={Link}
-                to="/account/prescriptions"
+                to="/orders"
                 variant="outlined"
                 size="large"
                 startIcon={<FolderOpenOutlined />}
@@ -168,7 +168,7 @@ export default function PrescriptionPage() {
                   },
                 }}
               >
-                My Prescriptions
+                My Orders
               </Button>
             </Stack>
           </Stack>
@@ -294,14 +294,14 @@ export default function PrescriptionPage() {
 
                   <Button
                     component={Link}
-                    to="/account/prescriptions?create=true"
+                    to="/prescription/upload"
                     variant="contained"
                     size="large"
                     fullWidth
                     endIcon={<ArrowForward />}
                     sx={{ mt: 2, py: 1.5 }}
                   >
-                    Create Prescription
+                    Upload Prescription
                   </Button>
                 </Stack>
               </CardContent>
@@ -341,10 +341,10 @@ export default function PrescriptionPage() {
 
                   <Stack spacing={1}>
                     <Typography variant="h5" fontWeight={800}>
-                      My Prescriptions
+                      My Orders
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      View, edit, or manage your saved prescriptions
+                      View your orders and prescription-based glasses
                     </Typography>
                   </Stack>
 
@@ -354,27 +354,27 @@ export default function PrescriptionPage() {
                     </Typography>
                     <Stack spacing={1}>
                       <Typography variant="body2" color="text.secondary">
-                        • View all your saved prescriptions
+                        • View all your orders with prescriptions
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        • Edit unverified prescriptions
+                        • Track order status and fulfillment
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        • Check verification status
+                        • View manufacturing proof when ready
                       </Typography>
                     </Stack>
                   </Stack>
 
                   <Button
                     component={Link}
-                    to="/account/prescriptions"
+                    to="/orders"
                     variant="outlined"
                     size="large"
                     fullWidth
                     endIcon={<ArrowForward />}
                     sx={{ mt: 2, py: 1.5 }}
                   >
-                    View Prescriptions
+                    View Orders
                   </Button>
                 </Stack>
               </CardContent>

@@ -90,6 +90,10 @@ export interface OrderItem {
   prescriptionStatus?: PrescriptionStatus
   prescriptionData?: PrescriptionData
   prescriptionUrl?: string
+  // Manufacturing proof fields (on OrderItem level)
+  manufacturingProofUrl?: string
+  manufacturingStatus?: 'PENDING' | 'COMPLETED' | 'FAILED'
+  manufacturedAt?: string
 }
 
 export interface PrescriptionData {
@@ -151,6 +155,12 @@ export interface Order {
   assignedStaffId?: string
   notes?: string
   history?: OrderHistoryItem[]
+  // Promotion fields
+  promotionId?: string
+  promotionCode?: string
+  promotionDiscount?: number
+  comboDiscount?: number
+  comboId?: string
   createdAt: string
   updatedAt: string
 }
@@ -169,6 +179,7 @@ export interface CheckoutRequest {
   }
   orderType?: OrderType
   notes?: string
+  promotionCode?: string
 }
 
 export interface CheckoutResponse {
@@ -287,23 +298,27 @@ class OrderAPI {
   /**
    * Checkout - Create order from cart
    * This uses the new checkout endpoint with VNPAY integration
+   * Note: Items are fetched from the database cart, not sent in request
    */
   async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
     try {
-      // Use the new checkout endpoint
       // Map postalCode to zipCode for backend compatibility
       const { postalCode, ...addressRest } = request.shippingAddress
+
+      // Build checkout payload - only send fields that DTO accepts
+      // Items are fetched from database cart by the backend
       const payload = {
         shippingAddress: {
           ...addressRest,
           zipCode: postalCode,
         },
         notes: request.notes,
+        promotionCode: request.promotionCode,
       }
 
-      console.log('Sending checkout request:', payload)
+      console.log('[OrderAPI] Sending checkout request:', JSON.stringify(payload, null, 2))
       const response = await api.post('/checkout/create-payment', payload)
-      console.log('Received response:', response)
+      console.log('[OrderAPI] Received response:', response)
 
       // The response structure is: { statusCode, message, metadata: { paymentUrl, orderId, ... } }
       const data = response.data.metadata || response.data
@@ -624,6 +639,32 @@ class OrderAPI {
     })
 
     return this.updateOrderStatus(orderId, OrderStatus.SHIPPED, request.note)
+  }
+
+  /**
+   * Upload manufacturing proof for OrderItem (Operations Staff)
+   * POST /orders/:orderId/items/:itemId/manufacturing-proof
+   */
+  async uploadManufacturingProof(orderId: string, itemId: string, file: File): Promise<Order> {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await api.post(
+        `/orders/${orderId}/items/${itemId}/manufacturing-proof`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      return unwrapApiPayload<Order>(response.data)
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
   }
 
   /**

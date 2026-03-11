@@ -26,7 +26,6 @@ import {
   ApiForbiddenResponse,
   ApiBearerAuth,
   ApiQuery,
-  ApiConsumes,
 } from '@nestjs/swagger';
 import { PrescriptionService } from '../services/prescription.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';

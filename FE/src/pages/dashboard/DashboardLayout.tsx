@@ -36,7 +36,9 @@ import {
   Build,
   Warehouse,
   Business,
-  Medication,
+  AttachMoney,
+  LocalOffer,
+  Discount,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -85,12 +87,6 @@ export function DashboardLayout() {
       staffOnly: true, // Sale and Operation
     },
     {
-      title: 'Prescription Management',
-      icon: <Medication />,
-      url: '/dashboard/prescriptions',
-      staffOnly: true, // All staff can view prescriptions
-    },
-    {
       title: 'User Management',
       icon: <People />,
       url: '/dashboard/users',
@@ -136,6 +132,18 @@ export function DashboardLayout() {
       title: 'Promotions',
       icon: <Campaign />,
       url: '/dashboard/promotions',
+      managerOnly: true,
+    },
+    {
+      title: 'Combos',
+      icon: <LocalOffer />,
+      url: '/dashboard/combos',
+      managerOnly: true,
+    },
+    {
+      title: 'Pricing',
+      icon: <AttachMoney />,
+      url: '/dashboard/pricing',
       managerOnly: true,
     },
     {

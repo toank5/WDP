@@ -26,7 +26,6 @@ import {
   LocalShipping as ShippingIcon,
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
-  RemoveRedEye as ReviewIcon,
 } from '@mui/icons-material'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
@@ -335,16 +334,6 @@ const StaffOrdersPage: React.FC = () => {
         </Stack>
 
         <Stack direction="row" spacing={1}>
-          {isSalesMode ? (
-            <Button
-              startIcon={<ReviewIcon fontSize="small" />}
-              onClick={() => navigate('/dashboard/prescription-verification')}
-              variant="contained"
-              color="secondary"
-            >
-              Prescription Verification
-            </Button>
-          ) : null}
           <Button
             startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
             onClick={handleApplyFilters}

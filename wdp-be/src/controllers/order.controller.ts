@@ -12,6 +12,8 @@ import {
   HttpCode,
   Req,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,6 +26,7 @@ import {
   ApiForbiddenResponse,
   ApiQuery,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { OrderService } from '../services/order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -52,6 +55,8 @@ import {
 } from '../dtos/vnpay.dto';
 import { ORDER_STATUS } from '../commons/enums/order.enum';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @ApiTags('Orders')
 @ApiBearerAuth()
@@ -577,6 +582,64 @@ export class OrderController {
       dto,
       updaterId,
     );
+  }
+
+  /**
+   * Upload manufacturing proof for OrderItem (Operations Staff)
+   * POST /orders/:orderId/items/:itemId/manufacturing-proof
+   */
+  @Post(':orderId/items/:itemId/manufacturing-proof')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATION)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return cb(
+            new BadRequestException(
+              'Only image files are allowed (JPEG, PNG, WebP)',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+      },
+    }),
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Upload manufacturing proof',
+    description:
+      'Operations staff uploads a photo of the finished glasses as manufacturing proof. Updates the OrderItem with proof URL and sets manufacturing status to COMPLETED.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiOkResponse({
+    description: 'Manufacturing proof uploaded successfully',
+    type: OrderResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file or upload failed',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Order or item not found',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
+  async uploadManufacturingProof(
+    @Param('orderId') orderId: string,
+    @Param('itemId') itemId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<OrderResponseDto> {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    return this.orderService.uploadManufacturingProof(orderId, itemId, file);
   }
 
   /**

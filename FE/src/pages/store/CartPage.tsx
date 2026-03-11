@@ -37,6 +37,9 @@ const CartPage: React.FC = () => {
     clearCart,
     refreshCart,
     loadCart,
+    appliedPromotion,
+    discountAmount,
+    totalAfterDiscount,
   } = cart
 
   const [notification, setNotification] = React.useState<string>('')
@@ -317,12 +320,20 @@ const CartPage: React.FC = () => {
                   <span className="uppercase">Shipping</span>
                   <span className="text-emerald-600">FREE</span>
                 </div>
+                {appliedPromotion && discountAmount > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-emerald-600">
+                    <span className="uppercase">
+                      Discount ({appliedPromotion.code})
+                    </span>
+                    <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">
                     Total
                   </span>
                   <span className="text-xl font-bold text-blue-700">
-                    {formatPrice(subtotal)}
+                    {formatPrice(totalAfterDiscount)}
                   </span>
                 </div>
 

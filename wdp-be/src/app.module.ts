@@ -71,6 +71,12 @@ import { PrescriptionModule } from './prescription.module';
 import { ReviewController } from './controllers/review.controller';
 import { ReviewService } from './services/review.service';
 import { Review, ReviewSchema } from './commons/schemas/review.schema';
+import { ComboController, PublicComboController } from './controllers/combo.controller';
+import { ComboService } from './services/combo.service';
+import { Combo, ComboSchema } from './commons/schemas/combo.schema';
+import { PromotionController, PublicPromotionController } from './controllers/promotion.controller';
+import { PromotionService } from './services/promotion.service';
+import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
 
 @Module({
   imports: [
@@ -135,6 +141,8 @@ import { Review, ReviewSchema } from './commons/schemas/review.schema';
       { name: OrderTracking.name, schema: OrderTrackingSchema },
       { name: OrderHistory.name, schema: OrderHistorySchema },
       { name: Review.name, schema: ReviewSchema },
+      { name: Combo.name, schema: ComboSchema },
+      { name: Promotion.name, schema: PromotionSchema },
     ]),
     PreorderModule,
     PrescriptionModule,
@@ -154,6 +162,10 @@ import { Review, ReviewSchema } from './commons/schemas/review.schema';
     OrderController,
     CheckoutController,
     ReviewController,
+    ComboController,
+    PublicComboController,
+    PromotionController,
+    PublicPromotionController,
   ],
   providers: [
     AppService,
@@ -173,6 +185,8 @@ import { Review, ReviewSchema } from './commons/schemas/review.schema';
     CheckoutService,
     VNPayService,
     ReviewService,
+    ComboService,
+    PromotionService,
   ],
 })
 export class AppModule {}

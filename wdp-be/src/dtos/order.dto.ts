@@ -129,6 +129,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({ example: 'SUMMER2025', required: false, description: 'Promotion code to apply' })
+  @IsOptional()
+  @IsString()
+  promotionCode?: string;
 }
 
 /**
@@ -325,6 +330,21 @@ export class OrderResponseDto {
 
   @ApiProperty()
   tax: number;
+
+  @ApiProperty({ required: false })
+  comboDiscount?: number;
+
+  @ApiProperty({ required: false })
+  comboId?: string;
+
+  @ApiProperty({ required: false })
+  promotionDiscount?: number;
+
+  @ApiProperty({ required: false })
+  promotionId?: string;
+
+  @ApiProperty({ required: false })
+  promotionCode?: string;
 
   @ApiProperty()
   totalAmount: number;

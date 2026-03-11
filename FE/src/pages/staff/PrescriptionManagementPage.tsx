@@ -99,6 +99,19 @@ export function PrescriptionManagementPage() {
     }
   }
 
+  const handleManufacturingCompleted = async () => {
+    // Refresh the selected prescription and list
+    if (selectedPrescription) {
+      try {
+        const updated = await prescriptionApi.getPrescriptionById(selectedPrescription._id)
+        setSelectedPrescription(updated)
+        fetchPrescriptions()
+      } catch (err) {
+        console.error('Failed to refresh prescription:', err)
+      }
+    }
+  }
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
@@ -246,6 +259,7 @@ export function PrescriptionManagementPage() {
         onClose={() => { setModalOpen(false); setSelectedPrescription(null) }}
         onVerified={handleVerified}
         onRejected={handleRejected}
+        onManufacturingCompleted={handleManufacturingCompleted}
       />
     </Container>
   )

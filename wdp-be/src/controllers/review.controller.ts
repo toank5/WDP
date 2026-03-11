@@ -13,11 +13,28 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ReviewService } from '../services/review.service';
-import { CreateReviewDto, UpdateReviewDto, ReviewStatsDto, AddReviewResponseDto } from '../dtos/review.dto';
+import {
+  CreateReviewDto,
+  UpdateReviewDto,
+  ReviewStatsDto,
+  AddReviewResponseDto,
+} from '../dtos/review.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RbacGuard, Roles, UserRole, MANAGER_OR_ADMIN } from '../commons/guards/rbac.guard';
+import {
+  RbacGuard,
+  Roles,
+  UserRole,
+  MANAGER_OR_ADMIN,
+} from '../commons/guards/rbac.guard';
 
 @ApiTags('reviews')
 @Controller('reviews')
@@ -33,15 +50,19 @@ export class ReviewController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a product review',
-    description: 'Create a review for a product from a delivered order. User can only review products from orders with DELIVERED status.',
+    description:
+      'Create a review for a product from a delivered order. User can only review products from orders with DELIVERED status.',
   })
-  @ApiResponse({ status: HttpStatus.CREATED, description: 'Review created successfully' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Order not delivered, duplicate review, or validation error' })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Review created successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Order not delivered, duplicate review, or validation error',
+  })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Order not found' })
-  async createReview(
-    @Request() req,
-    @Body() createReviewDto: CreateReviewDto,
-  ) {
+  async createReview(@Request() req, @Body() createReviewDto: CreateReviewDto) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
     const userName = req.user.fullName;
@@ -67,20 +88,35 @@ export class ReviewController {
   @Get('product/:productId')
   @ApiOperation({
     summary: 'Get product reviews',
-    description: 'Get paginated reviews for a specific product with sorting options',
+    description:
+      'Get paginated reviews for a specific product with sorting options',
   })
   @ApiParam({ name: 'productId', description: 'Product ID' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['recent', 'helpful', 'rating-high', 'rating-low'], example: 'recent' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reviews retrieved successfully' })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['recent', 'helpful', 'rating-high', 'rating-low'],
+    example: 'recent',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reviews retrieved successfully',
+  })
   async getProductReviews(
     @Param('productId') productId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('sortBy') sortBy: 'recent' | 'helpful' | 'rating-high' | 'rating-low' = 'recent',
+    @Query('sortBy')
+    sortBy: 'recent' | 'helpful' | 'rating-high' | 'rating-low' = 'recent',
   ) {
-    const result = await this.reviewService.getProductReviews(productId, page, limit, sortBy);
+    const result = await this.reviewService.getProductReviews(
+      productId,
+      page,
+      limit,
+      sortBy,
+    );
     return {
       success: true,
       ...result,
@@ -93,11 +129,17 @@ export class ReviewController {
   @Get('product/:productId/stats')
   @ApiOperation({
     summary: 'Get product review statistics',
-    description: 'Get average rating, total reviews, and rating distribution for a product',
+    description:
+      'Get average rating, total reviews, and rating distribution for a product',
   })
   @ApiParam({ name: 'productId', description: 'Product ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Stats retrieved successfully' })
-  async getProductStats(@Param('productId') productId: string): Promise<ReviewStatsDto> {
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Stats retrieved successfully',
+  })
+  async getProductStats(
+    @Param('productId') productId: string,
+  ): Promise<ReviewStatsDto> {
     return this.reviewService.getProductStats(productId);
   }
 
@@ -113,7 +155,10 @@ export class ReviewController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: HttpStatus.OK, description: 'User reviews retrieved successfully' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User reviews retrieved successfully',
+  })
   async getMyReviews(
     @Request() req,
     @Query('page') page: number = 1,
@@ -136,12 +181,16 @@ export class ReviewController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Check if user can review a product',
-    description: 'Check if the authenticated user can review a specific product from a specific order',
+    description:
+      'Check if the authenticated user can review a specific product from a specific order',
   })
   @ApiParam({ name: 'productId', description: 'Product ID' })
   @ApiParam({ name: 'orderId', description: 'Order ID' })
   @ApiQuery({ name: 'variantSku', required: false, type: String })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Check completed successfully' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Check completed successfully',
+  })
   async canUserReviewProduct(
     @Request() req,
     @Param('productId') productId: string,
@@ -170,9 +219,13 @@ export class ReviewController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get unreviewed products',
-    description: 'Get all products from delivered orders that the user hasn\'t reviewed yet',
+    description:
+      "Get all products from delivered orders that the user hasn't reviewed yet",
   })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Unreviewed products retrieved successfully' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Unreviewed products retrieved successfully',
+  })
   async getUnreviewedProducts(@Request() req) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
@@ -202,8 +255,14 @@ export class ReviewController {
     description: 'Get detailed information about a specific review',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Review retrieved successfully' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Review retrieved successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async getReviewById(@Param('reviewId') reviewId: string) {
     const review = await this.reviewService.getReviewById(reviewId);
     return {
@@ -223,9 +282,18 @@ export class ReviewController {
     description: 'Update an existing review (only by the review owner)',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Review updated successfully' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not the review owner' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Review updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Not the review owner',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async updateReview(
     @Param('reviewId') reviewId: string,
     @Request() req,
@@ -233,7 +301,11 @@ export class ReviewController {
   ) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
-    const review = await this.reviewService.updateReview(reviewId, userId, updateReviewDto);
+    const review = await this.reviewService.updateReview(
+      reviewId,
+      userId,
+      updateReviewDto,
+    );
 
     return {
       success: true,
@@ -254,9 +326,18 @@ export class ReviewController {
     description: 'Delete a review (only by the review owner)',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Review deleted successfully' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not the review owner' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Review deleted successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Not the review owner',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async deleteReview(@Param('reviewId') reviewId: string, @Request() req) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
@@ -272,8 +353,14 @@ export class ReviewController {
     description: 'Increment the helpful count for a review',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Review marked as helpful' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Review marked as helpful',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async markAsHelpful(@Param('reviewId') reviewId: string) {
     const review = await this.reviewService.markAsHelpful(reviewId);
     return {
@@ -295,13 +382,22 @@ export class ReviewController {
     description: 'Add a response from admin/staff to a customer review',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Response added successfully' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Response added successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async addReviewResponse(
     @Param('reviewId') reviewId: string,
     @Body() addReviewResponseDto: AddReviewResponseDto,
   ) {
-    const review = await this.reviewService.addReviewResponse(reviewId, addReviewResponseDto);
+    const review = await this.reviewService.addReviewResponse(
+      reviewId,
+      addReviewResponseDto,
+    );
     return {
       success: true,
       message: 'Response added successfully',
@@ -321,8 +417,14 @@ export class ReviewController {
     description: 'Show or hide a review (admin moderation)',
   })
   @ApiParam({ name: 'reviewId', description: 'Review ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Visibility toggled successfully' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Review not found' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Visibility toggled successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Review not found',
+  })
   async toggleVisibility(@Param('reviewId') reviewId: string) {
     const review = await this.reviewService.toggleReviewVisibility(reviewId);
     return {

@@ -89,6 +89,37 @@ export class Order {
   tax: number;
 
   @Prop({
+    type: Number,
+    default: 0,
+  })
+  comboDiscount: number;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  comboId?: string;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
+  promotionDiscount: number;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Promotion',
+    default: null,
+  })
+  promotionId?: mongoose.Types.ObjectId;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  promotionCode?: string;
+
+  @Prop({
     type: Object,
     required: true,
   })

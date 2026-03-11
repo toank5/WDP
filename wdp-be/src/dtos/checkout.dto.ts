@@ -63,6 +63,15 @@ export class CreateCheckoutDto {
   notes?: string;
 
   @ApiProperty({
+    description: 'Promotion code to apply',
+    example: 'EYEWEAR20',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  promotionCode?: string;
+
+  @ApiProperty({
     description: 'Client IP address for VNPAY',
     example: '127.0.0.1',
     required: false,
@@ -96,8 +105,20 @@ export class CheckoutItemDto {
 export interface CheckoutCalculation {
   subtotal: number;
   shippingFee: number;
+  comboDiscount: number;
+  promotionDiscount: number;
   totalAmount: number;
   items: CheckoutItemDto[];
+  appliedPromotion?: {
+    code: string;
+    discountAmount: number;
+    promotionId?: string;
+  };
+  appliedCombo?: {
+    id: string;
+    name: string;
+    discountAmount: number;
+  };
 }
 
 /**

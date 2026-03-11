@@ -37,57 +37,53 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  LocalOffer as CouponIcon,
-  TrendingUp as PercentageIcon,
-  AttachMoney as FixedIcon,
-  CalendarToday as CalendarIcon,
+  LocalOffer as ComboIcon,
   CheckCircle as ActiveIcon,
   Cancel as InactiveIcon,
+  Inventory as ProductIcon,
 } from '@mui/icons-material'
 import {
-  getAllPromotions,
-  createPromotion,
-  updatePromotion,
-  updatePromotionStatus,
-  deletePromotion,
-  getPromotionStatistics,
-  type Promotion,
-  type CreatePromotionDto,
-  type UpdatePromotionDto,
-  PromotionType,
-  PromotionStatus,
-} from '@/lib/promotion-api'
+  getAllCombos,
+  createCombo,
+  updateCombo,
+  updateComboStatus,
+  deleteCombo,
+  getComboStatistics,
+  type Combo,
+  type CreateComboDto,
+  type UpdateComboDto,
+} from '@/lib/combo-api'
+import { getAllProducts, type Product } from '@/lib/product-api'
 
-const PromotionsPage: React.FC = () => {
-  const [promotions, setPromotions] = useState<Promotion[]>([])
+const ComboBuilderPage: React.FC = () => {
+  const [combos, setCombos] = useState<Combo[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [frames, setFrames] = useState<Product[]>([])
+  const [lenses, setLenses] = useState<Product[]>([])
   const [stats, setStats] = useState({
-    totalPromotions: 0,
-    activePromotions: 0,
-    scheduledPromotions: 0,
-    expiredPromotions: 0,
-    featuredPromotions: 0,
-    totalUsage: 0,
+    totalCombos: 0,
+    activeCombos: 0,
+    featuredCombos: 0,
+    expiringSoon: 0,
   })
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
+  const [editingCombo, setEditingCombo] = useState<Combo | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null)
+  const [comboToDelete, setComboToDelete] = useState<Combo | null>(null)
 
   // Form state
-  const [formData, setFormData] = useState<CreatePromotionDto>({
-    code: '',
+  const [formData, setFormData] = useState<CreateComboDto>({
     name: '',
     description: '',
-    type: 'percentage',
-    value: 0,
-    minOrderValue: 0,
-    scope: 'all_orders',
+    frameProductId: '',
+    lensProductId: '',
+    comboPrice: 0,
+    originalPrice: 0,
     startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    usageLimit: 0,
-    maxUsesPerCustomer: 1,
-    isStackable: false,
+    endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    maxPurchaseQuantity: 0,
+    tags: [],
     isFeatured: false,
     status: 'active',
   })
@@ -98,20 +94,24 @@ const PromotionsPage: React.FC = () => {
     severity: 'success' as 'success' | 'error',
   })
 
-  const fetchPromotions = useCallback(async () => {
+  const fetchCombos = useCallback(async () => {
     try {
       setLoading(true)
-      const [promotionsData, statsData] = await Promise.all([
-        getAllPromotions({ limit: 100 }),
-        getPromotionStatistics(),
+      const [combosData, statsData, productsData] = await Promise.all([
+        getAllCombos({ limit: 100 }),
+        getComboStatistics(),
+        getAllProducts({ limit: 500, status: 'ACTIVE' }),
       ])
-      setPromotions(promotionsData.items)
+      setCombos(combosData.items)
       setStats(statsData)
+      setProducts(productsData.items)
+      setFrames(productsData.items.filter((p) => p.category === 'frame'))
+      setLenses(productsData.items.filter((p) => p.category === 'lens'))
     } catch (error) {
-      console.error('Error fetching promotions:', error)
+      console.error('Error fetching data:', error)
       setSnackbar({
         open: true,
-        message: 'Failed to load promotions',
+        message: 'Failed to load data',
         severity: 'error',
       })
     } finally {
@@ -120,98 +120,90 @@ const PromotionsPage: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    fetchPromotions()
-  }, [fetchPromotions])
+    fetchCombos()
+  }, [fetchCombos])
 
   const handleOpenCreateDialog = () => {
-    setEditingPromotion(null)
+    setEditingCombo(null)
     setFormData({
-      code: '',
       name: '',
       description: '',
-      type: 'percentage',
-      value: 0,
-      minOrderValue: 0,
-      scope: 'all_orders',
+      frameProductId: '',
+      lensProductId: '',
+      comboPrice: 0,
+      originalPrice: 0,
       startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      usageLimit: 0,
-      maxUsesPerCustomer: 1,
-      isStackable: false,
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      maxPurchaseQuantity: 0,
+      tags: [],
       isFeatured: false,
       status: 'active',
     })
     setDialogOpen(true)
   }
 
-  const handleOpenEditDialog = (promotion: Promotion) => {
-    setEditingPromotion(promotion)
+  const handleOpenEditDialog = (combo: Combo) => {
+    setEditingCombo(combo)
     setFormData({
-      code: promotion.code,
-      name: promotion.name,
-      description: promotion.description,
-      type: promotion.type,
-      value: promotion.value,
-      minOrderValue: promotion.minOrderValue,
-      scope: promotion.scope,
-      applicableCategories: promotion.applicableCategories,
-      applicableProductIds: promotion.applicableProductIds,
-      startDate: promotion.startDate.split('T')[0],
-      endDate: promotion.endDate.split('T')[0],
-      usageLimit: promotion.usageLimit,
-      maxUsesPerCustomer: promotion.maxUsesPerCustomer,
-      isStackable: promotion.isStackable,
-      tags: promotion.tags,
-      isFeatured: promotion.isFeatured,
-      status: promotion.status,
+      name: combo.name,
+      description: combo.description,
+      frameProductId: combo.frameProductId,
+      lensProductId: combo.lensProductId,
+      comboPrice: combo.comboPrice,
+      originalPrice: combo.originalPrice,
+      startDate: combo.startDate ? combo.startDate.split('T')[0] : '',
+      endDate: combo.endDate ? combo.endDate.split('T')[0] : '',
+      maxPurchaseQuantity: combo.maxPurchaseQuantity,
+      tags: combo.tags,
+      isFeatured: combo.isFeatured,
+      status: combo.status,
     })
     setDialogOpen(true)
   }
 
   const handleCloseDialog = () => {
     setDialogOpen(false)
-    setEditingPromotion(null)
+    setEditingCombo(null)
   }
 
   const handleSave = async () => {
     try {
-      if (editingPromotion) {
-        await updatePromotion(editingPromotion._id, formData as UpdatePromotionDto)
+      if (editingCombo) {
+        await updateCombo(editingCombo._id, formData as UpdateComboDto)
         setSnackbar({
           open: true,
-          message: 'Promotion updated successfully',
+          message: 'Combo updated successfully',
           severity: 'success',
         })
       } else {
-        await createPromotion(formData)
+        await createCombo(formData)
         setSnackbar({
           open: true,
-          message: 'Promotion created successfully',
+          message: 'Combo created successfully',
           severity: 'success',
         })
       }
       handleCloseDialog()
-      fetchPromotions()
+      fetchCombos()
     } catch (error: any) {
       setSnackbar({
         open: true,
-        message: error.message || 'Failed to save promotion',
+        message: error.message || 'Failed to save combo',
         severity: 'error',
       })
     }
   }
 
-  const handleToggleStatus = async (promotion: Promotion) => {
+  const handleToggleStatus = async (combo: Combo) => {
     try {
-      const newStatus: PromotionStatus =
-        promotion.status === 'active' ? 'inactive' : 'active'
-      await updatePromotionStatus(promotion._id, newStatus)
+      const newStatus = combo.status === 'active' ? 'inactive' : 'active'
+      await updateComboStatus(combo._id, newStatus)
       setSnackbar({
         open: true,
-        message: `Promotion ${newStatus}`,
+        message: `Combo ${newStatus}`,
         severity: 'success',
       })
-      fetchPromotions()
+      fetchCombos()
     } catch (error) {
       setSnackbar({
         open: true,
@@ -221,38 +213,38 @@ const PromotionsPage: React.FC = () => {
     }
   }
 
-  const handleOpenDeleteDialog = (promotion: Promotion) => {
-    setPromotionToDelete(promotion)
+  const handleOpenDeleteDialog = (combo: Combo) => {
+    setComboToDelete(combo)
     setDeleteDialogOpen(true)
   }
 
   const handleCloseDeleteDialog = () => {
     setDeleteDialogOpen(false)
-    setPromotionToDelete(null)
+    setComboToDelete(null)
   }
 
   const handleDelete = async () => {
-    if (!promotionToDelete) return
+    if (!comboToDelete) return
 
     try {
-      await deletePromotion(promotionToDelete._id)
+      await deleteCombo(comboToDelete._id)
       setSnackbar({
         open: true,
-        message: 'Promotion deleted successfully',
+        message: 'Combo deleted successfully',
         severity: 'success',
       })
       handleCloseDeleteDialog()
-      fetchPromotions()
+      fetchCombos()
     } catch (error) {
       setSnackbar({
         open: true,
-        message: 'Failed to delete promotion',
+        message: 'Failed to delete combo',
         severity: 'error',
       })
     }
   }
 
-  const getStatusColor = (status: PromotionStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
         return 'success'
@@ -260,23 +252,39 @@ const PromotionsPage: React.FC = () => {
         return 'default'
       case 'scheduled':
         return 'info'
-      case 'expired':
-        return 'error'
       default:
         return 'default'
     }
   }
 
-  const getStatusLabel = (status: PromotionStatus) => {
+  const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1)
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     })
+  }
+
+  const getProductName = (productId: string) => {
+    const product = products.find((p) => p._id === productId)
+    return product?.name || productId
+  }
+
+  const calculateDiscount = () => {
+    if (formData.originalPrice > 0) {
+      const discount = formData.originalPrice - formData.comboPrice
+      const percentage = (discount / formData.originalPrice) * 100
+      return {
+        amount: discount,
+        percentage: percentage.toFixed(1),
+      }
+    }
+    return { amount: 0, percentage: '0' }
   }
 
   if (loading) {
@@ -291,7 +299,7 @@ const PromotionsPage: React.FC = () => {
     <Box>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CouponIcon sx={{ color: 'text.secondary' }} />
+          <ComboIcon sx={{ color: 'text.secondary' }} />
           <Typography
             variant="h1"
             sx={{
@@ -301,7 +309,7 @@ const PromotionsPage: React.FC = () => {
               letterSpacing: '0.05em',
             }}
           >
-            Promotion Management
+            Combo Builder
           </Typography>
         </Box>
         <Button
@@ -309,155 +317,144 @@ const PromotionsPage: React.FC = () => {
           startIcon={<AddIcon />}
           onClick={handleOpenCreateDialog}
         >
-          Create Promotion
+          Create Combo
         </Button>
       </Box>
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="body2" color="text.secondary">Total</Typography>
-            <Typography variant="h4">{stats.totalPromotions}</Typography>
+            <Typography variant="body2" color="text.secondary">Total Combos</Typography>
+            <Typography variant="h4">{stats.totalCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'success.light', color: 'success.dark' }}>
             <Typography variant="body2">Active</Typography>
-            <Typography variant="h4">{stats.activePromotions}</Typography>
+            <Typography variant="h4">{stats.activeCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.light', color: 'info.dark' }}>
-            <Typography variant="body2">Scheduled</Typography>
-            <Typography variant="h4">{stats.scheduledPromotions}</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.light', color: 'warning.dark' }}>
             <Typography variant="body2">Featured</Typography>
-            <Typography variant="h4">{stats.featuredPromotions}</Typography>
+            <Typography variant="h4">{stats.featuredCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="body2" color="text.secondary">Total Usage</Typography>
-            <Typography variant="h4">{stats.totalUsage}</Typography>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'error.light', color: 'error.dark' }}>
+            <Typography variant="body2">Expiring Soon</Typography>
+            <Typography variant="h4">{stats.expiringSoon}</Typography>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Promotions Table */}
+      {/* Combos Table */}
       <Paper variant="outlined">
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Code</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Value</TableCell>
-                <TableCell>Min Order</TableCell>
-                <TableCell>Duration</TableCell>
-                <TableCell>Usage</TableCell>
+                <TableCell>Combo Name</TableCell>
+                <TableCell>Frame</TableCell>
+                <TableCell>Lens</TableCell>
+                <TableCell>Original Price</TableCell>
+                <TableCell>Combo Price</TableCell>
+                <TableCell>Discount</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {promotions.map((promotion) => (
-                <TableRow key={promotion._id} hover>
+              {combos.map((combo) => (
+                <TableRow key={combo._id} hover>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
-                        {promotion.code}
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {combo.name}
                       </Typography>
-                      {promotion.isFeatured && (
+                      {combo.isFeatured && (
                         <Chip label="Featured" size="small" color="warning" />
                       )}
                     </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2">{promotion.name}</Typography>
-                      {promotion.description && (
-                        <Typography variant="caption" color="text.secondary">
-                          {promotion.description}
-                        </Typography>
-                      )}
-                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {combo.description}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {promotion.type === 'percentage' ? (
-                        <PercentageIcon fontSize="small" />
-                      ) : (
-                        <FixedIcon fontSize="small" />
-                      )}
+                      <ProductIcon fontSize="small" color="action" />
                       <Typography variant="body2">
-                        {promotion.type === 'percentage' ? '%' : 'Fixed'}
+                        {combo.frameName || getProductName(combo.frameProductId)}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      {promotion.type === 'percentage'
-                        ? `${promotion.value}%`
-                        : `${promotion.value.toLocaleString()} VND`}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <ProductIcon fontSize="small" color="action" />
+                      <Typography variant="body2">
+                        {combo.lensName || getProductName(combo.lensProductId)}
+                      </Typography>
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {promotion.minOrderValue.toLocaleString()} VND
+                      {combo.originalPrice.toLocaleString()} VND
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <CalendarIcon fontSize="small" />
-                      <Typography variant="caption">
-                        {formatDate(promotion.startDate)} - {formatDate(promotion.endDate)}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2">
-                        {promotion.usageCount}
-                        {promotion.usageLimit && ` / ${promotion.usageLimit}`}
-                      </Typography>
-                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                      {combo.comboPrice.toLocaleString()} VND
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
                       size="small"
-                      label={getStatusLabel(promotion.status)}
-                      color={getStatusColor(promotion.status) as any}
-                      icon={promotion.status === 'active' ? <ActiveIcon fontSize="small" /> : undefined}
+                      label={`${combo.discountPercentage.toFixed(1)}%`}
+                      color="success"
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={getStatusLabel(combo.status)}
+                      color={getStatusColor(combo.status) as any}
+                      icon={combo.status === 'active' ? <ActiveIcon fontSize="small" /> : undefined}
                     />
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Toggle status">
                       <IconButton
                         size="small"
-                        onClick={() => handleToggleStatus(promotion)}
-                        color={promotion.status === 'active' ? 'success' : 'default'}
+                        onClick={() => handleToggleStatus(combo)}
+                        color={combo.status === 'active' ? 'success' : 'default'}
                       >
-                        {promotion.status === 'active' ? <ActiveIcon /> : <InactiveIcon />}
+                        {combo.status === 'active' ? <ActiveIcon /> : <InactiveIcon />}
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Edit">
-                      <IconButton size="small" onClick={() => handleOpenEditDialog(promotion)}>
+                      <IconButton size="small" onClick={() => handleOpenEditDialog(combo)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" onClick={() => handleOpenDeleteDialog(promotion)} color="error">
+                      <IconButton size="small" onClick={() => handleOpenDeleteDialog(combo)} color="error">
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
+              {combos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No combos found. Create your first combo to get started!
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -466,39 +463,17 @@ const PromotionsPage: React.FC = () => {
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingPromotion ? 'Edit Promotion' : 'Create New Promotion'}
+          {editingCombo ? 'Edit Combo' : 'Create New Combo'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Promotion Code"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                disabled={!!editingPromotion}
-                helperText={editingPromotion ? 'Code cannot be changed' : 'Unique code for the promotion'}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={formData.type}
-                  label="Type"
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as PromotionType })}
-                >
-                  <MenuItem value="percentage">Percentage</MenuItem>
-                  <MenuItem value="fixed_amount">Fixed Amount</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Promotion Name"
+                label="Combo Name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Student Package - Round Frame + Single Vision Lens"
                 required
               />
             </Grid>
@@ -506,19 +481,53 @@ const PromotionsPage: React.FC = () => {
               <TextField
                 fullWidth
                 label="Description"
-                value={formData.description || ''}
+                value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 multiline
                 rows={2}
+                placeholder="Describe the benefits of this combo package..."
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Frame Product</InputLabel>
+                <Select
+                  value={formData.frameProductId}
+                  label="Frame Product"
+                  onChange={(e) => setFormData({ ...formData, frameProductId: e.target.value })}
+                >
+                  {frames.map((frame) => (
+                    <MenuItem key={frame._id} value={frame._id}>
+                      {frame.name} - {frame.basePrice.toLocaleString()} VND
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Lens Product</InputLabel>
+                <Select
+                  value={formData.lensProductId}
+                  label="Lens Product"
+                  onChange={(e) => setFormData({ ...formData, lensProductId: e.target.value })}
+                >
+                  {lenses.map((lens) => (
+                    <MenuItem key={lens._id} value={lens._id}>
+                      {lens.name} - {lens.basePrice.toLocaleString()} VND
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
                 type="number"
-                label={`Discount ${formData.type === 'percentage' ? '(%)' : '(VND)'}`}
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                label="Original Price (VND)"
+                value={formData.originalPrice}
+                onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value) })}
+                helperText="Sum of frame + lens prices"
                 required
               />
             </Grid>
@@ -526,10 +535,25 @@ const PromotionsPage: React.FC = () => {
               <TextField
                 fullWidth
                 type="number"
-                label="Min Order Value (VND)"
-                value={formData.minOrderValue}
-                onChange={(e) => setFormData({ ...formData, minOrderValue: Number(e.target.value) })}
+                label="Combo Price (VND)"
+                value={formData.comboPrice}
+                onChange={(e) => setFormData({ ...formData, comboPrice: Number(e.target.value) })}
+                helperText="Special combo price"
+                required
               />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Customer Savings
+                </Typography>
+                <Typography variant="h6" color="success.dark">
+                  {calculateDiscount().amount.toLocaleString()} VND
+                  <Typography component="span" variant="body2">
+                    ({calculateDiscount().percentage}% off)
+                  </Typography>
+                </Typography>
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -555,9 +579,10 @@ const PromotionsPage: React.FC = () => {
               <TextField
                 fullWidth
                 type="number"
-                label="Usage Limit (0 = unlimited)"
-                value={formData.usageLimit || 0}
-                onChange={(e) => setFormData({ ...formData, usageLimit: Number(e.target.value) || undefined })}
+                label="Max Purchase per Customer"
+                value={formData.maxPurchaseQuantity || 0}
+                onChange={(e) => setFormData({ ...formData, maxPurchaseQuantity: Number(e.target.value) || undefined })}
+                helperText="0 = unlimited"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -566,7 +591,7 @@ const PromotionsPage: React.FC = () => {
                 <Select
                   value={formData.status}
                   label="Status"
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as PromotionStatus })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                 >
                   <MenuItem value="active">Active</MenuItem>
                   <MenuItem value="inactive">Inactive</MenuItem>
@@ -583,16 +608,7 @@ const PromotionsPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
                     />
                   }
-                  label="Featured Promotion"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.isStackable || false}
-                      onChange={(e) => setFormData({ ...formData, isStackable: e.target.checked })}
-                    />
-                  }
-                  label="Stackable with others"
+                  label="Featured Combo"
                 />
               </Stack>
             </Grid>
@@ -601,7 +617,7 @@ const PromotionsPage: React.FC = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button variant="contained" onClick={handleSave}>
-            {editingPromotion ? 'Update' : 'Create'}
+            {editingCombo ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -611,7 +627,7 @@ const PromotionsPage: React.FC = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the promotion "{promotionToDelete?.code}"?
+            Are you sure you want to delete the combo "{comboToDelete?.name}"?
             This action cannot be undone.
           </Typography>
         </DialogContent>
@@ -640,4 +656,4 @@ const PromotionsPage: React.FC = () => {
   )
 }
 
-export default PromotionsPage
+export default ComboBuilderPage
