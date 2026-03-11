@@ -97,15 +97,8 @@ export class ReviewController {
   })
   @ApiParam({ name: 'productId', description: 'Product ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Stats retrieved successfully' })
-  async getProductStats(@Param('productId') productId: string): Promise<{
-    success: boolean;
-    data: ReviewStatsDto;
-  }> {
-    const stats = await this.reviewService.getProductStats(productId);
-    return {
-      success: true,
-      data: stats,
-    };
+  async getProductStats(@Param('productId') productId: string): Promise<ReviewStatsDto> {
+    return this.reviewService.getProductStats(productId);
   }
 
   /**

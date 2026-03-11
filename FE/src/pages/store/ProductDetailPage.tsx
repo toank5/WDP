@@ -1173,6 +1173,14 @@ export function ProductDetailPage() {
         setReviewsError(err instanceof Error ? err.message : 'Failed to load reviews')
         // Use fallback reviews on error
         setReviews(REVIEWS_FALLBACK as unknown as Review[])
+        // Set fallback stats based on the mock reviews
+        const fallbackStats: ReviewStats = {
+          averageRating: 4.5,
+          totalReviews: REVIEWS_FALLBACK.length,
+          ratingDistribution: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 5 },
+          fiveStarPercentage: 62.5,
+        }
+        setReviewStats(fallbackStats)
       } finally {
         setReviewsLoading(false)
       }
