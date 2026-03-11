@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { AuthUser, AuthPayload } from '../types'
 import { STORAGE_KEYS } from '../constants'
+import { migrateGuestCartToUserCart, saveUserCartToGuestCart } from './cart-store'
 
 interface AuthState {
   user: AuthUser | null
@@ -96,13 +97,13 @@ export const useAuthStore = create<AuthState>(
       // Save to storage
       await saveAuthToStorage(user, accessToken)
 
-      // Trigger event for cart migration (guest cart -> user cart)
-      // TODO: Implement cart migration logic
+      // Migrate guest cart to user cart
+      await migrateGuestCartToUserCart()
     },
 
     logout: async () => {
-      // Save current cart to guest cart before logout (if needed)
-      // TODO: Implement cart save to guest storage
+      // Save user cart to guest cart before logout
+      await saveUserCartToGuestCart()
 
       // Clear state
       set({
@@ -113,9 +114,6 @@ export const useAuthStore = create<AuthState>(
 
       // Clear from storage
       await clearAuthFromStorage()
-
-      // Trigger event for cart refresh
-      // TODO: Implement cart refresh event
     },
   })
 )
