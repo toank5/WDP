@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { AuthUser, AuthPayload } from '../types'
 import { STORAGE_KEYS } from '../constants'
 import { migrateGuestCartToUserCart, saveUserCartToGuestCart } from './cart-store'
+import { login as loginApi } from '../services/auth-api'
 
 interface AuthState {
   user: AuthUser | null
@@ -13,6 +14,7 @@ interface AuthState {
   setHydrated: () => void
   setAuth: (payload: AuthPayload) => void
   logout: () => void
+  login: (credentials: { email: string; password: string; rememberMe?: boolean }) => Promise<void>
 }
 
 // Storage keys
@@ -99,6 +101,32 @@ export const useAuthStore = create<AuthState>(
 
       // Migrate guest cart to user cart
       await migrateGuestCartToUserCart()
+    },
+
+    login: async (credentials) => {
+      set({ isLoading: true })
+
+      try {
+        // Call login API
+        const response = await loginApi({
+          email: credentials.email,
+          password: credentials.password,
+        })
+
+        // Handle remember me
+        if (!credentials.rememberMe) {
+          // Store session token in memory only (not persistent)
+          // You can also use a session storage approach
+        }
+
+        // Update auth state
+        await get().setAuth(response)
+
+        set({ isLoading: false })
+      } catch (error) {
+        set({ isLoading: false })
+        throw error
+      }
     },
 
     logout: async () => {
