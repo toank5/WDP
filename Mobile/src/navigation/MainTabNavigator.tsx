@@ -2,9 +2,9 @@ import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton } from 'react-native-paper'
 import type { MainTabParamList } from './types'
+import { StoreScreen } from '../screens/store/StoreScreen'
 
 // Placeholder screens - will be implemented in later commits
-const HomeScreen = () => null as any
 const SearchScreen = () => null as any
 const CartScreen = () => null as any
 const AccountScreen = () => null as any
@@ -35,11 +35,11 @@ export const MainTabNavigator = () => {
     >
       <Tab.Screen
         name="HomeTab"
-        component={HomeScreen}
+        component={StoreScreen}
         options={{
-          tabBarLabel: 'Trang chủ',
+          tabBarLabel: 'Cửa hàng',
           tabBarIcon: ({ color, size }) => (
-            <IconButton icon="home" size={size} iconColor={color} />
+            <IconButton icon="store" size={size} iconColor={color} />
           ),
         }}
       />

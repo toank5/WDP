@@ -9,7 +9,7 @@ import type { RootStackParamList } from './types'
 
 // Placeholder screens - will be implemented in later commits
 const ProductDetailScreen = () => null as any
-const ProductListScreen = () => null as any
+const StoreScreen = () => null as any
 const CheckoutScreen = () => null as any
 const CheckoutAddressScreen = () => null as any
 const CheckoutPaymentScreen = () => null as any
