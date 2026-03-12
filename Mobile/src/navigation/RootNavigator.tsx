@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { useAuthStore } from '../store'
+import { useAuthStore, initializeAuthStore } from '../store/auth-store'
 import { AuthNavigator } from './AuthNavigator'
 import { MainTabNavigator } from './MainTabNavigator'
 import type { RootStackParamList } from './types'
@@ -27,18 +28,44 @@ const VirtualTryOnScreen = () => null as any
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
+/**
+ * RootNavigator - Main navigation container
+ *
+ * Navigation flow:
+ * - Check if user is authenticated (has valid token)
+ * - If authenticated → Show MainNavigator with tabs
+ * - If not authenticated → Show AuthNavigator
+ *
+ * Auto-redirect logic:
+ * - Login successful → Navigate to MainNavigator
+ * - Logout → Navigate to AuthNavigator (Login screen)
+ * - Token expired → Navigate to AuthNavigator (Login screen)
+ */
 export const RootNavigator = () => {
-  const { isAuthenticated } = useAuthStore()
-  const [isReady, setIsReady] = useState(false)
+  const { isAuthenticated, _hydrated } = useAuthStore()
+  const [isInitializing, setIsInitializing] = useState(true)
 
-  // Wait for auth state to be loaded
+  // Initialize auth store from AsyncStorage on app start
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 100)
-    return () => clearTimeout(timer)
+    initializeAuthStore().then(() => {
+      setIsInitializing(false)
+    })
   }, [])
 
-  if (!isReady) {
-    return null // Show splash screen instead
+  // Auto-redirect based on auth state
+  useEffect(() => {
+    if (_hydrated) {
+      // Navigation will automatically switch between Auth and Main stacks
+    }
+  }, [isAuthenticated, _hydrated])
+
+  // Show loading spinner while initializing
+  if (isInitializing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    )
   }
 
   return (
@@ -88,3 +115,12 @@ export const RootNavigator = () => {
     </NavigationContainer>
   )
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+})
