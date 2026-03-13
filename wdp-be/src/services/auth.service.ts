@@ -12,6 +12,7 @@ import {
   LoginRequestDto,
   LoginResponseDto,
   RegisterRequestDto,
+  UserResponseDto,
 } from 'src/commons/dtos/auth.dto';
 import { CustomApiResponse } from 'src/commons/dtos/custom-api-response.dto';
 import * as customApiRequestInterface from 'src/commons/interfaces/custom-api-request.interface';
@@ -24,37 +25,53 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from '../mail/email.service';
-import { ROLES } from '@eyewear/shared';
+import { UserRole } from '../commons/guards/rbac.guard';
 
 /**
  * Transform user object for API response
- * Roles are now stored as strings from shared enum (e.g., 'CUSTOMER', 'ADMIN')
- * Includes legacy support for numeric role values
+ * Returns numeric role values to match backend UserRole enum and frontend roleMap
+ * (0=ADMIN, 1=MANAGER, 2=OPERATION, 3=SALE, 4=CUSTOMER)
  */
-function transformUserForResponse(user: any) {
-  const userObj = user.toObject ? user.toObject() : user;
+function transformUserForResponse(
+  user: Document | object,
+): Record<string, unknown> {
+  const userObj =
+    'toObject' in user && typeof user.toObject === 'function'
+      ? (user.toObject() as Record<string, unknown>)
+      : (user as Record<string, unknown>);
 
-  // Normalize role to string
-  let roleString = 'CUSTOMER';
+  // Normalize role to numeric value
+  let numericRole = UserRole.CUSTOMER;
 
-  if (typeof userObj.role === 'string') {
-    // Check if it's a valid role string
-    const validRoles = Object.values(ROLES);
-    if (validRoles.includes(userObj.role as ROLES)) {
-      roleString = userObj.role;
+  const role = userObj.role;
+
+  if (typeof role === 'number') {
+    // Already numeric
+    numericRole = role;
+  } else if (typeof role === 'string') {
+    // String role - check if it's a string-number or role name
+    const parsedNum = Number.parseInt(role, 10);
+    if (!Number.isNaN(parsedNum)) {
+      // String-number like "1"
+      numericRole = parsedNum;
+    } else {
+      // Role name like 'MANAGER' - convert to numeric
+      const roleNameToNumber: Record<string, number> = {
+        ADMIN: UserRole.ADMIN,
+        MANAGER: UserRole.MANAGER,
+        OPERATION: UserRole.OPERATION,
+        SALE: UserRole.SALE,
+        CUSTOMER: UserRole.CUSTOMER,
+      };
+      const upperRole = role.toUpperCase();
+      numericRole = roleNameToNumber[upperRole] ?? UserRole.CUSTOMER;
     }
-  } else if (typeof userObj.role === 'number') {
-    // Legacy support: convert numeric role to string name
-    const roleKey = Object.keys(ROLES).find(
-      (key) => ROLES[key as keyof typeof ROLES] === userObj.role
-    );
-    roleString = roleKey || 'CUSTOMER';
   }
 
   return {
     ...userObj,
     _id: userObj._id?.toString(),
-    role: roleString,
+    role: numericRole,
     passwordHash: undefined, // Never return password hash
   };
 }
@@ -94,11 +111,16 @@ export class AuthService {
     // Transform user object with string role name
     const transformedUser = transformUserForResponse(user);
 
-    console.log('AuthService - Login user role:', user.role, '-> Transformed:', transformedUser.role);
+    console.log(
+      'AuthService - Login user role:',
+      user.role,
+      '-> Transformed:',
+      transformedUser.role,
+    );
 
     return new CustomApiResponse(HttpStatus.OK, 'Login successful', {
       accessToken,
-      user: transformedUser,
+      user: transformedUser as unknown as UserResponseDto,
     });
   }
 
@@ -147,7 +169,12 @@ export class AuthService {
     // Transform user object with string role name
     const transformedUser = transformUserForResponse(newUser);
 
-    console.log('AuthService - Register user role:', newUser.role, '-> Transformed:', transformedUser.role);
+    console.log(
+      'AuthService - Register user role:',
+      newUser.role,
+      '-> Transformed:',
+      transformedUser.role,
+    );
 
     return new CustomApiResponse(
       HttpStatus.OK,

@@ -14,6 +14,7 @@ import {
   Card,
   CardMedia,
   Chip,
+  Alert,
 } from '@mui/material'
 import {
   Close as CloseIcon,
@@ -56,6 +57,11 @@ export function VariantMediaDialog({
   const [images3DUrls, setImages3DUrls] = useState<string[]>(initialImages3DUrls)
   const [images2DFiles, setImages2DFiles] = useState<File[]>(initialImages2DFiles)
   const [images3DFiles, setImages3DFiles] = useState<File[]>(initialImages3DFiles)
+  const [validationError, setValidationError] = useState<string | null>(null)
+
+  // File size limits (in bytes)
+  const MAX_2D_SIZE = 10 * 1024 * 1024 // 10MB
+  const MAX_3D_SIZE = 10 * 1024 * 1024 // 10MB (Cloudinary limit)
 
   // Reset state when dialog opens with new variant data
   useEffect(() => {
@@ -65,11 +71,13 @@ export function VariantMediaDialog({
       setImages3DUrls([...initialImages3DUrls])
       setImages2DFiles([...initialImages2DFiles])
       setImages3DFiles([...initialImages3DFiles])
+      setValidationError(null)
     }
   }, [open, initialImages2DUrls, initialImages3DUrls, initialImages2DFiles, initialImages3DFiles])
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
+    setValidationError(null)
   }
 
   // Add 2D image files (no upload, just store in state)
@@ -77,7 +85,18 @@ export function VariantMediaDialog({
     const files = event.target.files
     if (!files || files.length === 0) return
 
+    setValidationError(null)
+
     const newFiles = Array.from(files)
+    // Validate file sizes
+    const oversizedFiles = newFiles.filter((file) => file.size > MAX_2D_SIZE)
+    if (oversizedFiles.length > 0) {
+      setValidationError(
+        `The following 2D image(s) exceed the 10MB limit: ${oversizedFiles.map((f) => f.name).join(', ')}`
+      )
+      return
+    }
+
     setImages2DFiles((prev) => [...prev, ...newFiles])
 
     // Reset file input
@@ -89,7 +108,18 @@ export function VariantMediaDialog({
     const files = event.target.files
     if (!files || files.length === 0) return
 
+    setValidationError(null)
+
     const newFiles = Array.from(files)
+    // Validate file sizes
+    const oversizedFiles = newFiles.filter((file) => file.size > MAX_3D_SIZE)
+    if (oversizedFiles.length > 0) {
+      setValidationError(
+        `The following 3D model(s) exceed the 10MB limit: ${oversizedFiles.map((f) => f.name).join(', ')}`
+      )
+      return
+    }
+
     setImages3DFiles((prev) => [...prev, ...newFiles])
 
     // Reset file input
@@ -152,6 +182,13 @@ export function VariantMediaDialog({
           <Tab label="2D Images" {...a11yProps(0)} icon={<ImageIcon />} iconPosition="start" />
           <Tab label="3D Models" {...a11yProps(1)} icon={<ModelIcon />} iconPosition="start" />
         </Tabs>
+
+        {/* Validation error alert */}
+        {validationError && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setValidationError(null)}>
+            {validationError}
+          </Alert>
+        )}
 
         {/* 2D Images Tab */}
         <Box role="tabpanel" hidden={tabValue !== 0}>

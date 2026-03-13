@@ -21,6 +21,16 @@ export class CloudinaryService {
         {
           folder,
           resource_type: 'auto',
+          chunk_size: 6000000, // 6MB chunks for large files
+          allowed_formats: [
+            'jpg',
+            'jpeg',
+            'png',
+            'webp',
+            'glb',
+            'gltf',
+            'usdz',
+          ],
         },
         (error, result) => {
           if (error) {

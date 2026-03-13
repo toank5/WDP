@@ -65,11 +65,11 @@ export class ReturnLineItem {
   isPrescription?: boolean;
 
   // Item-level status for inventory tracking (legacy)
-  @Prop({ enum: ReturnItemStatus, default: ReturnItemStatus.AWAITING_RETURN })
+  @Prop({ type: String, enum: ReturnItemStatus, default: ReturnItemStatus.AWAITING_RETURN })
   itemStatus?: ReturnItemStatus;
 
   // Item condition (set by Sale Staff during inspection)
-  @Prop({ enum: ReturnItemCondition, default: ReturnItemCondition.PENDING })
+  @Prop({ type: String, enum: ReturnItemCondition, default: ReturnItemCondition.PENDING })
   condition?: ReturnItemCondition;
 
   // Inventory movement reference (when item is received back)
@@ -132,7 +132,7 @@ export class StaffVerification {
   warehouseNotes?: string;
 
   // Decision on what to do with the item
-  @Prop({ enum: ReturnItemStatus })
+  @Prop({ type: String, enum: ReturnItemStatus })
   itemDisposition?: ReturnItemStatus; // RESALEABLE, DAMAGED, SCRAPPED
 
   @Prop()
@@ -250,13 +250,13 @@ export class ReturnRequest extends Document {
   @Prop({ required: true, index: true })
   userId: string;
 
-  @Prop({ required: true, enum: ReturnStatus })
+  @Prop({ required: true, type: String, enum: ReturnStatus })
   status: ReturnStatus;
 
-  @Prop({ required: true, enum: ReturnType })
+  @Prop({ required: true, type: String, enum: ReturnType })
   returnType: ReturnType;
 
-  @Prop({ required: true, enum: ReturnReason })
+  @Prop({ required: true, type: String, enum: ReturnReason })
   reason: ReturnReason;
 
   @Prop()

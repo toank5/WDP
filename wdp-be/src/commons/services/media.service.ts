@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CloudinaryService } from './cloudinary.service';
 
 /**
@@ -15,7 +16,10 @@ export interface UploadMediaResponse {
  */
 @Injectable()
 export class MediaService {
-  constructor(private readonly cloudinaryService: CloudinaryService) {}
+  constructor(
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
    * Allowed MIME types for 2D images
@@ -28,14 +32,29 @@ export class MediaService {
   private readonly ALLOWED_3D_EXTENSIONS = ['.glb', '.gltf', '.usdz'];
 
   /**
-   * Maximum file size for 2D images (10MB)
+   * Maximum file size for 2D images (default: 10MB)
+   * Can be overridden via UPLOAD_MAX_SIZE_2D env var (in MB)
    */
-  private readonly MAX_2D_SIZE = 10 * 1024 * 1024;
+  private get MAX_2D_SIZE(): number {
+    const maxSizeMB = this.configService.get<number>('UPLOAD_MAX_SIZE_2D', 10);
+    return maxSizeMB * 1024 * 1024;
+  }
 
   /**
-   * Maximum file size for 3D models (50MB)
+   * Maximum file size for 3D models (default: 10MB - Cloudinary free tier limit)
+   * Can be overridden via UPLOAD_MAX_SIZE_3D env var (in MB)
    */
-  private readonly MAX_3D_SIZE = 50 * 1024 * 1024;
+  private get MAX_3D_SIZE(): number {
+    const maxSizeMB = this.configService.get<number>('UPLOAD_MAX_SIZE_3D', 10);
+    return maxSizeMB * 1024 * 1024;
+  }
+
+  /**
+   * Get human-readable size limit for error messages
+   */
+  private getSizeLimitMB(sizeInBytes: number): string {
+    return `${sizeInBytes / 1024 / 1024}MB`;
+  }
 
   /**
    * Validate 2D image files
@@ -49,6 +68,9 @@ export class MediaService {
       throw new BadRequestException('Maximum 10 images allowed per upload');
     }
 
+    const maxSize = this.MAX_2D_SIZE;
+    const maxSizeMB = this.getSizeLimitMB(maxSize);
+
     for (const file of files) {
       // Check MIME type
       if (!this.ALLOWED_2D_MIMES.includes(file.mimetype)) {
@@ -58,9 +80,9 @@ export class MediaService {
       }
 
       // Check file size
-      if (file.size > this.MAX_2D_SIZE) {
+      if (file.size > maxSize) {
         throw new BadRequestException(
-          `File "${file.originalname}" exceeds maximum size of 10MB`,
+          `File "${file.originalname}" exceeds maximum size of ${maxSizeMB}`,
         );
       }
     }
@@ -78,6 +100,9 @@ export class MediaService {
       throw new BadRequestException('Maximum 5 models allowed per upload');
     }
 
+    const maxSize = this.MAX_3D_SIZE;
+    const maxSizeMB = this.getSizeLimitMB(maxSize);
+
     for (const file of files) {
       // Check file extension
       const ext = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
@@ -88,9 +113,9 @@ export class MediaService {
       }
 
       // Check file size
-      if (file.size > this.MAX_3D_SIZE) {
+      if (file.size > maxSize) {
         throw new BadRequestException(
-          `File "${file.originalname}" exceeds maximum size of 50MB`,
+          `File "${file.originalname}" exceeds maximum size of ${maxSizeMB}`,
         );
       }
     }

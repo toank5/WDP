@@ -5,6 +5,7 @@ import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -49,6 +50,11 @@ async function bootstrap() {
   app.use((req: Request, res: Response, next: NextFunction) =>
     loggerMiddleware.use(req, res, next),
   );
+
+  // Set body size limits for file uploads (must be before multer interceptors)
+  // 50MB for 3D model uploads, 10MB for regular uploads
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   app.useGlobalInterceptors(new ResponseInterceptor());
 

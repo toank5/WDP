@@ -21,12 +21,16 @@ export type UploadMediaResponse = {
  */
 export async function uploadImages2D(files: File[]): Promise<string[]> {
   try {
+    const endpoint = '/manager/media/images2d'
+    console.log('[media-api] Uploading 2D images to:', endpoint)
+    console.log('[media-api] Files:', files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`))
+
     const formData = new FormData()
     files.forEach((file) => {
       formData.append('files', file)
     })
 
-    const response = await api.post('/manager/media/images2d', formData, {
+    const response = await api.post(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -39,9 +43,11 @@ export async function uploadImages2D(files: File[]): Promise<string[]> {
       throw new Error(data.message || 'Upload failed')
     }
 
+    console.log('[media-api] 2D upload successful, URLs:', uploadData.urls)
     return uploadData.urls
   } catch (error) {
     const message = extractApiMessage(error)
+    console.error('[media-api] 2D upload failed:', message)
     throw new Error(message)
   }
 }
@@ -53,12 +59,16 @@ export async function uploadImages2D(files: File[]): Promise<string[]> {
  */
 export async function uploadImages3D(files: File[]): Promise<string[]> {
   try {
+    const endpoint = '/manager/media/images3d'
+    console.log('[media-api] Uploading 3D models to:', endpoint)
+    console.log('[media-api] Files:', files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`))
+
     const formData = new FormData()
     files.forEach((file) => {
       formData.append('files', file)
     })
 
-    const response = await api.post('/manager/media/images3d', formData, {
+    const response = await api.post(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -71,9 +81,11 @@ export async function uploadImages3D(files: File[]): Promise<string[]> {
       throw new Error(data.message || 'Upload failed')
     }
 
+    console.log('[media-api] 3D upload successful, URLs:', uploadData.urls)
     return uploadData.urls
   } catch (error) {
     const message = extractApiMessage(error)
+    console.error('[media-api] 3D upload failed:', message)
     throw new Error(message)
   }
 }
