@@ -25,11 +25,12 @@ import {
 import { createUser, getAllUsers, type CreateUserPayload, type User } from '@/lib/user-api'
 import { roleLabels, ADMIN_ROLE } from '@/lib/constants'
 import { validateField, ROLES } from '@/lib/validations'
+import { USER_ROLES } from '@eyewear/shared'
 
 type UserFormData = {
   name: string
   email: string
-  role: number
+  role: USER_ROLES
   password: string
 }
 
@@ -42,7 +43,7 @@ export function UserManagementPage() {
   const [formData, setFormData] = useState<UserFormData>({
     name: '',
     email: '',
-    role: 4,
+    role: USER_ROLES.CUSTOMER,
     password: '',
   })
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({})
@@ -104,7 +105,7 @@ export function UserManagementPage() {
       await createUser(payload)
       toast.success('User created successfully')
       setIsCreating(false)
-      setFormData({ name: '', email: '', role: 4, password: '' })
+      setFormData({ name: '', email: '', role: USER_ROLES.CUSTOMER, password: '' })
       setFieldErrors({})
       loadUsers()
     } catch (err) {
@@ -115,7 +116,7 @@ export function UserManagementPage() {
 
   const cancelForm = () => {
     setIsCreating(false)
-    setFormData({ name: '', email: '', role: 4, password: '' })
+    setFormData({ name: '', email: '', role: USER_ROLES.CUSTOMER, password: '' })
     setFieldErrors({})
   }
 
@@ -246,11 +247,11 @@ export function UserManagementPage() {
                   <FormControl fullWidth required size="small">
                     <Select
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as USER_ROLES })}
                     >
-                      {Object.entries(ROLES).map(([label, value]) => (
-                        <MenuItem key={value} value={value}>
-                          {roleLabels[value]}
+                      {Object.values(USER_ROLES).map((role) => (
+                        <MenuItem key={role} value={role}>
+                          {roleLabels[role]}
                         </MenuItem>
                       ))}
                     </Select>

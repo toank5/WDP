@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
+import { useCartStore } from '@/store/cart.store'
 import { getAllProducts, checkInventoryAvailability, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
 import { cartApi } from '@/lib/cart-api'
 
 import { wishlistApi } from '@/lib/wishlist-api'
 import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
 import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
+import { getActiveCombos, type Combo } from '@/lib/combo-api'
+import { getActivePromotions, type Promotion, validatePromotion } from '@/lib/promotion-api'
 import {
   Box,
   Container,
-  Grid,
   Typography,
   Button,
   Chip,
@@ -29,8 +31,10 @@ import {
   Skeleton,
   Fab,
   CircularProgress,
+  TextField,
   useTheme,
   useMediaQuery,
+  Grid,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
@@ -53,6 +57,9 @@ import {
   ThumbUpOffAlt,
   Remove as RemoveIcon,
   Add as AddIcon,
+  LocalOffer as ComboIcon,
+  Discount as DiscountIcon,
+  CardGiftcard as GiftIcon,
 } from '@mui/icons-material'
 
 // ==================== Constants ====================
@@ -171,30 +178,32 @@ function SpecsTable({ product }: SpecsTableProps) {
   if (specs.length === 0) return null
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
       {specs.map((spec) => (
         <Box
           key={spec.label}
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 1.5,
-            p: 2,
+            gap: 1,
+            p: 1.25,
             borderRadius: 2,
             bgcolor: 'grey.50',
             transition: 'all 0.2s',
+            border: '1px solid transparent',
             '&:hover': {
               bgcolor: 'primary.50',
-              transform: 'translateX(4px)',
+              borderColor: 'primary.100',
+              transform: 'translateX(2px)',
             },
           }}
         >
-          <Box sx={{ fontSize: 20 }}>{spec.emoji || '📋'}</Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <Box sx={{ fontSize: 16 }}>{spec.emoji || '📋'}</Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', mb: 0.25 }}>
               {spec.label}
             </Typography>
-            <Typography variant="body2" fontWeight={600} color="text.primary">
+            <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {spec.value}
             </Typography>
           </Box>
@@ -907,6 +916,18 @@ export function ProductDetailPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewsError, setReviewsError] = useState<string | null>(null)
 
+  // Combos and Promotions state
+  const [applicableCombos, setApplicableCombos] = useState<Combo[]>([])
+  const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
+  const [combosLoading, setCombosLoading] = useState(false)
+  const [promotionsLoading, setPromotionsLoading] = useState(false)
+
+  // Promo code input state
+  const [promoCode, setPromoCode] = useState('')
+  const [validatedPromotion, setValidatedPromotion] = useState<Promotion | null>(null)
+  const [promoValidationLoading, setPromoValidationLoading] = useState(false)
+  const [promoError, setPromoError] = useState<string | null>(null)
+
   // ==================== Computed Values ====================
 
   const averageRating = reviewStats?.averageRating ?? 0
@@ -977,6 +998,24 @@ export function ProductDetailPage() {
   const getDisplayPrice = () => {
     if (!product) return 0
     return selectedVariant?.price || product.basePrice
+  }
+
+  // Get final price after applying promotion discount
+  const getFinalPrice = () => {
+    const basePrice = getDisplayPrice()
+    if (!validatedPromotion) return basePrice
+
+    // Calculate discount based on promotion type
+    let discount = 0
+    if (validatedPromotion.type === 'percentage') {
+      discount = Math.round((basePrice * validatedPromotion.value) / 100)
+    } else {
+      // Fixed amount discount
+      discount = Math.min(validatedPromotion.value, basePrice)
+    }
+
+    const finalPrice = Math.max(0, basePrice - discount)
+    return finalPrice
   }
 
   // Check stock - more lenient: allow add to cart if product is active OR if any variant exists
@@ -1173,6 +1212,14 @@ export function ProductDetailPage() {
         setReviewsError(err instanceof Error ? err.message : 'Failed to load reviews')
         // Use fallback reviews on error
         setReviews(REVIEWS_FALLBACK as unknown as Review[])
+        // Set fallback stats based on the mock reviews
+        const fallbackStats: ReviewStats = {
+          averageRating: 4.5,
+          totalReviews: REVIEWS_FALLBACK.length,
+          ratingDistribution: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 5 },
+          fiveStarPercentage: 62.5,
+        }
+        setReviewStats(fallbackStats)
       } finally {
         setReviewsLoading(false)
       }
@@ -1180,6 +1227,43 @@ export function ProductDetailPage() {
 
     fetchReviews()
   }, [product?._id])
+
+  // Fetch applicable combos and active promotions when product changes
+  useEffect(() => {
+    const fetchCombosAndPromotions = async () => {
+      if (!product) return
+
+      // Fetch combos that include this product (as frame or lens)
+      if (product.category === 'frame' || product.category === 'lens') {
+        setCombosLoading(true)
+        try {
+          const allCombos = await getActiveCombos()
+          const applicable = allCombos.filter(
+            (combo) =>
+              combo.frameProductId === product._id || combo.lensProductId === product._id
+          )
+          setApplicableCombos(applicable)
+        } catch (err) {
+          console.error('Failed to fetch combos:', err)
+        } finally {
+          setCombosLoading(false)
+        }
+      }
+
+      // Fetch all active promotions (customers can use these at checkout)
+      setPromotionsLoading(true)
+      try {
+        const promos = await getActivePromotions()
+        setActivePromotions(promos)
+      } catch (err) {
+        console.error('Failed to fetch promotions:', err)
+      } finally {
+        setPromotionsLoading(false)
+      }
+    }
+
+    fetchCombosAndPromotions()
+  }, [product])
 
   // Reset variant state when product changes
   // Note: This is handled by the auto-selection logic in loadProduct()
@@ -1345,6 +1429,84 @@ export function ProductDetailPage() {
     }
   }
 
+  // Validate promo code
+  const handleValidatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      setPromoError('Please enter a promo code')
+      setValidatedPromotion(null)
+      return
+    }
+
+    setPromoValidationLoading(true)
+    setPromoError(null)
+    setValidatedPromotion(null)
+
+    try {
+      const cartTotal = getDisplayPrice()
+      const result = await validatePromotion({
+        code: promoCode.trim().toUpperCase(),
+        cartTotal,
+        productIds: product ? [product._id] : [],
+      })
+
+      if (result.isValid && result.promotion) {
+        setValidatedPromotion(result.promotion)
+        setPromoCode(result.promotion.code) // Update to uppercase from server
+
+        // Save to cart store for use during checkout
+        // Note: discountAmount is included from API response for backend verification
+        useCartStore.getState().setPromotionCode({
+          code: result.promotion.code,
+          name: result.promotion.name,
+          type: result.promotion.type,
+          value: result.promotion.value,
+          description: result.promotion.description,
+          minOrderValue: result.promotion.minOrderValue,
+          discountAmount: result.discountAmount || 0, // Store API-calculated discount
+        })
+
+        // Calculate discount locally for notification
+        let discount = 0
+        if (result.promotion.type === 'percentage') {
+          discount = Math.round((cartTotal * result.promotion.value) / 100)
+        } else {
+          discount = Math.min(result.promotion.value, cartTotal)
+        }
+
+        setSnackbarState({
+          open: true,
+          message: `Promo code applied! Save ${formatPrice(discount)}`,
+          severity: 'success',
+        })
+      } else {
+        setPromoError(result.message || 'Invalid promo code')
+        setValidatedPromotion(null)
+      }
+    } catch (err) {
+      console.error('Failed to validate promo code:', err)
+      setPromoError('Failed to validate promo code')
+      setValidatedPromotion(null)
+    } finally {
+      setPromoValidationLoading(false)
+    }
+  }
+
+  // Handle promo code input key press (Enter to validate)
+  const handlePromoCodeKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleValidatePromoCode()
+    }
+  }
+
+  // Clear promo code
+  const handleClearPromoCode = () => {
+    setPromoCode('')
+    setValidatedPromotion(null)
+    setPromoError(null)
+    // Also clear from cart store
+    useCartStore.getState().clearPromotionCode()
+  }
+
   // Load wishlist state when product or variant changes
   useEffect(() => {
     if (!product) return
@@ -1410,87 +1572,26 @@ export function ProductDetailPage() {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
-      {/* Enhanced Breadcrumb */}
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Breadcrumbs
-            sx={{
-              py: 2.5,
-              '& .MuiBreadcrumbs-separator': { mx: 1 },
-            }}
-            aria-label="breadcrumb"
-          >
-            <MuiLink
-              component={Link}
-              to="/"
-              underline="hover"
-              sx={{
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' },
-              }}
-            >
-              Home
-            </MuiLink>
-            <MuiLink
-              component={Link}
-              to="/products"
-              underline="hover"
-              sx={{
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' },
-              }}
-            >
-              Products
-            </MuiLink>
-            {product.category && (
-              <MuiLink
-                component={Link}
-                to={`/products?category=${product.category}`}
-                underline="hover"
-                sx={{
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: 'text.secondary',
-                  '&:hover': { color: 'primary.main' },
-                }}
-              >
-                {CATEGORY_LABELS[product.category] || product.category}
-              </MuiLink>
-            )}
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'primary.main' }}>
-              {product.name}
-            </Typography>
-          </Breadcrumbs>
-        </Container>
-      </Box>
-
-      <Container maxWidth="lg" sx={{ py: 5 }}>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
         {/* Enhanced Back Link */}
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate(-1)}
           sx={{
-            mb: 4,
-            borderRadius: 3,
+            mb: 3,
+            borderRadius: 2,
             fontWeight: 600,
             textTransform: 'none',
+            fontSize: '0.85rem',
+            py: 0.75,
+            px: 1.5,
           }}
         >
           Back to Products
         </Button>
 
         {/* Main Section: Media Gallery + Purchase Panel */}
-        <Grid container spacing={4}>
+        <Grid container spacing={3}>
           {/* Media Gallery (Left) */}
           <Grid size={{ xs: 12, md: 7, lg: 8 }}>
             <MediaGallery
@@ -1506,20 +1607,20 @@ export function ProductDetailPage() {
           {/* Purchase Panel (Right) - Enhanced */}
           <Grid size={{ xs: 12, md: 5, lg: 4 }}>
             <Paper
-              elevation={3}
+              elevation={2}
               sx={{
-                p: 3,
-                borderRadius: 4,
+                p: 2.5,
+                borderRadius: 3,
                 position: { md: 'sticky' },
                 top: { md: 96 },
                 maxHeight: { md: 'calc(100vh - 120px)' },
                 overflowY: 'auto',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
                 border: '1px solid',
                 borderColor: 'divider',
               }}
             >
-              <Stack spacing={2}>
+              <Stack spacing={1.5}>
                 {/* Product Name & Brand */}
                 <Box>
                   {product.category && (
@@ -1528,57 +1629,74 @@ export function ProductDetailPage() {
                       color={CATEGORY_COLORS[product.category] || 'default'}
                       size="small"
                       sx={{
-                        mb: 1.5,
-                        fontWeight: 700,
+                        mb: 1,
+                        fontWeight: 600,
                         textTransform: 'uppercase',
-                        fontSize: '0.7rem',
+                        fontSize: '0.65rem',
                         letterSpacing: 0.5,
+                        height: 20,
                       }}
                     />
                   )}
-                  <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.2 }}>
+                  <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: '1.25rem' }}>
                     {product.name}
                   </Typography>
                   {product.brand && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.8rem' }}>
                       by {product.brand}
                     </Typography>
                   )}
                 </Box>
 
                 {/* Rating with stars */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Rating value={averageRating} precision={0.5} readOnly size="small" sx={{ color: 'warning.main' }} />
-                    <Typography variant="body2" fontWeight={600}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                    <Rating value={averageRating} precision={0.5} readOnly size="small" sx={{ color: 'warning.main', fontSize: '1rem' }} />
+                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
                       {averageRating.toFixed(1)}
                     </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    ({totalReviews} reviews)
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                    ({totalReviews})
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
-                    <FiberManualRecord sx={{ fontSize: 8, color: 'success.main' }} />
-                    <Typography variant="body2" color="success.main" fontWeight={500}>
+                    <FiberManualRecord sx={{ fontSize: 6, color: 'success.main' }} />
+                    <Typography variant="caption" color="success.main" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
                       Verified
                     </Typography>
                   </Box>
                 </Box>
 
                 {/* Enhanced Price Display */}
-                <Box sx={{ bgcolor: 'primary.50', p: 2, borderRadius: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
-                    <Typography variant="h3" color="primary.main" fontWeight={800} sx={{ lineHeight: 1 }}>
-                      {formatPrice(getDisplayPrice())}
-                    </Typography>
-                    {product.basePrice !== getDisplayPrice() && (
-                      <Typography variant="h6" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-                        {formatPrice(product.basePrice)}
-                      </Typography>
+                <Box sx={{ bgcolor: 'primary.50', p: 1.5, borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                    {validatedPromotion ? (
+                      <>
+                        {/* Show discounted price */}
+                        <Typography variant="h4" color="error.main" fontWeight={700} sx={{ lineHeight: 1, fontSize: '1.5rem' }}>
+                          {formatPrice(getFinalPrice())}
+                        </Typography>
+                        {/* Show original price with strikethrough */}
+                        <Typography variant="body1" color="text.secondary" sx={{ textDecoration: 'line-through', fontSize: '0.95rem' }}>
+                          {formatPrice(getDisplayPrice())}
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        {/* No promotion - show normal price */}
+                        <Typography variant="h4" color="primary.main" fontWeight={700} sx={{ lineHeight: 1, fontSize: '1.5rem' }}>
+                          {formatPrice(getDisplayPrice())}
+                        </Typography>
+                        {product.basePrice !== getDisplayPrice() && (
+                          <Typography variant="body1" color="text.secondary" sx={{ textDecoration: 'line-through', fontSize: '0.95rem' }}>
+                            {formatPrice(product.basePrice)}
+                          </Typography>
+                        )}
+                      </>
                     )}
                   </Box>
                   {selectedVariant && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block', fontSize: '0.7rem' }}>
                       {selectedVariant.size} • {selectedVariant.color}
                     </Typography>
                   )}
@@ -1593,13 +1711,14 @@ export function ProductDetailPage() {
                         severity="info"
                         variant="outlined"
                         sx={{
-                          mt: 1,
+                          mt: 0.5,
                           py: 0.5,
-                          '& .MuiAlert-message': { py: 0 },
+                          px: 1,
+                          '& .MuiAlert-message': { py: 0, fontSize: '0.75rem' },
                         }}
                       >
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {stockInfo.message}. Pre-order now to reserve yours before it's back in stock.
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                          {stockInfo.message}
                         </Typography>
                       </Alert>
                     )
@@ -1614,7 +1733,7 @@ export function ProductDetailPage() {
 
                     if (stockInfo.stockStatus === 'select') {
                       return (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                           {stockInfo.message}
                         </Typography>
                       )
@@ -1628,13 +1747,11 @@ export function ProductDetailPage() {
                             label="Pre-order"
                             color="info"
                             size="small"
-                            sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                            sx={{ fontSize: '0.65rem', fontWeight: 600, height: 20 }}
                           />
-                          <Box>
-                            <Typography variant="body2" color="info.main" fontWeight={500}>
-                              {stockInfo.message}
-                            </Typography>
-                          </Box>
+                          <Typography variant="caption" color="info.main" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                            {stockInfo.message}
+                          </Typography>
                         </>
                       )
                     }
@@ -1642,9 +1759,9 @@ export function ProductDetailPage() {
                     // In stock case
                     if (stockInfo.stockStatus === 'in-stock') {
                       return (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
-                          <CheckIcon fontSize="small" />
-                          <Typography variant="body2" color="success.main" fontWeight={500}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="caption" color="success.main" fontWeight={500} sx={{ fontSize: '0.8rem' }}>
                             {stockInfo.message}
                           </Typography>
                         </Box>
@@ -1653,11 +1770,9 @@ export function ProductDetailPage() {
 
                     // Out of stock case
                     return (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="body2" color="error.main" fontWeight={500}>
-                          {stockInfo.message}
-                        </Typography>
-                      </Box>
+                      <Typography variant="caption" color="error.main" fontWeight={500} sx={{ fontSize: '0.8rem' }}>
+                        {stockInfo.message}
+                      </Typography>
                     )
                   })()}
                 </Box>
@@ -1667,15 +1782,15 @@ export function ProductDetailPage() {
                 {/* Enhanced Variant Selectors */}
                 {uniqueColors.length > 0 && (
                   <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                      <Typography variant="subtitle2" fontWeight={700}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         Color
                       </Typography>
-                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                      <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
                         {selectedColor || 'Select'}
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       {uniqueColors.map((color) => {
                         const isSelected = selectedColor === color
                         const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
@@ -1710,19 +1825,19 @@ export function ProductDetailPage() {
                             onClick={() => hasVariantInStock && handleColorSelect(color)}
                             sx={{
                               position: 'relative',
-                              width: 48,
-                              height: 48,
+                              width: 36,
+                              height: 36,
                               borderRadius: '50%',
                               bgcolor: colorHex,
                               cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
-                              border: '3px solid',
+                              border: '2px solid',
                               borderColor: isSelected ? 'primary.main' : 'divider',
                               opacity: hasVariantInStock ? 1 : 0.3,
                               transition: 'all 0.2s',
-                              boxShadow: isSelected ? `0 0 0 3px ${theme.palette.primary.main}25` : '0 2px 4px rgba(0,0,0,0.1)',
+                              boxShadow: isSelected ? `0 0 0 2px ${theme.palette.primary.main}25` : '0 1px 3px rgba(0,0,0,0.1)',
                               '&:hover': hasVariantInStock ? {
-                                transform: 'scale(1.1)',
-                                boxShadow: `0 0 0 3px ${theme.palette.primary.main}40`,
+                                transform: 'scale(1.08)',
+                                boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`,
                               } : {},
                             }}
                             title={color}
@@ -1731,19 +1846,19 @@ export function ProductDetailPage() {
                               <Box
                                 sx={{
                                   position: 'absolute',
-                                  top: -4,
-                                  right: -4,
-                                  width: 20,
-                                  height: 20,
+                                  top: -3,
+                                  right: -3,
+                                  width: 16,
+                                  height: 16,
                                   borderRadius: '50%',
                                   bgcolor: 'primary.main',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                                 }}
                               >
-                                <CheckIcon sx={{ color: 'white', fontSize: 12 }} />
+                                <CheckIcon sx={{ color: 'white', fontSize: 10 }} />
                               </Box>
                             )}
                           </Box>
@@ -1755,15 +1870,15 @@ export function ProductDetailPage() {
 
                 {uniqueSizes.length > 0 && (
                   <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                      <Typography variant="subtitle2" fontWeight={700}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         Size
                       </Typography>
-                      <Typography variant="body2" color="primary.main" fontWeight={600}>
+                      <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
                         {selectedSize || 'Select'}
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                       {uniqueSizes.map((size) => {
                         const isSelected = selectedSize === size
                         const hasVariantInStock = isFrameProduct(product) && product.variants?.some(
@@ -1774,24 +1889,24 @@ export function ProductDetailPage() {
                             key={size}
                             onClick={() => hasVariantInStock && handleSizeSelect(size)}
                             sx={{
-                              px: 2.5,
-                              py: 1,
-                              borderRadius: 3,
-                              border: '2px solid',
+                              px: 2,
+                              py: 0.75,
+                              borderRadius: 2,
+                              border: '1.5px solid',
                               borderColor: isSelected ? 'primary.main' : 'divider',
                               bgcolor: isSelected ? 'primary.main' : 'background.paper',
                               color: isSelected ? 'white' : 'text.primary',
                               cursor: hasVariantInStock ? 'pointer' : 'not-allowed',
-                              opacity: hasVariantInStock ? 1 : 0.3,
+                              opacity: hasVariantInStock ? 1 : 0.35,
                               transition: 'all 0.2s',
                               fontWeight: 600,
-                              fontSize: '0.875rem',
-                              minWidth: 60,
+                              fontSize: '0.8rem',
+                              minWidth: 50,
                               textAlign: 'center',
-                              boxShadow: isSelected ? `0 4px 12px ${theme.palette.primary.main}40` : 'none',
+                              boxShadow: isSelected ? `0 2px 8px ${theme.palette.primary.main}35` : 'none',
                               '&:hover': hasVariantInStock ? {
                                 borderColor: isSelected ? 'primary.main' : 'text.secondary',
-                                transform: 'translateY(-2px)',
+                                transform: 'translateY(-1px)',
                               } : {},
                             }}
                           >
@@ -1805,7 +1920,7 @@ export function ProductDetailPage() {
 
                 {/* Enhanced Quantity */}
                 <Box>
-                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                  <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1 }}>
                     Quantity
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1813,9 +1928,9 @@ export function ProductDetailPage() {
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        border: '2px solid',
+                        border: '1.5px solid',
                         borderColor: 'divider',
-                        borderRadius: 3,
+                        borderRadius: 2,
                         overflow: 'hidden',
                       }}
                     >
@@ -1824,20 +1939,21 @@ export function ProductDetailPage() {
                         disabled={quantity <= 1}
                         sx={{
                           borderRadius: 0,
+                          p: 0.75,
                           bgcolor: quantity > 1 ? 'grey.50' : 'transparent',
                           '&:hover': { bgcolor: 'grey.100' },
                           '&:disabled': { bgcolor: 'transparent' },
                         }}
                       >
-                        <RemoveIcon fontSize="small" />
+                        <RemoveIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                       <Typography
                         sx={{
-                          px: 3,
-                          py: 1.5,
-                          minWidth: 50,
+                          px: 2,
+                          py: 0.75,
+                          minWidth: 40,
                           textAlign: 'center',
-                          fontSize: '1rem',
+                          fontSize: '0.9rem',
                           fontWeight: 600,
                         }}
                       >
@@ -1847,16 +1963,119 @@ export function ProductDetailPage() {
                         onClick={() => setQuantity(quantity + 1)}
                         sx={{
                           borderRadius: 0,
+                          p: 0.75,
                           bgcolor: 'grey.50',
                           '&:hover': { bgcolor: 'grey.100' },
                         }}
                       >
-                        <AddIcon fontSize="small" />
+                        <AddIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Box>
                   </Box>
                 </Box>
 
+                {/* Promo Code Input */}
+                <Box>
+                  <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1 }}>
+                    Promo Code
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.75 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Enter code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      onKeyPress={handlePromoCodeKeyPress}
+                      disabled={promoValidationLoading}
+                      error={!!promoError}
+                      helperText={promoError}
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          fontFamily: 'monospace',
+                          fontWeight: 600,
+                          letterSpacing: 1,
+                          fontSize: '0.85rem',
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.7rem',
+                          mt: 0.5,
+                        },
+                      }}
+                    />
+                    {validatedPromotion ? (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={handleClearPromoCode}
+                        sx={{ minWidth: 70, fontSize: '0.8rem' }}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleValidatePromoCode}
+                        disabled={promoValidationLoading || !promoCode.trim()}
+                        sx={{ minWidth: 70, fontSize: '0.8rem' }}
+                      >
+                        {promoValidationLoading ? '...' : 'Apply'}
+                      </Button>
+                    )}
+                  </Box>
+
+                  {/* Validated Promotion Details */}
+                  {validatedPromotion && (
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 1.25,
+                        borderRadius: 2,
+                        bgcolor: 'success.50',
+                        border: '1px solid',
+                        borderColor: 'success.200',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <DiscountIcon color="success" sx={{ fontSize: 16 }} />
+                          <Typography variant="body2" fontWeight={600} color="success.dark" sx={{ fontSize: '0.85rem' }}>
+                            {validatedPromotion.name}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={
+                            validatedPromotion.type === 'percentage'
+                              ? `${validatedPromotion.value}% OFF`
+                              : `${formatPrice(validatedPromotion.value)} OFF`
+                          }
+                          size="small"
+                          color="success"
+                          sx={{ fontWeight: 600, height: 20, fontSize: '0.7rem' }}
+                        />
+                      </Box>
+                      {validatedPromotion.description && (
+                        <Typography variant="caption" color="success.dark" sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+                          {validatedPromotion.description}
+                        </Typography>
+                      )}
+                      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                        {validatedPromotion.minOrderValue > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            Min. order: {formatPrice(validatedPromotion.minOrderValue)}
+                          </Typography>
+                        )}
+                        {validatedPromotion.endDate && (
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            Expires: {new Date(validatedPromotion.endDate).toLocaleDateString()}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
 
                 {/* Virtual Try-On Button */}
                 <TryOnButton
@@ -1866,7 +2085,7 @@ export function ProductDetailPage() {
                 />
 
                 {/* Enhanced Action Buttons */}
-                <Stack spacing={1.5}>
+                <Stack spacing={1}>
                   {(() => {
                     const stockInfo = getStockDisplayInfo()
 
@@ -1880,21 +2099,21 @@ export function ProductDetailPage() {
                         <Button
                           fullWidth
                           variant={isPreorder ? 'outlined' : 'contained'}
-                          size="large"
+                          size="medium"
                           startIcon={isPreorder ? <ShoppingCartOutlined /> : <CartIcon />}
                           disabled={isOutOfStock || isSelecting || isAdding}
                           onClick={handleAddToCart}
                           sx={{
-                            py: 1.75,
-                            borderRadius: 3,
-                            fontWeight: 700,
-                            fontSize: '1rem',
+                            py: 1,
+                            borderRadius: 2.5,
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
                             textTransform: 'none',
-                            boxShadow: isPreorder ? 'none' : `0 4px 14px ${theme.palette.primary.main}40`,
+                            boxShadow: isPreorder ? 'none' : `0 2px 8px ${theme.palette.primary.main}30`,
                             ...(isPreorder && {
                               borderColor: 'info.main',
                               color: 'info.main',
-                              borderWidth: 2,
+                              borderWidth: 1.5,
                               '&:hover': {
                                 borderColor: 'info.dark',
                                 bgcolor: 'info.50',
@@ -1915,21 +2134,22 @@ export function ProductDetailPage() {
                                 : 'Add to Cart'}
                         </Button>
 
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 0.75 }}>
                           <Button
                             fullWidth
                             variant="contained"
                             color="secondary"
-                            size="large"
+                            size="medium"
                             startIcon={<BuyNowIcon />}
                             disabled={isOutOfStock || isSelecting || isAdding}
                             onClick={handleBuyNow}
                             sx={{
-                              py: 1.75,
-                              borderRadius: 3,
-                              fontWeight: 700,
+                              py: 1,
+                              borderRadius: 2.5,
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
                               textTransform: 'none',
-                              boxShadow: `0 4px 14px ${theme.palette.secondary.main}40`,
+                              boxShadow: `0 2px 8px ${theme.palette.secondary.main}30`,
                             }}
                           >
                             Buy Now
@@ -1937,14 +2157,14 @@ export function ProductDetailPage() {
                           <Button
                             variant={isInWishlist ? 'contained' : 'outlined'}
                             color={isInWishlist ? 'error' : 'default'}
-                            size="large"
+                            size="medium"
                             onClick={toggleWishlist}
                             sx={{
-                              px: 2,
+                              px: 1.5,
                               minWidth: 'auto',
-                              borderRadius: 3,
+                              borderRadius: 2.5,
                               ...(isInWishlist && {
-                                boxShadow: `0 4px 14px ${theme.palette.error.main}40`,
+                                boxShadow: `0 2px 8px ${theme.palette.error.main}30`,
                               }),
                             }}
                           >
@@ -1957,12 +2177,12 @@ export function ProductDetailPage() {
                 </Stack>
 
                 {/* Enhanced Reassurance Points */}
-                <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 3 }}>
-                  <Stack spacing={1.5}>
+                <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 2.5 }}>
+                  <Stack spacing={1}>
                     {REASSURANCE_POINTS.map((point) => (
-                      <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ fontSize: 18 }}>{point.icon}</Box>
-                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                      <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ fontSize: 16 }}>{point.icon}</Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
                           {point.text}
                         </Typography>
                       </Box>
@@ -1994,28 +2214,28 @@ export function ProductDetailPage() {
         </Grid>
 
         {/* Enhanced Below-Fold Sections */}
-        <Stack spacing={4} sx={{ mt: 8 }}>
+        <Stack spacing={3} sx={{ mt: 6 }}>
           {/* Description - Enhanced */}
-          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
-            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
-                <Typography variant="h5" fontWeight={800}>
+          <Paper elevation={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ px: 3, pt: 2.5, pb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5 }}>
+                <Box sx={{ width: 3, height: 18, borderRadius: 1.5, bgcolor: 'primary.main' }} />
+                <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
                   Description
                 </Typography>
               </Box>
-              <Typography variant="body1" sx={{ lineHeight: 2, color: 'text.secondary', fontSize: '1.05rem' }}>
+              <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary', fontSize: '0.95rem' }}>
                 {product.description}
               </Typography>
             </Box>
           </Paper>
 
           {/* Specifications - Enhanced */}
-          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
-            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
-                <Typography variant="h5" fontWeight={800}>
+          <Paper elevation={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ px: 3, pt: 2.5, pb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 2 }}>
+                <Box sx={{ width: 3, height: 18, borderRadius: 1.5, bgcolor: 'primary.main' }} />
+                <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
                   Specifications
                 </Typography>
               </Box>
@@ -2024,11 +2244,11 @@ export function ProductDetailPage() {
           </Paper>
 
           {/* Reviews - Enhanced */}
-          <Paper elevation={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, overflow: 'hidden' }}>
-            <Box sx={{ px: 4, pt: 4, pb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                <Box sx={{ width: 4, height: 24, borderRadius: 2, bgcolor: 'primary.main' }} />
-                <Typography variant="h5" fontWeight={800}>
+          <Paper elevation={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ px: 3, pt: 2.5, pb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 2 }}>
+                <Box sx={{ width: 3, height: 18, borderRadius: 1.5, bgcolor: 'primary.main' }} />
+                <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
                   Customer Reviews ({totalReviews})
                 </Typography>
               </Box>
@@ -2038,30 +2258,30 @@ export function ProductDetailPage() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  mb: 5,
-                  p: 3,
+                  gap: 4,
+                  mb: 3,
+                  p: 2,
                   bgcolor: 'grey.50',
-                  borderRadius: 3,
+                  borderRadius: 2.5,
                   flexWrap: 'wrap',
                 }}
               >
-                <Box sx={{ textAlign: 'center', minWidth: 120 }}>
-                  <Typography variant="h2" fontWeight={800} color="primary.main" sx={{ fontSize: '3.5rem' }}>
+                <Box sx={{ textAlign: 'center', minWidth: 90 }}>
+                  <Typography variant="h3" fontWeight={700} color="primary.main" sx={{ fontSize: '2.5rem', lineHeight: 1 }}>
                     {averageRating.toFixed(1)}
                   </Typography>
                   <Rating
                     value={averageRating}
                     precision={0.5}
                     readOnly
-                    size="large"
-                    sx={{ mt: 1, color: 'warning.main' }}
+                    size="small"
+                    sx={{ mt: 0.5, color: 'warning.main', fontSize: '1rem' }}
                   />
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 500 }}>
-                    Based on {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500, fontSize: '0.75rem' }}>
+                    {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
                   </Typography>
                 </Box>
-                <Box sx={{ flexGrow: 1, minWidth: 200 }}>
+                <Box sx={{ flexGrow: 1, minWidth: 180 }}>
                   {[5, 4, 3, 2, 1].map((stars) => {
                     const count = reviewStats?.ratingDistribution?.[stars] ?? 0
                     const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0
@@ -2071,19 +2291,19 @@ export function ProductDetailPage() {
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 1.5,
-                          mb: 1.25,
+                          gap: 1,
+                          mb: 0.75,
                         }}
                       >
-                        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 45 }}>
+                        <Typography variant="caption" fontWeight={600} sx={{ minWidth: 35, fontSize: '0.75rem' }}>
                           {stars} star
                         </Typography>
                         <Box
                           sx={{
                             flexGrow: 1,
-                            height: 10,
+                            height: 8,
                             bgcolor: 'grey.200',
-                            borderRadius: 2,
+                            borderRadius: 1.5,
                             overflow: 'hidden',
                           }}
                         >
@@ -2091,13 +2311,13 @@ export function ProductDetailPage() {
                             sx={{
                               height: '100%',
                               bgcolor: 'warning.main',
-                              borderRadius: 2,
+                              borderRadius: 1.5,
                               width: `${percentage}%`,
                               transition: 'width 0.5s ease',
                             }}
                           />
                         </Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 30, textAlign: 'right' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 25, textAlign: 'right', fontSize: '0.75rem' }}>
                           {count}
                         </Typography>
                       </Box>
@@ -2107,14 +2327,14 @@ export function ProductDetailPage() {
               </Box>
 
               {/* Reviews List - Enhanced */}
-              <Stack spacing={2.5}>
+              <Stack spacing={2}>
                 {reviewsLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                    <CircularProgress size={32} />
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <CircularProgress size={28} />
                   </Box>
                 ) : reviews.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="body1" color="text.secondary">
+                  <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem' }}>
                       No reviews yet. Be the first to review this product!
                     </Typography>
                   </Box>
@@ -2124,21 +2344,21 @@ export function ProductDetailPage() {
                       key={review._id}
                       variant="outlined"
                       sx={{
-                        p: 3,
-                        borderRadius: 3,
+                        p: 2,
+                        borderRadius: 2.5,
                         borderColor: 'divider',
                         transition: 'all 0.2s',
                         '&:hover': {
-                          boxShadow: 3,
+                          boxShadow: 2,
                           borderColor: 'primary.main',
                         },
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5, mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 1.5 }}>
                         <Box
                           sx={{
-                            width: 48,
-                            height: 48,
+                            width: 38,
+                            height: 38,
                             borderRadius: '50%',
                             bgcolor: 'primary.main',
                             display: 'flex',
@@ -2146,50 +2366,50 @@ export function ProductDetailPage() {
                             justifyContent: 'center',
                             color: 'white',
                             fontWeight: 700,
-                            fontSize: '1.25rem',
+                            fontSize: '1rem',
                             flexShrink: 0,
                           }}
                         >
                           {review.userName?.charAt(0) || 'U'}
                         </Box>
                         <Box sx={{ flexGrow: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle1" fontWeight={700}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.75 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.9rem' }}>
                                 {review.userName || 'Anonymous'}
                               </Typography>
                               {review.isVerifiedPurchase && (
                                 <Chip
-                                  label="Verified Purchase"
+                                  label="Verified"
                                   size="small"
-                                  icon={<CheckIcon sx={{ fontSize: 14 }} />}
+                                  icon={<CheckIcon sx={{ fontSize: 12 }} />}
                                   sx={{
-                                    bgcolor: 'success.light',
+                                    bgcolor: 'success.50',
                                     color: 'success.dark',
                                     fontWeight: 600,
-                                    fontSize: '0.7rem',
-                                    height: 20,
+                                    fontSize: '0.65rem',
+                                    height: 18,
                                   }}
                                 />
                               )}
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Rating value={review.rating} readOnly size="small" sx={{ color: 'warning.main' }} />
-                              <Typography variant="caption" color="text.secondary">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Rating value={review.rating} readOnly size="small" sx={{ color: 'warning.main', fontSize: '0.9rem' }} />
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                                 {new Date(review.createdAt).toLocaleDateString()}
                               </Typography>
                             </Box>
                           </Box>
                           {review.title && (
-                            <Typography variant="h6" fontWeight={700} sx={{ mt: 1.5, color: 'text.primary' }}>
+                            <Typography variant="subtitle2" fontWeight={600} sx={{ mt: 1, fontSize: '0.95rem', color: 'text.primary' }}>
                               {review.title}
                             </Typography>
                           )}
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, fontSize: '0.85rem' }}>
                             {review.comment}
                           </Typography>
                           {review.images && review.images.length > 0 && (
-                            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                            <Box sx={{ display: 'flex', gap: 0.75, mt: 1.5 }}>
                               {review.images.map((image, idx) => (
                                 <Box
                                   key={idx}
@@ -2197,8 +2417,8 @@ export function ProductDetailPage() {
                                   src={formatImageUrl(image)}
                                   alt={`Review image ${idx + 1}`}
                                   sx={{
-                                    width: 60,
-                                    height: 60,
+                                    width: 50,
+                                    height: 50,
                                     objectFit: 'cover',
                                     borderRadius: 2,
                                     cursor: 'pointer',
@@ -2209,11 +2429,11 @@ export function ProductDetailPage() {
                               ))}
                             </Box>
                           )}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                            <Button size="small" startIcon={<ThumbUpOffAlt sx={{ fontSize: 16 }} />}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1.5 }}>
+                            <Button size="small" startIcon={<ThumbUpOffAlt sx={{ fontSize: 14 }} />} sx={{ fontSize: '0.8rem', py: 0.5 }}>
                               Helpful ({review.helpfulCount})
                             </Button>
-                            <Button size="small">Report</Button>
+                            <Button size="small" sx={{ fontSize: '0.8rem', py: 0.5 }}>Report</Button>
                           </Box>
                         </Box>
                       </Box>
@@ -2224,6 +2444,96 @@ export function ProductDetailPage() {
             </Box>
           </Paper>
         </Stack>
+
+        {/* Combos & Deals Section */}
+        {applicableCombos.length > 0 && (
+          <Box sx={{ mt: 5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 2.5 }}>
+              <ComboIcon sx={{ color: 'success.main', fontSize: 22 }} />
+              <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.15rem' }}>
+                Combo Deals
+              </Typography>
+              <Chip
+                label={`${applicableCombos.length} available`}
+                size="small"
+                color="success"
+                sx={{ ml: 'auto', fontWeight: 600, fontSize: '0.7rem', height: 20 }}
+              />
+            </Box>
+            <Grid container spacing={2}>
+              {applicableCombos.map((combo) => (
+                <Grid size={{ xs: 12, md: 6 }} key={combo._id}>
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      border: '1px solid',
+                      borderColor: 'success.100',
+                      borderRadius: 2.5,
+                      background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.03) 0%, rgba(255, 255, 255, 1) 100%)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={600} color="success.dark" sx={{ fontSize: '0.95rem' }}>
+                          {combo.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.75rem' }}>
+                          {combo.description}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={`-${combo.discountPercentage.toFixed(0)}%`}
+                        color="success"
+                        size="small"
+                        sx={{ fontWeight: 700, fontSize: '0.8rem', height: 22 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+                      <Box sx={{ flex: 1, minWidth: 100 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          Regular
+                        </Typography>
+                        <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.disabled', fontSize: '0.85rem' }}>
+                          {formatPrice(combo.originalPrice)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 100 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          Combo
+                        </Typography>
+                        <Typography variant="subtitle2" color="success.main" fontWeight={700} sx={{ fontSize: '0.95rem' }}>
+                          {formatPrice(combo.comboPrice)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 100 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          Save
+                        </Typography>
+                        <Typography variant="body2" color="success.dark" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
+                          {formatPrice(combo.discountAmount)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {combo.isFeatured && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
+                        <GiftIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                        <Typography variant="caption" color="warning.dark" fontWeight={600}>
+                          Featured Deal
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
 
         {/* Enhanced Related Products */}
         {relatedProducts.length > 0 && (

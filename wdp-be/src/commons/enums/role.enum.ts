@@ -1,7 +1,0 @@
-export enum ROLES {
-  ADMIN,
-  MANAGER,
-  OPERATION,
-  SALE,
-  CUSTOMER,
-}

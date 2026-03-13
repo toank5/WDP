@@ -1,0 +1,76 @@
+/**
+ * Order-related constants shared between frontend and backend
+ */
+
+import { ORDER_STATUS, PREORDER_STATUS } from '../enums/order.enums';
+
+/**
+ * Order Status Display Labels
+ */
+export const ORDER_STATUS_LABELS: Record<ORDER_STATUS, string> = {
+  [ORDER_STATUS.PENDING]: 'Pending',
+  [ORDER_STATUS.PENDING_PAYMENT]: 'Pending Payment',
+  [ORDER_STATUS.PAID]: 'Paid',
+  [ORDER_STATUS.ON_HOLD]: 'On Hold',
+  [ORDER_STATUS.PROCESSING]: 'Processing',
+  [ORDER_STATUS.CONFIRMED]: 'Confirmed',
+  [ORDER_STATUS.SHIPPED]: 'Shipped',
+  [ORDER_STATUS.DELIVERED]: 'Delivered',
+  [ORDER_STATUS.RETURNED]: 'Returned',
+  [ORDER_STATUS.CANCELLED]: 'Cancelled',
+};
+
+/**
+ * Order Status Color Mapping for UI
+ */
+export const ORDER_STATUS_COLORS: Record<ORDER_STATUS, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
+  [ORDER_STATUS.PENDING]: 'default',
+  [ORDER_STATUS.PENDING_PAYMENT]: 'warning',
+  [ORDER_STATUS.PAID]: 'info',
+  [ORDER_STATUS.ON_HOLD]: 'warning',
+  [ORDER_STATUS.PROCESSING]: 'info',
+  [ORDER_STATUS.CONFIRMED]: 'info',
+  [ORDER_STATUS.SHIPPED]: 'warning',
+  [ORDER_STATUS.DELIVERED]: 'success',
+  [ORDER_STATUS.RETURNED]: 'error',
+  [ORDER_STATUS.CANCELLED]: 'error',
+};
+
+/**
+ * Preorder Status Display Labels
+ */
+export const PREORDER_STATUS_LABELS: Record<PREORDER_STATUS, string> = {
+  [PREORDER_STATUS.PENDING_STOCK]: 'Waiting for Stock',
+  [PREORDER_STATUS.PARTIALLY_RESERVED]: 'Partially Reserved',
+  [PREORDER_STATUS.READY_TO_FULFILL]: 'Ready to Ship',
+  [PREORDER_STATUS.FULFILLED]: 'Shipped',
+  [PREORDER_STATUS.CANCELED]: 'Canceled',
+};
+
+/**
+ * Preorder Status Color Mapping for UI
+ */
+export const PREORDER_STATUS_COLORS: Record<PREORDER_STATUS, 'success' | 'info' | 'warning' | 'error'> = {
+  [PREORDER_STATUS.PENDING_STOCK]: 'warning',
+  [PREORDER_STATUS.PARTIALLY_RESERVED]: 'info',
+  [PREORDER_STATUS.READY_TO_FULFILL]: 'success',
+  [PREORDER_STATUS.FULFILLED]: 'success',
+  [PREORDER_STATUS.CANCELED]: 'error',
+};
+
+/**
+ * Valid Order Status Transitions
+ * Key = current status, Value = array of allowed next statuses
+ */
+export const ORDER_STATUS_TRANSITIONS: Record<ORDER_STATUS, ORDER_STATUS[]> = {
+  [ORDER_STATUS.PENDING]: [ORDER_STATUS.PENDING_PAYMENT],
+  [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.PAID, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PAID]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.ON_HOLD, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.ON_HOLD]: [ORDER_STATUS.PAID, ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.SHIPPED],
+  [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
+  [ORDER_STATUS.DELIVERED]: [],
+  [ORDER_STATUS.RETURNED]: [],
+  [ORDER_STATUS.CANCELLED]: [],
+};

@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { PREORDER_STATUS } from '../enums/preorder.enum';
-import { PRESCRIPTION_STATUS } from '../enums/order.enum';
+import { PREORDER_STATUS } from '@eyewear/shared';
+import { PRESCRIPTION_STATUS } from '@eyewear/shared';
 import { OrderPrescriptionSchema } from './order-prescription.schema';
 
 @Schema({ _id: false })
@@ -78,6 +78,33 @@ export class OrderItem {
     default: null,
   })
   prescriptionUrl?: string; // URL to uploaded prescription image
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Prescription',
+    default: null,
+  })
+  prescriptionId?: mongoose.Types.ObjectId; // Link to Prescription entity for medical data
+
+  // Manufacturing proof fields (for the actual glasses being made)
+  @Prop({
+    type: String,
+    default: null,
+  })
+  manufacturingProofUrl?: string;
+
+  @Prop({
+    type: String,
+    enum: ['PENDING', 'COMPLETED', 'FAILED'],
+    default: 'PENDING',
+  })
+  manufacturingStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  manufacturedAt?: Date;
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

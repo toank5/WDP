@@ -23,7 +23,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { PolicyService } from '../services/policy.service';
-import { POLICY_TYPES } from '../commons/enums/policy.enum';
+import { POLICY_TYPES } from '@eyewear/shared';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {

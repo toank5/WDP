@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material'
 import { login } from '@/lib/api'
 import { useAuthStore } from '@/store/auth-store'
+import { toast } from 'sonner'
 
 interface FormValues {
   email: string
@@ -113,6 +114,8 @@ export function LoginPage() {
       } else {
         localStorage.removeItem('rememberedEmail')
       }
+
+      toast.success('Logged in successfully')
 
       // Redirect to the page they tried to visit, or home
       navigate(from, { replace: true })

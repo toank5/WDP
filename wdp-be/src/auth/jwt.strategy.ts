@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { PassportStrategy } from '@nestjs/passport';
 import { Model } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ROLES } from 'src/commons/enums/role.enum';
+import { ROLES } from '@eyewear/shared';
 import { User } from 'src/commons/schemas/user.schema';
 import { JwtPayload } from 'src/commons/types/express.types';
 
@@ -28,23 +28,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    // Convert to plain object and normalize role to numeric enum value.
+    // Convert to plain object and normalize role
     const userObj = user.toObject();
-    let role: number;
+
+    // Role is now stored as string (e.g., 'CUSTOMER', 'ADMIN') from shared enum
+    let roleString = userObj.role as string;
+
+    // Legacy support: if role is somehow stored as a number, convert it
     if (typeof userObj.role === 'number') {
-      role = userObj.role;
-    } else if (typeof userObj.role === 'string') {
-      const numericRole = Number.parseInt(userObj.role, 10);
-      if (!Number.isNaN(numericRole)) {
-        role = numericRole;
-      } else {
-        const enumValue = (ROLES as unknown as Record<string, number>)[
-          userObj.role
-        ];
-        role = typeof enumValue === 'number' ? enumValue : Number(payload.role);
-      }
-    } else {
-      role = Number(payload.role);
+      const roleKey = Object.keys(ROLES).find(
+        (key) => ROLES[key as keyof typeof ROLES] === userObj.role
+      );
+      roleString = roleKey || 'CUSTOMER';
     }
 
     console.log(
@@ -52,12 +47,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userObj.role,
       'Type:',
       typeof userObj.role,
+      'Normalized:',
+      roleString,
     );
-    console.log('JWT Strategy - Converted role:', role, 'Type:', typeof role);
 
     return {
       ...userObj,
-      role,
+      _id: user._id?.toString(),
+      userId: user._id?.toString(),
+      role: roleString || 'CUSTOMER',
     };
   }
 }

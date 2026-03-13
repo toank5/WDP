@@ -31,12 +31,16 @@ import {
   ShoppingCart,
   LocalShipping,
   Assignment,
+  AssignmentReturn,
   Campaign,
   Assessment,
   Build,
   Warehouse,
   Business,
-  Medication,
+  AttachMoney,
+  LocalOffer,
+  Discount,
+  TrendingUp,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -85,10 +89,10 @@ export function DashboardLayout() {
       staffOnly: true, // Sale and Operation
     },
     {
-      title: 'Prescription Management',
-      icon: <Medication />,
-      url: '/dashboard/prescriptions',
-      staffOnly: true, // All staff can view prescriptions
+      title: 'Returns',
+      icon: <AssignmentReturn />,
+      url: '/dashboard/returns',
+      staffOnly: true, // Sale and Operation
     },
     {
       title: 'User Management',
@@ -139,6 +143,24 @@ export function DashboardLayout() {
       managerOnly: true,
     },
     {
+      title: 'Combos',
+      icon: <LocalOffer />,
+      url: '/dashboard/combos',
+      managerOnly: true,
+    },
+    {
+      title: 'Pricing',
+      icon: <AttachMoney />,
+      url: '/dashboard/pricing',
+      managerOnly: true,
+    },
+    {
+      title: 'Revenue',
+      icon: <TrendingUp />,
+      url: '/dashboard/revenue',
+      managerOnly: true,
+    },
+    {
       title: 'Analytics',
       icon: <Assessment />,
       url: '/dashboard/analytics',
@@ -151,10 +173,10 @@ export function DashboardLayout() {
     },
   ]
 
-  const isAdmin = user.role === ADMIN_ROLE || Number(user.role) === ADMIN_ROLE
-  const isManager = user.role === MANAGER_ROLE || Number(user.role) === MANAGER_ROLE
-  const isOperation = user.role === OPERATION_ROLE || Number(user.role) === OPERATION_ROLE
-  const isSale = user.role === SALE_ROLE || Number(user.role) === SALE_ROLE
+  const isAdmin = user.role === ADMIN_ROLE
+  const isManager = user.role === MANAGER_ROLE
+  const isOperation = user.role === OPERATION_ROLE
+  const isSale = user.role === SALE_ROLE
   const isStaff = isSale || isOperation || isManager || isAdmin
 
   const drawer = (

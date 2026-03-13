@@ -108,24 +108,57 @@ export class VNPayService {
   verifyCallback(
     callback: VNPayCallbackParamsDto,
   ): Promise<VNPayVerificationResultDto> {
-    const { vnp_TxnRef, vnp_ResponseCode } = callback;
+    const { vnp_TxnRef, vnp_ResponseCode, vnp_TransactionStatus } = callback;
 
     this.logger.log(
-      `Verifying VNPay callback | txnRef=${vnp_TxnRef} responseCode=${vnp_ResponseCode}`,
+      `Verifying VNPay callback | txnRef=${vnp_TxnRef} responseCode=${vnp_ResponseCode} transactionStatus=${vnp_TransactionStatus}`,
     );
 
-    const verification = this.vnpayClient.verifyIpnCall(
-      callback as unknown as ReturnQueryFromVNPay,
-    );
+    // Check if vnp_TransactionStatus is present (new VNPAY 2.0 parameter)
+    // Check both undefined and empty string since normalizeVnpayParams might convert to empty string
+    const hasTransactionStatus = vnp_TransactionStatus !== undefined && vnp_TransactionStatus !== '';
+
+    this.logger.log(`VNPAY 2.0 check | hasTransactionStatus=${hasTransactionStatus} value="${vnp_TransactionStatus}"`);
+
+    let verification;
+    let isVerified = false;
+    let message = '';
+
+    if (hasTransactionStatus) {
+      // Use custom verification for VNPAY 2.0 with vnp_TransactionStatus
+      this.logger.log('Using custom verification for VNPAY 2.0 (vnp_TransactionStatus present)');
+      const customResult = this.verifyCallbackWithTransactionStatus(callback);
+      isVerified = customResult.isVerified;
+      message = customResult.message;
+
+      // Build a mock verification object for compatibility
+      verification = {
+        isVerified,
+        isSuccess: callback.vnp_ResponseCode === '00',
+        message,
+        vnp_TransactionNo: callback.vnp_TransactionNo,
+        vnp_Amount: callback.vnp_Amount,
+        vnp_BankCode: callback.vnp_BankCode,
+      };
+    } else {
+      // Use standard verification for older VNPAY responses
+      this.logger.log('Using standard verification (no vnp_TransactionStatus)');
+      verification = this.vnpayClient.verifyIpnCall(
+        callback as unknown as ReturnQueryFromVNPay,
+      );
+      isVerified = verification.isVerified;
+      message = verification.message;
+    }
+
     const responseCode = String(callback.vnp_ResponseCode ?? '99');
     const success =
-      verification.isVerified &&
-      verification.isSuccess &&
+      isVerified &&
+      (callback.vnp_ResponseCode === '00' || callback.vnp_ResponseCode === '00') &&
       responseCode === VNPAY_RESPONSE_CODES.SUCCESS;
 
-    if (!verification.isVerified) {
+    if (!isVerified) {
       this.logger.warn(
-        `VNPay callback signature invalid | txnRef=${vnp_TxnRef} message=${verification.message}`,
+        `VNPay callback signature invalid | txnRef=${vnp_TxnRef} message=${message}`,
       );
     }
 
@@ -136,11 +169,69 @@ export class VNPayService {
     return Promise.resolve({
       success,
       responseCode,
-      message: verification.message,
+      message,
       transactionId: String(verification.vnp_TransactionNo || '') || vnp_TxnRef,
       amount: this.toAmountInVnd(verification.vnp_Amount),
       bankCode: String(verification.vnp_BankCode || ''),
     });
+  }
+
+  /**
+   * Custom verification for VNPAY 2.0 callbacks that include vnp_TransactionStatus
+   * This parameter is not handled by the vnpay npm package's standard verification
+   */
+  private verifyCallbackWithTransactionStatus(
+    callback: VNPayCallbackParamsDto,
+  ): { isVerified: boolean; message: string } {
+    try {
+      // Build canonical hash data excluding only signature fields.
+      // vnp_TransactionStatus is part of signed data in VNPay 2.1.0.
+      const hashData = this.buildHashData(callback, [
+        'vnp_SecureHash',
+        'vnp_SecureHashType',
+      ]);
+      const secureHash = callback.vnp_SecureHash;
+
+      // Calculate the expected hash
+      const expectedHash = this.generateHmacSha512(hashData);
+
+      this.logger.log(`VNPAY 2.0 Custom verification | hashData=${hashData.substring(0, 100)}...`);
+      this.logger.log(`VNPAY 2.0 Custom verification | received=${secureHash.substring(0, 20)}... expected=${expectedHash.substring(0, 20)}...`);
+
+      const isVerified = secureHash.toLowerCase() === expectedHash.toLowerCase();
+
+      return {
+        isVerified,
+        message: isVerified ? 'Signature verified' : 'Invalid signature',
+      };
+    } catch (error) {
+      this.logger.error(`Error in custom verification: ${error.message}`);
+      return {
+        isVerified: false,
+        message: `Verification error: ${error.message}`,
+      };
+    }
+  }
+
+  /**
+   * Build hash data string from callback params
+   * Excludes specified keys from the hash calculation
+   */
+  private buildHashData(
+    callback: Record<string, any>,
+    excludeKeys: string[] = [],
+  ): string {
+    const filteredKeys = Object.keys(callback)
+      .filter((key) => !excludeKeys.includes(key))
+      .filter((key) => callback[key] !== undefined && callback[key] !== null)
+      .sort();
+
+    const canonicalParams: Record<string, string> = {};
+    for (const key of filteredKeys) {
+      canonicalParams[key] = String(callback[key]);
+    }
+
+    return this.buildQueryString(canonicalParams);
   }
 
   /**

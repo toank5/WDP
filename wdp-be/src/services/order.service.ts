@@ -14,6 +14,8 @@ import { ProductVariant } from '../commons/schemas/product-variant.schema';
 import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
+import { CloudinaryService } from '../commons/services/cloudinary.service';
+import { PromotionService } from './promotion.service';
 import {
   CreateOrderDto,
   OrderResponseDto,
@@ -33,8 +35,12 @@ import {
   OrderPrescriptionVerificationResponseDto,
   OrdersAwaitingVerificationResponse,
 } from '../dtos/prescription.dto';
-import { ORDER_STATUS, ORDER_TYPES, PRESCRIPTION_STATUS } from '../commons/enums/order.enum';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
+import {
+  ORDER_STATUS,
+  ORDER_TYPES,
+  PRESCRIPTION_STATUS,
+  PREORDER_STATUS,
+} from '@eyewear/shared';
 import { Request } from 'express';
 import {
   VNPayCallbackParamsDto,
@@ -51,6 +57,8 @@ export class OrderService {
     private readonly cartService: CartService,
     private readonly vnpayService: VNPayService,
     private readonly inventoryService: InventoryService,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly promotionService: PromotionService,
   ) {}
 
   /**
@@ -105,6 +113,7 @@ export class OrderService {
       payment,
       orderType,
       notes,
+      promotionCode,
     } = createOrderDto;
 
     // Calculate totals
@@ -114,10 +123,92 @@ export class OrderService {
     );
     const shippingFee = this.calculateShippingFee(shippingMethod);
     const tax = this.calculateTax(subtotal);
-    const totalAmount = subtotal + shippingFee + tax;
+
+    // Validate and apply promotion code if provided
+    let promotionDiscount = 0;
+    let appliedPromotionId: string | undefined;
+    let appliedPromotionCode: string | undefined;
+
+    if (promotionCode) {
+      console.log('[OrderService] Validating promotion code:', promotionCode);
+      const productIds = items.map((item) => item.productId);
+      const validationResult = await this.promotionService.validateCode(
+        promotionCode,
+        subtotal,
+        productIds,
+        customerId,
+      );
+
+      console.log('[OrderService] Validation result:', {
+        isValid: validationResult.isValid,
+        discountAmount: validationResult.discountAmount,
+        promotion: validationResult.promotion,
+        promotionId: validationResult.promotion?._id,
+        promotionIdType: typeof validationResult.promotion?._id,
+      });
+
+      if (!validationResult.isValid) {
+        throw new BadRequestException(
+          validationResult.message || 'Invalid promotion code',
+        );
+      }
+
+      promotionDiscount = validationResult.discountAmount || 0;
+
+      // Extract promotionId - handle both string and ObjectId formats
+      const promoId = validationResult.promotion?._id;
+      if (promoId) {
+        appliedPromotionId =
+          typeof promoId === 'string' ? promoId : String(promoId);
+        console.log('[OrderService] Extracted promotionId:', appliedPromotionId);
+      }
+      appliedPromotionCode = validationResult.promotion?.code;
+
+      console.log('[OrderService] Final discount applied:', {
+        promotionCode,
+        promotionDiscount,
+        subtotal,
+        totalAmount: subtotal + shippingFee + tax - promotionDiscount,
+      });
+
+      // Increment promotion usage count
+      if (appliedPromotionId) {
+        await this.promotionService.incrementUsage(appliedPromotionId);
+      }
+    }
+
+    // Calculate final total: subtotal + shipping + tax - promotion discount
+    const totalAmount = subtotal + shippingFee + tax - promotionDiscount;
 
     // Generate order number
     const orderNumber = this.generateOrderNumber();
+
+    // Debug: Log promotion details before creating order
+    console.log('[OrderService] Creating order with promotion details:', {
+      appliedPromotionId,
+      appliedPromotionCode,
+      promotionDiscount,
+      promotionIdType: typeof appliedPromotionId,
+    });
+
+    // Prepare promotionId - wrap in try-catch to handle invalid ObjectId
+    let promotionObjectId: Types.ObjectId | undefined;
+    if (appliedPromotionId) {
+      try {
+        promotionObjectId = new Types.ObjectId(appliedPromotionId);
+        console.log(
+          '[OrderService] Created ObjectId:',
+          promotionObjectId.toString(),
+        );
+      } catch (error) {
+        console.error(
+          '[OrderService] Failed to create ObjectId from:',
+          appliedPromotionId,
+          error,
+        );
+        // Continue without promotionId if conversion fails
+      }
+    }
 
     // Create order - use new Document() + save() for better type inference
     const order = new this.orderModel({
@@ -134,6 +225,9 @@ export class OrderService {
       subtotal,
       shippingFee,
       tax,
+      promotionDiscount,
+      promotionId: promotionObjectId,
+      promotionCode: appliedPromotionCode,
       totalAmount,
       shippingAddress,
       payment: {
@@ -146,11 +240,21 @@ export class OrderService {
         {
           status: ORDER_STATUS.PENDING_PAYMENT,
           timestamp: new Date(),
-          note: 'Order placed, awaiting payment',
+          note: promotionCode
+            ? `Order placed with promotion code: ${promotionCode}`
+            : 'Order placed, awaiting payment',
         },
       ],
     });
     await order.save();
+
+    // Debug: Log saved order promotion details
+    console.log('[OrderService] Order saved with promotion details:', {
+      orderId: order._id.toString(),
+      promotionId: order.promotionId?.toString(),
+      promotionCode: order.promotionCode,
+      promotionDiscount: order.promotionDiscount,
+    });
 
     // Generate payment URL if VNPAY
     let paymentUrl: string | undefined;
@@ -371,9 +475,23 @@ export class OrderService {
   async getOperationsOrders(
     query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc', status, showAll } = query;
+    const {
+      search,
+      page = '1',
+      limit = '20',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      showAll,
+    } = query;
 
-    console.log('🔍 [getOperationsOrders] Query params:', { status, showAll, search, page, limit });
+    console.log('🔍 [getOperationsOrders] Query params:', {
+      status,
+      showAll,
+      search,
+      page,
+      limit,
+    });
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -390,7 +508,9 @@ export class OrderService {
       console.log('📋 Filtering by status:', status);
       baseQuery = { orderStatus: status };
     } else {
-      console.log('📋 Using default Operations queue (PROCESSING + PAID/CONFIRMED preorders)');
+      console.log(
+        '📋 Using default Operations queue (PROCESSING + PAID/CONFIRMED preorders)',
+      );
       // Default: Operations can see active work queue
       // 1. PROCESSING orders (ready to fulfill - approved by sales)
       // 2. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
@@ -449,16 +569,30 @@ export class OrderService {
 
   /**
    * Get sales pending-approval queue:
-    * - normal orders: PAID/CONFIRMED
-    * - pre-orders: PAID/CONFIRMED (visibility), approval still requires stock-ready
-    * If status filter is provided, shows filtered orders instead
+   * - normal orders: PAID/CONFIRMED
+   * - pre-orders: PAID/CONFIRMED (visibility), approval still requires stock-ready
+   * If status filter is provided, shows filtered orders instead
    */
   async getSalesPendingApprovalOrders(
     query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const { search, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc', status, showAll } = query;
+    const {
+      search,
+      page = '1',
+      limit = '20',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      showAll,
+    } = query;
 
-    console.log('🔍 [getSalesPendingApprovalOrders] Query params:', { status, showAll, search, page, limit });
+    console.log('🔍 [getSalesPendingApprovalOrders] Query params:', {
+      status,
+      showAll,
+      search,
+      page,
+      limit,
+    });
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -559,8 +693,7 @@ export class OrderService {
       changedBy: approvedBy ? new Types.ObjectId(approvedBy) : undefined,
       timestamp: new Date(),
       note:
-        approvalDto.note ||
-        'Approved by Sales and sent to Operations queue',
+        approvalDto.note || 'Approved by Sales and sent to Operations queue',
     });
 
     await order.save();
@@ -758,6 +891,58 @@ export class OrderService {
   }
 
   /**
+   * Upload manufacturing proof for OrderItem
+   * Operations staff uploads photo of finished glasses
+   * itemId is the index of the item in the items array
+   */
+  async uploadManufacturingProof(
+    orderId: string,
+    itemId: string,
+    file: Express.Multer.File,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // itemId is the index in the items array
+    const itemIndex = parseInt(itemId, 10);
+    if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= order.items.length) {
+      throw new NotFoundException('Order item not found');
+    }
+
+    const item = order.items[itemIndex];
+
+    if (!item.isPrescription) {
+      throw new BadRequestException('This item is not a prescription item');
+    }
+
+    // Upload the proof image to Cloudinary
+    const proofUrl = await this.cloudinaryService.uploadFile(
+      file,
+      'wdp/manufacturing-proofs',
+    );
+
+    // Update OrderItem with manufacturing proof
+    item.manufacturingProofUrl = proofUrl;
+    item.manufacturingStatus = 'COMPLETED';
+    item.manufacturedAt = new Date();
+
+    // Also update prescription status to READY_TO_SHIP
+    item.prescriptionStatus = PRESCRIPTION_STATUS.READY_TO_SHIP;
+
+    order.history.push({
+      status: order.orderStatus,
+      timestamp: new Date(),
+      note: `Manufacturing proof uploaded for item at index ${itemIndex}. Status set to COMPLETED.`,
+    });
+
+    await order.save();
+    return this.getOrderWithDetails(orderId);
+  }
+
+  /**
    * Get order by ID
    */
   async getOrderById(
@@ -904,7 +1089,7 @@ export class OrderService {
     if (!this.isValidStatusTransition(order.orderStatus, updateDto.status)) {
       throw new BadRequestException(
         `Cannot change order status from ${order.orderStatus} to ${updateDto.status}. ` +
-        `Please follow the valid order status flow.`,
+          `Please follow the valid order status flow.`,
       );
     }
 
@@ -968,10 +1153,7 @@ export class OrderService {
         ORDER_STATUS.PROCESSING,
         ORDER_STATUS.CANCELLED,
       ],
-      [ORDER_STATUS.PROCESSING]: [
-        ORDER_STATUS.SHIPPED,
-        ORDER_STATUS.CANCELLED,
-      ],
+      [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
       [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.SHIPPED],
       [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
       [ORDER_STATUS.DELIVERED]: [],
@@ -1191,7 +1373,8 @@ export class OrderService {
                 add: item.prescriptionData.add,
               }
             : undefined,
-          prescriptionStatus: item.prescriptionStatus || PRESCRIPTION_STATUS.PENDING_REVIEW,
+          prescriptionStatus:
+            item.prescriptionStatus || PRESCRIPTION_STATUS.PENDING_REVIEW,
           orderStatus: order.orderStatus,
         });
       }
@@ -1335,7 +1518,9 @@ export class OrderService {
     // Check if all prescription items are approved
     const allApproved = order.items
       .filter((item) => item.isPrescription)
-      .every((item) => item.prescriptionStatus === PRESCRIPTION_STATUS.APPROVED);
+      .every(
+        (item) => item.prescriptionStatus === PRESCRIPTION_STATUS.APPROVED,
+      );
 
     // If all approved, move order to PROCESSING
     if (allApproved) {

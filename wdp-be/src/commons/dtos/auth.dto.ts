@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PickType } from '@nestjs/swagger';
 import { User } from '../schemas/user.schema';
-import { ROLES } from '../enums/role.enum';
+import { ROLES } from '@eyewear/shared';
 
 export class LoginRequestDto extends PickType(User, ['email'] as const) {
   @ApiProperty({

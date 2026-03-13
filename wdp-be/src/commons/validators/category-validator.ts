@@ -5,7 +5,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { PRODUCT_CATEGORIES } from '../enums/product.enum';
+import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 
 interface CreateProductDtoShape {
   category?: PRODUCT_CATEGORIES;

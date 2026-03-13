@@ -5,6 +5,7 @@
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
 import { useAuthStore } from '@/store/auth-store'
+import { UserRole } from '@/lib/enums'
 
 /**
  * Cart item type from backend
@@ -73,12 +74,16 @@ class CartAPI {
   /**
    * Get current user's cart from backend
    * GET /cart
+   * Only customers can access this endpoint
    */
   async getCart(): Promise<CartResponse> {
-    // Check if user is authenticated before calling backend
+    // Check if user is authenticated and is a customer before calling backend
     const authState = useAuthStore.getState()
     if (!authState.isAuthenticated || !authState.accessToken) {
       throw new Error('User not authenticated')
+    }
+    if (authState.user?.role !== UserRole.CUSTOMER) {
+      throw new Error('Cart is only available for customer accounts')
     }
 
     const response = await api.get('/cart')
@@ -94,12 +99,16 @@ class CartAPI {
   /**
    * Add item to cart
    * POST /cart/items
+   * Only customers can access this endpoint
    */
   async addItem(params: AddCartItemRequest): Promise<{ success: boolean; message: string }> {
-    // Check if user is authenticated before calling backend
+    // Check if user is authenticated and is a customer before calling backend
     const authState = useAuthStore.getState()
     if (!authState.isAuthenticated || !authState.accessToken) {
       return { success: false, message: 'Please login to add items to cart' }
+    }
+    if (authState.user?.role !== UserRole.CUSTOMER) {
+      return { success: false, message: 'Cart is only available for customer accounts' }
     }
 
     try {
@@ -204,13 +213,18 @@ class CartAPI {
   /**
    * Get cart item count
    * GET /cart/count
+   * Only customers can access this endpoint
    */
   async getCartCount(): Promise<number> {
-    // Check if user is authenticated before calling backend
+    // Check if user is authenticated and is a customer before calling backend
     const authState = useAuthStore.getState()
     if (!authState.isAuthenticated || !authState.accessToken) {
       // Guest users don't have backend cart, return 0
       // The cart store handles localStorage for guest users
+      return 0
+    }
+    if (authState.user?.role !== UserRole.CUSTOMER) {
+      // Non-customer users don't have carts
       return 0
     }
 
@@ -226,15 +240,20 @@ class CartAPI {
   /**
    * Validate cart items (stock availability)
    * GET /cart/validate
+   * Only customers can access this endpoint
    */
   async validateCart(): Promise<{
     valid: boolean
     invalidItems: Array<{ itemId: string; reason: string }>
   }> {
-    // Check if user is authenticated before calling backend
+    // Check if user is authenticated and is a customer before calling backend
     const authState = useAuthStore.getState()
     if (!authState.isAuthenticated || !authState.accessToken) {
       // Guest users can't validate against backend
+      return { valid: true, invalidItems: [] }
+    }
+    if (authState.user?.role !== UserRole.CUSTOMER) {
+      // Non-customer users don't have carts to validate
       return { valid: true, invalidItems: [] }
     }
 

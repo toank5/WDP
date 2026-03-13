@@ -426,6 +426,20 @@ export class OrdersAwaitingVerificationResponse {
 }
 
 /**
+ * Complete Manufacturing DTO
+ */
+export class CompleteManufacturingDto {
+  @ApiProperty({ description: 'Manufacturing proof image file' })
+  @IsNotEmpty()
+  file: any;
+
+  @ApiPropertyOptional({ description: 'Additional notes about the manufacturing' })
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+/**
  * Prescription List Response DTO
  */
 export class PrescriptionListResponseDto {

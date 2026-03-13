@@ -81,3 +81,41 @@ export async function requestUpdate(
 ): Promise<void> {
   await api.post(`/orders/${orderId}/items/${orderItemId}/request-update`, data)
 }
+
+// Manufacturing Types
+export interface PrescriptionManufacturingStatus {
+  manufacturingProofUrl?: string
+  manufacturingStatus: 'PENDING' | 'COMPLETED' | 'FAILED'
+  manufacturedAt?: string
+}
+
+export interface CompleteManufacturingResponse {
+  manufacturingProofUrl?: string
+  manufacturingStatus: 'PENDING' | 'COMPLETED' | 'FAILED'
+  manufacturedAt?: string
+}
+
+// Upload manufacturing proof for OrderItem
+// itemId is the index of the item in the order's items array
+export async function completeManufacturing(
+  orderId: string,
+  itemIndex: number,
+  file: File,
+): Promise<CompleteManufacturingResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await api.post(
+    `/orders/${orderId}/items/${itemIndex}/manufacturing-proof`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return unwrapApiPayloadOrDefault<CompleteManufacturingResponse>(
+    response.data,
+    {} as CompleteManufacturingResponse
+  )
+}

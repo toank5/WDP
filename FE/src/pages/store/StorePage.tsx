@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
 import { getAllProducts, type Product, type FrameProduct, formatImageUrl } from '@/lib/product-api'
@@ -41,7 +41,11 @@ import {
   ViewInAr as ThreeDIcon,
   FilterList as FilterIcon,
   Close as CloseIcon,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
 } from '@mui/icons-material'
+import { wishlistApi } from '@/lib/wishlist-api'
+import { toast } from 'sonner'
 
 // Price formatter for VND
 const formatPrice = (price: number): string => {
@@ -112,6 +116,64 @@ function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
   const price = product.price ?? product.basePrice
   // Get image from mainImageUrl or fallback to images2D
   const displayImage = product.mainImageUrl || (product.images2D?.[0] ? formatImageUrl(product.images2D[0]) : undefined)
+  const { user } = useAuthStore()
+  const isCustomer = user?.role === 'CUSTOMER'
+
+  // Favorite state
+  const [isFavorited, setIsFavorited] = React.useState(false)
+  const [isToggling, setIsToggling] = React.useState(false)
+
+  // Check if product is favorited on mount (only for customers)
+  React.useEffect(() => {
+    if (!isCustomer) return
+
+    const checkFavorite = async () => {
+      const favorited = await wishlistApi.isFavorited(product._id)
+      setIsFavorited(favorited)
+    }
+    checkFavorite()
+
+    // Listen for wishlist updates
+    const handleWishlistUpdate = async () => {
+      const favorited = await wishlistApi.isFavorited(product._id)
+      setIsFavorited(favorited)
+    }
+
+    window.addEventListener('wishlistUpdated', handleWishlistUpdate)
+    return () => window.removeEventListener('wishlistUpdated', handleWishlistUpdate)
+  }, [product._id, isCustomer])
+
+  // Handle favorite toggle
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!isCustomer) {
+      toast.error('Favorites are only available for customers')
+      return
+    }
+
+    setIsToggling(true)
+
+    try {
+      const result = await wishlistApi.toggleItem({
+        productId: product._id,
+        productName: product.name,
+        image: displayImage || '',
+        price: product.basePrice,
+        category: product.category,
+        has3D: !!(product.images3D && product.images3D.length > 0),
+      })
+
+      if (result.success) {
+        setIsFavorited(result.isFavorited)
+        toast.success(result.isFavorited ? 'Saved to favorites' : 'Removed from favorites')
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error)
+      toast.error('Failed to update favorites')
+    } finally {
+      setIsToggling(false)
+    }
+  }
 
   return (
     <Card
@@ -127,15 +189,42 @@ function ProductCard({ product, onClick, onAddToCart }: ProductCardProps) {
       onClick={onClick}
     >
       <Box sx={{ p: 2 }}>
-        {/* Category Badge */}
-        {product.tag && (
-          <Chip
-            size="small"
-            label={product.tag}
-            color="primary"
-            sx={{ mb: 2, fontWeight: 600, textTransform: 'lowercase' }}
-          />
-        )}
+        {/* Category Badge and Favorite Button */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          {product.tag && (
+            <Chip
+              size="small"
+              label={product.tag}
+              color="primary"
+              sx={{ fontWeight: 600, textTransform: 'lowercase' }}
+            />
+          )}
+          {!product.tag && <Box sx={{ flex: 1 }} />}
+
+          {/* Favorite Heart Button - Customer only */}
+          {isCustomer && (
+            <IconButton
+              size="small"
+              onClick={handleToggleFavorite}
+              disabled={isToggling}
+              sx={{
+                bgcolor: 'background.paper',
+                boxShadow: 1,
+                '&:hover': {
+                  bgcolor: isFavorited ? 'error.50' : 'action.hover',
+                },
+                transition: 'all 0.2s',
+              }}
+              aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              {isFavorited ? (
+                <FavoriteIcon sx={{ color: 'error.main' }} />
+              ) : (
+                <FavoriteBorderIcon />
+              )}
+            </IconButton>
+          )}
+        </Box>
 
         {/* Main Image */}
         <Box

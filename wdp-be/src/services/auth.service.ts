@@ -24,6 +24,40 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from '../mail/email.service';
+import { ROLES } from '@eyewear/shared';
+
+/**
+ * Transform user object for API response
+ * Roles are now stored as strings from shared enum (e.g., 'CUSTOMER', 'ADMIN')
+ * Includes legacy support for numeric role values
+ */
+function transformUserForResponse(user: any) {
+  const userObj = user.toObject ? user.toObject() : user;
+
+  // Normalize role to string
+  let roleString = 'CUSTOMER';
+
+  if (typeof userObj.role === 'string') {
+    // Check if it's a valid role string
+    const validRoles = Object.values(ROLES);
+    if (validRoles.includes(userObj.role as ROLES)) {
+      roleString = userObj.role;
+    }
+  } else if (typeof userObj.role === 'number') {
+    // Legacy support: convert numeric role to string name
+    const roleKey = Object.keys(ROLES).find(
+      (key) => ROLES[key as keyof typeof ROLES] === userObj.role
+    );
+    roleString = roleKey || 'CUSTOMER';
+  }
+
+  return {
+    ...userObj,
+    _id: userObj._id?.toString(),
+    role: roleString,
+    passwordHash: undefined, // Never return password hash
+  };
+}
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService {
@@ -50,16 +84,21 @@ export class AuthService {
     if (!isPasswordMatch) throw new BadRequestException('Invalid password');
 
     const accessToken = await this.jwtService.signAsync(
-      { id: user._id },
+      { id: user._id, role: user.role },
       {
         expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
         secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
     );
 
+    // Transform user object with string role name
+    const transformedUser = transformUserForResponse(user);
+
+    console.log('AuthService - Login user role:', user.role, '-> Transformed:', transformedUser.role);
+
     return new CustomApiResponse(HttpStatus.OK, 'Login successful', {
       accessToken,
-      user,
+      user: transformedUser,
     });
   }
 
@@ -98,19 +137,24 @@ export class AuthService {
     }
 
     const accessToken = await this.jwtService.signAsync(
-      { id: newUser._id },
+      { id: newUser._id, role: newUser.role },
       {
         expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
         secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
     );
 
+    // Transform user object with string role name
+    const transformedUser = transformUserForResponse(newUser);
+
+    console.log('AuthService - Register user role:', newUser.role, '-> Transformed:', transformedUser.role);
+
     return new CustomApiResponse(
       HttpStatus.OK,
       'Register successful. Please check your email to verify your account.',
       {
         accessToken,
-        user: newUser,
+        user: transformedUser,
       },
     );
   }

@@ -11,8 +11,7 @@ import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Inventory } from '../commons/schemas/inventory.schema';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
-import { ORDER_STATUS, ORDER_TYPES } from '../commons/enums/order.enum';
+import { PREORDER_STATUS, ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
 import {
   CreateCheckoutDto,
   CheckoutCalculation,
@@ -24,6 +23,7 @@ import { VNPayVerificationResultDto, VNPayCallbackParamsDto } from '../dtos/vnpa
 import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
+import { PromotionService } from './promotion.service';
 
 // Aggregated cart item with product details
 interface AggregatedCartItem {
@@ -71,6 +71,7 @@ export class CheckoutService {
     private readonly cartService: CartService,
     private readonly vnpayService: VNPayService,
     private readonly inventoryService: InventoryService,
+    private readonly promotionService: PromotionService,
   ) {}
 
   /**
@@ -132,8 +133,12 @@ export class CheckoutService {
       }
     }
 
-    // Step 3: Calculate totals
-    const calculation = this.calculateCheckoutTotals(checkoutItems);
+    // Step 3: Calculate totals (including combo pricing and promotion discounts)
+    const calculation = await this.calculateCheckoutTotals(
+      checkoutItems,
+      customerId,
+      createCheckoutDto.promotionCode,
+    );
 
     // Step 4: Create order with PENDING_PAYMENT status
     const orderInfo = await this.createOrderFromCart(
@@ -294,6 +299,7 @@ export class CheckoutService {
       vnp_TxnRef: params.vnp_TxnRef || '',
       vnp_SecureHash: params.vnp_SecureHash || '',
       vnp_SecureHashType: params.vnp_SecureHashType,
+      vnp_TransactionStatus: params.vnp_TransactionStatus,
     };
 
     const verification = await this.vnpayService.verifyCallback(callbackParams);
@@ -569,12 +575,14 @@ export class CheckoutService {
   }
 
   /**
-   * Calculate checkout totals (subtotal + shipping)
-   * Shipping is currently free
+   * Calculate checkout totals (subtotal + shipping + discounts)
+   * Includes combo pricing and promotion discounts
    */
-  private calculateCheckoutTotals(
+  private async calculateCheckoutTotals(
     items: CheckoutItemDto[],
-  ): CheckoutCalculation {
+    customerId: string,
+    promotionCode?: string,
+  ): Promise<CheckoutCalculation> {
     const subtotal = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
@@ -583,11 +591,62 @@ export class CheckoutService {
     // Free shipping
     const shippingFee = 0;
 
+    // Check for combo pricing
+    let comboDiscount = 0;
+    let appliedCombo;
+
+    const comboResult = await this.cartService.checkComboPricing(customerId);
+    if (comboResult.hasCombo && comboResult.combo) {
+      comboDiscount = comboResult.combo.discountAmount;
+      appliedCombo = {
+        id: comboResult.combo.id,
+        name: comboResult.combo.name,
+        discountAmount: comboResult.combo.discountAmount,
+      };
+    }
+
+    // Check for promotion discount
+    let promotionDiscount = 0;
+    let appliedPromotion;
+
+    if (promotionCode) {
+      const productIds = items.map((item) => item.productId);
+
+      const promotionResult = await this.promotionService.validateCode(
+        promotionCode,
+        subtotal - comboDiscount,
+        productIds,
+        customerId,
+      );
+
+      if (promotionResult.isValid && promotionResult.discountAmount) {
+        promotionDiscount = promotionResult.discountAmount;
+        appliedPromotion = {
+          code: promotionCode.toUpperCase(),
+          discountAmount: promotionDiscount,
+          promotionId: promotionResult.promotion?._id?.toString(),
+        };
+
+        // Increment promotion usage count
+        if (promotionResult.promotion) {
+          await this.promotionService.incrementUsage(
+            promotionResult.promotion._id.toString(),
+          );
+        }
+      }
+    }
+
+    const totalAmount = subtotal + shippingFee - comboDiscount - promotionDiscount;
+
     return {
       subtotal,
       shippingFee,
-      totalAmount: subtotal + shippingFee,
+      comboDiscount,
+      promotionDiscount,
+      totalAmount: Math.max(0, totalAmount),
       items,
+      appliedPromotion,
+      appliedCombo,
     };
   }
 
@@ -635,6 +694,13 @@ export class CheckoutService {
       items: orderItems,
       subtotal: calculation.subtotal,
       shippingFee: calculation.shippingFee,
+      comboDiscount: calculation.comboDiscount || 0,
+      comboId: calculation.appliedCombo?.id,
+      promotionDiscount: calculation.promotionDiscount || 0,
+      promotionCode: calculation.appliedPromotion?.code,
+      promotionId: calculation.appliedPromotion?.promotionId
+        ? new mongoose.Types.ObjectId(calculation.appliedPromotion.promotionId)
+        : undefined,
       totalAmount: calculation.totalAmount,
       tax: 0,
       shippingAddress: checkoutDto.shippingAddress,
@@ -742,6 +808,7 @@ export class CheckoutService {
       vnp_TxnRef: toString(params.vnp_TxnRef),
       vnp_SecureHash: toString(params.vnp_SecureHash),
       vnp_SecureHashType: params.vnp_SecureHashType ? toString(params.vnp_SecureHashType) : undefined,
+      vnp_TransactionStatus: params.vnp_TransactionStatus ? toString(params.vnp_TransactionStatus) : undefined,
     };
   }
 

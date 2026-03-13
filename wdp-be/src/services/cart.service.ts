@@ -15,6 +15,7 @@ import {
   CartItemResponseDto,
 } from '../dtos/cart.dto';
 import { InventoryService } from './inventory.service';
+import { ComboService } from './combo.service';
 
 // Type for cart document with Mongoose methods
 type CartDocument = HydratedDocument<Cart>;
@@ -50,6 +51,7 @@ export class CartService {
     @InjectModel(Cart.name) private cartModel: Model<Cart>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     private readonly inventoryService: InventoryService,
+    private readonly comboService: ComboService,
   ) {}
 
   /**
@@ -512,6 +514,114 @@ export class CartService {
       subtotal,
       createdAt: cart.createdAt || new Date(),
       updatedAt: cart.updatedAt || new Date(),
+    };
+  }
+
+  /**
+   * Check for applicable combo pricing in cart
+   * Returns combo information if a valid combo exists for the cart items
+   */
+  async checkComboPricing(customerId: string): Promise<{
+    hasCombo: boolean;
+    combo?: {
+      id: string;
+      name: string;
+      comboPrice: number;
+      originalPrice: number;
+      discountAmount: number;
+      discountPercentage: number;
+    };
+    appliedItems?: string[];
+  }> {
+    const cart = await this.getOrCreateCart(customerId);
+
+    if (!cart.items || cart.items.length < 2) {
+      return { hasCombo: false };
+    }
+
+    // Get all product IDs in cart
+    const productIds = cart.items.map((item) =>
+      (item.productId as mongoose.Types.ObjectId).toString(),
+    );
+
+    // Check for combo pricing
+    const comboResult = await this.comboService.getComboPrice(productIds);
+
+    if (!comboResult.hasCombo) {
+      return { hasCombo: false };
+    }
+
+    return {
+      hasCombo: true,
+      combo: comboResult.combo
+        ? {
+            id: comboResult.combo._id.toString(),
+            name: comboResult.combo.name,
+            comboPrice: comboResult.comboPrice || 0,
+            originalPrice: comboResult.originalPrice || 0,
+            discountAmount: comboResult.discountAmount || 0,
+            discountPercentage: comboResult.combo.discountPercentage || 0,
+          }
+        : undefined,
+      appliedItems: productIds,
+    };
+  }
+
+  /**
+   * Get cart subtotal with combo pricing applied
+   */
+  async getCartSubtotalWithCombo(customerId: string): Promise<{
+    subtotal: number;
+    comboDiscount: number;
+    finalTotal: number;
+    comboDetails?: {
+      id: string;
+      name: string;
+      discountAmount: number;
+    };
+  }> {
+    const cart = await this.getOrCreateCart(customerId);
+    let subtotal = 0;
+
+    // Calculate regular subtotal
+    for (const item of cart.items) {
+      const product = await this.productModel.findById(item.productId);
+      if (!product) continue;
+
+      let price = product.basePrice;
+
+      if (item.variantSku) {
+        const variant = product.variants?.find(
+          (v) => v.sku === item.variantSku,
+        );
+        if (variant && variant.price) {
+          price = variant.price;
+        }
+      }
+
+      subtotal += price * item.quantity;
+    }
+
+    // Check for combo pricing
+    const comboResult = await this.checkComboPricing(customerId);
+
+    let comboDiscount = 0;
+    let comboDetails;
+
+    if (comboResult.hasCombo && comboResult.combo) {
+      comboDiscount = comboResult.combo.discountAmount;
+      comboDetails = {
+        id: comboResult.combo.id,
+        name: comboResult.combo.name,
+        discountAmount: comboResult.combo.discountAmount,
+      };
+    }
+
+    return {
+      subtotal,
+      comboDiscount,
+      finalTotal: subtotal - comboDiscount,
+      comboDetails,
     };
   }
 }

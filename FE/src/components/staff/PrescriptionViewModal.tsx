@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -13,10 +13,14 @@ import {
   Button,
   Divider,
   Grid,
+  Alert,
 } from '@mui/material'
 import { X, ZoomIn, ZoomOut, RotateCw, Sun, Contrast, CheckCircle, XCircle } from 'lucide-react'
 import { type Prescription } from '@/lib/prescription-api'
 import { formatDateTime } from '@/lib/utils'
+import { PrescriptionManufacturingCard } from './PrescriptionManufacturingCard'
+import { toast } from 'sonner'
+import { prescriptionApi } from '@/lib/prescription-api'
 
 interface Props {
   open: boolean
@@ -24,9 +28,10 @@ interface Props {
   onClose: () => void
   onVerified?: (id: string) => void
   onRejected?: (id: string) => void
+  onManufacturingCompleted?: () => void
 }
 
-export function PrescriptionViewModal({ open, prescription, onClose, onVerified, onRejected }: Props) {
+export function PrescriptionViewModal({ open, prescription, onClose, onVerified, onRejected, onManufacturingCompleted }: Props) {
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
   const [brightness, setBrightness] = useState(100)
@@ -40,6 +45,19 @@ export function PrescriptionViewModal({ open, prescription, onClose, onVerified,
   const handleReject = () => {
     if (prescription && onRejected) {
       onRejected(prescription._id)
+    }
+  }
+
+  const handleManufacturingCompleted = async () => {
+    try {
+      // Refresh the prescription data
+      if (prescription) {
+        const updated = await prescriptionApi.getPrescriptionById(prescription._id)
+        // Update the parent's prescription reference
+        onManufacturingCompleted?.()
+      }
+    } catch (error) {
+      console.error('Failed to refresh prescription:', error)
     }
   }
 
@@ -131,6 +149,40 @@ export function PrescriptionViewModal({ open, prescription, onClose, onVerified,
                   {prescription.pd.left !== undefined && <Grid size={{ xs: 4 }}><Typography variant="caption" color="text.secondary">Left</Typography><Typography variant="body1">{prescription.pd.left}</Typography></Grid>}
                   {prescription.pd.total !== undefined && <Grid size={{ xs: 4 }}><Typography variant="caption" color="text.secondary">Total</Typography><Typography variant="body1">{prescription.pd.total}</Typography></Grid>}
                 </Grid>
+              </Box>
+            )}
+
+            {/* Manufacturing Proof Section - only show for verified prescriptions */}
+            {prescription.isVerified && (
+              <Box sx={{ mt: 3 }}>
+                <PrescriptionManufacturingCard
+                  prescriptionId={prescription._id}
+                  prescriptionData={prescription.pd ? {
+                    pd: prescription.pd.total ?? prescription.pd.right ?? prescription.pd.left ?? 0,
+                    sph: {
+                      right: prescription.rightEye?.sph ?? 0,
+                      left: prescription.leftEye?.sph ?? 0,
+                    },
+                    cyl: {
+                      right: prescription.rightEye?.cyl ?? 0,
+                      left: prescription.leftEye?.cyl ?? 0,
+                    },
+                    axis: {
+                      right: prescription.rightEye?.axis ?? 0,
+                      left: prescription.leftEye?.axis ?? 0,
+                    },
+                    add: {
+                      right: prescription.rightEye?.add ?? 0,
+                      left: prescription.leftEye?.add ?? 0,
+                    },
+                  } : undefined}
+                  manufacturingStatus={prescription.manufacturingStatus ? {
+                    manufacturingProofUrl: prescription.manufacturingProofUrl,
+                    manufacturingStatus: prescription.manufacturingStatus,
+                    manufacturedAt: prescription.manufacturedAt,
+                  } : undefined}
+                  onCompleted={handleManufacturingCompleted}
+                />
               </Box>
             )}
           </Grid>

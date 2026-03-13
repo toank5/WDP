@@ -1,3 +1,6 @@
+/**
+ * Policy Types Enumeration
+ */
 export enum POLICY_TYPES {
   RETURN = 'return',
   REFUND = 'refund',
@@ -8,13 +11,3 @@ export enum POLICY_TYPES {
   PRIVACY = 'privacy',
   TERMS = 'terms',
 }
-
-export type PolicyType =
-  | 'return'
-  | 'refund'
-  | 'warranty'
-  | 'shipping'
-  | 'prescription'
-  | 'cancellation'
-  | 'privacy'
-  | 'terms';

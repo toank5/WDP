@@ -81,6 +81,14 @@ export function extractApiMessage(error: unknown): string {
     const data = error.response?.data
 
     if (isObject(data)) {
+      // Check for reasons array (used in return API)
+      if (hasProperty(data, 'reasons') && isNonEmptyArray(data.reasons)) {
+        const reasons = data.reasons as unknown[]
+        if (reasons.every((r) => typeof r === 'string')) {
+          return (reasons as string[]).join('\n• ')
+        }
+      }
+
       // Check for errors array
       if (hasProperty(data, 'errors') && isNonEmptyArray(data.errors)) {
         const errors = data.errors as unknown[]
@@ -96,6 +104,13 @@ export function extractApiMessage(error: unknown): string {
 
       // Check for message
       if (hasProperty(data, 'message') && isNonEmptyString(data.message)) {
+        // If there's also a reasons array, combine them
+        if (hasProperty(data, 'reasons') && isNonEmptyArray(data.reasons)) {
+          const reasons = data.reasons as unknown[]
+          if (reasons.every((r) => typeof r === 'string')) {
+            return `${data.message}\n• ${(reasons as string[]).join('\n• ')}`
+          }
+        }
         return data.message
       }
     }

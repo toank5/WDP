@@ -16,8 +16,8 @@ import {
   Fab,
   Switch,
   FormControlLabel,
+  Grid,
 } from '@mui/material';
-import Grid from '@mui/material/Grid2';
 import {
   Close as CloseIcon,
   ShoppingCart as CartIcon,
@@ -563,9 +563,9 @@ export function VirtualTryOnView() {
             <Typography variant="subtitle2" color="white" sx={{ mb: 1, textAlign: 'center' }}>
               Your Snapshots ({snapshots.length})
             </Typography>
-            <Grid container spacing={1} columns={4}>
+            <Grid container spacing={1}>
               {snapshots.slice(0, 4).map((snapshot) => (
-                <Grid size={{ xs: 1 }} key={snapshot.id}>
+                <Grid size={{ xs: 3 }} key={snapshot.id}>
                   <SnapshotCard
                     snapshot={snapshot}
                     variantName={currentVariant.name}

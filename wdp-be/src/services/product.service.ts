@@ -12,7 +12,7 @@ import {
   CreateProductDto,
   UpdateProductDto,
 } from '../commons/dtos/product.dto';
-import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
+import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 import { CloudinaryService } from '../commons/services/cloudinary.service';
 import { InventoryService } from './inventory.service';
 import type {
