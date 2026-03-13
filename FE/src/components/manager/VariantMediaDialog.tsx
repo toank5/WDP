@@ -61,7 +61,7 @@ export function VariantMediaDialog({
 
   // File size limits (in bytes)
   const MAX_2D_SIZE = 10 * 1024 * 1024 // 10MB
-  const MAX_3D_SIZE = 50 * 1024 * 1024 // 50MB
+  const MAX_3D_SIZE = 10 * 1024 * 1024 // 10MB (Cloudinary limit)
 
   // Reset state when dialog opens with new variant data
   useEffect(() => {
@@ -115,7 +115,7 @@ export function VariantMediaDialog({
     const oversizedFiles = newFiles.filter((file) => file.size > MAX_3D_SIZE)
     if (oversizedFiles.length > 0) {
       setValidationError(
-        `The following 3D model(s) exceed the 50MB limit: ${oversizedFiles.map((f) => f.name).join(', ')}`
+        `The following 3D model(s) exceed the 10MB limit: ${oversizedFiles.map((f) => f.name).join(', ')}`
       )
       return
     }

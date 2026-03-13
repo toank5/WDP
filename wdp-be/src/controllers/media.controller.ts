@@ -23,9 +23,15 @@ import { MediaService } from '../commons/services/media.service';
 import { RbacGuard } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
-// Upload size limits from environment (in MB)
-const MAX_SIZE_2D = (Number(process.env.UPLOAD_MAX_SIZE_2D) || 10) * 1024 * 1024;
-const MAX_SIZE_3D = (Number(process.env.UPLOAD_MAX_SIZE_3D) || 50) * 1024 * 1024;
+// Upload size limits (hardcoded for webpack compatibility)
+// 2D images: 10MB, 3D models: 10MB (Cloudinary free tier limit)
+const MAX_SIZE_2D = 10 * 1024 * 1024; // 10MB
+const MAX_SIZE_3D = 10 * 1024 * 1024; // 10MB (Cloudinary limit)
+
+console.log('[Media Controller] Upload limits initialized:', {
+  MAX_SIZE_2D: `${MAX_SIZE_2D} bytes (10MB)`,
+  MAX_SIZE_3D: `${MAX_SIZE_3D} bytes (10MB)`,
+});
 
 @ApiTags('Media')
 @Controller('manager/media')
@@ -152,7 +158,7 @@ export class MediaController {
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'Up to 5 3D model files (.glb, .gltf, .usdz, max 50MB each)',
+    description: 'Up to 5 3D model files (.glb, .gltf, .usdz, max 10MB each)',
     schema: {
       type: 'object',
       properties: {
@@ -182,6 +188,18 @@ export class MediaController {
     type: ErrorResponseDto,
   })
   async upload3DModels(@UploadedFiles() files: Express.Multer.File[]) {
+    console.log('[Media Controller] upload3DModels called');
+    console.log('[Media Controller] Files received:', files?.length);
+    if (files) {
+      files.forEach((f, i) => {
+        console.log(`[Media Controller] File ${i + 1}:`, {
+          name: f.originalname,
+          size: f.size,
+          mimetype: f.mimetype,
+        });
+      });
+    }
+
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }

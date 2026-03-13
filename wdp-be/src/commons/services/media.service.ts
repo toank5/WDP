@@ -41,11 +41,11 @@ export class MediaService {
   }
 
   /**
-   * Maximum file size for 3D models (default: 50MB)
+   * Maximum file size for 3D models (default: 10MB - Cloudinary free tier limit)
    * Can be overridden via UPLOAD_MAX_SIZE_3D env var (in MB)
    */
   private get MAX_3D_SIZE(): number {
-    const maxSizeMB = this.configService.get<number>('UPLOAD_MAX_SIZE_3D', 50);
+    const maxSizeMB = this.configService.get<number>('UPLOAD_MAX_SIZE_3D', 10);
     return maxSizeMB * 1024 * 1024;
   }
 
