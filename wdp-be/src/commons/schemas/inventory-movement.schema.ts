@@ -27,7 +27,7 @@ export class InventoryMovement extends Document {
   @Prop({ required: true, index: true })
   sku!: string;
 
-  @Prop({ required: true, enum: MovementType })
+  @Prop({ required: true, type: String, enum: MovementType })
   movementType!: MovementType;
 
   @Prop({ required: true })

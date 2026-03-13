@@ -23,6 +23,10 @@ import { MediaService } from '../commons/services/media.service';
 import { RbacGuard } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
+// Upload size limits from environment (in MB)
+const MAX_SIZE_2D = (Number(process.env.UPLOAD_MAX_SIZE_2D) || 10) * 1024 * 1024;
+const MAX_SIZE_3D = (Number(process.env.UPLOAD_MAX_SIZE_3D) || 50) * 1024 * 1024;
+
 @ApiTags('Media')
 @Controller('manager/media')
 export class MediaController {
@@ -50,7 +54,7 @@ export class MediaController {
         cb(null, true);
       },
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fileSize: MAX_SIZE_2D,
       },
     }),
   )
@@ -136,7 +140,7 @@ export class MediaController {
         cb(null, true);
       },
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB limit
+        fileSize: MAX_SIZE_3D,
       },
     }),
   )

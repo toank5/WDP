@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { VNPay } from 'vnpay';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - vnpay uses ESM exports, require resolution with commonjs
 import { HashAlgorithm, ProductCode, VnpLocale } from 'vnpay/enums';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - vnpay uses ESM exports, require resolution with commonjs
 import type { ReturnQueryFromVNPay } from 'vnpay/types';
 import {
   VNPayPaymentRequestDto,
