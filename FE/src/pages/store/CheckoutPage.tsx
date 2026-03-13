@@ -16,7 +16,7 @@ import {
 } from 'react-icons/fi'
 import { cartApi, normalizeCartItemPrice } from '@/lib/cart-api'
 import { useCart, useCartStore } from '@/store/cart.store'
-import { orderApi, CheckoutRequest, OrderType, PaymentMethod } from '@/lib/order-api'
+import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
 
@@ -313,7 +313,7 @@ const CheckoutPage: React.FC = () => {
           priceAtOrder: normalizeCartItemPrice(item),
         })),
         shippingAddress,
-        shippingMethod: 'STANDARD', // Default shipping method
+        shippingMethod: ShippingMethod.STANDARD, // Default shipping method
         payment: {
           method: paymentMethod,
         },

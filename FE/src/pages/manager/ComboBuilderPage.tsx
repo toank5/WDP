@@ -26,12 +26,12 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Grid,
   Card,
   CardContent,
   Stack,
   Divider,
   Tooltip,
+  Grid,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -53,7 +53,7 @@ import {
   type CreateComboDto,
   type UpdateComboDto,
 } from '@/lib/combo-api'
-import { getAllProducts, type Product } from '@/lib/product-api'
+import { getProductsCatalog, type Product } from '@/lib/product-api'
 
 const ComboBuilderPage: React.FC = () => {
   const [combos, setCombos] = useState<Combo[]>([])
@@ -100,7 +100,7 @@ const ComboBuilderPage: React.FC = () => {
       const [combosData, statsData, productsData] = await Promise.all([
         getAllCombos({ limit: 100 }),
         getComboStatistics(),
-        getAllProducts({ limit: 500, status: 'ACTIVE' }),
+        getProductsCatalog({ limit: 500, status: 'ACTIVE' }),
       ])
       setCombos(combosData.items)
       setStats(statsData)
@@ -323,25 +323,25 @@ const ComboBuilderPage: React.FC = () => {
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">Total Combos</Typography>
             <Typography variant="h4">{stats.totalCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'success.light', color: 'success.dark' }}>
             <Typography variant="body2">Active</Typography>
             <Typography variant="h4">{stats.activeCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.light', color: 'warning.dark' }}>
             <Typography variant="body2">Featured</Typography>
             <Typography variant="h4">{stats.featuredCombos}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'error.light', color: 'error.dark' }}>
             <Typography variant="body2">Expiring Soon</Typography>
             <Typography variant="h4">{stats.expiringSoon}</Typography>
@@ -467,7 +467,7 @@ const ComboBuilderPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Combo Name"
@@ -477,7 +477,7 @@ const ComboBuilderPage: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Description"
@@ -488,7 +488,7 @@ const ComboBuilderPage: React.FC = () => {
                 placeholder="Describe the benefits of this combo package..."
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth required>
                 <InputLabel>Frame Product</InputLabel>
                 <Select
@@ -504,7 +504,7 @@ const ComboBuilderPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth required>
                 <InputLabel>Lens Product</InputLabel>
                 <Select
@@ -520,7 +520,7 @@ const ComboBuilderPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -531,7 +531,7 @@ const ComboBuilderPage: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -542,7 +542,7 @@ const ComboBuilderPage: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
                 <Typography variant="caption" color="text.secondary">
                   Customer Savings
@@ -555,7 +555,7 @@ const ComboBuilderPage: React.FC = () => {
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -565,7 +565,7 @@ const ComboBuilderPage: React.FC = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -575,7 +575,7 @@ const ComboBuilderPage: React.FC = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -585,7 +585,7 @@ const ComboBuilderPage: React.FC = () => {
                 helperText="0 = unlimited"
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -599,7 +599,7 @@ const ComboBuilderPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Stack direction="row" spacing={2}>
                 <FormControlLabel
                   control={

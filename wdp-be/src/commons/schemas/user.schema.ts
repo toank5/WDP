@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { ROLES } from 'src/commons/enums/role.enum';
+import { ROLES } from '@eyewear/shared';
 import { Address, AddressSchema } from './address.schema';
 import { userValidation } from 'src/commons/validations/user.validation';
 
@@ -55,8 +55,39 @@ export class User {
   })
   avatar: string;
 
+  @Prop()
+  phone?: string;
+
+  @Prop()
+  dateOfBirth?: Date;
+
+  @Prop()
+  preferredLanguage?: string;
+
+  @Prop()
+  preferredCurrency?: string;
+
   @Prop({ type: [AddressSchema], default: [] })
   addresses: Address[];
+
+  // User preferences
+  @Prop({
+    type: {
+      newsletterSubscribed: { type: Boolean, default: false },
+      emailOffers: { type: Boolean, default: false },
+      newCollectionAlerts: { type: Boolean, default: false },
+    },
+    default: {
+      newsletterSubscribed: false,
+      emailOffers: false,
+      newCollectionAlerts: false,
+    },
+  })
+  preferences?: {
+    newsletterSubscribed: boolean;
+    emailOffers: boolean;
+    newCollectionAlerts: boolean;
+  };
 
   // Email verification fields
   @Prop({ default: false })

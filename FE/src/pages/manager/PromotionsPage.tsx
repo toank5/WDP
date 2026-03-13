@@ -26,12 +26,12 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Grid,
   Card,
   CardContent,
   Stack,
   Divider,
   Tooltip,
+  Grid,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -315,31 +315,31 @@ const PromotionsPage: React.FC = () => {
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">Total</Typography>
             <Typography variant="h4">{stats.totalPromotions}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'success.light', color: 'success.dark' }}>
             <Typography variant="body2">Active</Typography>
             <Typography variant="h4">{stats.activePromotions}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.light', color: 'info.dark' }}>
             <Typography variant="body2">Scheduled</Typography>
             <Typography variant="h4">{stats.scheduledPromotions}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.light', color: 'warning.dark' }}>
             <Typography variant="body2">Featured</Typography>
             <Typography variant="h4">{stats.featuredPromotions}</Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">Total Usage</Typography>
             <Typography variant="h4">{stats.totalUsage}</Typography>
@@ -470,7 +470,7 @@ const PromotionsPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Promotion Code"
@@ -480,7 +480,7 @@ const PromotionsPage: React.FC = () => {
                 helperText={editingPromotion ? 'Code cannot be changed' : 'Unique code for the promotion'}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Type</InputLabel>
                 <Select
@@ -493,7 +493,7 @@ const PromotionsPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Promotion Name"
@@ -502,7 +502,7 @@ const PromotionsPage: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Description"
@@ -512,7 +512,7 @@ const PromotionsPage: React.FC = () => {
                 rows={2}
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -522,7 +522,7 @@ const PromotionsPage: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -531,7 +531,7 @@ const PromotionsPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, minOrderValue: Number(e.target.value) })}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -541,7 +541,7 @@ const PromotionsPage: React.FC = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -551,7 +551,7 @@ const PromotionsPage: React.FC = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -560,7 +560,7 @@ const PromotionsPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, usageLimit: Number(e.target.value) || undefined })}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -574,7 +574,7 @@ const PromotionsPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Stack direction="row" spacing={2}>
                 <FormControlLabel
                   control={

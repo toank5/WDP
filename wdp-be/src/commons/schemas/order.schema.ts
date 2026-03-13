@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { ORDER_STATUS, ORDER_TYPES } from '../enums/order.enum';
+import { ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
 import { OrderItem, OrderItemSchema } from './order-item.schema';
 import { orderValidation } from '../validations/order.validation';
 import { OrderPayment, OrderPaymentSchema } from './order-payment.schema';

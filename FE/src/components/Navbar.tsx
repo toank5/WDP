@@ -42,13 +42,15 @@ import {
 import { useAuthStore } from '@/store/auth-store'
 import { useCart } from '@/store/cart.store'
 import { wishlistApi } from '@/lib/wishlist-api'
+import { toast } from 'sonner'
 
-const roleLabels: Record<number, string> = {
-  0: 'Admin',
-  1: 'Manager',
-  2: 'Operation',
-  3: 'Sale',
-  4: 'Customer',
+// Role labels matching the UserRole string type
+const roleLabels: Record<string, string> = {
+  ADMIN: 'Admin',
+  MANAGER: 'Manager',
+  OPERATION: 'Operation',
+  SALE: 'Sale',
+  CUSTOMER: 'Customer',
 }
 
 // Navigation links config
@@ -65,6 +67,19 @@ export function Navbar() {
   const location = useLocation()
   const { isAuthenticated, logout, user } = useAuthStore()
   const { totalItems: cartCount, loadCart } = useCart()
+
+  // Debug logging for role
+  React.useEffect(() => {
+    if (user) {
+      console.log('[Navbar] Current user:', {
+        fullName: user.fullName,
+        role: user.role,
+        roleType: typeof user.role,
+        isCustomer: user.role === 'CUSTOMER',
+        showFavorites: user.role === 'CUSTOMER',
+      })
+    }
+  }, [user])
 
   // State
   const [wishlistCount, setWishlistCount] = useState(0)
@@ -132,6 +147,7 @@ export function Navbar() {
 
   const handleLogout = () => {
     logout()
+    toast.success('Logged out successfully')
     navigate('/')
     handleAccountMenuClose()
   }
@@ -222,7 +238,7 @@ export function Navbar() {
                   {user?.fullName}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {roleLabels[user?.role ?? 4] || 'Customer'}
+                  {roleLabels[user?.role ?? 'CUSTOMER'] || 'Customer'}
                 </Typography>
               </Box>
             </ListItem>
@@ -248,20 +264,23 @@ export function Navbar() {
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton onClick={() => navigate('/favorites')}>
-                <ListItemIcon>
-                  <FavoriteBorderIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Favorites"
-                  secondary={wishlistCount > 0 ? `${wishlistCount} items` : undefined}
-                />
-              </ListItemButton>
-            </ListItem>
+            {/* Favorites - Customer only */}
+            {user?.role === 'CUSTOMER' && (
+              <ListItem disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton onClick={() => navigate('/favorites')}>
+                  <ListItemIcon>
+                    <FavoriteBorderIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Favorites"
+                    secondary={wishlistCount > 0 ? `${wishlistCount} items` : undefined}
+                  />
+                </ListItemButton>
+              </ListItem>
+            )}
 
             {/* Dashboard link for non-customers */}
-            {user && user.role !== 4 && (
+            {user && user.role !== 'CUSTOMER' && (
               <ListItem disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton onClick={() => navigate('/dashboard')}>
                   <ListItemIcon>
@@ -444,17 +463,19 @@ export function Navbar() {
               <SearchIcon />
             </IconButton>
 
-            {/* Favorites */}
-            <IconButton
-              size="small"
-              color="inherit"
-              onClick={() => navigate('/favorites')}
-              sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 44, minHeight: 44 }}
-            >
-              <Badge badgeContent={wishlistCount} color="primary" max={99}>
-                <FavoriteBorderIcon />
-              </Badge>
-            </IconButton>
+            {/* Favorites - Customer only */}
+            {user?.role === 'CUSTOMER' && (
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={() => navigate('/favorites')}
+                sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 44, minHeight: 44 }}
+              >
+                <Badge badgeContent={wishlistCount} color="primary" max={99}>
+                  <FavoriteBorderIcon />
+                </Badge>
+              </IconButton>
+            )}
 
             {/* Cart */}
             <IconButton
@@ -496,7 +517,7 @@ export function Navbar() {
                       {user?.fullName}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {roleLabels[user?.role ?? 4] || 'Customer'}
+                      {roleLabels[user?.role as string] || 'Customer'}
                     </Typography>
                   </Box>
 
@@ -508,21 +529,24 @@ export function Navbar() {
                     <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
                     My Orders
                   </MenuItem>
-                  <MenuItem onClick={() => navigate('/favorites')}>
-                    <FavoriteBorderIcon fontSize="small" sx={{ mr: 1 }} />
-                    Favorites
-                    {wishlistCount > 0 && (
-                      <Badge
-                        badgeContent={wishlistCount}
-                        color="primary"
-                        sx={{ ml: 1 }}
-                        max={99}
-                      />
-                    )}
-                  </MenuItem>
+                  {/* Favorites - Customer only */}
+                  {user?.role === 'CUSTOMER' && (
+                    <MenuItem onClick={() => navigate('/favorites')}>
+                      <FavoriteBorderIcon fontSize="small" sx={{ mr: 1 }} />
+                      Favorites
+                      {wishlistCount > 0 && (
+                        <Badge
+                          badgeContent={wishlistCount}
+                          color="primary"
+                          sx={{ ml: 1 }}
+                          max={99}
+                        />
+                      )}
+                    </MenuItem>
+                  )}
 
                   {/* Dashboard for non-customers */}
-                  {user && user.role !== 4 && (
+                  {user && user.role !== 'CUSTOMER' && (
                     <MenuItem onClick={() => navigate('/dashboard')}>
                       <DashboardIcon fontSize="small" sx={{ mr: 1 }} />
                       Dashboard

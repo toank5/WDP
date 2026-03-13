@@ -42,7 +42,7 @@ import { Cart, CartSchema } from './commons/schemas/cart.schema';
 import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
 import { CheckoutController } from './controllers/checkout.controller';
 import { CheckoutService } from './services/checkout.service';
-import { OrderController } from './controllers/order.controller';
+import { OrderController, StaffOrderController } from './controllers/order.controller';
 import { OrderService } from './services/order.service';
 import { Order, OrderSchema } from './commons/schemas/order.schema';
 import {
@@ -71,12 +71,27 @@ import { PrescriptionModule } from './prescription.module';
 import { ReviewController } from './controllers/review.controller';
 import { ReviewService } from './services/review.service';
 import { Review, ReviewSchema } from './commons/schemas/review.schema';
-import { ComboController, PublicComboController } from './controllers/combo.controller';
+import {
+  ComboController,
+  PublicComboController,
+} from './controllers/combo.controller';
 import { ComboService } from './services/combo.service';
 import { Combo, ComboSchema } from './commons/schemas/combo.schema';
-import { PromotionController, PublicPromotionController } from './controllers/promotion.controller';
+import {
+  PromotionController,
+  PublicPromotionController,
+} from './controllers/promotion.controller';
 import { PromotionService } from './services/promotion.service';
 import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
+import { AccountController } from './controllers/account.controller';
+import { RevenueController } from './controllers/revenue.controller';
+import { RevenueService } from './services/revenue.service';
+import { CustomerReturnController, StaffReturnController } from './controllers/return.controller';
+import { ReturnService } from './services/return.service';
+import { ReturnRequest, ReturnRequestSchema } from './commons/schemas/return.schema';
+import { FavoriteController } from './controllers/favorite.controller';
+import { FavoriteService } from './services/favorite.service';
+import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
 
 @Module({
   imports: [
@@ -143,6 +158,8 @@ import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
       { name: Review.name, schema: ReviewSchema },
       { name: Combo.name, schema: ComboSchema },
       { name: Promotion.name, schema: PromotionSchema },
+      { name: ReturnRequest.name, schema: ReturnRequestSchema },
+      { name: Favorite.name, schema: FavoriteSchema },
     ]),
     PreorderModule,
     PrescriptionModule,
@@ -150,6 +167,7 @@ import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
   controllers: [
     AppController,
     AuthController,
+    AccountController,
     UserController,
     PolicyController,
     ProductController,
@@ -160,12 +178,17 @@ import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
     MediaController,
     CartController,
     OrderController,
+    StaffOrderController,
     CheckoutController,
     ReviewController,
     ComboController,
     PublicComboController,
     PromotionController,
     PublicPromotionController,
+    RevenueController,
+    CustomerReturnController,
+    StaffReturnController,
+    FavoriteController,
   ],
   providers: [
     AppService,
@@ -187,6 +210,9 @@ import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
     ReviewService,
     ComboService,
     PromotionService,
+    RevenueService,
+    ReturnService,
+    FavoriteService,
   ],
 })
 export class AppModule {}

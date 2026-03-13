@@ -16,14 +16,11 @@
  *   - password: NOT in UpdateUserDto (use separate password change endpoint)
  */
 
-// Mirror of backend ROLES enum (wdp-be/src/commons/enums/role.enum.ts)
-export const ROLES = {
-  ADMIN: 0,
-  MANAGER: 1,
-  OPERATION: 2,
-  SALE: 3,
-  CUSTOMER: 4,
-} as const
+// Import ROLES from shared package
+import { USER_ROLES } from '@eyewear/shared';
+
+// Re-export as ROLES for backward compatibility
+export const ROLES = USER_ROLES;
 
 export type RoleType = (typeof ROLES)[keyof typeof ROLES]
 

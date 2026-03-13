@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { PREORDER_STATUS } from '../enums/preorder.enum';
-import { PRESCRIPTION_STATUS } from '../enums/order.enum';
+import { PREORDER_STATUS } from '@eyewear/shared';
+import { PRESCRIPTION_STATUS } from '@eyewear/shared';
 import { OrderPrescriptionSchema } from './order-prescription.schema';
 
 @Schema({ _id: false })

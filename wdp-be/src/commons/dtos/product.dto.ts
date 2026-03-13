@@ -23,7 +23,7 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '../enums/product.enum';
+} from '@eyewear/shared';
 import {
   CategoryRequiredFields,
   Images2DNotEmpty,

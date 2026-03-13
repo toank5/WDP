@@ -53,7 +53,7 @@ import {
   VNPayCallbackParamsDto,
   VNPayVerificationResultDto,
 } from '../dtos/vnpay.dto';
-import { ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_STATUS } from '@eyewear/shared';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -735,5 +735,52 @@ export class OrderController {
       total,
       byStatus: statusCounts,
     };
+  }
+}
+
+/**
+ * Staff Order Management Controller
+ *
+ * Endpoints for staff (Operation/Sale/Manager/Admin) to view and manage orders
+ * Separate from customer endpoints to prevent unauthorized access
+ */
+@ApiTags('Orders - Staff Management')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RbacGuard)
+@Controller('staff/orders')
+export class StaffOrderController {
+  constructor(private readonly orderService: OrderService) {}
+
+  /**
+   * Get order details (Staff view)
+   * GET /staff/orders/:id
+   *
+   * Staff can view any order for business purposes:
+   * - Sale staff: to approve orders and process prescriptions
+   * - Operation staff: to fulfill and ship orders
+   * - Manager/Admin: full access for oversight
+   */
+  @Get(':id')
+  @Roles(UserRole.SALE, UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get order details (Staff view)',
+    description: 'Returns detailed information about a specific order. Staff can view all orders for business operations.',
+  })
+  @ApiOkResponse({
+    description: 'Order retrieved successfully',
+    type: OrderResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Order not found',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
+  async getStaffOrderById(
+    @Param('id') orderId: string,
+  ): Promise<OrderResponseDto> {
+    // Staff can view any order without ownership restriction
+    // This is necessary for business operations
+    return this.orderService.getOrderById(orderId);
   }
 }

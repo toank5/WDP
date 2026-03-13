@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ROLES } from '../enums/role.enum';
-import { ADDRESS_TYPES } from '../enums/address.enum';
+import { ROLES } from '@eyewear/shared';
+import { ADDRESS_TYPES } from '@eyewear/shared';
 
 const FullNameField = z
   .string()

@@ -11,8 +11,7 @@ import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Inventory } from '../commons/schemas/inventory.schema';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
-import { ORDER_STATUS, ORDER_TYPES } from '../commons/enums/order.enum';
+import { PREORDER_STATUS, ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
 import {
   CreateCheckoutDto,
   CheckoutCalculation,

@@ -3,59 +3,32 @@
 import axios from 'axios'
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
+import { useAuthStore } from '@/store/auth-store'
+import { ROLES } from './validations'
+import {
+  ORDER_TYPES,
+  ORDER_STATUS,
+  PRESCRIPTION_STATUS,
+  PAYMENT_METHOD,
+  PREORDER_STATUS,
+  PAYMENT_STATUS,
+  SHIPPING_METHOD,
+  SHIPPING_CARRIER,
+} from '@eyewear/shared'
 
 // Get the API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost://3000'
 
-// Order enums
-export enum OrderType {
-  READY = 'READY',
-  PREORDER = 'PREORDER',
-  PRESCRIPTION = 'PRESCRIPTION',
-}
-
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  PENDING_PAYMENT = 'PENDING_PAYMENT',
-  PAID = 'PAID',
-  ON_HOLD = 'ON_HOLD',
-  PROCESSING = 'PROCESSING',
-  CONFIRMED = 'CONFIRMED',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  RETURNED = 'RETURNED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum PrescriptionStatus {
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  NEEDS_UPDATE = 'NEEDS_UPDATE',
-  APPROVED = 'APPROVED',
-  IN_MANUFACTURING = 'IN_MANUFACTURING',
-  READY_TO_SHIP = 'READY_TO_SHIP',
-  COMPLETED = 'COMPLETED',
-}
-
-export enum PaymentMethod {
-  VNPAY = 'VNPAY',
-  CASH = 'CASH',
-  BANK_TRANSFER = 'BANK_TRANSFER',
-}
-
-export enum PreorderStatus {
-  PENDING_STOCK = 'PENDING_STOCK',
-  PARTIALLY_RESERVED = 'PARTIALLY_RESERVED',
-  READY_TO_FULFILL = 'READY_TO_FULFILL',
-  FULFILLED = 'FULFILLED',
-  CANCELED = 'CANCELED',
-}
-
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+// Re-export enums with PascalCase naming for backward compatibility
+// Enums can be used as both values and types in TypeScript
+export { ORDER_TYPES as OrderType }
+export { ORDER_STATUS as OrderStatus }
+export { PRESCRIPTION_STATUS as PrescriptionStatus }
+export { PAYMENT_METHOD as PaymentMethod }
+export { PREORDER_STATUS as PreorderStatus }
+export { PAYMENT_STATUS as PaymentStatus }
+export { SHIPPING_METHOD as ShippingMethod }
+export { SHIPPING_CARRIER as ShippingCarrier }
 
 // Order types
 export interface ShippingAddress {
@@ -82,12 +55,12 @@ export interface OrderItem {
   }
   // Pre-order fields
   isPreorder?: boolean
-  preorderStatus?: PreorderStatus
+  preorderStatus?: PREORDER_STATUS
   expectedShipDate?: string
   reservedQuantity?: number
   // Prescription fields
   isPrescription?: boolean
-  prescriptionStatus?: PrescriptionStatus
+  prescriptionStatus?: PRESCRIPTION_STATUS
   prescriptionData?: PrescriptionData
   prescriptionUrl?: string
   // Manufacturing proof fields (on OrderItem level)
@@ -121,7 +94,7 @@ export interface OrderPayment {
   amount: number
   transactionId?: string
   paidAt?: Date | string
-  status?: PaymentStatus
+  status?: PAYMENT_STATUS
 }
 
 export interface OrderTracking {
@@ -132,7 +105,7 @@ export interface OrderTracking {
 }
 
 export interface OrderHistoryItem {
-  status: OrderStatus
+  status: ORDER_STATUS
   changedBy?: string
   timestamp: Date
   note?: string
@@ -142,8 +115,8 @@ export interface Order {
   _id: string
   orderNumber: string
   customerId: string
-  orderType: OrderType
-  orderStatus: OrderStatus
+  orderType: ORDER_TYPES
+  orderStatus: ORDER_STATUS
   items: OrderItem[]
   subtotal: number
   shippingFee: number
@@ -173,11 +146,11 @@ export interface CheckoutRequest {
     priceAtOrder: number
   }>
   shippingAddress: ShippingAddress
-  shippingMethod: 'STANDARD' | 'EXPRESS'
+  shippingMethod: SHIPPING_METHOD
   payment: {
-    method: PaymentMethod
+    method: PAYMENT_METHOD
   }
-  orderType?: OrderType
+  orderType?: ORDER_TYPES
   notes?: string
   promotionCode?: string
 }
@@ -188,10 +161,10 @@ export interface CheckoutResponse {
 }
 
 export interface OrderListQueryParams {
-  status?: OrderStatus
+  status?: ORDER_STATUS
   showAll?: boolean
   search?: string
-  orderType?: OrderType
+  orderType?: ORDER_TYPES
   dateFrom?: string
   dateTo?: string
   page?: number
@@ -328,8 +301,8 @@ class OrderAPI {
           _id: data.orderId,
           orderNumber: data.orderNumber,
           customerId: '',
-          orderType: request.orderType || OrderType.READY,
-          orderStatus: OrderStatus.PENDING,
+          orderType: request.orderType || ORDER_TYPES.READY,
+          orderStatus: ORDER_STATUS.PENDING,
           items: [],
           subtotal: 0,
           shippingFee: 0,
@@ -530,10 +503,22 @@ class OrderAPI {
 
   /**
    * Get order by ID
+   * Uses different endpoints based on user role:
+   * - Staff (ADMIN, MANAGER, OPERATION, SALE): /staff/orders/:id
+   * - Customer: /orders/:id
    */
   async getOrderById(orderId: string): Promise<Order> {
     try {
-      const response = await api.get(`/orders/${orderId}`)
+      // Get current user role from auth store
+      const authState = useAuthStore.getState()
+      const userRole = authState.user?.role
+
+      // Determine endpoint based on role
+      // Staff roles (0-3) use staff endpoint, customers (4) use customer endpoint
+      const isStaff = userRole !== undefined && userRole < ROLES.CUSTOMER
+      const endpoint = isStaff ? `/staff/orders/${orderId}` : `/orders/${orderId}`
+
+      const response = await api.get(endpoint)
 
       return unwrapApiPayload<Order>(response.data)
     } catch (error) {
@@ -588,7 +573,7 @@ class OrderAPI {
   /**
    * Update order fulfillment status.
    */
-  async updateOrderStatus(orderId: string, status: OrderStatus, note?: string): Promise<Order> {
+  async updateOrderStatus(orderId: string, status: ORDER_STATUS, note?: string): Promise<Order> {
     try {
       const response = await api.patch(`/orders/${orderId}/status`, {
         status,
@@ -638,7 +623,7 @@ class OrderAPI {
       estimatedDelivery: request.estimatedDelivery,
     })
 
-    return this.updateOrderStatus(orderId, OrderStatus.SHIPPED, request.note)
+    return this.updateOrderStatus(orderId, ORDER_STATUS.SHIPPED, request.note)
   }
 
   /**

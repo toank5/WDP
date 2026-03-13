@@ -13,7 +13,6 @@ import { getActivePromotions, type Promotion, validatePromotion } from '@/lib/pr
 import {
   Box,
   Container,
-  Grid,
   Typography,
   Button,
   Chip,
@@ -35,6 +34,7 @@ import {
   TextField,
   useTheme,
   useMediaQuery,
+  Grid,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,

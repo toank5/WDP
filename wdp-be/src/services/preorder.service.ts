@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Order } from '../commons/schemas/order.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { InventoryMovement } from '../commons/schemas/inventory-movement.schema';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
+import { PREORDER_STATUS } from '@eyewear/shared';
 import {
   PreorderOverviewDto,
   PreorderInventoryViewDto,

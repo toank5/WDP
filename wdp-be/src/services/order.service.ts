@@ -39,8 +39,8 @@ import {
   ORDER_STATUS,
   ORDER_TYPES,
   PRESCRIPTION_STATUS,
-} from '../commons/enums/order.enum';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
+  PREORDER_STATUS,
+} from '@eyewear/shared';
 import { Request } from 'express';
 import {
   VNPayCallbackParamsDto,

@@ -41,7 +41,7 @@ import {
   ListProductsQueryDto,
 } from '../commons/dtos/product.dto';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
-import { PRODUCT_CATEGORIES } from '../commons/enums/product.enum';
+import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
 @ApiTags('Products')

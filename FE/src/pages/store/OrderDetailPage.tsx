@@ -17,6 +17,9 @@ import { formatImageUrl } from '@/lib/product-api'
 import { reviewApi, Review, UnreviewedProduct } from '@/lib/review-api'
 import { ReviewFormModal } from '@/components/review'
 import { FiStar } from 'react-icons/fi'
+import { useReturnPolicy, isItemReturnable, getProductReturnType } from '@/hooks/useReturnPolicy'
+import { ReturnPolicyDialog, RequestReturnDialog } from '@/components/returns'
+import { returnApi, ReturnStatus, type ReturnRequest, getReturnStatusLabel } from '@/lib/return-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -125,6 +128,55 @@ const OrderTimeline: React.FC<{ history?: Array<{ status: string; timestamp: Dat
   )
 }
 
+// Helper component: Return eligibility info for an order item
+interface ReturnEligibilityInfoProps {
+  orderItem: Order['items'][0]
+  deliveredAt?: string
+  returnPolicy: ReturnType<typeof useReturnPolicy>['data']
+}
+
+const ReturnEligibilityInfo: React.FC<ReturnEligibilityInfoProps> = ({ orderItem, deliveredAt, returnPolicy }) => {
+  if (!returnPolicy) return null
+
+  const productType = getProductReturnType({
+    isPrescription: orderItem.isPrescription,
+    isPreorder: orderItem.isPreorder,
+  })
+
+  const eligibility = isItemReturnable(returnPolicy, productType, undefined, deliveredAt)
+
+  // Get return window text based on product type
+  const getReturnWindowText = () => {
+    const windowDays = returnPolicy.getReturnWindowDays(productType)
+
+    if (orderItem.isPrescription) {
+      return `Frames returnable within ${windowDays} days; prescription lenses may be only partially refunded.`
+    }
+
+    if (productType === 'framesOnly') {
+      return `Returnable within ${windowDays} days if unused and in original packaging.`
+    }
+
+    return `Returnable within ${windowDays} days.`
+  }
+
+  return (
+    <div className="mt-2">
+      {eligibility.eligible ? (
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
+          <FiCheckCircle className="w-3 h-3" />
+          {getReturnWindowText()}
+        </p>
+      ) : (
+        <p className="text-xs text-rose-600 flex items-center gap-1">
+          <FiXCircle className="w-3 h-3" />
+          {eligibility.reason || 'Not returnable'}
+        </p>
+      )}
+    </div>
+  )
+}
+
 const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -134,6 +186,13 @@ const OrderDetailPage: React.FC = () => {
   const [cancelling, setCancelling] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+
+  // Return policy state
+  const { data: returnPolicy, isLoading: policyLoading } = useReturnPolicy()
+  const [requestReturnOpen, setRequestReturnOpen] = useState(false)
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false)
+  const [existingReturns, setExistingReturns] = useState<ReturnRequest[]>([])
+  const [loadingReturns, setLoadingReturns] = useState(false)
 
   const [userReviews, setUserReviews] = useState<Review[]>([])
   const [unreviewedItems, setUnreviewedItems] = useState<UnreviewedProduct[]>([])
@@ -151,8 +210,44 @@ const OrderDetailPage: React.FC = () => {
     if (id) {
       loadOrder(id)
       loadReviewsData()
+      loadExistingReturns()
     }
   }, [id])
+
+  const loadExistingReturns = async () => {
+    if (!id) return
+    setLoadingReturns(true)
+    try {
+      const response = await returnApi.getMyReturns({ orderId: id, limit: 10 })
+      // Handle different response structures
+      if (response && Array.isArray(response.items)) {
+        console.log('Loaded returns for order', id, ':', response.items)
+        setExistingReturns(response.items)
+      } else if (Array.isArray(response)) {
+        // Backend might return array directly
+        console.log('Loaded returns (array) for order', id, ':', response)
+        setExistingReturns(response)
+      } else {
+        console.log('No returns found or unexpected response:', response)
+        setExistingReturns([])
+      }
+    } catch (err) {
+      console.error('Failed to load existing returns:', err)
+      setExistingReturns([])
+    } finally {
+      setLoadingReturns(false)
+    }
+  }
+
+  // Check if order has an active return (not canceled, not completed, not rejected)
+  const hasActiveReturn = existingReturns.some((ret) => {
+    return ret.status !== ReturnStatus.CANCELED &&
+           ret.status !== ReturnStatus.COMPLETED &&
+           ret.status !== ReturnStatus.REJECTED
+  })
+
+  // Filter returns to show - show all non-canceled returns
+  const visibleReturns = existingReturns.filter((ret) => ret.status !== ReturnStatus.CANCELED)
 
   const loadReviewsData = async () => {
     try {
@@ -433,6 +528,15 @@ const OrderDetailPage: React.FC = () => {
                           return null
                         })()}
                       </div>
+
+                      {/* Return Eligibility Info - shown for delivered orders */}
+                      {order.orderStatus === OrderStatus.DELIVERED && (
+                        <ReturnEligibilityInfo
+                          orderItem={item}
+                          deliveredAt={order.history?.find(h => h.status === OrderStatus.DELIVERED)?.timestamp.toString()}
+                          returnPolicy={returnPolicy}
+                        />
+                      )}
                     </div>
                     <p className="font-bold text-slate-900 self-start">
                       {formatPrice(item.priceAtOrder * item.quantity)}
@@ -582,6 +686,50 @@ const OrderDetailPage: React.FC = () => {
               </div>
             )}
 
+            {/* Return Policy Info */}
+            {order.orderStatus === OrderStatus.DELIVERED && (
+              <>
+                {policyLoading ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-900 mb-1">Return Policy</p>
+                        <div className="flex items-center gap-2 text-xs text-amber-700">
+                          <FiLoader className="w-3 h-3 animate-spin" />
+                          <span>Loading return policy...</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : returnPolicy ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-900 mb-1">Return Policy</p>
+                        <p className="text-xs text-amber-800 mb-2">{returnPolicy.summary}</p>
+                        <div className="flex items-center gap-3 text-xs text-amber-700">
+                          {returnPolicy.config.restockingFeePercent > 0 && (
+                            <span>Restocking fee: {returnPolicy.config.restockingFeePercent}%</span>
+                          )}
+                          {returnPolicy.config.customerPaysReturnShipping && (
+                            <span>• Customer pays return shipping</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setPolicyDialogOpen(true)}
+                          className="text-xs font-semibold text-amber-900 underline mt-2 hover:text-amber-950"
+                        >
+                          View full policy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+
             {/* Actions */}
             <div className="space-y-3">
               {canConfirmReceipt && (
@@ -594,6 +742,44 @@ const OrderDetailPage: React.FC = () => {
                   {confirming ? 'Confirming...' : 'Confirm Received'}
                 </button>
               )}
+              {/* Request Return Button - only for delivered orders without active returns */}
+              {order.orderStatus === OrderStatus.DELIVERED && returnPolicy && !hasActiveReturn && (
+                <button
+                  onClick={() => setRequestReturnOpen(true)}
+                  className="w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiXCircle size={16} />
+                  Request Return / Exchange
+                </button>
+              )}
+
+              {/* Show existing return info - show all non-canceled returns */}
+              {visibleReturns.length > 0 && visibleReturns.map((ret) => (
+                <div key={ret.id} className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-[2px]">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <FiFileText size={16} className="text-blue-600" />
+                      <span className="text-sm text-blue-700 font-semibold">
+                        {ret.returnNumber}
+                      </span>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      ret.status === ReturnStatus.COMPLETED
+                        ? 'bg-green-100 text-green-700'
+                        : ret.status === ReturnStatus.APPROVED
+                        ? 'bg-blue-100 text-blue-700'
+                        : ret.status === ReturnStatus.REJECTED
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {getReturnStatusLabel(ret.status)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    {ret.items.length} item{ret.items.length > 1 ? 's' : ''} • {ret.returnType.toLowerCase()}
+                  </div>
+                </div>
+              ))}
               <Link
                 to="/orders"
                 className="w-full px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
@@ -627,6 +813,25 @@ const OrderDetailPage: React.FC = () => {
           onReviewSubmitted={handleCloseReviewModal}
         />
       )}
+
+      {/* Return Policy Dialog */}
+      <ReturnPolicyDialog
+        open={policyDialogOpen}
+        onClose={() => setPolicyDialogOpen(false)}
+        policy={returnPolicy}
+      />
+
+      {/* Request Return Dialog */}
+      <RequestReturnDialog
+        open={requestReturnOpen}
+        onClose={() => setRequestReturnOpen(false)}
+        order={order}
+        policy={returnPolicy}
+        onSuccess={() => {
+          // Reload existing returns after successful submission
+          loadExistingReturns()
+        }}
+      />
     </div>
   )
 }

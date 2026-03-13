@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ORDER_TYPES, ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_TYPES, ORDER_STATUS } from '@eyewear/shared';
 
 /**
  * Shipping address DTO

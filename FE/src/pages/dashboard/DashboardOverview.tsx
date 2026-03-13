@@ -9,7 +9,7 @@ export function DashboardOverview() {
 
   if (!user) return null
 
-  const isAdmin = user.role === 0
+  const isAdmin = user.role === 'ADMIN'
 
   return (
     <Box sx={{ p: 0 }}>

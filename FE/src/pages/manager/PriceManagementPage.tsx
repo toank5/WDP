@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
   Card,
   CardContent,
   Table,
@@ -13,6 +12,7 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Grid,
 } from '@mui/material'
 import {
   AttachMoney as PriceIcon,
@@ -122,7 +122,7 @@ const PriceManagementPage: React.FC = () => {
 
       {/* Key Metrics */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -138,7 +138,7 @@ const PriceManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -154,7 +154,7 @@ const PriceManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -170,7 +170,7 @@ const PriceManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -191,7 +191,7 @@ const PriceManagementPage: React.FC = () => {
       {/* Price Summary by Category */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {priceSummaries.map((summary) => (
-          <Grid item xs={12} md={4} key={summary.category}>
+          <Grid size={{ xs: 12, md: 4 }} key={summary.category}>
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 {summary.category} Pricing
@@ -235,7 +235,7 @@ const PriceManagementPage: React.FC = () => {
 
       {/* Quick Actions */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Quick Actions
@@ -253,7 +253,7 @@ const PriceManagementPage: React.FC = () => {
             </Box>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Pricing Tips

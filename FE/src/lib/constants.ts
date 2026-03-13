@@ -1,22 +1,19 @@
 /**
- * Role definitions derived from backend enum
- * Backend source: wdp-be/src/commons/enums/role.enum.ts
+ * @deprecated Import from @eyewear/shared instead
+ * This file re-exports from the shared package for backward compatibility
  */
 
-import { ROLES } from './validations'
+// Import from shared package
+import { USER_ROLES, USER_ROLE_LABELS } from '@eyewear/shared';
 
-export const roleLabels: Record<number, string> = {
-  [ROLES.ADMIN]: 'Admin',
-  [ROLES.MANAGER]: 'Manager',
-  [ROLES.OPERATION]: 'Operation',
-  [ROLES.SALE]: 'Sale',
-  [ROLES.CUSTOMER]: 'Customer',
-}
+export const ROLES = USER_ROLES;
+
+// Re-export roleLabels from shared package
+export const roleLabels = USER_ROLE_LABELS;
 
 // Re-export ROLES for convenience
-export const ADMIN_ROLE = ROLES.ADMIN
-export const MANAGER_ROLE = ROLES.MANAGER
-export const OPERATION_ROLE = ROLES.OPERATION
-export const SALE_ROLE = ROLES.SALE
-export const CUSTOMER_ROLE = ROLES.CUSTOMER
-
+export const ADMIN_ROLE = USER_ROLES.ADMIN
+export const MANAGER_ROLE = USER_ROLES.MANAGER
+export const OPERATION_ROLE = USER_ROLES.OPERATION
+export const SALE_ROLE = USER_ROLES.SALE
+export const CUSTOMER_ROLE = USER_ROLES.CUSTOMER

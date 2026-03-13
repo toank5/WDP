@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { addressValidation } from 'src/commons/validations/address.validation';
-import { ADDRESS_TYPES } from 'src/commons/enums/address.enum';
+import { ADDRESS_TYPES } from '@eyewear/shared';
 
 @Schema({ _id: false })
 export class Address {

@@ -191,8 +191,9 @@ export const useCartStore = create<CartState>()(
 
       /**
        * Load cart from server or localStorage
-       * - If authenticated: load from backend API
+       * - If authenticated AND customer: load from backend API
        * - If not authenticated: load from localStorage (guest cart)
+       * - If authenticated but not customer: use empty cart (non-customer roles don't have carts)
        */
       loadCart: async () => {
         const { isAuthenticated, accessToken, user } = await import('@/store/auth-store').then(
@@ -202,8 +203,21 @@ export const useCartStore = create<CartState>()(
         set({ loading: true, error: null })
 
         try {
-          if (isAuthenticated && accessToken) {
-            // Authenticated user: load from backend
+          // Import UserRole enum
+          const { UserRole } = await import('@/lib/enums')
+
+          // Debug logging for role detection
+          console.log('[CartStore] loadCart: Checking user role:', {
+            isAuthenticated,
+            hasAccessToken: !!accessToken,
+            userRole: user?.role,
+            userRoleType: typeof user?.role,
+            expectedCustomer: UserRole.CUSTOMER,
+            isCustomer: user?.role === UserRole.CUSTOMER,
+          })
+
+          if (isAuthenticated && accessToken && user?.role === UserRole.CUSTOMER) {
+            // Authenticated customer: load from backend
             const cartData = await cartApi.getCart()
             // Preserve appliedPromotion from localStorage when loading cart
             const existingPromotion = get().appliedPromotion
@@ -215,7 +229,7 @@ export const useCartStore = create<CartState>()(
               appliedPromotion: existingPromotion,
               loading: false,
             })
-          } else {
+          } else if (!isAuthenticated) {
             // Guest user: load from localStorage
             const guestItems = getGuestCart()
             set({
@@ -225,6 +239,15 @@ export const useCartStore = create<CartState>()(
                 const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
+              loading: false,
+            })
+          } else {
+            // Authenticated but not customer (admin, manager, staff): use empty cart
+            console.log('[CartStore] loadCart: Non-customer user, using empty cart')
+            set({
+              items: [],
+              totalItems: 0,
+              subtotal: 0,
               loading: false,
             })
           }

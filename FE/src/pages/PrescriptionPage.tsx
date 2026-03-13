@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Box, Container, Typography, Button, Stack, Card, CardContent, Grid, useTheme } from '@mui/material'
+import { Box, Container, Typography, Button, Stack, Card, CardContent, useTheme, Grid } from '@mui/material'
 import {
   AddCircleOutlined,
   FolderOpenOutlined,
@@ -179,7 +179,7 @@ export default function PrescriptionPage() {
       <Container maxWidth="lg" sx={{ py: { xs: 8, md: 12 } }}>
         <Grid container spacing={3}>
           {features.map((feature, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
               <Card
                 sx={{
                   height: '100%',
@@ -235,7 +235,7 @@ export default function PrescriptionPage() {
         </Stack>
 
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card
               sx={{
                 height: '100%',
@@ -308,7 +308,7 @@ export default function PrescriptionPage() {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card
               sx={{
                 height: '100%',

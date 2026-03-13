@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Review, ReviewDocument } from '../commons/schemas/review.schema';
 import { CreateReviewDto, UpdateReviewDto, ReviewStatsDto, AddReviewResponseDto } from '../dtos/review.dto';
-import { ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_STATUS } from '@eyewear/shared';
 import { Order } from '../commons/schemas/order.schema';
 
 @Injectable()

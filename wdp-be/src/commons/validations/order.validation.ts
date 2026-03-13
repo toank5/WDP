@@ -1,5 +1,5 @@
 import validator from 'validator';
-import { ORDER_STATUS, ORDER_TYPES } from '../enums/order.enum';
+import { ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
 export const orderValidation = {
   number: {
     presence: true,

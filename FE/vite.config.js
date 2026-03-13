@@ -11,6 +11,7 @@ export default defineConfig({
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@eyewear/shared': path.resolve(__dirname, '../packages/shared/src'),
     },
   },
   build: {
