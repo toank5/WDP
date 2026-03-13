@@ -11,7 +11,10 @@ export default defineConfig({
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@eyewear/shared': path.resolve(__dirname, '../packages/shared/src'),
+      // Use built dist in production, source in development
+      '@eyewear/shared': process.env.NODE_ENV === 'production'
+        ? path.resolve(__dirname, '../packages/shared/dist/esm')
+        : path.resolve(__dirname, '../packages/shared/src'),
     },
   },
   build: {
