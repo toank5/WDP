@@ -9,7 +9,9 @@
       "Bash(ls -la FE/vite.config.*)",
       "Bash(npm install terser --save-dev)",
       "Bash(ls -lh FE/dist/assets/*.js)",
-      "Bash(mongod --version)"
+      "Bash(mongod --version)",
+      "Bash(npx create-expo-app@latest . --template blank-typescript)",
+      "Bash(npm install:*)"
     ],
     "additionalDirectories": [
       "D:\\Code\\Project\\WDP\\FE\\src\\components\\virtual-tryon"
