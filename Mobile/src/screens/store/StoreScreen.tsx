@@ -6,12 +6,15 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native'
-import { Text, Searchbar, Chip, useTheme } from 'react-native-paper'
+import { Text, Searchbar, useTheme, Divider } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import { ProductCard } from '../../components/ProductCard'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
+import { ProductFilter } from '../../components/product/ProductFilter'
 import { APP_CONFIG } from '../../config'
+import type { ProductFilter as Filter } from '../../types/product'
 
 interface StoreScreenProps {
   navigation: any
@@ -24,16 +27,12 @@ interface Product {
   originalPrice?: number
   image: string
   images?: string[]
-  category: string
+  category: 'frame' | 'lens' | 'service'
   inStock: boolean
   preOrder?: boolean
   discount?: number
-}
-
-interface Category {
-  id: string
-  name: string
-  count: number
+  color?: string
+  size?: string
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width
@@ -46,7 +45,8 @@ const CARD_WIDTH = (SCREEN_WIDTH - 32) / NUM_COLUMNS // 16 padding each side
  * Features:
  * - Grid layout of products
  * - Search functionality
- * - Category filter
+ * - Category filter (frame, lens, service)
+ * - Price range filter
  * - Refresh on pull
  * - Loading skeleton
  */
@@ -59,16 +59,11 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [categories, setCategories] = useState<Category[]>([])
-
-  // Mock categories
-  const CATEGORIES: Category[] = [
-    { id: 'all', name: 'Tất cả', count: 0 },
-    { id: 'frame', name: 'Gọng kính', count: 0 },
-    { id: 'lens', name: 'Tròng kính', count: 0 },
-    { id: 'service', name: 'Dịch vụ', count: 0 },
-  ]
+  const [filter, setFilter] = useState<Filter>({
+    category: 'all',
+    minPrice: 0,
+    maxPrice: Infinity,
+  })
 
   // Load products (mock data for now)
   const loadProducts = useCallback(async () => {
@@ -78,17 +73,23 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
       // const response = await getProducts()
       // setProducts(response.data)
 
-      // Mock data for demonstration
-      const mockProducts: Product[] = Array.from({ length: 8 }, (_, i) => ({
+      // Mock data for demonstration with colors and sizes
+      const colors = ['Đen', 'Nâu', 'Xám', 'Hồng']
+      const sizes = ['S', 'M', 'L']
+      const categories: ('frame' | 'lens' | 'service')[] = ['frame', 'lens', 'service']
+
+      const mockProducts: Product[] = Array.from({ length: 12 }, (_, i) => ({
         id: `product-${i}`,
         name: `Kính mẫu ${i + 1}`,
-        price: (i + 1) * 150000,
-        originalPrice: (i + 1) * 180000,
+        price: (i + 1) * 150000 + 200000, // Price from 350k to 1.95M
+        originalPrice: ((i + 1) * 150000 + 200000) * 1.2,
         image: 'https://via.placeholder.com/300x300',
-        category: i % 2 === 0 ? 'frame' : 'lens',
+        category: categories[i % categories.length],
         inStock: i % 3 !== 0,
         preOrder: i % 5 === 0,
         discount: i % 4 === 0 ? 15 : undefined,
+        color: colors[i % colors.length],
+        size: sizes[i % sizes.length],
       }))
 
       setTimeout(() => {
@@ -112,32 +113,40 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
   // Handle search
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
+  }, [])
 
-    if (!query.trim()) {
-      setFilteredProducts(products)
-      return
+  // Apply filters (category, price range, search)
+  const applyFilters = useCallback(() => {
+    let filtered = products
+
+    // Apply category filter
+    if (filter.category !== 'all') {
+      filtered = filtered.filter((product) => product.category === filter.category)
     }
 
-    const lowerQuery = query.toLowerCase()
-    const filtered = products.filter((product) =>
-      product.name.toLowerCase().includes(lowerQuery)
-    )
-    setFilteredProducts(filtered)
-  }, [products])
+    // Apply price filter
+    filtered = filtered.filter((product) => {
+      const price = product.discount
+        ? product.price * (1 - product.discount / 100)
+        : product.price
+      return price >= filter.minPrice && price <= filter.maxPrice
+    })
 
-  // Handle category filter
-  const handleCategoryFilter = useCallback((categoryId: string) => {
-    setSelectedCategory(categoryId)
-
-    if (categoryId === 'all') {
-      setFilteredProducts(products)
-    } else {
-      const filtered = products.filter(
-        (product) => product.category === categoryId
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase()
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(lowerQuery)
       )
-      setFilteredProducts(filtered)
     }
-  }, [products])
+
+    setFilteredProducts(filtered)
+  }, [products, filter, searchQuery])
+
+  // Re-apply filters when filter changes
+  React.useEffect(() => {
+    applyFilters()
+  }, [applyFilters])
 
   // Handle product press
   const handleProductPress = useCallback(
@@ -159,28 +168,10 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
     [handleProductPress]
   )
 
-  // Render category chip
-  const renderCategory = useCallback(
-    (category: Category) => (
-      <Chip
-        mode={selectedCategory === category.id ? 'flat' : 'outlined'}
-        selected={selectedCategory === category.id}
-        onPress={() => handleCategoryFilter(category.id)}
-        style={[
-          styles.categoryChip,
-          selectedCategory === category.id && { backgroundColor: theme.colors.primary },
-        ]}
-        textStyle={
-          selectedCategory === category.id
-            ? { color: '#fff' }
-            : { color: theme.colors.primary }
-        }
-      >
-        {category.name}
-      </Chip>
-    ),
-    [selectedCategory, theme.colors.primary, handleCategoryFilter]
-  )
+  // Handle filter change
+  const handleFilterChange = useCallback((newFilter: Filter) => {
+    setFilter(newFilter)
+  }, [])
 
   // Initial load
   React.useEffect(() => {
@@ -188,7 +179,17 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
   }, [loadProducts])
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.colors.primary]}
+          tintColor={theme.colors.primary}
+        />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text variant="headlineMedium" style={styles.headerTitle}>
@@ -208,17 +209,10 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
         />
       </View>
 
-      {/* Category Filter */}
-      <View style={styles.categoryContainer}>
-        <FlatList
-          data={CATEGORIES}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderCategory(item)}
-          contentContainerStyle={styles.categoryList}
-        />
-      </View>
+      {/* Product Filter */}
+      <ProductFilter activeFilter={filter} onFilterChange={handleFilterChange} />
+
+      <Divider />
 
       {/* Products List */}
       {loading ? (
@@ -228,6 +222,14 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
           <SkeletonLoader type="product" />
           <SkeletonLoader type="product" />
         </View>
+      ) : filteredProducts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text variant="bodyLarge" style={styles.emptyText}>
+            {searchQuery || filter.category !== 'all' || filter.minPrice > 0 || filter.maxPrice !== Infinity
+              ? 'Không tìm thấy sản phẩm phù hợp'
+              : 'Không có sản phẩm nào'}
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={filteredProducts}
@@ -235,24 +237,10 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
           keyExtractor={(item) => item.id}
           renderItem={renderProduct}
           contentContainerStyle={styles.productList}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text variant="bodyLarge" style={styles.emptyText}>
-                Không tìm thấy sản phẩm nào
-              </Text>
-            </View>
-          }
+          scrollEnabled={false}
         />
       )}
-    </View>
+    </ScrollView>
   )
 }
 
@@ -278,18 +266,9 @@ const styles = StyleSheet.create({
     elevation: 2,
     backgroundColor: '#f8f9fa',
   },
-  categoryContainer: {
-    backgroundColor: '#fff',
-    paddingBottom: 12,
-  },
-  categoryList: {
-    paddingHorizontal: 16,
-  },
-  categoryChip: {
-    marginRight: 8,
-  },
   productList: {
     padding: 16,
+    paddingBottom: 32,
   },
   productCard: {
     width: CARD_WIDTH,
@@ -301,12 +280,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 64,
   },
   emptyText: {
     opacity: 0.5,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 })
