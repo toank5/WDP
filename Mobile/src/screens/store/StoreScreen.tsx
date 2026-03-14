@@ -8,13 +8,17 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native'
-import { Text, Searchbar, useTheme, Divider } from 'react-native-paper'
+import { Text, useTheme, Divider } from 'react-native-paper'
+import { SearchBar } from '../../components/product/SearchBar'
 import { useNavigation } from '@react-navigation/native'
 import { ProductCard } from '../../components/ProductCard'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
 import { ProductFilter } from '../../components/product/ProductFilter'
 import { APP_CONFIG } from '../../config'
 import type { ProductFilter as Filter } from '../../types/product'
+
+// Mock recent searches (in real app, load from AsyncStorage)
+const MOCK_RECENT_SEARCHES = ['Kính titan', 'Tròng chống tia xanh', 'Gọng cat-eye']
 
 interface StoreScreenProps {
   navigation: any
@@ -199,13 +203,14 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Tìm kiếm sản phẩm..."
+        <SearchBar
           value={searchQuery}
-          onChangeText={handleSearch}
-          mode="view"
-          style={styles.searchbar}
-          iconColor={theme.colors.placeholder}
+          onSearchChange={handleSearch}
+          placeholder="Tìm kiếm sản phẩm..."
+          recentSearches={MOCK_RECENT_SEARCHES}
+          onRecentSearchPress={(query) => {
+            setSearchQuery(query)
+          }}
         />
       </View>
 
@@ -259,12 +264,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
-  },
-  searchbar: {
-    elevation: 2,
-    backgroundColor: '#f8f9fa',
   },
   productList: {
     padding: 16,
