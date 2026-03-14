@@ -21,6 +21,7 @@ import { useCartStore } from '../../store/cart-store'
 import { APP_CONFIG } from '../../config'
 import type { Product } from '../../types/product'
 import { VariantSelector } from '../../components/product/VariantSelector'
+import { ImageGallery } from '../../components/product/ImageGallery'
 
 interface RouteParams {
   productId: string
@@ -49,7 +50,6 @@ export const ProductDetailScreen = () => {
   // State
   const [loading, setLoading] = useState(true)
   const [product, setProduct] = useState<Product | null>(null)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
   const [quantity, setQuantity] = useState(1)
@@ -106,15 +106,11 @@ export const ProductDetailScreen = () => {
     }, 500)
   }, [productId])
 
-  // Handle image scroll
-  const handleImageScroll = useCallback(
-    (event: any) => {
-      const contentOffsetX = event.nativeEvent.contentOffset.x
-      const index = Math.round(contentOffsetX / SCREEN_WIDTH)
-      setCurrentImageIndex(index)
-    },
-    []
-  )
+  // Handle image press (for full screen view)
+  const handleImagePress = useCallback((index: number) => {
+    // TODO: Open full screen image viewer
+    console.log('Image pressed:', index)
+  }, [])
 
   // Handle variant selection
   const handleVariantChange = useCallback((variant: any) => {
@@ -203,44 +199,12 @@ export const ProductDetailScreen = () => {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
-        <View style={styles.imageGallery}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleImageScroll}
-            scrollEventThrottle={16}
-          >
-            {product.images.map((image, index) => (
-              <Image
-                key={image.id}
-                source={{ uri: image.url }}
-                style={[styles.productImage, { width: SCREEN_WIDTH }]}
-                resizeMode="contain"
-              />
-            ))}
-          </ScrollView>
-
-          {/* Image Indicators */}
-          <View style={styles.imageIndicators}>
-            {product.images.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.indicator,
-                  index === currentImageIndex && { backgroundColor: theme.colors.primary },
-                ]}
-              />
-            ))}
-          </View>
-
-          {/* 3D Badge */}
-          {product.images[currentImageIndex]?.is3D && (
-            <View style={styles.badge3D}>
-              <Text style={styles.badgeText}>3D</Text>
-            </View>
-          )}
-        </View>
+        <ImageGallery
+          images={product.images}
+          onImagePress={handleImagePress}
+          show3DBadge={true}
+          autoPlay={false}
+        />
 
         {/* Product Info */}
         <Surface style={styles.productInfo} elevation={2}>
@@ -467,43 +431,6 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     backgroundColor: '#fff',
-  },
-  imageGallery: {
-    position: 'relative',
-    backgroundColor: '#fff',
-    height: SCREEN_WIDTH,
-  },
-  productImage: {
-    height: SCREEN_WIDTH,
-  },
-  imageIndicators: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  badge3D: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#000',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   productInfo: {
     margin: 16,
