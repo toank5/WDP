@@ -1,13 +1,28 @@
 import React from 'react'
+import { View, Text, StyleSheet } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton } from 'react-native-paper'
 import type { MainTabParamList } from './types'
 import { StoreScreen } from '../screens/store/StoreScreen'
 
 // Placeholder screens - will be implemented in later commits
-const SearchScreen = () => null as any
-const CartScreen = () => null as any
-const AccountScreen = () => null as any
+const SearchScreen = () => (
+  <View style={styles.placeholder}>
+    <Text style={styles.placeholderText}>Tính năng tìm kiếm sẽ có sớm!</Text>
+  </View>
+)
+
+const CartScreen = () => (
+  <View style={styles.placeholder}>
+    <Text style={styles.placeholderText}>Tính năng giỏ hàng sẽ có sớm!</Text>
+  </View>
+)
+
+const AccountScreen = () => (
+  <View style={styles.placeholder}>
+    <Text style={styles.placeholderText}>Tính năng tài khoản sẽ có sớm!</Text>
+  </View>
+)
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
 
@@ -76,3 +91,17 @@ export const MainTabNavigator = () => {
     </Tab.Navigator>
   )
 }
+
+const styles = StyleSheet.create({
+  placeholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  placeholderText: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.6,
+  },
+})

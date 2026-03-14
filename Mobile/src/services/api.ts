@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
-import { useAuthStore } from '../store'
 import { API_BASE_URL, API_ENDPOINTS } from '../config'
 import type { ApiResponse, ApiError } from '../types'
 
@@ -15,6 +14,8 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    // Lazy load store to avoid circular dependency
+    const { useAuthStore } = require('../store/auth-store') as { useAuthStore: any }
     const { accessToken } = useAuthStore.getState()
 
     if (accessToken) {
@@ -35,6 +36,7 @@ api.interceptors.response.use(
     // Check if error is a 401 Unauthorized
     if (error.response?.status === 401) {
       // Auto logout on 401
+      const { useAuthStore } = require('../store/auth-store') as { useAuthStore: any }
       const { logout } = useAuthStore.getState()
       logout()
     }

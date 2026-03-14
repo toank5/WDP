@@ -1,8 +1,9 @@
 // Import environment configuration
-import { API_BASE_URL, APP_CONFIG, __DEV__ } from './utils/env'
+import { API_BASE_URL, APP_CONFIG, IS_DEV } from './utils/env'
 
 // Re-export for convenience
-export { API_BASE_URL, APP_CONFIG, __DEV__ }
+export { API_BASE_URL, APP_CONFIG }
+export { IS_DEV as __DEV__ }
 
 // API Endpoints
 export const API_ENDPOINTS = {
