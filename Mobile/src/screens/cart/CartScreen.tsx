@@ -21,6 +21,7 @@ import { useAuthStore } from '../../store/auth-store'
 import { APP_CONFIG } from '../../config'
 import { CartItem } from '../../components/cart/CartItem'
 import { EmptyCart } from '../../components/cart/EmptyCart'
+import { CartSummary, type CartTotals } from '../../components/cart/CartSummary'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 interface CartItemData {
@@ -139,7 +140,7 @@ export const CartScreen = () => {
   }, [isAuthenticated, navigation])
 
   // Calculate totals
-  const { subtotal: calculatedSubtotal, tax, shipping, total: calculatedTotal } = React.useMemo(() => {
+  const cartTotals: CartTotals = React.useMemo(() => {
     const subtotalValue = subtotal
     const taxValue = subtotalValue * 0.1 // 10% VAT
     const shippingValue = items.length > 0 ? 30000 : 0 // 30k shipping
@@ -232,43 +233,14 @@ export const CartScreen = () => {
       />
 
       {/* Summary */}
-      <Surface style={styles.summary} elevation={2}>
-        <Text variant="titleMedium" style={styles.summaryTitle}>
-          Tóm tắt
-        </Text>
-
-        <View style={styles.summaryRow}>
-          <Text variant="bodyMedium">Tạm tính:</Text>
-          <Text variant="bodyMedium" style={styles.summaryValue}>
-            {formatPrice(calculatedSubtotal)}
-          </Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <Text variant="bodyMedium">Thuế VAT (10%):</Text>
-          <Text variant="bodyMedium" style={styles.summaryValue}>
-            {formatPrice(tax)}
-          </Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <Text variant="bodyMedium">Phí vận chuyển:</Text>
-          <Text variant="bodyMedium" style={styles.summaryValue}>
-            {formatPrice(shipping)}
-          </Text>
-        </View>
-
-        <Divider style={styles.summaryDivider} />
-
-        <View style={styles.summaryRow}>
-          <Text variant="titleMedium" style={styles.totalLabel}>
-            Tổng cộng:
-          </Text>
-          <Text variant="headlineMedium" style={styles.totalValue}>
-            {formatPrice(calculatedTotal)}
-          </Text>
-        </View>
-      </Surface>
+      <CartSummary
+        totals={cartTotals}
+        itemCount={items.length}
+        showTax={true}
+        showShipping={true}
+        taxRate={0.1}
+        shippingRate={30000}
+      />
 
       {/* Checkout Button */}
       <View style={styles.footer}>
@@ -323,34 +295,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 8,
     paddingBottom: SCREEN_PADDING,
-  },
-  summary: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
-  },
-  summaryTitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryValue: {
-    fontWeight: '500',
-  },
-  summaryDivider: {
-    marginVertical: 12,
-  },
-  totalLabel: {
-    color: '#e53935',
-    fontWeight: 'bold',
-  },
-  totalValue: {
-    color: '#e53935',
-    fontWeight: 'bold',
   },
   footer: {
     padding: 16,
