@@ -19,7 +19,8 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { useCartStore } from '../../store/cart-store'
 import { APP_CONFIG } from '../../config'
-import type { Product, ProductVariant } from '../../types/product'
+import type { Product } from '../../types/product'
+import { VariantSelector } from '../../components/product/VariantSelector'
 
 interface RouteParams {
   productId: string
@@ -116,7 +117,7 @@ export const ProductDetailScreen = () => {
   )
 
   // Handle variant selection
-  const handleVariantPress = useCallback((variant: ProductVariant) => {
+  const handleVariantChange = useCallback((variant: any) => {
     if (!variant.isAvailable) return
     setSelectedVariant(variant)
   }, [])
@@ -384,72 +385,12 @@ export const ProductDetailScreen = () => {
             Chọn biến thể
           </Text>
 
-          {/* Color Selection */}
-          <Text variant="bodyMedium" style={styles.variantLabel}>
-            Màu sắc:
-          </Text>
-          <View style={styles.variantContainer}>
-            {Array.from(new Set(product.variants.map((v) => v.color))).map((color) => {
-              const isSelected = selectedVariant?.color === color
-              const isAvailable = product.variants.some((v) => v.color === color && v.isAvailable)
-
-              return (
-                <Chip
-                  key={color}
-                  selected={isSelected}
-                  onPress={() => {
-                    const variant = product.variants.find((v) => v.color === color && v.size === selectedVariant?.size)
-                    if (variant) handleVariantPress(variant)
-                  }}
-                  style={[
-                    styles.variantChip,
-                    isSelected && { backgroundColor: theme.colors.primary },
-                  ]}
-                  textStyle={isSelected ? { color: '#fff' } : undefined}
-                  disabled={!isAvailable}
-                >
-                  {color}
-                </Chip>
-              )
-            })}
-          </View>
-
-          {/* Size Selection */}
-          <Text variant="bodyMedium" style={styles.variantLabel}>
-            Kích thước:
-          </Text>
-          <View style={styles.variantContainer}>
-            {Array.from(new Set(product.variants.map((v) => v.size))).map((size) => {
-              const isSelected = selectedVariant?.size === size
-              const isAvailable = product.variants.some((v) => v.size === size && v.isAvailable)
-
-              return (
-                <Chip
-                  key={size}
-                  selected={isSelected}
-                  onPress={() => {
-                    const variant = product.variants.find((v) => v.size === size && v.color === selectedVariant?.color)
-                    if (variant) handleVariantPress(variant)
-                  }}
-                  style={[
-                    styles.variantChip,
-                    isSelected && { backgroundColor: theme.colors.primary },
-                  ]}
-                  textStyle={isSelected ? { color: '#fff' } : undefined}
-                  disabled={!isAvailable}
-                >
-                  {size}
-                </Chip>
-              )
-            })}
-          </View>
-
-          {/* Variant Stock */}
-          {selectedVariant && (
-            <Text variant="bodySmall" style={styles.stockText}>
-              Còn {selectedVariant.stock} sản phẩm
-            </Text>
-          )}
+          <VariantSelector
+            variants={product.variants}
+            selectedVariant={selectedVariant}
+            onVariantChange={handleVariantChange}
+            showStock={true}
+          />
 
           {/* Quantity */}
           <View style={styles.quantityContainer}>
@@ -648,23 +589,6 @@ const styles = StyleSheet.create({
   },
   coatingChip: {
     backgroundColor: '#fff3e0',
-  },
-  variantLabel: {
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  variantContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  variantChip: {
-    borderColor: '#ddd',
-  },
-  stockText: {
-    marginTop: 4,
-    opacity: 0.7,
   },
   quantityContainer: {
     flexDirection: 'row',
