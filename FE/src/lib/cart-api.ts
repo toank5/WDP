@@ -3,7 +3,7 @@
 // LocalStorage handling is managed by cart.store.ts
 
 import { api } from './api-client'
-import { extractApiMessage } from './api-client'
+import { unwrapApiPayload, unwrapApiPayloadOrDefault } from './type-guards'
 import { useAuthStore } from '@/store/auth-store'
 import { UserRole } from '@/lib/enums'
 
@@ -87,13 +87,7 @@ class CartAPI {
     }
 
     const response = await api.get('/cart')
-    const cartData = response.data.metadata || response.data.data
-
-    if (!cartData) {
-      throw new Error('No cart data returned from server')
-    }
-
-    return cartData
+    return unwrapApiPayload<CartResponse>(response.data)
   }
 
   /**
@@ -123,9 +117,8 @@ class CartAPI {
 
       return { success: true, message: 'Item added to cart' }
     } catch (error) {
-      const message = extractApiMessage(error)
-      console.error('Failed to add item to cart:', message)
-      return { success: false, message: message || 'Failed to add item to cart' }
+      console.error('Failed to add item to cart:', error)
+      return { success: false, message: 'Failed to add item to cart' }
     }
   }
 
@@ -142,9 +135,8 @@ class CartAPI {
 
       return { success: true, message: 'Items added to cart' }
     } catch (error) {
-      const message = extractApiMessage(error)
-      console.error('Failed to bulk add items:', message)
-      return { success: false, message: message || 'Failed to add items to cart' }
+      console.error('Failed to bulk add items:', error)
+      return { success: false, message: 'Failed to add items to cart' }
     }
   }
 
@@ -161,9 +153,8 @@ class CartAPI {
 
       return { success: true, message: 'Cart updated' }
     } catch (error) {
-      const message = extractApiMessage(error)
-      console.error('Failed to update cart:', message)
-      return { success: false, message: message || 'Failed to update cart' }
+      console.error('Failed to update cart:', error)
+      return { success: false, message: 'Failed to update cart' }
     }
   }
 
@@ -180,9 +171,8 @@ class CartAPI {
 
       return { success: true, message: 'Item removed from cart' }
     } catch (error) {
-      const message = extractApiMessage(error)
-      console.error('Failed to remove item:', message)
-      return { success: false, message: message || 'Failed to remove item' }
+      console.error('Failed to remove item:', error)
+      return { success: false, message: 'Failed to remove item' }
     }
   }
 
@@ -193,7 +183,7 @@ class CartAPI {
   async clearCart(): Promise<{ success: boolean; message: string; itemsRemoved: number }> {
     try {
       const response = await api.delete('/cart')
-      const itemsRemoved = (response.data.metadata || response.data.data)?.itemsRemoved || 0
+      const result = unwrapApiPayloadOrDefault<{ itemsRemoved: number }>(response.data, { itemsRemoved: 0 })
 
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('cartUpdated'))
@@ -201,12 +191,11 @@ class CartAPI {
       return {
         success: true,
         message: 'Cart cleared',
-        itemsRemoved,
+        itemsRemoved: result.itemsRemoved,
       }
     } catch (error) {
-      const message = extractApiMessage(error)
-      console.error('Failed to clear cart:', message)
-      return { success: false, message: message || 'Failed to clear cart', itemsRemoved: 0 }
+      console.error('Failed to clear cart:', error)
+      return { success: false, message: 'Failed to clear cart', itemsRemoved: 0 }
     }
   }
 
@@ -230,7 +219,7 @@ class CartAPI {
 
     try {
       const response = await api.get('/cart/count')
-      return (response.data.metadata || response.data.data)?.count || 0
+      return unwrapApiPayloadOrDefault<{ count: number }>(response.data, { count: 0 }).count
     } catch (error) {
       console.error('Failed to get cart count:', error)
       return 0
@@ -259,7 +248,10 @@ class CartAPI {
 
     try {
       const response = await api.get('/cart/validate')
-      return response.data.metadata || response.data.data
+      return unwrapApiPayloadOrDefault<{
+        valid: boolean
+        invalidItems: Array<{ itemId: string; reason: string }>
+      }>(response.data, { valid: true, invalidItems: [] })
     } catch (error) {
       console.error('Failed to validate cart:', error)
       return { valid: true, invalidItems: [] }

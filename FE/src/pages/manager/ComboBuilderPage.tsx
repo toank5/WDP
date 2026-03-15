@@ -53,13 +53,13 @@ import {
   type CreateComboDto,
   type UpdateComboDto,
 } from '@/lib/combo-api'
-import { getProductsCatalog, type Product } from '@/lib/product-api'
+import { getProductsCatalog, type ProductListItem } from '@/lib/product-api'
 
 const ComboBuilderPage: React.FC = () => {
   const [combos, setCombos] = useState<Combo[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [frames, setFrames] = useState<Product[]>([])
-  const [lenses, setLenses] = useState<Product[]>([])
+  const [products, setProducts] = useState<ProductListItem[]>([])
+  const [frames, setFrames] = useState<ProductListItem[]>([])
+  const [lenses, setLenses] = useState<ProductListItem[]>([])
   const [stats, setStats] = useState({
     totalCombos: 0,
     activeCombos: 0,
@@ -100,7 +100,7 @@ const ComboBuilderPage: React.FC = () => {
       const [combosData, statsData, productsData] = await Promise.all([
         getAllCombos({ limit: 100 }),
         getComboStatistics(),
-        getProductsCatalog({ limit: 500, status: 'ACTIVE' }),
+        getProductsCatalog({ limit: 100, status: 'ACTIVE' }),
       ])
       setCombos(combosData.items)
       setStats(statsData)
@@ -271,7 +271,7 @@ const ComboBuilderPage: React.FC = () => {
   }
 
   const getProductName = (productId: string) => {
-    const product = products.find((p) => p._id === productId)
+    const product = products.find((p) => p.id === productId)
     return product?.name || productId
   }
 
@@ -497,8 +497,8 @@ const ComboBuilderPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, frameProductId: e.target.value })}
                 >
                   {frames.map((frame) => (
-                    <MenuItem key={frame._id} value={frame._id}>
-                      {frame.name} - {frame.basePrice.toLocaleString()} VND
+                    <MenuItem key={frame.id} value={frame.id}>
+                      {frame.name} - {frame.minPrice?.toLocaleString() || 'N/A'} VND
                     </MenuItem>
                   ))}
                 </Select>
@@ -513,8 +513,8 @@ const ComboBuilderPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, lensProductId: e.target.value })}
                 >
                   {lenses.map((lens) => (
-                    <MenuItem key={lens._id} value={lens._id}>
-                      {lens.name} - {lens.basePrice.toLocaleString()} VND
+                    <MenuItem key={lens.id} value={lens.id}>
+                      {lens.name} - {lens.minPrice?.toLocaleString() || 'N/A'} VND
                     </MenuItem>
                   ))}
                 </Select>

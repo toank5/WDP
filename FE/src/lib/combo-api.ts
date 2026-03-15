@@ -1,5 +1,5 @@
 import { api } from './api-client'
-import { extractApiMessage } from './api-client'
+import { unwrapApiPayload } from './type-guards'
 
 export interface Combo {
   _id: string
@@ -86,27 +86,27 @@ export async function getAllCombos(params?: {
   if (params?.limit) queryParams.set('limit', params.limit.toString())
 
   const response = await api.get(`/manager/combos?${queryParams}`)
-  return response.data.data
+  return unwrapApiPayload<ComboListResponse>(response.data)
 }
 
 export async function getComboById(id: string): Promise<Combo> {
   const response = await api.get(`/manager/combos/${id}`)
-  return response.data.data
+  return unwrapApiPayload<Combo>(response.data)
 }
 
 export async function createCombo(combo: CreateComboDto): Promise<Combo> {
   const response = await api.post('/manager/combos', combo)
-  return response.data.data
+  return unwrapApiPayload<Combo>(response.data)
 }
 
 export async function updateCombo(id: string, combo: UpdateComboDto): Promise<Combo> {
   const response = await api.patch(`/manager/combos/${id}`, combo)
-  return response.data.data
+  return unwrapApiPayload<Combo>(response.data)
 }
 
 export async function updateComboStatus(id: string, status: 'active' | 'inactive' | 'scheduled'): Promise<Combo> {
   const response = await api.patch(`/manager/combos/${id}/status`, { status })
-  return response.data.data
+  return unwrapApiPayload<Combo>(response.data)
 }
 
 export async function deleteCombo(id: string): Promise<void> {
@@ -115,10 +115,10 @@ export async function deleteCombo(id: string): Promise<void> {
 
 export async function getComboStatistics(): Promise<ComboStatsResponse> {
   const response = await api.get('/manager/combos/statistics/overview')
-  return response.data.data
+  return unwrapApiPayload<ComboStatsResponse>(response.data)
 }
 
 export async function getActiveCombos(): Promise<Combo[]> {
   const response = await api.get('/combos/active')
-  return response.data.data
+  return unwrapApiPayload<Combo[]>(response.data)
 }

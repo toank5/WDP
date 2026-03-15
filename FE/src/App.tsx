@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -46,7 +47,6 @@ import ShippingPage from './pages/ShippingPage'
 
 // Manager pages
 import PromotionsPage from './pages/manager/PromotionsPage'
-import AnalyticsPage from './pages/manager/AnalyticsPage'
 import { ProductCatalogPage } from './pages/manager/ProductCatalogPage'
 import { ProductDetailAdminPage } from './pages/manager/ProductDetailAdminPage'
 import { InventoryManagementPage } from './pages/manager/InventoryManagementPage'
@@ -67,9 +67,10 @@ import VNPayReturnPage from './pages/store/VNPayReturnPage'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
-      <div className="pt-16">
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Navbar />
+        <div className="pt-16">
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<HomePage />} />
@@ -153,7 +154,6 @@ function App() {
             <Route path="combos" element={<ComboBuilderPage />} />
             <Route path="pricing" element={<PriceManagementPage />} />
             <Route path="revenue" element={<RevenueDashboardPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="inventory" element={<InventoryManagementPage />} />
             <Route path="suppliers/new" element={<SupplierFormPage />} />
             <Route path="suppliers/:id/edit" element={<SupplierFormPage />} />
@@ -178,6 +178,7 @@ function App() {
         </Routes>
       </div>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

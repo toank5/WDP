@@ -25,6 +25,7 @@ import {
 import { PolicyService } from './policy.service';
 import { Policy } from '../commons/schemas/policy.schema';
 import { Order } from '../commons/schemas/order.schema';
+import { User } from '../commons/schemas/user.schema';
 import { ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
 import { UserRole } from '../commons/guards/rbac.guard';
 import { POLICY_TYPES } from '@eyewear/shared';
@@ -129,6 +130,7 @@ export class ReturnService {
   constructor(
     @InjectModel(ReturnRequest.name) private returnModel: Model<ReturnRequest>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
+    @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(InventoryMovement.name) private movementModel: Model<InventoryMovement>,
     private policyService: PolicyService,
   ) {}
@@ -279,9 +281,16 @@ export class ReturnService {
     const lastReturn = await this.returnModel.findOne().sort({ createdAt: -1 });
     const returnNumber = generateReturnNumber(lastReturn?.returnNumber);
 
-    // 3. Get order for customer info
+    // 3. Get order and user for customer info
     const order = eligibility.order!;
     const policyConfig = eligibility.policy?.config as any;
+
+    // Fetch user email if not provided in DTO
+    let customerEmail = dto.customerEmail;
+    if (!customerEmail) {
+      const user = await this.userModel.findById(userId).select('email').exec();
+      customerEmail = user?.email;
+    }
 
     // 4. Calculate potential refund amount (for reference)
     const estimatedRefundAmount = eligibility.estimatedRefundAmount;
@@ -305,7 +314,7 @@ export class ReturnService {
       restockingFee,
       restockingFeePercent,
       customerNotes: dto.customerNotes,
-      customerEmail: dto.customerEmail || (order as any).customerEmail,
+      customerEmail: customerEmail,
       customerPhone: dto.customerPhone || order.shippingAddress.phone,
       policyVersion: eligibility.policy?.version,
       policyEffectiveDate: eligibility.policy?.effectiveFrom,
@@ -443,7 +452,7 @@ export class ReturnService {
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Execute query
+    // Execute query with population to get customer email
     const items = await this.returnModel
       .find(filter)
       .sort(sort)
@@ -451,7 +460,21 @@ export class ReturnService {
       .limit(limit)
       .exec();
 
-    return { items, total, page, limit };
+    // Populate customer email from user documents for items that don't have it
+    const userIds = items.map(item => item.userId).filter(id => id);
+    const users = userIds.length > 0
+      ? await this.userModel.find({ _id: { $in: userIds } }).select('email').exec()
+      : [];
+
+    const userMap = new Map(users.map(u => [u._id.toString(), u.email]));
+
+    // Augment items with customer email if missing
+    const itemsWithCustomerInfo = items.map(item => ({
+      ...item.toObject(),
+      customerEmail: item.customerEmail || userMap.get(item.userId?.toString()) || undefined,
+    })) as any;
+
+    return { items: itemsWithCustomerInfo, total, page, limit };
   }
 
   /**
@@ -1308,10 +1331,10 @@ export class ReturnService {
       throw new NotFoundException('Original order not found');
     }
 
-    // 3. Generate exchange order number
+    // 3. Generate exchange order number (uses ORD prefix to match validation pattern)
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const exchangeOrderNumber = `EXC-${timestamp}-${random}`;
+    const exchangeOrderNumber = `ORD-${timestamp}-${random}`;
 
     // 4. Calculate total amount (should be 0 for direct exchange, or handle price differences)
     const totalAmount = dto.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
