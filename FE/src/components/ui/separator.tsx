@@ -1,29 +1,87 @@
 import * as React from "react"
-import * as SeparatorPrimitive from "@radix-ui/react-separator"
+import Divider, { DividerProps } from "@mui/material/Divider"
+import { SxProps, Theme } from "@mui/material/styles"
 
-import { cn } from "@/lib/utils"
+/**
+ * Orientation of the separator
+ */
+export type SeparatorOrientation = "horizontal" | "vertical"
 
-const Separator = React.forwardRef<
-  React.ElementRef<typeof SeparatorPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
->(
+/**
+ * Props for the Separator component
+ * Extends MUI Divider props with simplified interface
+ */
+export interface SeparatorProps extends Omit<DividerProps, "orientation"> {
+  /**
+   * Orientation of the separator
+   * @default "horizontal"
+   */
+  orientation?: SeparatorOrientation
+  /**
+   * Whether the separator is decorative (screen reader only)
+   * @default true
+   */
+  decorative?: boolean
+  /**
+   * Optional class name (uses sx prop instead)
+   */
+  className?: string
+  /**
+   * Additional MUI sx prop for custom styling
+   */
+  sx?: SxProps<Theme>
+}
+
+/**
+ * Separator component built on top of MUI Divider
+ * Provides a consistent visual separator across the application
+ *
+ * @example
+ * ```tsx
+ * <Separator /> // Horizontal separator
+ * <Separator orientation="vertical" sx={{ height: 24 }} /> // Vertical separator
+ * ```
+ */
+const Separator = React.forwardRef<HTMLHRElement, SeparatorProps>(
   (
-    { className, orientation = "horizontal", decorative = true, ...props },
+    {
+      orientation = "horizontal",
+      decorative = true,
+      className,
+      sx,
+      role = decorative ? "none" : "separator",
+      ...props
+    },
     ref
-  ) => (
-    <SeparatorPrimitive.Root
-      ref={ref}
-      decorative={decorative}
-      orientation={orientation}
-      className={cn(
-        "shrink-0 bg-border",
-        orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
-        className
-      )}
-      {...props}
-    />
-  )
+  ) => {
+    const separatorSx: SxProps<Theme> = {
+      borderColor: "divider",
+      ...sx,
+    }
+
+    return (
+      <Divider
+        ref={ref}
+        orientation={orientation}
+        role={role}
+        sx={separatorSx}
+        {...props}
+      />
+    )
+  }
 )
-Separator.displayName = SeparatorPrimitive.Root.displayName
+
+Separator.displayName = "Separator"
 
 export { Separator }
+
+/**
+ * Pre-configured separator variants for convenience
+ */
+export const HorizontalSeparator: React.FC<Omit<SeparatorProps, "orientation">> = (props) => (
+  <Separator orientation="horizontal" {...props} />
+)
+
+export const VerticalSeparator: React.FC<Omit<SeparatorProps, "orientation">> = (props) => (
+  <Separator orientation="vertical" {...props} />
+)

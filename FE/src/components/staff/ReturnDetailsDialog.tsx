@@ -1,5 +1,6 @@
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, Divider, Stack, Chip, Paper, IconButton, Alert, Grid } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, Divider, Stack, Chip, Paper, Alert, Grid } from '@mui/material'
 import { X, Package, DollarSign, User, Calendar, FileText } from 'lucide-react'
+import { ButtonIcon } from '@/components/ui/button'
 import { ReturnRequest, getReturnStatusLabel, getReturnStatusColor, getReturnReasonLabel, formatReturnNumber } from '@/lib/return-api'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -31,9 +32,9 @@ export default function ReturnDetailsDialog({ open, returnRequest, onClose }: Re
               Order: {returnRequest.orderNumber}
             </Typography>
           </Box>
-          <IconButton onClick={onClose} size="small">
-            <X size={20} />
-          </IconButton>
+          <ButtonIcon onClick={onClose} size="sm">
+            <X size={18} />
+          </ButtonIcon>
         </Box>
       </DialogTitle>
 
