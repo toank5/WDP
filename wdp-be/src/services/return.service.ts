@@ -1331,10 +1331,10 @@ export class ReturnService {
       throw new NotFoundException('Original order not found');
     }
 
-    // 3. Generate exchange order number
+    // 3. Generate exchange order number (uses ORD prefix to match validation pattern)
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const exchangeOrderNumber = `EXC-${timestamp}-${random}`;
+    const exchangeOrderNumber = `ORD-${timestamp}-${random}`;
 
     // 4. Calculate total amount (should be 0 for direct exchange, or handle price differences)
     const totalAmount = dto.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
