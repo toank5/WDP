@@ -49,7 +49,6 @@ import {
   type VerifyReturnedItemDto,
   type ProcessRefundExchangeDto,
 } from '@/lib/return-api'
-import { formatPrice } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth-store'
@@ -58,6 +57,15 @@ import ReturnDetailsDialog from '@/components/staff/ReturnDetailsDialog'
 import VerifyReturnDialog from '@/components/staff/VerifyReturnDialog'
 import ProcessRefundDialog from '@/components/staff/ProcessRefundDialog'
 import { ReturnRequestType } from '@/lib/return-api'
+
+// Role hierarchy: lower number = higher privilege
+const ROLE_ORDER: Record<string, number> = {
+  [USER_ROLES.ADMIN]: 0,
+  [USER_ROLES.MANAGER]: 1,
+  [USER_ROLES.OPERATION]: 2,
+  [USER_ROLES.SALE]: 3,
+  [USER_ROLES.CUSTOMER]: 4,
+}
 
 // VND Price formatter
 const formatVND = (price?: number): string => {
@@ -196,11 +204,14 @@ export function ReturnsManagementPage() {
   const canVerify = (returnRequest: ReturnRequest) => {
     // Only Sale Staff (and managers/admins) can verify returns
     // Convert role to number to handle localStorage string conversion
-    const userRole = Number(user?.role ?? ROLES.CUSTOMER)
+    const userRole = Number(user?.role ?? USER_ROLES.CUSTOMER)
     const statusMatch = returnRequest.status === ReturnStatus.AWAITING_ITEMS
 
     // Sale, Manager, Admin can verify
-    return statusMatch && (userRole === ROLES.SALE || userRole <= ROLES.MANAGER)
+    return (
+      statusMatch &&
+      (userRole === Number(USER_ROLES.SALE) || userRole <= Number(USER_ROLES.MANAGER))
+    )
   }
 
   const canProcess = (returnRequest: ReturnRequest) => {
@@ -211,19 +222,24 @@ export function ReturnsManagementPage() {
     // - Operation Staff (2): Can only process EXCHANGE requests
     // - Manager (1) & Admin (0): Can process both
     // Convert role to number to handle localStorage string conversion
-    const userRole = Number(user?.role ?? ROLES.CUSTOMER)
+    const userRole = Number(user?.role ?? USER_ROLES.CUSTOMER)
 
-    if (userRole <= ROLES.MANAGER) {
+    if (userRole <= Number(USER_ROLES.MANAGER)) {
       // Managers and Admins can process everything
       return true
     }
 
-    if (userRole === ROLES.SALE) {
+    if (userRole === Number(USER_ROLES.SALE)) {
       // Sale Staff: Only refunds
       return returnRequest.returnType === ReturnRequestType.REFUND
     }
 
-    if (userRole === ROLES.OPERATION) {
+    if (userRole === Number(USER_ROLES.OPERATION)) {
+      // Operation Staff: Only exchanges
+      return returnRequest.returnType === ReturnRequestType.EXCHANGE
+    }
+
+    if (userRole === Number(USER_ROLES.OPERATION)) {
       // Operation Staff: Only exchanges
       return returnRequest.returnType === ReturnRequestType.EXCHANGE
     }
@@ -445,8 +461,9 @@ export function ReturnsManagementPage() {
       {user && user.role === USER_ROLES.SALE && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            <strong>Sale Staff:</strong> You can <strong>VERIFY</strong> returns and process <strong>REFUNDS</strong> only.
-            Exchange returns will be handled by Operation staff after verification.
+            <strong>Sale Staff:</strong> You can <strong>VERIFY</strong> returns and process{' '}
+            <strong>REFUNDS</strong> only. Exchange returns will be handled by Operation staff after
+            verification.
           </Typography>
         </Alert>
       )}
@@ -454,8 +471,9 @@ export function ReturnsManagementPage() {
       {user && user.role === USER_ROLES.OPERATION && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            <strong>Operation Staff:</strong> You can only process <strong>EXCHANGES</strong> that have been verified by Sale staff.
-            You cannot verify new returns - please ask Sale staff to verify first.
+            <strong>Operation Staff:</strong> You can only process <strong>EXCHANGES</strong> that
+            have been verified by Sale staff. You cannot verify new returns - please ask Sale staff
+            to verify first.
           </Typography>
         </Alert>
       )}
@@ -502,13 +520,17 @@ export function ReturnsManagementPage() {
                       <Typography variant="body2">{returnRequest.orderNumber}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{returnRequest.customerEmail || 'N/A'}</Typography>
+                      <Typography variant="body2">
+                        {returnRequest.customerEmail || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={returnRequest.returnType}
                         size="small"
-                        color={returnRequest.returnType === ReturnRequestType.REFUND ? 'success' : 'info'}
+                        color={
+                          returnRequest.returnType === ReturnRequestType.REFUND ? 'success' : 'info'
+                        }
                         variant="outlined"
                       />
                     </TableCell>
@@ -536,15 +558,14 @@ export function ReturnsManagementPage() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {formatDistanceToNow(new Date(returnRequest.createdAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(returnRequest.createdAt), {
+                          addSuffix: true,
+                        })}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewDetails(returnRequest)}
-                        >
+                        <IconButton size="small" onClick={() => handleViewDetails(returnRequest)}>
                           <Eye size={16} />
                         </IconButton>
                         {canVerify(returnRequest) && (
@@ -561,10 +582,16 @@ export function ReturnsManagementPage() {
                           <Button
                             size="small"
                             variant="contained"
-                            color={returnRequest.returnType === ReturnRequestType.REFUND ? 'success' : 'info'}
+                            color={
+                              returnRequest.returnType === ReturnRequestType.REFUND
+                                ? 'success'
+                                : 'info'
+                            }
                             onClick={() => handleProcess(returnRequest)}
                           >
-                            {returnRequest.returnType === ReturnRequestType.REFUND ? 'Refund' : 'Exchange'}
+                            {returnRequest.returnType === ReturnRequestType.REFUND
+                              ? 'Refund'
+                              : 'Exchange'}
                           </Button>
                         )}
                       </Stack>

@@ -184,7 +184,9 @@ export function PrescriptionManagementPage() {
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                     <Stack alignItems="center" gap={1}>
-                      <XCircle size={40} sx={{ color: 'text.secondary' }} />
+                      <Box color="text.secondary">
+                        <XCircle size={40} />
+                      </Box>
                       <Typography color="text.secondary">{search ? 'No prescriptions found' : 'No prescriptions found'}</Typography>
                     </Stack>
                   </TableCell>
