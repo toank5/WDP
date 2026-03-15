@@ -27,10 +27,10 @@ import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import { ComboStatus } from '../commons/schemas/combo.schema';
 
 // Roles that can manage combos (Manager, Admin)
-const COMBO_MANAGE_ROLES = [UserRole.MANAGER, UserRole.ADMIN];
+const COMBO_MANAGE_ROLES = [UserRole.ADMIN, UserRole.MANAGER];
 
 // Roles that can view combos (Manager, Admin)
-const COMBO_VIEW_ROLES = [UserRole.MANAGER, UserRole.ADMIN];
+const COMBO_VIEW_ROLES = [UserRole.ADMIN, UserRole.MANAGER];
 
 @ApiTags('combos')
 @Controller('manager/combos')
@@ -46,7 +46,8 @@ export class ComboController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create combo',
-    description: 'Create a new frame + lens combo. Requires MANAGER or ADMIN role.',
+    description:
+      'Create a new frame + lens combo. Requires MANAGER or ADMIN role.',
   })
   @ApiResponse({
     status: 201,
@@ -310,11 +311,14 @@ export class ComboController {
   @Roles(...COMBO_VIEW_ROLES)
   @ApiOperation({
     summary: 'Validate combo',
-    description: 'Check if a combo exists for the given frame and lens products',
+    description:
+      'Check if a combo exists for the given frame and lens products',
   })
   @ApiResponse({ status: 200, description: 'Combo validation result' })
   async validate(@Body() dto: ValidateComboDto) {
-    const { frameProductId, lensProductId } = this.extractFrameAndLens(dto.productIds);
+    const { frameProductId, lensProductId } = this.extractFrameAndLens(
+      dto.productIds,
+    );
 
     if (!frameProductId || !lensProductId) {
       return {
@@ -324,7 +328,10 @@ export class ComboController {
       };
     }
 
-    const result = await this.comboService.validateCombo(frameProductId, lensProductId);
+    const result = await this.comboService.validateCombo(
+      frameProductId,
+      lensProductId,
+    );
     return {
       statusCode: HttpStatus.OK,
       message: 'Combo validation completed',
@@ -382,7 +389,13 @@ export class PublicComboController {
    * Get active combos (public endpoint)
    */
   @Get('active')
-  @Roles(UserRole.CUSTOMER, UserRole.MANAGER, UserRole.ADMIN, UserRole.OPERATION, UserRole.SALE)
+  @Roles(
+    UserRole.CUSTOMER,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.OPERATION,
+    UserRole.SALE,
+  )
   @ApiOperation({
     summary: 'Get active combos',
     description: 'Get all active combos available for customers',

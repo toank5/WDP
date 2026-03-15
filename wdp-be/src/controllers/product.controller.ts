@@ -43,9 +43,11 @@ import {
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @ApiTags('Products')
 @Controller('products')
+@UseGuards(JwtAuthGuard, RbacGuard)
 export class ProductController {
   constructor(
     private readonly productService: ProductService,

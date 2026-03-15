@@ -1,6 +1,6 @@
 // Pre-order API for frontend
 import { api } from './api-client'
-import { extractApiMessage } from './api-client'
+import { unwrapApiPayload } from './type-guards'
 import type { PreorderStatus, PREORDER_STATUS_LABELS } from '@/types/api.types'
 
 // Pre-order inventory view types
@@ -93,43 +93,28 @@ class PreorderAPI {
    * Get pre-order overview for dashboard
    */
   async getOverview(): Promise<PreorderOverview> {
-    try {
-      const response = await api.get(`${this.baseUrl}/overview`)
-      return response.data.data
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
+    const response = await api.get(`${this.baseUrl}/overview`)
+    return unwrapApiPayload<PreorderOverview>(response.data)
   }
 
   /**
    * Get pre-order details for a specific SKU
    */
   async getDetailBySku(sku: string): Promise<PreorderDetailResponse> {
-    try {
-      const response = await api.get(`${this.baseUrl}/${encodeURIComponent(sku.toUpperCase())}`)
-      return response.data.data
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
+    const response = await api.get(`${this.baseUrl}/${encodeURIComponent(sku.toUpperCase())}`)
+    return unwrapApiPayload<PreorderDetailResponse>(response.data)
   }
 
   /**
    * Allocate received stock to pre-orders
    */
   async allocateStock(sku: string, receivedQuantity: number, notes?: string): Promise<PreorderAllocationResult> {
-    try {
-      const response = await api.post(`${this.baseUrl}/allocate`, {
-        sku: sku.toUpperCase(),
-        receivedQuantity,
-        notes,
-      })
-      return response.data.data
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
+    const response = await api.post(`${this.baseUrl}/allocate`, {
+      sku: sku.toUpperCase(),
+      receivedQuantity,
+      notes,
+    })
+    return unwrapApiPayload<PreorderAllocationResult>(response.data)
   }
 }
 

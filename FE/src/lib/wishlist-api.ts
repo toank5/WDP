@@ -1,7 +1,7 @@
 // Wishlist API using localStorage (guest) and backend API (authenticated users)
 
 import { api } from './api-client'
-import { extractApiMessage } from './api-client'
+import { unwrapApiPayload, unwrapApiPayloadOrDefault } from './type-guards'
 import { useAuthStore } from '@/store/auth-store'
 
 export interface WishlistItem {
@@ -87,9 +87,9 @@ class WishlistAPI {
     if (this.isCustomerUser()) {
       try {
         const response = await api.get('/store/favorites')
-        const data = response.data.metadata || response.data.data
+        const data = unwrapApiPayloadOrDefault<{ items: any[] }>(response.data, { items: [] })
 
-        if (data?.items) {
+        if (data.items) {
           return data.items.map((item: any) => ({
             wishlistItemId: item.id,
             favoriteId: item.id,
@@ -128,8 +128,8 @@ class WishlistAPI {
           params.append('variantId', variantId)
         }
         const response = await api.get(`/store/favorites/check?${params.toString()}`)
-        const data = response.data.metadata || response.data.data
-        return data?.isFavorited || false
+        const data = unwrapApiPayloadOrDefault<{ isFavorited: boolean }>(response.data, { isFavorited: false })
+        return data.isFavorited
       } catch (error) {
         console.error('Failed to check favorite status:', error)
         return false
@@ -167,9 +167,8 @@ class WishlistAPI {
         window.dispatchEvent(new CustomEvent('wishlistUpdated'))
         return { success: true, message: 'Added to favorites' }
       } catch (error) {
-        const message = extractApiMessage(error)
-        console.error('Failed to add to favorites:', message)
-        return { success: false, message: message || 'Failed to add to favorites' }
+        console.error('Failed to add to favorites:', error)
+        return { success: false, message: 'Failed to add to favorites' }
       }
     }
 
@@ -226,9 +225,8 @@ class WishlistAPI {
         window.dispatchEvent(new CustomEvent('wishlistUpdated'))
         return { success: true, message: 'Removed from favorites' }
       } catch (error) {
-        const message = extractApiMessage(error)
-        console.error('Failed to remove from favorites:', message)
-        return { success: false, message: message || 'Failed to remove from favorites' }
+        console.error('Failed to remove from favorites:', error)
+        return { success: false, message: 'Failed to remove from favorites' }
       }
     }
 
@@ -271,18 +269,17 @@ class WishlistAPI {
           variantSku: params.variantSku,
         })
 
-        const data = response.data.metadata || response.data.data
+        const data = unwrapApiPayloadOrDefault<{ message: string; isFavorited: boolean }>(response.data, { message: 'Toggled favorites', isFavorited: false })
         window.dispatchEvent(new CustomEvent('wishlistUpdated'))
 
         return {
           success: true,
-          message: data?.message || 'Toggled favorites',
-          isFavorited: data?.isFavorited || false,
+          message: data.message,
+          isFavorited: data.isFavorited,
         }
       } catch (error) {
-        const message = extractApiMessage(error)
-        console.error('Failed to toggle favorites:', message)
-        return { success: false, message: message || 'Failed to toggle favorites', isFavorited: false }
+        console.error('Failed to toggle favorites:', error)
+        return { success: false, message: 'Failed to toggle favorites', isFavorited: false }
       }
     }
 
@@ -334,8 +331,8 @@ class WishlistAPI {
     if (this.isCustomerUser()) {
       try {
         const response = await api.get('/store/favorites/count')
-        const data = response.data.metadata || response.data.data
-        return data?.count || 0
+        const data = unwrapApiPayloadOrDefault<{ count: number }>(response.data, { count: 0 })
+        return data.count
       } catch (error) {
         console.error('Failed to get wishlist count:', error)
         return 0

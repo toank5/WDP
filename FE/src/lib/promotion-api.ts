@@ -1,4 +1,5 @@
 import { api } from './api-client'
+import { unwrapApiPayload } from './type-guards'
 
 export type PromotionType = 'percentage' | 'fixed_amount'
 export type PromotionStatus = 'active' | 'inactive' | 'scheduled' | 'expired'
@@ -112,27 +113,27 @@ export async function getAllPromotions(params?: {
   if (params?.limit) queryParams.set('limit', params.limit.toString())
 
   const response = await api.get(`/manager/promotions?${queryParams}`)
-  return response.data.data
+  return unwrapApiPayload<PromotionListResponse>(response.data)
 }
 
 export async function getPromotionById(id: string): Promise<Promotion> {
   const response = await api.get(`/manager/promotions/${id}`)
-  return response.data.data
+  return unwrapApiPayload<Promotion>(response.data)
 }
 
 export async function createPromotion(promotion: CreatePromotionDto): Promise<Promotion> {
   const response = await api.post('/manager/promotions', promotion)
-  return response.data.data
+  return unwrapApiPayload<Promotion>(response.data)
 }
 
 export async function updatePromotion(id: string, promotion: UpdatePromotionDto): Promise<Promotion> {
   const response = await api.patch(`/manager/promotions/${id}`, promotion)
-  return response.data.data
+  return unwrapApiPayload<Promotion>(response.data)
 }
 
 export async function updatePromotionStatus(id: string, status: PromotionStatus): Promise<Promotion> {
   const response = await api.patch(`/manager/promotions/${id}/status`, { status })
-  return response.data.data
+  return unwrapApiPayload<Promotion>(response.data)
 }
 
 export async function deletePromotion(id: string): Promise<void> {
@@ -141,15 +142,15 @@ export async function deletePromotion(id: string): Promise<void> {
 
 export async function validatePromotion(dto: ValidatePromotionDto): Promise<ValidatePromotionResponse> {
   const response = await api.post('/promotions/validate', dto)
-  return response.data.data
+  return unwrapApiPayload<ValidatePromotionResponse>(response.data)
 }
 
 export async function getPromotionStatistics(): Promise<PromotionStatsResponse> {
   const response = await api.get('/manager/promotions/statistics/overview')
-  return response.data.data
+  return unwrapApiPayload<PromotionStatsResponse>(response.data)
 }
 
 export async function getActivePromotions(): Promise<Promotion[]> {
   const response = await api.get('/promotions/active')
-  return response.data.data
+  return unwrapApiPayload<Promotion[]>(response.data)
 }

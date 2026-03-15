@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -66,9 +67,10 @@ import VNPayReturnPage from './pages/store/VNPayReturnPage'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
-      <div className="pt-16">
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Navbar />
+        <div className="pt-16">
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<HomePage />} />
@@ -176,6 +178,7 @@ function App() {
         </Routes>
       </div>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

@@ -203,14 +203,15 @@ export function ReturnsManagementPage() {
 
   const canVerify = (returnRequest: ReturnRequest) => {
     // Only Sale Staff (and managers/admins) can verify returns
-    // Convert role to number to handle localStorage string conversion
-    const userRole = Number(user?.role ?? USER_ROLES.CUSTOMER)
+    const userRole = user?.role ?? USER_ROLES.CUSTOMER
     const statusMatch = returnRequest.status === ReturnStatus.AWAITING_ITEMS
 
     // Sale, Manager, Admin can verify
     return (
       statusMatch &&
-      (userRole === Number(USER_ROLES.SALE) || userRole <= Number(USER_ROLES.MANAGER))
+      (userRole === USER_ROLES.SALE ||
+        userRole === USER_ROLES.MANAGER ||
+        userRole === USER_ROLES.ADMIN)
     )
   }
 
@@ -218,29 +219,23 @@ export function ReturnsManagementPage() {
     if (returnRequest.status !== ReturnStatus.IN_REVIEW) return false
 
     // Role-based access control for PROCESSING:
-    // - Sale Staff (3): Can only process REFUND requests
-    // - Operation Staff (2): Can only process EXCHANGE requests
-    // - Manager (1) & Admin (0): Can process both
-    // Convert role to number to handle localStorage string conversion
-    const userRole = Number(user?.role ?? USER_ROLES.CUSTOMER)
+    // - Sale Staff: Can only process REFUND requests
+    // - Operation Staff: Can only process EXCHANGE requests
+    // - Manager & Admin: Can process both
+    const userRole = user?.role ?? USER_ROLES.CUSTOMER
 
-    if (userRole <= Number(USER_ROLES.MANAGER)) {
-      // Managers and Admins can process everything
+    // Managers and Admins can process everything
+    if (userRole === USER_ROLES.MANAGER || userRole === USER_ROLES.ADMIN) {
       return true
     }
 
-    if (userRole === Number(USER_ROLES.SALE)) {
-      // Sale Staff: Only refunds
+    // Sale Staff: Only refunds
+    if (userRole === USER_ROLES.SALE) {
       return returnRequest.returnType === ReturnRequestType.REFUND
     }
 
-    if (userRole === Number(USER_ROLES.OPERATION)) {
-      // Operation Staff: Only exchanges
-      return returnRequest.returnType === ReturnRequestType.EXCHANGE
-    }
-
-    if (userRole === Number(USER_ROLES.OPERATION)) {
-      // Operation Staff: Only exchanges
+    // Operation Staff: Only exchanges
+    if (userRole === USER_ROLES.OPERATION) {
       return returnRequest.returnType === ReturnRequestType.EXCHANGE
     }
 

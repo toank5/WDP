@@ -1,13 +1,5 @@
 import { api } from './api-client'
-import { extractApiMessage } from './api-client'
-
-// API response wrapper
-interface ApiResponse<T> {
-  statusCode: number
-  message: string
-  data?: T
-  metadata?: T
-}
+import { unwrapApiPayload } from './type-guards'
 
 // Get the API base URL for formatting image URLs
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -167,25 +159,15 @@ export type CreateProductPayload =
 
 export type UpdateProductPayload = Partial<CreateProductPayload>
 
-async function handleRequest<T>(
-  promise: Promise<{ data: ApiResponse<T> }>,
-): Promise<T> {
-  try {
-    const response = await promise
-    const data = response.data?.data || response.data?.metadata
-    if (!data) throw new Error('Missing response payload')
-    return data
-  } catch (error) {
-    const message = extractApiMessage(error)
-    throw new Error(message)
-  }
+export async function getAllProducts(): Promise<Product[]> {
+  const response = await api.get('/products')
+  return unwrapApiPayload<Product[]>(response.data)
 }
 
-export async function getAllProducts() {
-  return handleRequest<Product[]>(api.get('/products'))
-}
-
-export async function createProduct(payload: CreateProductPayload, files?: File[]) {
+export async function createProduct(
+  payload: CreateProductPayload,
+  files?: File[],
+): Promise<Product> {
   // If files are provided, use FormData
   if (files && files.length > 0) {
     const formData = new FormData()
@@ -206,22 +188,22 @@ export async function createProduct(payload: CreateProductPayload, files?: File[
       formData.append('images', file)
     })
 
-    return handleRequest<Product>(
-      api.post('/products', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }),
-    )
+    const response = await api.post('/products', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrapApiPayload<Product>(response.data)
   }
 
   // Otherwise send as JSON
-  return handleRequest<Product>(api.post('/products', payload))
+  const response = await api.post('/products', payload)
+  return unwrapApiPayload<Product>(response.data)
 }
 
 export async function updateProduct(
   id: string,
   payload: UpdateProductPayload,
   files?: File[],
-) {
+): Promise<Product> {
   // If files are provided, use FormData
   if (files && files.length > 0) {
     const formData = new FormData()
@@ -242,23 +224,25 @@ export async function updateProduct(
       formData.append('images', file)
     })
 
-    return handleRequest<Product>(
-      api.put(`/products/${id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }),
-    )
+    const response = await api.put(`/products/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrapApiPayload<Product>(response.data)
   }
 
   // Otherwise send as JSON
-  return handleRequest<Product>(api.put(`/products/${id}`, payload))
+  const response = await api.put(`/products/${id}`, payload)
+  return unwrapApiPayload<Product>(response.data)
 }
 
-export async function deleteProduct(id: string) {
-  return handleRequest<Product>(api.delete(`/products/${id}`))
+export async function deleteProduct(id: string): Promise<Product> {
+  const response = await api.delete(`/products/${id}`)
+  return unwrapApiPayload<Product>(response.data)
 }
 
-export async function restoreProduct(id: string) {
-  return handleRequest<Product>(api.patch(`/products/${id}/restore`))
+export async function restoreProduct(id: string): Promise<Product> {
+  const response = await api.patch(`/products/${id}/restore`)
+  return unwrapApiPayload<Product>(response.data)
 }
 
 // Catalog list types
@@ -331,14 +315,16 @@ export async function getProductsCatalog(
   const queryString = queryParams.toString()
   const url = `/products/catalog${queryString ? `?${queryString}` : ''}`
 
-  return handleRequest<ProductCatalogResponse>(api.get(url))
+  const response = await api.get(url)
+  return unwrapApiPayload<ProductCatalogResponse>(response.data)
 }
 
 /**
  * Get product by ID (full details)
  */
 export async function getProductById(id: string): Promise<Product> {
-  return handleRequest<Product>(api.get(`/products/${id}`))
+  const response = await api.get(`/products/${id}`)
+  return unwrapApiPayload<Product>(response.data)
 }
 
 /**
@@ -352,7 +338,8 @@ export async function checkInventoryAvailability(sku: string): Promise<{
   isInStock: boolean
 } | null> {
   try {
-    return await handleRequest(api.get(`/inventory/${sku}`))
+    const response = await api.get(`/inventory/${sku}`)
+    return unwrapApiPayload(response.data)
   } catch {
     return null
   }
@@ -369,9 +356,8 @@ export async function checkMultipleInventoryAvailability(skus: string[]): Promis
   }>
 > {
   try {
-    return handleRequest(
-      api.post('/inventory/check-availability', { skus })
-    )
+    const response = await api.post('/inventory/check-availability', { skus })
+    return unwrapApiPayload(response.data)
   } catch {
     return {}
   }
