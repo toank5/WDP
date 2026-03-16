@@ -1,16 +1,8 @@
 import React, { useCallback } from 'react'
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native'
+import { Platform, View, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native'
 import {
   Text,
   Button,
-  Divider,
   Surface,
   useTheme,
   Checkbox,
@@ -19,9 +11,10 @@ import {
 import { useCartStore } from '../../store/cart-store'
 import { useAuthStore } from '../../store/auth-store'
 import { APP_CONFIG } from '../../config'
-import { CartItem } from '../../components/cart/CartItem'
 import { EmptyCart } from '../../components/cart/EmptyCart'
 import { CartSummary, type CartTotals } from '../../components/cart/CartSummary'
+import { SwipeableCartItem } from '../../components/cart/SwipeableCartItem'
+import { LongPressCartItem } from '../../components/cart/LongPressCartItem'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 interface CartItemData {
@@ -139,6 +132,19 @@ export const CartScreen = () => {
     navigation.navigate('CheckoutAddress' as never)
   }, [isAuthenticated, navigation])
 
+  // Handle remove single item
+  const handleRemoveItem = useCallback(
+    (itemId: string) => {
+      const item = items.find((i) => i.id === itemId)
+      if (item) {
+        // Remove from cart
+        console.log('Remove item:', itemId)
+        // TODO: Call removeFromCart from store
+      }
+    },
+    [items]
+  )
+
   // Calculate totals
   const cartTotals: CartTotals = React.useMemo(() => {
     const subtotalValue = subtotal
@@ -214,13 +220,52 @@ export const CartScreen = () => {
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <CartItem
-            {...item}
-            selected={selectedItems.has(item.id)}
-            onSelect={handleItemSelect}
-          />
-        )}
+        renderItem={({ item }) => {
+          // iOS: Use SwipeableCartItem
+          // Android: Use LongPressCartItem
+          if (Platform.OS === 'ios') {
+            return (
+              <SwipeableCartItem
+                itemId={item.id}
+                onRemove={handleRemoveItem}
+                itemProps={{
+                  productId: item.productId,
+                  productVariantId: item.productVariantId,
+                  quantity: item.quantity,
+                  name: item.name,
+                  image: item.image,
+                  variantColor: item.variantColor,
+                  variantSize: item.variantSize,
+                  price: item.price,
+                  available: item.available,
+                  selected: selectedItems.has(item.id),
+                  onSelect: handleItemSelect,
+                }}
+              />
+            )
+          }
+
+          // Android: Use LongPressCartItem
+          return (
+            <LongPressCartItem
+              itemId={item.id}
+              onRemove={handleRemoveItem}
+              itemProps={{
+                productId: item.productId,
+                productVariantId: item.productVariantId,
+                quantity: item.quantity,
+                name: item.name,
+                image: item.image,
+                variantColor: item.variantColor,
+                variantSize: item.variantSize,
+                price: item.price,
+                available: item.available,
+                selected: selectedItems.has(item.id),
+                onSelect: handleItemSelect,
+              }}
+            />
+          )
+        }}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
