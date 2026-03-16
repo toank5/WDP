@@ -7,7 +7,14 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, PipelineStage } from 'mongoose';
-import { ReturnRequest, ReturnStatus, ReturnType, ReturnReason, ReturnItemCondition } from '../commons/schemas/return.schema';
+import {
+  ReturnRequest,
+  ReturnStatus,
+  ReturnType,
+  ReturnReason,
+  ReturnItemCondition,
+  ReturnItemStatus,
+} from '../commons/schemas/return.schema';
 import {
   CreateReturnRequestDto,
   UpdateReturnStatusDto,
@@ -26,10 +33,59 @@ import { PolicyService } from './policy.service';
 import { Policy } from '../commons/schemas/policy.schema';
 import { Order } from '../commons/schemas/order.schema';
 import { User } from '../commons/schemas/user.schema';
-import { ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
-import { UserRole } from '../commons/guards/rbac.guard';
+import { ORDER_STATUS, ORDER_TYPES, ROLES } from '@eyewear/shared';
 import { POLICY_TYPES } from '@eyewear/shared';
-import { InventoryMovement, MovementType } from '../commons/schemas/inventory-movement.schema';
+import {
+  InventoryMovement,
+  MovementType,
+} from '../commons/schemas/inventory-movement.schema';
+import type { ReturnPolicyConfig } from '../commons/types/policy.types';
+
+type ReturnDateRange = {
+  $gte?: Date;
+  $lte?: Date;
+};
+
+type ReturnQueryFilter = {
+  userId?: string;
+  status?: ReturnStatus;
+  orderId?: string;
+  returnNumber?: string;
+  customerEmail?: {
+    $regex: string;
+    $options: string;
+  };
+  $or?: Array<
+    | { returnNumber: { $regex: string; $options: string } }
+    | { orderNumber: { $regex: string; $options: string } }
+    | { customerEmail: { $regex: string; $options: string } }
+  >;
+  createdAt?: ReturnDateRange;
+};
+
+type ReturnSort = Record<string, 1 | -1>;
+
+type ReturnStatusUpdatePayload = {
+  status: ReturnStatus;
+  rejectionReason?: string;
+  approvedRefundAmount?: number;
+  restockingFee?: number;
+  restockingFeePercent?: number;
+  managerReviewedAt?: Date;
+  managerReviewedBy?: string;
+  statusHistory: NonNullable<ReturnRequest['statusHistory']>;
+};
+
+type ReturnResolutionUpdatePayload = {
+  status: ReturnStatus;
+  statusHistory: NonNullable<ReturnRequest['statusHistory']>;
+  exchangeDetails?: ReturnRequest['exchangeDetails'];
+  refundDetails?: ReturnRequest['refundDetails'];
+};
+
+type ReturnStatisticsFilter = {
+  createdAt?: ReturnDateRange;
+};
 
 /**
  * Return number generator (sequential per year)
@@ -75,9 +131,7 @@ const STATUS_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
   [ReturnStatus.APPROVED]: [
     ReturnStatus.COMPLETED, // All steps done
   ],
-  [ReturnStatus.REJECTED]: [
-    ReturnStatus.CANCELED,
-  ],
+  [ReturnStatus.REJECTED]: [ReturnStatus.CANCELED],
   [ReturnStatus.COMPLETED]: [], // Terminal state
   [ReturnStatus.CANCELED]: [], // Terminal state
 };
@@ -94,21 +148,21 @@ const STATUS_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
  * MANAGER/ADMIN: Can do everything
  * CUSTOMER: Can submit and cancel own returns
  */
-const ROLE_STATUS_PERMISSIONS: Record<UserRole, ReturnStatus[]> = {
-  [UserRole.ADMIN]: Object.values(ReturnStatus),
-  [UserRole.MANAGER]: Object.values(ReturnStatus),
-  [UserRole.OPERATION]: [
+const ROLE_STATUS_PERMISSIONS: Record<ROLES, ReturnStatus[]> = {
+  [ROLES.ADMIN]: Object.values(ReturnStatus),
+  [ROLES.MANAGER]: Object.values(ReturnStatus),
+  [ROLES.OPERATION]: [
     ReturnStatus.IN_REVIEW, // Mark items as received
     ReturnStatus.APPROVED, // Process exchanges
     ReturnStatus.COMPLETED, // Mark inventory as processed
   ],
-  [UserRole.SALE]: [
+  [ROLES.SALE]: [
     ReturnStatus.IN_REVIEW, // Inspect items and set condition
     ReturnStatus.APPROVED, // Approve return with resolution
     ReturnStatus.REJECTED, // Reject return
     ReturnStatus.COMPLETED, // Complete refund/exchange
   ],
-  [UserRole.CUSTOMER]: [
+  [ROLES.CUSTOMER]: [
     ReturnStatus.SUBMITTED, // Create return request
     ReturnStatus.CANCELED, // Cancel own return
   ],
@@ -131,7 +185,8 @@ export class ReturnService {
     @InjectModel(ReturnRequest.name) private returnModel: Model<ReturnRequest>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(InventoryMovement.name) private movementModel: Model<InventoryMovement>,
+    @InjectModel(InventoryMovement.name)
+    private movementModel: Model<InventoryMovement>,
     private policyService: PolicyService,
   ) {}
 
@@ -146,7 +201,7 @@ export class ReturnService {
     eligible: boolean;
     policy?: Policy;
     order?: Order;
-    ineligibleItems?: Array<{ item: typeof items[0]; reason: string }>;
+    ineligibleItems?: Array<{ item: (typeof items)[0]; reason: string }>;
     estimatedRefundAmount?: number;
     restockingFee?: number;
     restockingFeePercent?: number;
@@ -158,76 +213,124 @@ export class ReturnService {
     }
 
     if (!order) {
-      return { eligible: false, ineligibleItems: items.map(item => ({ item, reason: `Order "${orderId}" not found` })) };
+      return {
+        eligible: false,
+        ineligibleItems: items.map((item) => ({
+          item,
+          reason: `Order "${orderId}" not found`,
+        })),
+      };
     }
 
     // 2. Verify order ownership (customer can only return their own orders)
-    // Staff/Manager can check any order for eligibility
+    // Staff/Manager can check all orders for eligibility
     if (order.customerId?.toString() !== userId) {
-      return { eligible: false, ineligibleItems: items.map(item => ({ item, reason: `This order does not belong to you. You can only return items from your own orders.` })) };
+      return {
+        eligible: false,
+        ineligibleItems: items.map((item) => ({
+          item,
+          reason: `This order does not belong to you. You can only return items from your own orders.`,
+        })),
+      };
     }
 
     // 3. Check order status - only delivered orders can be returned
     if (order.orderStatus !== ORDER_STATUS.DELIVERED) {
-      return { eligible: false, ineligibleItems: items.map(item => ({ item, reason: `Order must be delivered before requesting return. Current status: ${order.orderStatus}` })) };
+      return {
+        eligible: false,
+        ineligibleItems: items.map((item) => ({
+          item,
+          reason: `Order must be delivered before requesting return. Current status: ${order.orderStatus}`,
+        })),
+      };
     }
 
     // 4. Get active return policy
-    const policyResult = await this.policyService.findAll({ type: 'return' as POLICY_TYPES, isActive: true });
+    const policyResult = await this.policyService.findAll({
+      type: 'return' as POLICY_TYPES,
+      isActive: true,
+    });
     const policy = policyResult.length > 0 ? policyResult[0] : null;
 
     if (!policy) {
-      return { eligible: false, ineligibleItems: items.map(item => ({ item, reason: 'Return policy is currently not available. Please contact customer support.' })) };
+      return {
+        eligible: false,
+        ineligibleItems: items.map((item) => ({
+          item,
+          reason:
+            'Return policy is currently not available. Please contact customer support.',
+        })),
+      };
     }
 
     // 5. Check each item for eligibility
-    const ineligibleItems: Array<{ item: typeof items[0]; reason: string }> = [];
-    const policyConfig = policy.config as any;
+    const ineligibleItems: Array<{ item: (typeof items)[0]; reason: string }> =
+      [];
+    const policyConfig = policy.config as ReturnPolicyConfig;
 
     // Calculate days since delivery
-    const deliveredHistory = order.history?.find(h => h.status === ORDER_STATUS.DELIVERED);
+    const deliveredHistory = order.history?.find(
+      (h) => h.status === ORDER_STATUS.DELIVERED,
+    );
     const daysSinceDelivery = deliveredHistory?.timestamp
-      ? Math.floor((Date.now() - new Date(deliveredHistory.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor(
+          (Date.now() - new Date(deliveredHistory.timestamp).getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
       : 0;
 
     for (const item of items) {
       // Check if item belongs to this order
       // Note: OrderItem is embedded and doesn't have _id, so we match by productId and variantSku
-      const orderItem = order.items.find(oi =>
-        oi.productId?.toString() === item.productId &&
-        oi.variantSku === item.variantId
+      const orderItem = order.items.find(
+        (oi) =>
+          oi.productId?.toString() === item.productId &&
+          oi.variantSku === item.variantId,
       );
       if (!orderItem) {
-        ineligibleItems.push({ item, reason: `"${item.productName}" - Item not found in this order` });
+        ineligibleItems.push({
+          item,
+          reason: `"${item.productName}" - Item not found in this order`,
+        });
         continue;
       }
 
       // Check quantity
       if (item.quantity > orderItem.quantity) {
-        ineligibleItems.push({ item, reason: `"${item.productName}" - You requested to return ${item.quantity} but only ordered ${orderItem.quantity}` });
+        ineligibleItems.push({
+          item,
+          reason: `"${item.productName}" - You requested to return ${item.quantity} but only ordered ${orderItem.quantity}`,
+        });
         continue;
       }
 
       // Check return window based on product type
-      const isPrescription = orderItem.isPrescription || false;
-      const windowKey = isPrescription ? 'prescriptionGlasses' : 'framesOnly';
+      // isPrescription field removed - always use framesOnly return window
+      const windowKey = 'framesOnly';
       const returnWindowDays = policyConfig.returnWindowDays?.[windowKey] || 30;
 
       if (daysSinceDelivery > returnWindowDays) {
-        ineligibleItems.push({ item, reason: `"${item.productName}" - Return window closed (${returnWindowDays} days). It's been ${daysSinceDelivery} days since delivery.` });
+        ineligibleItems.push({
+          item,
+          reason: `"${item.productName}" - Return window closed (${returnWindowDays} days). It's been ${daysSinceDelivery} days since delivery.`,
+        });
         continue;
       }
 
       // Check non-returnable categories
       // Note: OrderItem doesn't have category field, so we skip this check or would need to look up product
-      const nonReturnableCategories = policyConfig.nonReturnableCategories || [];
+      const nonReturnableCategories =
+        policyConfig.nonReturnableCategories || [];
       // For now, skip category check since OrderItem doesn't have this field
       // If needed, would need to populate product data
     }
 
     // 6. Calculate estimated refund
-    const eligibleItems = items.filter(item =>
-      !ineligibleItems.some(ineligible => ineligible.item.orderItemId === item.orderItemId)
+    const eligibleItems = items.filter(
+      (item) =>
+        !ineligibleItems.some(
+          (ineligible) => ineligible.item.orderItemId === item.orderItemId,
+        ),
     );
 
     let estimatedRefundAmount = 0;
@@ -240,7 +343,9 @@ export class ReturnService {
     }
 
     if (restockingFeePercent > 0) {
-      restockingFee = Math.round(estimatedRefundAmount * (restockingFeePercent / 100));
+      restockingFee = Math.round(
+        estimatedRefundAmount * (restockingFeePercent / 100),
+      );
       estimatedRefundAmount -= restockingFee;
     }
 
@@ -268,12 +373,16 @@ export class ReturnService {
     userId: string,
   ): Promise<ReturnRequest> {
     // 1. Check eligibility first
-    const eligibility = await this.checkEligibility(dto.orderId, userId, dto.items);
+    const eligibility = await this.checkEligibility(
+      dto.orderId,
+      userId,
+      dto.items,
+    );
 
     if (!eligibility.eligible) {
       throw new BadRequestException({
         message: 'Return request is not eligible',
-        reasons: eligibility.ineligibleItems?.map(i => i.reason),
+        reasons: eligibility.ineligibleItems?.map((i) => i.reason),
       });
     }
 
@@ -283,7 +392,7 @@ export class ReturnService {
 
     // 3. Get order and user for customer info
     const order = eligibility.order!;
-    const policyConfig = eligibility.policy?.config as any;
+    const policyConfig = eligibility.policy?.config as ReturnPolicyConfig;
 
     // Fetch user email if not provided in DTO
     let customerEmail = dto.customerEmail;
@@ -308,7 +417,10 @@ export class ReturnService {
       reason: dto.reason,
       reasonDetails: dto.reasonDetails,
       items: dto.items,
-      requestedRefundAmount: dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+      requestedRefundAmount: dto.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      ),
       // Store estimated amounts for reference (actual approved amount set later by Sale Staff)
       approvedRefundAmount: estimatedRefundAmount,
       restockingFee,
@@ -343,14 +455,18 @@ export class ReturnService {
   /**
    * Get return request by ID
    */
-  async getReturnRequest(id: string, userId: string, userRole: UserRole): Promise<ReturnRequest> {
+  async getReturnRequest(
+    id: string,
+    userId: string,
+    userRole: ROLES,
+  ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(id);
     if (!returnRequest) {
       throw new NotFoundException('Return request not found');
     }
 
     // Customers can only view their own returns
-    if (userRole === UserRole.CUSTOMER && returnRequest.userId !== userId) {
+    if (userRole === ROLES.CUSTOMER && returnRequest.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -363,7 +479,7 @@ export class ReturnService {
   async getReturnRequestByNumber(
     returnNumber: string,
     userId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findOne({ returnNumber });
     if (!returnRequest) {
@@ -371,7 +487,7 @@ export class ReturnService {
     }
 
     // Customers can only view their own returns
-    if (userRole === UserRole.CUSTOMER && returnRequest.userId !== userId) {
+    if (userRole === ROLES.CUSTOMER && returnRequest.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -384,7 +500,7 @@ export class ReturnService {
   async queryReturnRequests(
     query: ReturnQueryDto,
     userId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<{
     items: ReturnRequest[];
     total: number;
@@ -406,10 +522,10 @@ export class ReturnService {
     } = query;
 
     // Build filter
-    const filter: any = {};
+    const filter: ReturnQueryFilter = {};
 
     // Customers can only see their own returns
-    if (userRole === UserRole.CUSTOMER) {
+    if (userRole === ROLES.CUSTOMER) {
       filter.userId = userId;
     } else if (queryUserId) {
       filter.userId = queryUserId;
@@ -449,7 +565,7 @@ export class ReturnService {
     const total = await this.returnModel.countDocuments(filter);
 
     // Build sort
-    const sort: any = {};
+    const sort: ReturnSort = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     // Execute query with population to get customer email
@@ -461,18 +577,24 @@ export class ReturnService {
       .exec();
 
     // Populate customer email from user documents for items that don't have it
-    const userIds = items.map(item => item.userId).filter(id => id);
-    const users = userIds.length > 0
-      ? await this.userModel.find({ _id: { $in: userIds } }).select('email').exec()
-      : [];
+    const userIds = items.map((item) => item.userId).filter((id) => id);
+    const users =
+      userIds.length > 0
+        ? await this.userModel
+            .find({ _id: { $in: userIds } })
+            .select('email')
+            .exec()
+        : [];
 
-    const userMap = new Map(users.map(u => [u._id.toString(), u.email]));
+    const userMap = new Map(users.map((u) => [u._id.toString(), u.email]));
 
     // Augment items with customer email if missing
-    const itemsWithCustomerInfo = items.map(item => ({
-      ...item.toObject(),
-      customerEmail: item.customerEmail || userMap.get(item.userId?.toString()) || undefined,
-    })) as any;
+    const itemsWithCustomerInfo = items.map((item) => {
+      if (!item.customerEmail) {
+        item.customerEmail = userMap.get(item.userId?.toString()) || undefined;
+      }
+      return item;
+    });
 
     return { items: itemsWithCustomerInfo, total, page, limit };
   }
@@ -484,7 +606,7 @@ export class ReturnService {
     id: string,
     dto: UpdateReturnStatusDto,
     userId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(id);
     if (!returnRequest) {
@@ -495,7 +617,7 @@ export class ReturnService {
     const allowedStatuses = ROLE_STATUS_PERMISSIONS[userRole] || [];
     if (!allowedStatuses.includes(dto.status)) {
       throw new ForbiddenException(
-        `Role ${UserRole[userRole]} is not allowed to change status to ${dto.status}`,
+        `Role ${userRole} is not allowed to change status to ${dto.status}`,
       );
     }
 
@@ -509,19 +631,30 @@ export class ReturnService {
 
     // 3. Additional validation based on target status
     if (dto.status === ReturnStatus.REJECTED && !dto.rejectionReason) {
-      throw new BadRequestException('Rejection reason is required when rejecting a return');
+      throw new BadRequestException(
+        'Rejection reason is required when rejecting a return',
+      );
     }
 
-    if (
-      dto.status === ReturnStatus.APPROVED &&
-      !dto.approvedRefundAmount
-    ) {
+    if (dto.status === ReturnStatus.APPROVED && !dto.approvedRefundAmount) {
       throw new BadRequestException('Approved refund amount is required');
     }
 
     // 4. Update return request
-    const updateData: any = {
+    // Add to status history
+    const historyEntry = {
       status: dto.status,
+      changedBy: userId,
+      changedAt: new Date(),
+      notes: dto.rejectionReason || undefined,
+    };
+
+    const updateData: ReturnStatusUpdatePayload = {
+      status: dto.status,
+      statusHistory: [
+        ...(returnRequest.statusHistory || []),
+        historyEntry,
+      ],
     };
 
     if (dto.rejectionReason) {
@@ -541,22 +674,17 @@ export class ReturnService {
     }
 
     // Manager approval tracking
-    if (dto.status === ReturnStatus.APPROVED || dto.status === ReturnStatus.REJECTED) {
+    if (
+      dto.status === ReturnStatus.APPROVED ||
+      dto.status === ReturnStatus.REJECTED
+    ) {
       updateData.managerReviewedAt = new Date();
       updateData.managerReviewedBy = userId;
     }
 
-    // Add to status history
-    const historyEntry = {
-      status: dto.status,
-      changedBy: userId,
-      changedAt: new Date(),
-      notes: dto.rejectionReason || undefined,
-    };
-
-    updateData.statusHistory = [...(returnRequest.statusHistory || []), historyEntry];
-
-    const updated = await this.returnModel.findByIdAndUpdate(id, updateData, { new: true });
+    const updated = await this.returnModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
     if (!updated) {
       throw new NotFoundException('Return request not found');
@@ -573,7 +701,7 @@ export class ReturnService {
     id: string,
     dto: VerifyReturnedItemDto,
     staffUserId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(id);
     if (!returnRequest) {
@@ -646,7 +774,10 @@ export class ReturnService {
             const savedMovement = await movement.save();
             movementIds.push(savedMovement._id.toString());
           } catch (err) {
-            console.error(`Failed to create inventory movement for SKU ${sku}:`, err);
+            console.error(
+              `Failed to create inventory movement for SKU ${sku}:`,
+              err,
+            );
           }
         }
       }
@@ -661,22 +792,25 @@ export class ReturnService {
           inventoryMovementId: movementIds[0], // Store primary movement reference
         },
         // Update item-level status
-        items: returnRequest.items.map(item => ({
+        items: returnRequest.items.map((item) => ({
           ...item,
           itemStatus: itemDisposition,
           quantityReceived: dto.verification.quantityVerified || item.quantity,
           receivedAt: new Date(),
           receivedBy: staffUserId,
-          inventoryMovementId: movementIds.find(id => {
+          inventoryMovementId: movementIds.find((id) => {
             // Match movement to item by SKU
-            const movement = movementIds.find(mId => {
+            const movement = movementIds.find((mId) => {
               // We'd need to look up the movement, but for now just assign by index
               return true;
             });
             return movementIds[0]; // Simplified for now
           }),
         })),
-        statusHistory: [...(returnRequest.statusHistory || []), statusHistoryEntry],
+        statusHistory: [
+          ...(returnRequest.statusHistory || []),
+          statusHistoryEntry,
+        ],
       },
       { new: true },
     );
@@ -696,7 +830,7 @@ export class ReturnService {
     id: string,
     dto: ProcessRefundExchangeDto,
     staffUserId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(id);
     if (!returnRequest) {
@@ -716,7 +850,9 @@ export class ReturnService {
     // Check permissions for status change
     const allowedStatuses = ROLE_STATUS_PERMISSIONS[userRole] || [];
     if (!allowedStatuses.includes(newStatus)) {
-      throw new ForbiddenException(`Role ${UserRole[userRole]} is not allowed to process this action`);
+      throw new ForbiddenException(
+        `Role ${userRole} is not allowed to process this action`,
+      );
     }
 
     // Role-based access control for processing:
@@ -726,12 +862,16 @@ export class ReturnService {
     const isExchange = !!dto.details.exchangeOrderId;
     const isRefund = !!dto.details.refundAmount;
 
-    if (userRole === UserRole.SALE && isExchange) {
-      throw new ForbiddenException('Sale Staff can only process REFUND returns. Exchange returns must be processed by Operation Staff.');
+    if (userRole === ROLES.SALE && isExchange) {
+      throw new ForbiddenException(
+        'Sale Staff can only process REFUND returns. Exchange returns must be processed by Operation Staff.',
+      );
     }
 
-    if (userRole === UserRole.OPERATION && isRefund) {
-      throw new ForbiddenException('Operation Staff can only process EXCHANGE returns. Refund returns must be processed by Sale Staff.');
+    if (userRole === ROLES.OPERATION && isRefund) {
+      throw new ForbiddenException(
+        'Operation Staff can only process EXCHANGE returns. Refund returns must be processed by Sale Staff.',
+      );
     }
 
     // Update with refund/exchange details
@@ -749,9 +889,12 @@ export class ReturnService {
     };
 
     // Determine which field to update based on action type
-    const updateData: any = {
+    const updateData: ReturnResolutionUpdatePayload = {
       status: newStatus,
-      statusHistory: [...(returnRequest.statusHistory || []), statusHistoryEntry],
+      statusHistory: [
+        ...(returnRequest.statusHistory || []),
+        statusHistoryEntry,
+      ],
     };
 
     if (dto.details.exchangeOrderId) {
@@ -776,11 +919,9 @@ export class ReturnService {
       };
     }
 
-    const updated = await this.returnModel.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true },
-    );
+    const updated = await this.returnModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
     if (!updated) {
       throw new NotFoundException('Return request not found');
@@ -799,7 +940,7 @@ export class ReturnService {
   async cancelReturnRequest(
     id: string,
     userId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(id);
     if (!returnRequest) {
@@ -807,7 +948,7 @@ export class ReturnService {
     }
 
     // Customers can only cancel their own returns
-    if (userRole === UserRole.CUSTOMER && returnRequest.userId !== userId) {
+    if (userRole === ROLES.CUSTOMER && returnRequest.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -835,7 +976,10 @@ export class ReturnService {
       id,
       {
         status: ReturnStatus.CANCELED,
-        statusHistory: [...(returnRequest.statusHistory || []), statusHistoryEntry],
+        statusHistory: [
+          ...(returnRequest.statusHistory || []),
+          statusHistoryEntry,
+        ],
       },
       { new: true },
     );
@@ -864,7 +1008,7 @@ export class ReturnService {
     avgProcessingTimeDays: number;
     returnsByReason: Record<string, number>;
   }> {
-    const dateFilter: any = {};
+    const dateFilter: ReturnStatisticsFilter = {};
     if (filters?.fromDate || filters?.toDate) {
       dateFilter.createdAt = {};
       if (filters.fromDate) {
@@ -880,38 +1024,56 @@ export class ReturnService {
 
     // Calculate statistics
     const totalReturns = returns.length;
-    const pendingApproval = returns.filter(r => r.status === ReturnStatus.IN_REVIEW).length;
-    const awaitingItem = returns.filter(r => r.status === ReturnStatus.AWAITING_ITEMS).length;
-    const verifiedPendingAction = returns.filter(r => r.status === ReturnStatus.APPROVED).length;
-
-    const completedReturns = returns.filter(r => r.status === ReturnStatus.COMPLETED);
-    const totalRefundAmount = completedReturns.reduce((sum, r) => sum + (r.approvedRefundAmount || 0), 0);
-
-    const approvedReturns = returns.filter(r =>
-      [ReturnStatus.APPROVED, ReturnStatus.COMPLETED].includes(r.status)
+    const pendingApproval = returns.filter(
+      (r) => r.status === ReturnStatus.IN_REVIEW,
     ).length;
-    const rejectedReturns = returns.filter(r =>
-      [ReturnStatus.REJECTED].includes(r.status)
+    const awaitingItem = returns.filter(
+      (r) => r.status === ReturnStatus.AWAITING_ITEMS,
+    ).length;
+    const verifiedPendingAction = returns.filter(
+      (r) => r.status === ReturnStatus.APPROVED,
+    ).length;
+
+    const completedReturns = returns.filter(
+      (r) => r.status === ReturnStatus.COMPLETED,
+    );
+    const totalRefundAmount = completedReturns.reduce(
+      (sum, r) => sum + (r.approvedRefundAmount || 0),
+      0,
+    );
+
+    const approvedReturns = returns.filter((r) =>
+      [ReturnStatus.APPROVED, ReturnStatus.COMPLETED].includes(r.status),
+    ).length;
+    const rejectedReturns = returns.filter((r) =>
+      [ReturnStatus.REJECTED].includes(r.status),
     ).length;
 
     // Average processing time (from creation to completion)
     const processingTimes = completedReturns
-      .filter(r => (r as any).refundDetails?.completedAt || (r as any).exchangeDetails?.processedAt)
-      .map(r => {
-        const created = (r as any).createdAt ? new Date((r as any).createdAt).getTime() : Date.now();
-        const refundCompleted = (r as any).refundDetails?.completedAt
-          ? new Date((r as any).refundDetails.completedAt).getTime()
+      .filter(
+        (r) =>
+          r.refundDetails?.completedAt ||
+          r.exchangeDetails?.processedAt,
+      )
+      .map((r) => {
+        const created = r.createdAt
+          ? new Date(r.createdAt).getTime()
+          : Date.now();
+        const refundCompleted = r.refundDetails?.completedAt
+          ? new Date(r.refundDetails.completedAt).getTime()
           : 0;
-        const exchangeProcessed = (r as any).exchangeDetails?.processedAt
-          ? new Date((r as any).exchangeDetails.processedAt).getTime()
+        const exchangeProcessed = r.exchangeDetails?.processedAt
+          ? new Date(r.exchangeDetails.processedAt).getTime()
           : 0;
         const processed = refundCompleted || exchangeProcessed || Date.now();
         return (processed - created) / (1000 * 60 * 60 * 24); // days
       });
 
-    const avgProcessingTimeDays = processingTimes.length > 0
-      ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
-      : 0;
+    const avgProcessingTimeDays =
+      processingTimes.length > 0
+        ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
+        : 0;
 
     // Returns by reason
     const returnsByReason: Record<string, number> = {};
@@ -947,7 +1109,7 @@ export class ReturnService {
     returnId: string,
     dto: InspectReturnDto,
     staffUserId: string,
-    userRole: number,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(returnId);
     if (!returnRequest) {
@@ -955,13 +1117,13 @@ export class ReturnService {
     }
 
     // Check permission (SALE, MANAGER, ADMIN can inspect)
-    const canInspect = [
-      UserRole.SALE,
-      UserRole.MANAGER,
-      UserRole.ADMIN,
-    ].includes(userRole);
+    const canInspect = [ROLES.SALE, ROLES.MANAGER, ROLES.ADMIN].includes(
+      userRole,
+    );
     if (!canInspect) {
-      throw new ForbiddenException('You do not have permission to inspect return items');
+      throw new ForbiddenException(
+        'You do not have permission to inspect return items',
+      );
     }
 
     // Check status transition
@@ -971,18 +1133,18 @@ export class ReturnService {
     ];
     if (!allowedTransitions.includes(returnRequest.status)) {
       throw new BadRequestException(
-        `Cannot inspect items in current status: ${returnRequest.status}. Expected: AWAITING_ITEMS or IN_REVIEW`
+        `Cannot inspect items in current status: ${returnRequest.status}. Expected: AWAITING_ITEMS or IN_REVIEW`,
       );
     }
 
     // Update each item with condition and inspection details
     for (const itemDto of dto.items) {
       const itemIndex = returnRequest.items.findIndex(
-        i => i.orderItemId === itemDto.orderItemId
+        (i) => i.orderItemId === itemDto.orderItemId,
       );
       if (itemIndex === -1) {
         throw new NotFoundException(
-          `Item with orderItemId "${itemDto.orderItemId}" not found in return request`
+          `Item with orderItemId "${itemDto.orderItemId}" not found in return request`,
         );
       }
 
@@ -997,24 +1159,29 @@ export class ReturnService {
 
       // Update itemStatus based on condition for inventory tracking
       if (itemDto.condition === ReturnItemCondition.RESELLABLE) {
-        item.itemStatus = 'RESALEABLE' as any;
+        item.itemStatus = ReturnItemStatus.RESALEABLE;
       } else if (itemDto.condition === ReturnItemCondition.DAMAGED_UNUSABLE) {
-        item.itemStatus = 'SCRAPPED' as any;
+        item.itemStatus = ReturnItemStatus.SCRAPPED;
       }
 
       returnRequest.items[itemIndex] = item;
     }
 
     // Store resolution info
-    (returnRequest as any).resolutionType = dto.resolutionType;
-    (returnRequest as any).approvedRefundAmount = dto.approvedRefundAmount;
+    returnRequest.resolutionType = dto.resolutionType;
+    returnRequest.approvedRefundAmount = dto.approvedRefundAmount;
     if (dto.restockingFee !== undefined) {
       returnRequest.restockingFee = dto.restockingFee;
     }
 
     // Transition to IN_REVIEW
     returnRequest.status = ReturnStatus.IN_REVIEW;
-    await this.addStatusHistory(returnRequest, ReturnStatus.IN_REVIEW, staffUserId, 'Items inspected by Sale Staff');
+    await this.addStatusHistory(
+      returnRequest,
+      ReturnStatus.IN_REVIEW,
+      staffUserId,
+      'Items inspected by Sale Staff',
+    );
 
     await returnRequest.save();
     return returnRequest;
@@ -1033,7 +1200,7 @@ export class ReturnService {
     returnId: string,
     dto: ApproveReturnResolutionDto,
     staffUserId: string,
-    userRole: number,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(returnId);
     if (!returnRequest) {
@@ -1041,27 +1208,25 @@ export class ReturnService {
     }
 
     // Check permission (SALE, MANAGER, ADMIN can approve)
-    const canApprove = [
-      UserRole.SALE,
-      UserRole.MANAGER,
-      UserRole.ADMIN,
-    ].includes(userRole);
+    const canApprove = [ROLES.SALE, ROLES.MANAGER, ROLES.ADMIN].includes(
+      userRole,
+    );
     if (!canApprove) {
-      throw new ForbiddenException('You do not have permission to approve return resolution');
+      throw new ForbiddenException(
+        'You do not have permission to approve return resolution',
+      );
     }
 
     // Check status transition
-    const allowedTransitions = [
-      ReturnStatus.IN_REVIEW,
-    ];
+    const allowedTransitions = [ReturnStatus.IN_REVIEW];
     if (!allowedTransitions.includes(returnRequest.status)) {
       throw new BadRequestException(
-        `Cannot approve return in current status: ${returnRequest.status}. Expected: IN_REVIEW`
+        `Cannot approve return in current status: ${returnRequest.status}. Expected: IN_REVIEW`,
       );
     }
 
     // Set resolution details
-    (returnRequest as any).resolutionType = dto.resolutionType;
+    returnRequest.resolutionType = dto.resolutionType;
     returnRequest.approvedRefundAmount = dto.approvedRefundAmount;
     if (dto.restockingFee !== undefined) {
       returnRequest.restockingFee = dto.restockingFee;
@@ -1090,7 +1255,7 @@ export class ReturnService {
       returnRequest,
       ReturnStatus.APPROVED,
       staffUserId,
-      `Return approved: ${dto.resolutionType} - ${dto.notes || ''}`
+      `Return approved: ${dto.resolutionType} - ${dto.notes || ''}`,
     );
 
     await returnRequest.save();
@@ -1110,7 +1275,7 @@ export class ReturnService {
     returnId: string,
     dto: ProcessReturnInventoryDto,
     staffUserId: string,
-    userRole: number,
+    userRole: ROLES,
   ): Promise<ReturnRequest> {
     const returnRequest = await this.returnModel.findById(returnId);
     if (!returnRequest) {
@@ -1119,24 +1284,28 @@ export class ReturnService {
 
     // Check permission (OPERATION, MANAGER, ADMIN can process inventory)
     const canProcessInventory = [
-      UserRole.OPERATION,
-      UserRole.MANAGER,
-      UserRole.ADMIN,
+      ROLES.OPERATION,
+      ROLES.MANAGER,
+      ROLES.ADMIN,
     ].includes(userRole);
     if (!canProcessInventory) {
-      throw new ForbiddenException('You do not have permission to process return inventory');
+      throw new ForbiddenException(
+        'You do not have permission to process return inventory',
+      );
     }
 
     // Check status - must be APPROVED (already inspected and resolution decided)
     if (returnRequest.status !== ReturnStatus.APPROVED) {
       throw new BadRequestException(
-        `Cannot process inventory in current status: ${returnRequest.status}. Expected: APPROVED`
+        `Cannot process inventory in current status: ${returnRequest.status}. Expected: APPROVED`,
       );
     }
 
     // Check if already processed
     if (returnRequest.inventoryProcessed) {
-      throw new BadRequestException('Inventory has already been processed for this return');
+      throw new BadRequestException(
+        'Inventory has already been processed for this return',
+      );
     }
 
     // Create inventory movements for each item based on condition
@@ -1162,11 +1331,11 @@ export class ReturnService {
     returnRequest.inventoryProcessedBy = staffUserId;
 
     // Mark each item as inventory processed
-    returnRequest.items.forEach(item => {
+    returnRequest.items.forEach((item) => {
       item.inventoryProcessed = true;
       if (!item.inventoryMovementId) {
         // Link inventory movement to item (by matching SKU)
-        const movement = dto.inventoryMovements.find(m => m.sku === item.sku);
+        const movement = dto.inventoryMovements.find((m) => m.sku === item.sku);
         if (movement) {
           item.inventoryMovementId = movement.type; // Store movement type as reference
         }
@@ -1182,11 +1351,14 @@ export class ReturnService {
         returnRequest,
         ReturnStatus.COMPLETED,
         staffUserId,
-        'Return completed: inventory processed and resolution finalized'
+        'Return completed: inventory processed and resolution finalized',
       );
 
       // Record revenue impact for refunds
-      if ((returnRequest as any).resolutionType === ReturnType.REFUND && returnRequest.approvedRefundAmount) {
+      if (
+        returnRequest.resolutionType === ReturnType.REFUND &&
+        returnRequest.approvedRefundAmount
+      ) {
         const order = await this.orderModel.findById(returnRequest.orderId);
         if (order) {
           returnRequest.revenueImpact = {
@@ -1222,7 +1394,7 @@ export class ReturnService {
     const canComplete = this.checkIfReturnCanBeCompleted(returnRequest);
     if (!canComplete) {
       throw new BadRequestException(
-        'Cannot complete return yet. Both inventory processing and resolution finalization are required.'
+        'Cannot complete return yet. Both inventory processing and resolution finalization are required.',
       );
     }
 
@@ -1231,11 +1403,14 @@ export class ReturnService {
       returnRequest,
       ReturnStatus.COMPLETED,
       staffUserId,
-      'Return completed: all steps finalized'
+      'Return completed: all steps finalized',
     );
 
     // Record revenue impact for refunds
-    if ((returnRequest as any).resolutionType === ReturnType.REFUND && returnRequest.approvedRefundAmount) {
+    if (
+      returnRequest.resolutionType === ReturnType.REFUND &&
+      returnRequest.approvedRefundAmount
+    ) {
       const order = await this.orderModel.findById(returnRequest.orderId);
       if (order) {
         returnRequest.revenueImpact = {
@@ -1261,7 +1436,7 @@ export class ReturnService {
       return false;
     }
 
-    const resolutionType = (returnRequest as any).resolutionType;
+    const resolutionType = returnRequest.resolutionType;
 
     // For REFUND: check if refund is completed
     if (resolutionType === ReturnType.REFUND) {
@@ -1307,7 +1482,7 @@ export class ReturnService {
   async createExchangeOrder(
     dto: CreateExchangeOrderDto,
     staffUserId: string,
-    userRole: UserRole,
+    userRole: ROLES,
   ): Promise<ExchangeOrderResponseDto> {
     // 1. Verify return exists and is in correct status
     const returnRequest = await this.returnModel.findById(dto.returnId);
@@ -1316,13 +1491,21 @@ export class ReturnService {
     }
 
     // Only Operation staff (and above) can create exchange orders
-    if (userRole !== UserRole.OPERATION && userRole !== UserRole.MANAGER && userRole !== UserRole.ADMIN) {
-      throw new ForbiddenException('Only Operation Staff and above can create exchange orders');
+    if (
+      userRole !== ROLES.OPERATION &&
+      userRole !== ROLES.MANAGER &&
+      userRole !== ROLES.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only Operation Staff and above can create exchange orders',
+      );
     }
 
     // Return must be for exchange type
     if (returnRequest.returnType !== ReturnType.EXCHANGE) {
-      throw new BadRequestException('Cannot create exchange order for a non-exchange return');
+      throw new BadRequestException(
+        'Cannot create exchange order for a non-exchange return',
+      );
     }
 
     // 2. Get original order for customer info
@@ -1333,11 +1516,16 @@ export class ReturnService {
 
     // 3. Generate exchange order number (uses ORD prefix to match validation pattern)
     const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const random = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
     const exchangeOrderNumber = `ORD-${timestamp}-${random}`;
 
     // 4. Calculate total amount (should be 0 for direct exchange, or handle price differences)
-    const totalAmount = dto.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const totalAmount = dto.items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
 
     // 5. Create the exchange order
     const exchangeOrder = new this.orderModel({
@@ -1345,7 +1533,7 @@ export class ReturnService {
       customerId: originalOrder.customerId,
       orderType: ORDER_TYPES.EXCHANGE,
       orderStatus: ORDER_STATUS.CONFIRMED, // Exchange orders are confirmed automatically
-      items: dto.items.map(item => ({
+      items: dto.items.map((item) => ({
         _id: new Types.ObjectId(),
         productId: item.productId,
         variantSku: item.variantId,
@@ -1361,7 +1549,8 @@ export class ReturnService {
       tax: 0,
       shippingAddress: originalOrder.shippingAddress,
       // Store reference to the original return
-      notes: dto.notes || `Exchange order for return ${returnRequest.returnNumber}`,
+      notes:
+        dto.notes || `Exchange order for return ${returnRequest.returnNumber}`,
       metadata: {
         returnId: dto.returnId,
         returnNumber: returnRequest.returnNumber,

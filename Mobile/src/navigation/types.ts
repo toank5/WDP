@@ -29,8 +29,6 @@ export type RootStackParamList = {
   CheckoutReview: undefined
   OrderDetail: { orderId: string }
   OrderHistory: undefined
-  PrescriptionDetail: { prescriptionId: string }
-  PrescriptionList: undefined
   AddressManagement: undefined
   AddressForm: { addressId?: string }
   ProfileSettings: undefined

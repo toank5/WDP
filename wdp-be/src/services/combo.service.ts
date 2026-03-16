@@ -13,6 +13,12 @@ import {
   UpdateComboDto,
   ListCombosQueryDto,
 } from '../commons/dtos/combo.dto';
+import { PRODUCT_CATEGORIES } from '@eyewear/shared';
+
+type ComboListItem = Record<string, unknown> & {
+  frameName?: string;
+  lensName?: string;
+};
 
 @Injectable()
 export class ComboService {
@@ -40,11 +46,13 @@ export class ComboService {
     }
 
     // Validate product categories
-    if (frameProduct.category !== 'frame') {
-      throw new BadRequestException('Frame product must be of category "frame"');
+    if (frameProduct.category !== PRODUCT_CATEGORIES.FRAMES) {
+      throw new BadRequestException(
+        'Frame product must be of category "frame"',
+      );
     }
 
-    if (lensProduct.category !== 'lens') {
+    if (lensProduct.category !== PRODUCT_CATEGORIES.LENSES) {
       throw new BadRequestException('Lens product must be of category "lens"');
     }
 
@@ -74,7 +82,7 @@ export class ComboService {
    * Get all combos with filtering and pagination
    */
   async findAll(params: ListCombosQueryDto = {}): Promise<{
-    items: Array<any>;
+    items: ComboListItem[];
     total: number;
     page: number;
     limit: number;
@@ -185,10 +193,7 @@ export class ComboService {
             ],
           },
           {
-            $or: [
-              { endDate: { $exists: false } },
-              { endDate: { $gte: now } },
-            ],
+            $or: [{ endDate: { $exists: false } }, { endDate: { $gte: now } }],
           },
         ],
       })
@@ -200,7 +205,10 @@ export class ComboService {
   /**
    * Validate combo for cart items
    */
-  async validateCombo(frameProductId: string, lensProductId: string): Promise<{
+  async validateCombo(
+    frameProductId: string,
+    lensProductId: string,
+  ): Promise<{
     hasCombo: boolean;
     combo?: Combo;
   }> {
@@ -219,10 +227,7 @@ export class ComboService {
             ],
           },
           {
-            $or: [
-              { endDate: { $exists: false } },
-              { endDate: { $gte: now } },
-            ],
+            $or: [{ endDate: { $exists: false } }, { endDate: { $gte: now } }],
           },
         ],
       })
@@ -253,8 +258,12 @@ export class ComboService {
       _id: { $in: productIds },
     });
 
-    const frameProduct = products.find((p) => p.category === 'frame');
-    const lensProduct = products.find((p) => p.category === 'lens');
+    const frameProduct = products.find(
+      (p) => p.category === PRODUCT_CATEGORIES.FRAMES,
+    );
+    const lensProduct = products.find(
+      (p) => p.category === PRODUCT_CATEGORIES.LENSES,
+    );
 
     if (!frameProduct || !lensProduct) {
       return { hasCombo: false };
@@ -270,8 +279,8 @@ export class ComboService {
     }
 
     // Calculate original price from variants or base price
-    let framePrice = frameProduct.basePrice;
-    let lensPrice = lensProduct.basePrice;
+    const framePrice = frameProduct.basePrice;
+    const lensPrice = lensProduct.basePrice;
 
     // Use variant price if available (simplified - actual logic would check cart variant SKU)
     const originalPrice = framePrice + lensPrice;
@@ -299,7 +308,7 @@ export class ComboService {
       if (!frameProduct) {
         throw new NotFoundException('Frame product not found');
       }
-      if (frameProduct.category !== 'frame') {
+      if (frameProduct.category !== PRODUCT_CATEGORIES.FRAMES) {
         throw new BadRequestException('Product must be a frame');
       }
     }
@@ -311,7 +320,7 @@ export class ComboService {
       if (!lensProduct) {
         throw new NotFoundException('Lens product not found');
       }
-      if (lensProduct.category !== 'lens') {
+      if (lensProduct.category !== PRODUCT_CATEGORIES.LENSES) {
         throw new BadRequestException('Product must be a lens');
       }
     }
@@ -341,10 +350,7 @@ export class ComboService {
   /**
    * Update combo status
    */
-  async updateStatus(
-    id: string,
-    status: ComboStatus,
-  ): Promise<Combo> {
+  async updateStatus(id: string, status: ComboStatus): Promise<Combo> {
     const combo = await this.findById(id);
     combo.status = status;
     return await combo.save();

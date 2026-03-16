@@ -5,16 +5,6 @@
 import { PRODUCT_CATEGORIES, FRAME_TYPE, FRAME_SHAPE, FRAME_MATERIAL, FRAME_GENDER, BRIDGE_FIT, LENS_TYPE, SERVICE_TYPE } from '../enums/product.enums';
 
 /**
- * Prescription Range
- */
-export interface PrescriptionRange {
-  minSPH?: number;
-  maxSPH?: number;
-  minCYL?: number;
-  maxCYL?: number;
-}
-
-/**
  * Product Variant
  */
 export interface ProductVariant {
@@ -73,9 +63,6 @@ export interface LensProduct extends BaseProduct {
   lensType: LENS_TYPE;
   index: number;
   coatings?: string[];
-  suitableForPrescriptionRange?: PrescriptionRange;
-  isPrescriptionRequired: boolean;
-  variants?: ProductVariant[];
 }
 
 /**

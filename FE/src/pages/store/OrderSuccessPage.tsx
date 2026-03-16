@@ -88,6 +88,14 @@ const OrderSuccessPage: React.FC = () => {
     }
   }, [effectiveOrderId])
 
+  // Clear any applied promotion from cart when order is successful
+  // This ensures promotions don't persist across sessions
+  useEffect(() => {
+    import('@/store/cart.store').then(({ useCartStore }) => {
+      useCartStore.getState().clearPromotionCode()
+    })
+  }, [])
+
   const loadOrder = async (id: string) => {
     try {
       // Try to get order by orderNumber first (for VNPAY callback), fallback to orderId

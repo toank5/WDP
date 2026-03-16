@@ -18,6 +18,7 @@ export interface JwtPayload {
 export interface RequestUser {
   _id: string;
   id: string;
+  userId?: string;
   fullName: string;
   email: string;
   role: ROLES;
@@ -30,7 +31,7 @@ export interface RequestUser {
  * Use this type for controller methods that require JWT authentication
  */
 export interface AuthenticatedRequest extends Request {
-  user?: RequestUser;
+  user: RequestUser;
 }
 
 /**

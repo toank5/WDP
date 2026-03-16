@@ -219,14 +219,11 @@ export const useCartStore = create<CartState>()(
           if (isAuthenticated && accessToken && user?.role === UserRole.CUSTOMER) {
             // Authenticated customer: load from backend
             const cartData = await cartApi.getCart()
-            // Preserve appliedPromotion from localStorage when loading cart
-            const existingPromotion = get().appliedPromotion
-            console.log('[CartStore] loadCart: Preserving appliedPromotion:', existingPromotion)
             set({
               items: cartData.items || [],
               totalItems: cartData.totalItems || 0,
               subtotal: cartData.subtotal || 0,
-              appliedPromotion: existingPromotion,
+              appliedPromotion: null, // Always clear promotions when loading cart from backend
               loading: false,
             })
           } else if (!isAuthenticated) {
@@ -508,8 +505,8 @@ export const useCartStore = create<CartState>()(
         items: state.items,
         totalItems: state.totalItems,
         subtotal: state.subtotal,
-        appliedPromotion: state.appliedPromotion,
         _hydrated: state._hydrated,
+        // Note: appliedPromotion is NOT persisted - it should be cleared after each session
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated()

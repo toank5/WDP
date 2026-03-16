@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsNumber, IsOptional, IsObject } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsObject,
+} from 'class-validator';
 
 /**
  * Shipping address for checkout
@@ -96,7 +102,6 @@ export class CheckoutItemDto {
     color?: string;
   };
   isPreorder?: boolean;
-  isPrescription?: boolean;
 }
 
 /**
@@ -166,6 +171,5 @@ export interface CheckoutOrderInfo {
     quantity: number;
     priceAtOrder: number;
     isPreorder: boolean;
-    isPrescription: boolean;
   }>;
 }

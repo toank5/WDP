@@ -30,7 +30,12 @@ import { PromotionStatus } from '../commons/schemas/promotion.schema';
 const PROMOTION_MANAGE_ROLES = [UserRole.MANAGER, UserRole.ADMIN];
 
 // Roles that can view promotions (Manager, Admin, Sale - for checkout)
-const PROMOTION_VIEW_ROLES = [UserRole.MANAGER, UserRole.ADMIN, UserRole.SALE, UserRole.OPERATION];
+const PROMOTION_VIEW_ROLES = [
+  UserRole.MANAGER,
+  UserRole.ADMIN,
+  UserRole.SALE,
+  UserRole.OPERATION,
+];
 
 @ApiTags('promotions')
 @Controller('manager/promotions')
@@ -227,7 +232,8 @@ export class PromotionController {
   @Roles(...PROMOTION_MANAGE_ROLES)
   @ApiOperation({
     summary: 'Update promotion status',
-    description: 'Update promotion status (active, inactive, scheduled, expired)',
+    description:
+      'Update promotion status (active, inactive, scheduled, expired)',
   })
   @ApiResponse({ status: 200, description: 'Promotion status updated' })
   @ApiResponse({
@@ -356,7 +362,13 @@ export class PublicPromotionController {
    * Get active promotions (public endpoint)
    */
   @Get('active')
-  @Roles(UserRole.CUSTOMER, UserRole.MANAGER, UserRole.ADMIN, UserRole.OPERATION, UserRole.SALE)
+  @Roles(
+    UserRole.CUSTOMER,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.OPERATION,
+    UserRole.SALE,
+  )
   @ApiOperation({
     summary: 'Get active promotions',
     description: 'Get all active promotions available for customers',

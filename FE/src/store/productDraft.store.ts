@@ -16,16 +16,6 @@ export interface DraftVariant {
 }
 
 /**
- * Draft prescription range
- */
-export interface DraftPrescriptionRange {
-  minSPH?: number
-  maxSPH?: number
-  minCYL?: number
-  maxCYL?: number
-}
-
-/**
  * Product Draft - matches form state shape
  * Stores all product form data for restoration
  *
@@ -56,8 +46,6 @@ export interface ProductDraft {
   lensType?: string
   index?: number
   coatings?: string[]
-  suitableForPrescriptionRange?: DraftPrescriptionRange
-  isPrescriptionRequired?: boolean
 
   // Service-specific fields
   serviceType?: string

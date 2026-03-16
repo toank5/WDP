@@ -15,7 +15,6 @@ interface CreateProductDtoShape {
   variants?: unknown;
   lensType?: unknown;
   index?: unknown;
-  isPrescriptionRequired?: unknown;
   serviceType?: unknown;
   durationMinutes?: unknown;
 }
@@ -42,11 +41,7 @@ export class CategoryRequiredFieldsConstraint implements ValidatorConstraintInte
         );
 
       case PRODUCT_CATEGORIES.LENSES:
-        return (
-          object.lensType !== undefined &&
-          object.index !== undefined &&
-          object.isPrescriptionRequired !== undefined
-        );
+        return object.lensType !== undefined && object.index !== undefined;
 
       case PRODUCT_CATEGORIES.SERVICES:
         return (
@@ -67,7 +62,7 @@ export class CategoryRequiredFieldsConstraint implements ValidatorConstraintInte
       case PRODUCT_CATEGORIES.FRAMES:
         return 'Frame products require: frameType, shape, material, and at least one variant';
       case PRODUCT_CATEGORIES.LENSES:
-        return 'Lens products require: lensType, index, and isPrescriptionRequired';
+        return 'Lens products require: lensType and index';
       case PRODUCT_CATEGORIES.SERVICES:
         return 'Service products require: serviceType and durationMinutes';
       default:

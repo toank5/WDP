@@ -68,13 +68,6 @@ export type LensProduct = {
   lensType: 'single-vision' | 'bifocal' | 'progressive' | 'photochromic'
   index: number
   coatings?: string[]
-  suitableForPrescriptionRange?: {
-    minSPH?: number
-    maxSPH?: number
-    minCYL?: number
-    maxCYL?: number
-  }
-  isPrescriptionRequired: boolean
   isActive: boolean
   isDeleted: boolean
   createdAt: string
@@ -130,13 +123,6 @@ export type CreateLensProductPayload = {
   lensType: 'single-vision' | 'bifocal' | 'progressive' | 'photochromic'
   index: number
   coatings?: string[]
-  suitableForPrescriptionRange?: {
-    minSPH?: number
-    maxSPH?: number
-    minCYL?: number
-    maxCYL?: number
-  }
-  isPrescriptionRequired: boolean
 }
 
 export type CreateServiceProductPayload = {
@@ -176,8 +162,6 @@ export async function createProduct(
     for (const [key, value] of Object.entries(payload)) {
       if (key === 'variants' || key === 'coatings' || key === 'tags') {
         formData.append(key, JSON.stringify(value))
-      } else if (key === 'suitableForPrescriptionRange') {
-        formData.append(key, JSON.stringify(value))
       } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         formData.append(key, String(value))
       }
@@ -211,8 +195,6 @@ export async function updateProduct(
     for (const [key, value] of Object.entries(payload)) {
       if (value === undefined || value === null) continue
       if (key === 'variants' || key === 'coatings' || key === 'tags') {
-        formData.append(key, JSON.stringify(value))
-      } else if (key === 'suitableForPrescriptionRange') {
         formData.append(key, JSON.stringify(value))
       } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         formData.append(key, String(value))
@@ -270,6 +252,7 @@ export interface ProductCatalogQueryParams {
 export interface ProductListItem {
   id: string
   name: string
+  slug?: string
   category: ProductCategory
   shape?: string
   material?: string

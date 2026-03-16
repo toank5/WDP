@@ -23,7 +23,7 @@ export class Inventory {
     required: inventoryValidation.reservedQuantity.presence,
     min: 0,
     validate: {
-      validator: function (value: number) {
+      validator: function (this: Inventory, value: number) {
         return value <= this.stockQuantity;
       },
       message: inventoryValidation.reservedQuantity.errorMsg,
@@ -36,7 +36,7 @@ export class Inventory {
     required: inventoryValidation.availableQuantity.presence,
     min: inventoryValidation.availableQuantity.min,
     validate: {
-      validator: function (value: number) {
+      validator: function (this: Inventory, value: number) {
         return value === this.stockQuantity - this.reservedQuantity;
       },
       message: inventoryValidation.availableQuantity.errorMsg,

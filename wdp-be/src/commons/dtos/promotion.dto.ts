@@ -7,11 +7,14 @@ import {
   IsEnum,
   Min,
   IsDateString,
-  ArrayNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { PromotionType, PromotionStatus, PromotionScope } from '../schemas/promotion.schema';
+import {
+  PromotionType,
+  PromotionStatus,
+  PromotionScope,
+} from '../schemas/promotion.schema';
 
 export class CreatePromotionDto {
   @ApiProperty({
@@ -412,7 +415,8 @@ export class ValidatePromotionDto {
   cartTotal: number;
 
   @ApiPropertyOptional({
-    description: 'Product IDs in cart (for category/product-specific promotions)',
+    description:
+      'Product IDs in cart (for category/product-specific promotions)',
     type: [String],
   })
   @IsOptional()

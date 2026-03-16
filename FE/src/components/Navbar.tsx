@@ -37,7 +37,6 @@ import {
   Info as InfoIcon,
   Dashboard as DashboardIcon,
   Logout as LogoutIcon,
-  Medication as PrescriptionIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '@/store/auth-store'
 import { useCart } from '@/store/cart.store'
@@ -57,7 +56,6 @@ const roleLabels: Record<string, string> = {
 const navLinks = [
   { label: 'Home', path: '/', icon: <HomeIcon /> },
   { label: 'All Products', path: '/products', icon: <CategoryIcon /> },
-  { label: 'Prescription', path: '/prescription', icon: <PrescriptionIcon /> },
   { label: 'About', path: '/about', icon: <InfoIcon /> },
   { label: 'Contact', path: '/contact', icon: <ContactIcon /> },
 ]

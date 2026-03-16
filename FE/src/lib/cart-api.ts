@@ -24,7 +24,6 @@ export interface CartItem {
     size?: string
     color?: string
     isPreorder?: boolean
-    isPrescription?: boolean
   }
   addedAt: string
 }
@@ -106,11 +105,21 @@ class CartAPI {
     }
 
     try {
-      await api.post('/cart/items', {
+      const payload: {
+        productId: string
+        quantity: number
+        variantSku?: string
+      } = {
         productId: params.productId,
-        variantSku: params.variantSku,
         quantity: params.quantity,
-      })
+      }
+
+      // Only include variantSku if it's provided (for frame products)
+      if (params.variantSku) {
+        payload.variantSku = params.variantSku
+      }
+
+      await api.post('/cart/items', payload)
 
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('cartUpdated'))

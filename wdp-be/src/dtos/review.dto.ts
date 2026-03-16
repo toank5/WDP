@@ -1,4 +1,15 @@
-import { IsNumber, IsString, IsOptional, IsArray, Min, Max, MaxLength, MinLength, IsBoolean, IsNotEmpty } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsArray,
+  Min,
+  Max,
+  MaxLength,
+  MinLength,
+  IsBoolean,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateReviewDto {
@@ -30,7 +41,10 @@ export class CreateReviewDto {
   @MaxLength(1000, { message: 'Comment must not exceed 1000 characters' })
   comment: string;
 
-  @ApiPropertyOptional({ description: 'Review title/headline', example: 'Amazing glasses!' })
+  @ApiPropertyOptional({
+    description: 'Review title/headline',
+    example: 'Amazing glasses!',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -104,7 +118,10 @@ export class ReviewStatsDto {
   @ApiProperty({ description: 'Total number of reviews', example: 42 })
   totalReviews: number;
 
-  @ApiProperty({ description: 'Number of reviews for each star rating', example: { 5: 30, 4: 8, 3: 3, 2: 1, 1: 0 } })
+  @ApiProperty({
+    description: 'Number of reviews for each star rating',
+    example: { 5: 30, 4: 8, 3: 3, 2: 1, 1: 0 },
+  })
   ratingDistribution: Record<number, number>;
 
   @ApiProperty({ description: 'Percentage of 5-star reviews', example: 71.43 })
@@ -112,7 +129,10 @@ export class ReviewStatsDto {
 }
 
 export class MarkReviewHelpfulDto {
-  @ApiProperty({ description: 'Review ID', example: '507f1f77bcf86cd799439011' })
+  @ApiProperty({
+    description: 'Review ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsNotEmpty()
   @IsString()
   reviewId: string;

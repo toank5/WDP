@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, ObjectId } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Favorite } from '../commons/schemas/favorite.schema';
+import { Product } from '../commons/schemas/product.schema';
+import { ProductVariant } from '../commons/schemas/product-variant.schema';
 import {
   AddFavoriteDto,
   FavoriteItemDto,
@@ -11,6 +17,36 @@ import {
   CheckFavoriteResponseDto,
   FavoriteProductSummaryDto,
 } from '../commons/dtos/favorite.dto';
+
+type FavoriteVariantSummary = Pick<
+  ProductVariant,
+  'sku' | 'color' | 'size' | 'price'
+>;
+
+type PopulatedFavoriteProduct = Pick<
+  Product,
+  '_id' | 'name' | 'category' | 'slug' | 'basePrice' | 'images2D' | 'images3D' | 'isActive' | 'variants'
+>;
+
+type PopulatedFavoriteVariant = Pick<
+  ProductVariant,
+  'sku' | 'color' | 'size' | 'price'
+> & {
+  _id?: Types.ObjectId | string;
+};
+
+type FavoriteQuery = {
+  userId: Types.ObjectId;
+  productId: Types.ObjectId;
+  variantId?: Types.ObjectId | { $exists: boolean };
+};
+
+type FavoriteLeanDocument = Favorite & {
+  _id: Types.ObjectId | string;
+  productId: Types.ObjectId | string | PopulatedFavoriteProduct;
+  variantId?: Types.ObjectId | string | PopulatedFavoriteVariant;
+  createdAt?: Date;
+};
 
 @Injectable()
 export class FavoriteService {
@@ -28,14 +64,14 @@ export class FavoriteService {
       .populate('productId')
       .populate('variantId')
       .lean()
-      .exec();
+      .exec() as FavoriteLeanDocument[];
 
     const items: FavoriteItemDto[] = [];
     let activeCount = 0;
 
     for (const fav of favorites) {
-      const product: any = fav.productId;
-      const variant: any = fav.variantId;
+      const product = this.asPopulatedProduct(fav.productId);
+      const variant = this.asPopulatedVariant(fav.variantId);
 
       if (!product) {
         // Product was deleted, skip this favorite
@@ -49,9 +85,9 @@ export class FavoriteService {
       }
 
       items.push({
-        id: fav._id.toString(),
-        productId: fav.productId.toString(),
-        variantId: fav.variantId?.toString(),
+        id: this.toIdString(fav._id),
+        productId: this.toIdString(product._id),
+        variantId: variant?._id ? this.toIdString(variant._id) : undefined,
         variantSku: fav.variantSku,
         addedAt: (fav.createdAt || new Date()).toISOString(),
         product: productSummary,
@@ -103,7 +139,7 @@ export class FavoriteService {
       .findById(favorite._id)
       .populate('productId')
       .populate('variantId')
-      .lean();
+      .lean() as FavoriteLeanDocument | null;
 
     if (!created) {
       return {
@@ -112,13 +148,20 @@ export class FavoriteService {
       };
     }
 
-    const product: any = created.productId;
-    const variant: any = created.variantId;
+    const product = this.asPopulatedProduct(created.productId);
+    const variant = this.asPopulatedVariant(created.variantId);
+
+    if (!product) {
+      return {
+        success: true,
+        message: 'Added to favorites',
+      };
+    }
 
     const item: FavoriteItemDto = {
-      id: created._id.toString(),
-      productId: created.productId.toString(),
-      variantId: created.variantId?.toString(),
+      id: this.toIdString(created._id),
+      productId: this.toIdString(product._id),
+      variantId: variant?._id ? this.toIdString(variant._id) : undefined,
       variantSku: created.variantSku,
       addedAt: (created.createdAt || new Date()).toISOString(),
       product: this.mapProductToSummary(product, variant),
@@ -134,9 +177,12 @@ export class FavoriteService {
   /**
    * Remove a favorite by ID
    */
-  async removeFavorite(favoriteId: string, userId: string): Promise<RemoveFavoriteResponseDto> {
+  async removeFavorite(
+    favoriteId: string,
+    userId: string,
+  ): Promise<RemoveFavoriteResponseDto> {
     const favorite = await this.favoriteModel.findOne({
-      _id: new Types.ObjectId(favoriteId) as any,
+      _id: new Types.ObjectId(favoriteId),
       userId: new Types.ObjectId(userId),
     });
 
@@ -160,7 +206,7 @@ export class FavoriteService {
     userId: string,
     variantId?: string,
   ): Promise<RemoveFavoriteResponseDto> {
-    const query: any = {
+    const query: FavoriteQuery = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
     };
@@ -168,7 +214,7 @@ export class FavoriteService {
     if (variantId) {
       query.variantId = new Types.ObjectId(variantId);
     } else if (variantId === undefined) {
-      // No variant specified, remove any variant
+      // No variant specified, remove records without a variant
       query.variantId = { $exists: false };
     }
 
@@ -194,7 +240,7 @@ export class FavoriteService {
     productId: string,
     variantId?: string,
   ): Promise<CheckFavoriteResponseDto> {
-    const query: any = {
+    const query: FavoriteQuery = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
     };
@@ -229,7 +275,11 @@ export class FavoriteService {
     userId: string,
     dto: AddFavoriteDto,
   ): Promise<{ success: boolean; message: string; isFavorited: boolean }> {
-    const checkResult = await this.checkFavorite(userId, dto.productId, dto.variantId);
+    const checkResult = await this.checkFavorite(
+      userId,
+      dto.productId,
+      dto.variantId,
+    );
 
     if (checkResult.isFavorited) {
       // Remove from favorites
@@ -253,7 +303,10 @@ export class FavoriteService {
   /**
    * Map product document to summary DTO
    */
-  private mapProductToSummary(product: any, variant?: any): FavoriteProductSummaryDto {
+  private mapProductToSummary(
+    product: PopulatedFavoriteProduct,
+    variant?: PopulatedFavoriteVariant,
+  ): FavoriteProductSummaryDto {
     // Get image URL
     let imageUrl = '';
     if (product.images2D && product.images2D.length > 0) {
@@ -267,7 +320,7 @@ export class FavoriteService {
     }
 
     // Get variants summary if available
-    const variants = product.variants?.map((v: any) => ({
+    const variants = product.variants?.map((v: FavoriteVariantSummary) => ({
       sku: v.sku,
       color: v.color,
       size: v.size,
@@ -286,5 +339,29 @@ export class FavoriteService {
       isActive: product.isActive ?? true,
       variants,
     };
+  }
+
+  private asPopulatedProduct(
+    product: FavoriteLeanDocument['productId'],
+  ): PopulatedFavoriteProduct | null {
+    if (!product || product instanceof Types.ObjectId || typeof product === 'string') {
+      return null;
+    }
+
+    return product;
+  }
+
+  private asPopulatedVariant(
+    variant: FavoriteLeanDocument['variantId'],
+  ): PopulatedFavoriteVariant | undefined {
+    if (!variant || variant instanceof Types.ObjectId || typeof variant === 'string') {
+      return undefined;
+    }
+
+    return variant;
+  }
+
+  private toIdString(value: Types.ObjectId | string): string {
+    return typeof value === 'string' ? value : value.toString();
   }
 }

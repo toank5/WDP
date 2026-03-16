@@ -2,7 +2,7 @@
  * Order-related type definitions shared between frontend and backend
  */
 
-import { ORDER_STATUS, ORDER_TYPES, PAYMENT_METHOD, PAYMENT_STATUS, PREORDER_STATUS, PRESCRIPTION_STATUS, SHIPPING_CARRIER } from '../enums/order.enums';
+import { ORDER_STATUS, ORDER_TYPES, PAYMENT_METHOD, PAYMENT_STATUS, PREORDER_STATUS, SHIPPING_CARRIER } from '../enums/order.enums';
 
 /**
  * Order Item - represents a single item in an order
@@ -54,36 +54,6 @@ export interface OrderTracking {
 }
 
 /**
- * Eye Prescription
- */
-export interface EyePrescription {
-  right: number;
-  left: number;
-}
-
-/**
- * Axis Prescription
- */
-export interface AxisPrescription {
-  right: number;
-  left: number;
-}
-
-/**
- * Order Prescription
- */
-export interface OrderPrescription {
-  pd: number;
-  sph: EyePrescription;
-  cyl: EyePrescription;
-  axis: AxisPrescription;
-  add?: {
-    right: number;
-    left: number;
-  };
-}
-
-/**
  * Order History
  */
 export interface OrderHistory {
@@ -130,17 +100,18 @@ export interface Preorder extends BaseOrder {
 }
 
 /**
- * Prescription Order
+ * Exchange Order
  */
-export interface PrescriptionOrder extends BaseOrder {
-  orderType: ORDER_TYPES.PRESCRIPTION;
-  prescription: OrderPrescription;
+export interface ExchangeOrder extends BaseOrder {
+  orderType: ORDER_TYPES.EXCHANGE;
+  originalOrderId?: string;
+  returnRequestId?: string;
 }
 
 /**
  * Union type for all order types
  */
-export type Order = ReadyOrder | Preorder | PrescriptionOrder;
+export type Order = ReadyOrder | Preorder | ExchangeOrder;
 
 /**
  * Create Order Request
@@ -162,12 +133,13 @@ export type CreateOrderRequest =
       expectedDeliveryDate?: string;
     }
   | {
-      orderType: ORDER_TYPES.PRESCRIPTION;
+      orderType: ORDER_TYPES.EXCHANGE;
       items: OrderItem[];
       shippingAddress: ShippingAddress;
       payment?: OrderPayment;
       notes?: string;
-      prescription: OrderPrescription;
+      originalOrderId?: string;
+      returnRequestId?: string;
     };
 
 /**

@@ -25,12 +25,12 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from '../mail/email.service';
-import { UserRole } from '../commons/guards/rbac.guard';
+import { ROLES } from '@eyewear/shared';
 
 /**
  * Transform user object for API response
- * Returns numeric role values to match backend UserRole enum and frontend roleMap
- * (0=ADMIN, 1=MANAGER, 2=OPERATION, 3=SALE, 4=CUSTOMER)
+ * Returns string-based role values from shared package ROLES enum
+ * ('ADMIN', 'MANAGER', 'OPERATION', 'SALE', 'CUSTOMER')
  */
 function transformUserForResponse(
   user: Document | object,
@@ -40,38 +40,46 @@ function transformUserForResponse(
       ? (user.toObject() as Record<string, unknown>)
       : (user as Record<string, unknown>);
 
-  // Normalize role to numeric value
-  let numericRole = UserRole.CUSTOMER;
+  // Normalize role to string-based ROLES enum value
+  let normalizedRole = ROLES.CUSTOMER;
 
   const role = userObj.role;
 
-  if (typeof role === 'number') {
-    // Already numeric
-    numericRole = role;
-  } else if (typeof role === 'string') {
-    // String role - check if it's a string-number or role name
-    const parsedNum = Number.parseInt(role, 10);
-    if (!Number.isNaN(parsedNum)) {
-      // String-number like "1"
-      numericRole = parsedNum;
+  if (typeof role === 'string') {
+    // Check if it's a valid ROLES enum value
+    if (Object.values(ROLES).includes(role as ROLES)) {
+      normalizedRole = role as ROLES;
     } else {
-      // Role name like 'MANAGER' - convert to numeric
-      const roleNameToNumber: Record<string, number> = {
-        ADMIN: UserRole.ADMIN,
-        MANAGER: UserRole.MANAGER,
-        OPERATION: UserRole.OPERATION,
-        SALE: UserRole.SALE,
-        CUSTOMER: UserRole.CUSTOMER,
-      };
-      const upperRole = role.toUpperCase();
-      numericRole = roleNameToNumber[upperRole] ?? UserRole.CUSTOMER;
+      // Try to convert string-number to ROLES enum
+      const parsedNum = Number.parseInt(role, 10);
+      if (!Number.isNaN(parsedNum)) {
+        // String-number like "4" -> convert to ROLES
+        const roleMap: Record<number, ROLES> = {
+          0: ROLES.ADMIN,
+          1: ROLES.MANAGER,
+          2: ROLES.OPERATION,
+          3: ROLES.SALE,
+          4: ROLES.CUSTOMER,
+        };
+        normalizedRole = roleMap[parsedNum] ?? ROLES.CUSTOMER;
+      }
     }
+  } else if (typeof role === 'number') {
+    // Numeric role - convert to ROLES enum
+    const roleMap: Record<number, ROLES> = {
+      0: ROLES.ADMIN,
+      1: ROLES.MANAGER,
+      2: ROLES.OPERATION,
+      3: ROLES.SALE,
+      4: ROLES.CUSTOMER,
+    };
+    normalizedRole = roleMap[role] ?? ROLES.CUSTOMER;
   }
 
   return {
     ...userObj,
     _id: userObj._id?.toString(),
-    role: numericRole,
+    role: normalizedRole,
     passwordHash: undefined, // Never return password hash
   };
 }

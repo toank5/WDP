@@ -42,7 +42,10 @@ import { Cart, CartSchema } from './commons/schemas/cart.schema';
 import { CartItem, CartItemSchema } from './commons/schemas/cart-item.schema';
 import { CheckoutController } from './controllers/checkout.controller';
 import { CheckoutService } from './services/checkout.service';
-import { OrderController, StaffOrderController } from './controllers/order.controller';
+import {
+  OrderController,
+  StaffOrderController,
+} from './controllers/order.controller';
 import { OrderService } from './services/order.service';
 import { Order, OrderSchema } from './commons/schemas/order.schema';
 import {
@@ -67,7 +70,6 @@ import {
   ProductVariantSchema,
 } from './commons/schemas/product-variant.schema';
 import { PreorderModule } from './preorder.module';
-import { PrescriptionModule } from './prescription.module';
 import { ReviewController } from './controllers/review.controller';
 import { ReviewService } from './services/review.service';
 import { Review, ReviewSchema } from './commons/schemas/review.schema';
@@ -86,9 +88,15 @@ import { Promotion, PromotionSchema } from './commons/schemas/promotion.schema';
 import { AccountController } from './controllers/account.controller';
 import { RevenueController } from './controllers/revenue.controller';
 import { RevenueService } from './services/revenue.service';
-import { CustomerReturnController, StaffReturnController } from './controllers/return.controller';
+import {
+  CustomerReturnController,
+  StaffReturnController,
+} from './controllers/return.controller';
 import { ReturnService } from './services/return.service';
-import { ReturnRequest, ReturnRequestSchema } from './commons/schemas/return.schema';
+import {
+  ReturnRequest,
+  ReturnRequestSchema,
+} from './commons/schemas/return.schema';
 import { FavoriteController } from './controllers/favorite.controller';
 import { FavoriteService } from './services/favorite.service';
 import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
@@ -162,7 +170,6 @@ import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
       { name: Favorite.name, schema: FavoriteSchema },
     ]),
     PreorderModule,
-    PrescriptionModule,
   ],
   controllers: [
     AppController,

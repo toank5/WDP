@@ -1,10 +1,28 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Review, ReviewDocument } from '../commons/schemas/review.schema';
-import { CreateReviewDto, UpdateReviewDto, ReviewStatsDto, AddReviewResponseDto } from '../dtos/review.dto';
+import {
+  CreateReviewDto,
+  UpdateReviewDto,
+  ReviewStatsDto,
+  AddReviewResponseDto,
+} from '../dtos/review.dto';
 import { ORDER_STATUS } from '@eyewear/shared';
 import { Order } from '../commons/schemas/order.schema';
+
+type ReviewQuery = {
+  userId: Types.ObjectId;
+  productId: Types.ObjectId;
+  orderId: Types.ObjectId;
+  variantSku?: string;
+};
+type ReviewSort = Record<string, 1 | -1>;
 
 @Injectable()
 export class ReviewService {
@@ -27,13 +45,16 @@ export class ReviewService {
     userName?: string,
     userAvatar?: string,
   ): Promise<Review> {
-    const { productId, orderId, variantSku, rating, comment, title, images } = createReviewDto;
+    const { productId, orderId, variantSku, rating, comment, title, images } =
+      createReviewDto;
 
     // Validate order exists and belongs to user
-    const order = await this.orderModel.findOne({
-      _id: orderId,
-      customerId: userId,
-    }).exec();
+    const order = await this.orderModel
+      .findOne({
+        _id: orderId,
+        customerId: userId,
+      })
+      .exec();
 
     if (!order) {
       throw new NotFoundException('Order not found or does not belong to you');
@@ -48,16 +69,17 @@ export class ReviewService {
 
     // Validate product exists in order items
     const productExistsInOrder = order.items.some(
-      (item) => item.productId.toString() === productId &&
-      (!variantSku || item.variantSku === variantSku)
+      (item) =>
+        item.productId.toString() === productId &&
+        (!variantSku || item.variantSku === variantSku),
     );
 
     if (!productExistsInOrder) {
       throw new BadRequestException('Product not found in this order');
     }
 
-        // Check for duplicate review
-    const existingReviewQuery: any = {
+    // Check for duplicate review
+    const existingReviewQuery: ReviewQuery = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
       orderId: new Types.ObjectId(orderId),
@@ -68,7 +90,9 @@ export class ReviewService {
     const existingReview = await this.reviewModel.findOne(existingReviewQuery);
 
     if (existingReview) {
-      throw new BadRequestException('You have already reviewed this product for this order');
+      throw new BadRequestException(
+        'You have already reviewed this product for this order',
+      );
     }
 
     // Create review
@@ -101,7 +125,7 @@ export class ReviewService {
     const skip = (page - 1) * limit;
 
     // Build sort query
-    let sortQuery: any = {};
+    let sortQuery: ReviewSort = {};
     switch (sortBy) {
       case 'helpful':
         sortQuery = { helpfulCount: -1, createdAt: -1 };
@@ -187,9 +211,8 @@ export class ReviewService {
     });
 
     const fiveStarCount = ratingDistribution[5] || 0;
-    const fiveStarPercentage = result.totalReviews > 0
-      ? (fiveStarCount / result.totalReviews) * 100
-      : 0;
+    const fiveStarPercentage =
+      result.totalReviews > 0 ? (fiveStarCount / result.totalReviews) * 100 : 0;
 
     return {
       averageRating: Math.round(result.averageRating * 10) / 10, // Round to 1 decimal
@@ -371,16 +394,17 @@ export class ReviewService {
 
     // Check if product exists in order
     const productExistsInOrder = order.items.some(
-      (item) => item.productId.toString() === productId &&
-      (!variantSku || item.variantSku === variantSku)
+      (item) =>
+        item.productId.toString() === productId &&
+        (!variantSku || item.variantSku === variantSku),
     );
 
     if (!productExistsInOrder) {
       return { canReview: false, reason: 'Product not found in this order' };
     }
 
-        // Check for existing review
-    const existingReviewQuery: any = {
+    // Check for existing review
+    const existingReviewQuery: ReviewQuery = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
       orderId: new Types.ObjectId(orderId),
@@ -391,7 +415,10 @@ export class ReviewService {
     const existingReview = await this.reviewModel.findOne(existingReviewQuery);
 
     if (existingReview) {
-      return { canReview: false, reason: 'You have already reviewed this product' };
+      return {
+        canReview: false,
+        reason: 'You have already reviewed this product',
+      };
     }
 
     return { canReview: true };
@@ -438,7 +465,7 @@ export class ReviewService {
         if (!item.productId) continue;
 
         // Check if review exists for this product+order combination
-        const existingReviewQuery: any = {
+        const existingReviewQuery: ReviewQuery = {
           userId: new Types.ObjectId(userId),
           productId: new Types.ObjectId(item.productId.toString()),
           orderId: new Types.ObjectId(order._id.toString()),
@@ -446,11 +473,14 @@ export class ReviewService {
         if (item.variantSku) {
           existingReviewQuery.variantSku = item.variantSku;
         }
-        const existingReview = await this.reviewModel.findOne(existingReviewQuery);
+        const existingReview =
+          await this.reviewModel.findOne(existingReviewQuery);
 
         if (!existingReview && item.productId) {
           // Find delivered date from order history
-          const deliveredHistory = order.history?.find(h => h.status === ORDER_STATUS.DELIVERED);
+          const deliveredHistory = order.history?.find(
+            (h) => h.status === ORDER_STATUS.DELIVERED,
+          );
 
           unreviewedProducts.push({
             productId: item.productId.toString(),

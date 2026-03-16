@@ -533,16 +533,6 @@ export interface ProductVariant {
 }
 
 /**
- * Prescription Range
- */
-export interface PrescriptionRange {
-  minSPH?: number;
-  maxSPH?: number;
-  minCYL?: number;
-  maxCYL?: number;
-}
-
-/**
  * Frame Product
  */
 export interface FrameProduct {
@@ -581,9 +571,6 @@ export interface LensProduct {
   lensType: LensType;
   index: number;
   coatings?: string[];
-  suitableForPrescriptionRange?: PrescriptionRange;
-  isPrescriptionRequired: boolean;
-  variants?: ProductVariant[];
   isActive?: boolean;
   slug: string;
   createdAt: string;

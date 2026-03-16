@@ -60,12 +60,12 @@ export class CartService {
   private async getOrCreateCart(customerId: string): Promise<CartDocument> {
     const customerObjId = new mongoose.Types.ObjectId(customerId);
     let cart = await this.cartModel
-      .findOne({ customerId: customerObjId as any })
+      .findOne({ customerId: customerObjId })
       .exec();
 
     if (!cart) {
       cart = await this.cartModel.create({
-        customerId: customerObjId as any,
+        customerId: customerObjId,
         items: [],
       });
     }
@@ -98,7 +98,12 @@ export class CartService {
           'items.productImage': { $arrayElemAt: ['$product.images2D', 0] },
           'items.price': {
             $cond: {
-              if: { $ifNull: ['$items.variantSku', false] },
+              if: {
+                $and: [
+                  { $ne: ['$items.variantSku', null] },
+                  { $ne: ['$items.variantSku', ''] },
+                ],
+              },
               then: {
                 $arrayElemAt: [
                   {
@@ -122,7 +127,12 @@ export class CartService {
           },
           'items.variantDetails': {
             $cond: [
-              { $ifNull: ['$items.variantSku', false] },
+              {
+                $and: [
+                  { $ne: ['$items.variantSku', null] },
+                  { $ne: ['$items.variantSku', ''] },
+                ],
+              },
               {
                 $arrayElemAt: [
                   {
@@ -162,7 +172,7 @@ export class CartService {
       (item: AggregatedCartItem) => ({
         _id: item._id || '',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        productId: (item.productId as any).toString() || '',
+        productId: item.productId?.toString() || '',
         variantSku: item.variantSku,
         productName: item.productName,
         productImage: item.productImage,
@@ -321,9 +331,7 @@ export class CartService {
           );
         }
       } else if (!preorderEnabled) {
-        throw new BadRequestException(
-          'Insufficient stock. Only 0 available.',
-        );
+        throw new BadRequestException('Insufficient stock. Only 0 available.');
       }
     }
 
@@ -475,7 +483,8 @@ export class CartService {
           : 0;
         const canFulfillFromStock = item.quantity <= availableStock;
         const canProceedAsPreorder =
-          item.quantity > availableStock && (product.isPreorderEnabled || false);
+          item.quantity > availableStock &&
+          (product.isPreorderEnabled || false);
 
         if (!canFulfillFromStock && !canProceedAsPreorder) {
           invalidItems.push({
@@ -508,7 +517,7 @@ export class CartService {
     return {
       _id: cart._id || '',
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      customerId: (cart.customerId as any).toString(),
+      customerId: cart.customerId?.toString() || '',
       items,
       totalItems,
       subtotal,

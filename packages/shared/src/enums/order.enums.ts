@@ -4,7 +4,6 @@
 export enum ORDER_TYPES {
   READY = 'READY',
   PREORDER = 'PREORDER',
-  PRESCRIPTION = 'PRESCRIPTION',
   EXCHANGE = 'EXCHANGE', // Exchange order created from a return
 }
 
@@ -38,18 +37,6 @@ export enum PREORDER_STATUS {
   READY_TO_FULFILL = 'READY_TO_FULFILL',
   FULFILLED = 'FULFILLED',
   CANCELED = 'CANCELED',
-}
-
-/**
- * Prescription Status Enumeration
- */
-export enum PRESCRIPTION_STATUS {
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  NEEDS_UPDATE = 'NEEDS_UPDATE',
-  APPROVED = 'APPROVED',
-  IN_MANUFACTURING = 'IN_MANUFACTURING',
-  READY_TO_SHIP = 'READY_TO_SHIP',
-  COMPLETED = 'COMPLETED',
 }
 
 /**

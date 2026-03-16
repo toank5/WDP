@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
   Patch,
@@ -36,17 +35,11 @@ import {
   CheckoutResponseDto,
   UpdateOrderStatusDto,
   ApproveOrderDto,
-  ApprovePrescriptionDto,
-  RequestPrescriptionUpdateDto,
   UpdateManufacturingStatusDto,
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
 } from '../dtos/order.dto';
-import {
-  VerifyOrderPrescriptionDto,
-  OrdersAwaitingVerificationResponse,
-} from '../dtos/prescription.dto';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import {
@@ -165,7 +158,7 @@ export class OrderController {
       throw new BadRequestException('User ID not found in request');
     }
 
-    const role = Number(req.user?.role);
+    const role = req.user?.role;
     if (role === UserRole.SALE) {
       return this.orderService.getSalesPendingApprovalOrders(query);
     }
@@ -203,7 +196,7 @@ export class OrderController {
     @Req() req: AuthenticatedRequest,
     @Query() query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const role = Number(req.user?.role);
+    const role = req.user?.role;
     if (role === UserRole.SALE) {
       return this.orderService.getSalesPendingApprovalOrders(query);
     }
@@ -233,30 +226,6 @@ export class OrderController {
     @Query() query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
     return this.orderService.getSalesPendingApprovalOrders(query);
-  }
-
-  /**
-   * Get orders awaiting prescription verification
-   * GET /orders/prescription/awaiting-verification
-   */
-  @Get('prescription/awaiting-verification')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get orders awaiting prescription verification',
-    description:
-      'Returns a list of prescription orders in PAID status with items pending verification. Sales staff can review and verify prescriptions.',
-  })
-  @ApiOkResponse({
-    description: 'Orders awaiting verification retrieved successfully',
-    type: OrdersAwaitingVerificationResponse,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async getOrdersAwaitingVerification(
-    @Query() query: OrderListQueryDto,
-  ): Promise<OrdersAwaitingVerificationResponse> {
-    return this.orderService.getOrdersAwaitingVerification(query);
   }
 
   /**
@@ -347,7 +316,8 @@ export class OrderController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update order status',
-    description: 'Updates the status of an order. Admin/Manager/Operation/Sales only.',
+    description:
+      'Updates the status of an order. Admin/Manager/Operation/Sales only.',
   })
   @ApiOkResponse({
     description: 'Order status updated successfully',
@@ -443,122 +413,15 @@ export class OrderController {
   }
 
   /**
-   * Approve prescription (Sales Staff)
-   * POST /orders/:id/prescription/approve
-   */
-  @Post(':id/prescription/approve')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Approve prescription and send to lab',
-    description:
-      'Sales staff reviews prescription data and approves it. When all prescriptions are approved, order moves to PROCESSING for Operations.',
-  })
-  @ApiOkResponse({
-    description: 'Prescription approved successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async approvePrescription(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') orderId: string,
-    @Body() dto: ApprovePrescriptionDto,
-  ): Promise<OrderResponseDto> {
-    const approverId = req.user?._id?.toString();
-    return this.orderService.approvePrescription(orderId, dto, approverId);
-  }
-
-  /**
-   * Request prescription update (Sales Staff)
-   * POST /orders/:id/prescription/request-update
-   */
-  @Post(':id/prescription/request-update')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Request prescription update from customer',
-    description:
-      'Sales staff identifies an issue with prescription data and requests customer to update it. Order status changes to ON_HOLD.',
-  })
-  @ApiOkResponse({
-    description: 'Update request sent successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async requestPrescriptionUpdate(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') orderId: string,
-    @Body() dto: RequestPrescriptionUpdateDto,
-  ): Promise<OrderResponseDto> {
-    const requesterId = req.user?._id?.toString();
-    return this.orderService.requestPrescriptionUpdate(
-      orderId,
-      dto,
-      requesterId,
-    );
-  }
-
-  /**
-   * Verify order prescription with editable data
-   * PUT /orders/:orderId/items/:orderItemId/verify-prescription
-   */
-  @Put(':orderId/items/:orderItemId/verify-prescription')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Verify order prescription',
-    description:
-      'Sales staff verifies prescription data. Can approve as-is or with corrections. When approved, item status changes to APPROVED.',
-  })
-  @ApiOkResponse({
-    description: 'Prescription verified successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Order or item not found',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async verifyOrderPrescription(
-    @Req() req: AuthenticatedRequest,
-    @Param('orderId') orderId: string,
-    @Param('orderItemId') orderItemId: string,
-    @Body() dto: VerifyOrderPrescriptionDto,
-  ): Promise<OrderResponseDto> {
-    const verifierId = req.user?._id?.toString();
-    return this.orderService.verifyOrderPrescription(
-      orderId,
-      orderItemId,
-      dto,
-      verifierId,
-    );
-  }
-
-  /**
    * Update manufacturing status (Operations Staff)
-   * POST /orders/:id/prescription/manufacturing
+   * POST /orders/:id/manufacturing
    */
-  @Post(':id/prescription/manufacturing')
+  @Post(':id/manufacturing')
   @UseGuards(JwtAuthGuard, RbacGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATION)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Update prescription manufacturing status',
+    summary: 'Update manufacturing status',
     description:
       'Operations staff updates the manufacturing status as they progress through production (IN_MANUFACTURING → READY_TO_SHIP).',
   })
@@ -577,11 +440,7 @@ export class OrderController {
     @Body() dto: UpdateManufacturingStatusDto,
   ): Promise<OrderResponseDto> {
     const updaterId = req.user?._id?.toString();
-    return this.orderService.updateManufacturingStatus(
-      orderId,
-      dto,
-      updaterId,
-    );
+    return this.orderService.updateManufacturingStatus(orderId, dto, updaterId);
   }
 
   /**
@@ -765,7 +624,8 @@ export class StaffOrderController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get order details (Staff view)',
-    description: 'Returns detailed information about a specific order. Staff can view all orders for business operations.',
+    description:
+      'Returns detailed information about a specific order. Staff can view all orders for business operations.',
   })
   @ApiOkResponse({
     description: 'Order retrieved successfully',

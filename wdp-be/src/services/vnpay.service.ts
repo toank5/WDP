@@ -17,6 +17,8 @@ import {
   VNPayHelpers,
 } from '../dtos/vnpay.dto';
 
+type VnpayHashSource = Record<string, string | undefined>;
+
 @Injectable()
 export class VNPayService {
   private readonly logger = new Logger(VNPayService.name);
@@ -120,9 +122,12 @@ export class VNPayService {
 
     // Check if vnp_TransactionStatus is present (new VNPAY 2.0 parameter)
     // Check both undefined and empty string since normalizeVnpayParams might convert to empty string
-    const hasTransactionStatus = vnp_TransactionStatus !== undefined && vnp_TransactionStatus !== '';
+    const hasTransactionStatus =
+      vnp_TransactionStatus !== undefined && vnp_TransactionStatus !== '';
 
-    this.logger.log(`VNPAY 2.0 check | hasTransactionStatus=${hasTransactionStatus} value="${vnp_TransactionStatus}"`);
+    this.logger.log(
+      `VNPAY 2.0 check | hasTransactionStatus=${hasTransactionStatus} value="${vnp_TransactionStatus}"`,
+    );
 
     let verification;
     let isVerified = false;
@@ -130,7 +135,9 @@ export class VNPayService {
 
     if (hasTransactionStatus) {
       // Use custom verification for VNPAY 2.0 with vnp_TransactionStatus
-      this.logger.log('Using custom verification for VNPAY 2.0 (vnp_TransactionStatus present)');
+      this.logger.log(
+        'Using custom verification for VNPAY 2.0 (vnp_TransactionStatus present)',
+      );
       const customResult = this.verifyCallbackWithTransactionStatus(callback);
       isVerified = customResult.isVerified;
       message = customResult.message;
@@ -148,7 +155,7 @@ export class VNPayService {
       // Use standard verification for older VNPAY responses
       this.logger.log('Using standard verification (no vnp_TransactionStatus)');
       verification = this.vnpayClient.verifyIpnCall(
-        callback as unknown as ReturnQueryFromVNPay,
+        this.toReturnQueryFromVnpay(callback),
       );
       isVerified = verification.isVerified;
       message = verification.message;
@@ -157,7 +164,8 @@ export class VNPayService {
     const responseCode = String(callback.vnp_ResponseCode ?? '99');
     const success =
       isVerified &&
-      (callback.vnp_ResponseCode === '00' || callback.vnp_ResponseCode === '00') &&
+      (callback.vnp_ResponseCode === '00' ||
+        callback.vnp_ResponseCode === '00') &&
       responseCode === VNPAY_RESPONSE_CODES.SUCCESS;
 
     if (!isVerified) {
@@ -199,10 +207,15 @@ export class VNPayService {
       // Calculate the expected hash
       const expectedHash = this.generateHmacSha512(hashData);
 
-      this.logger.log(`VNPAY 2.0 Custom verification | hashData=${hashData.substring(0, 100)}...`);
-      this.logger.log(`VNPAY 2.0 Custom verification | received=${secureHash.substring(0, 20)}... expected=${expectedHash.substring(0, 20)}...`);
+      this.logger.log(
+        `VNPAY 2.0 Custom verification | hashData=${hashData.substring(0, 100)}...`,
+      );
+      this.logger.log(
+        `VNPAY 2.0 Custom verification | received=${secureHash.substring(0, 20)}... expected=${expectedHash.substring(0, 20)}...`,
+      );
 
-      const isVerified = secureHash.toLowerCase() === expectedHash.toLowerCase();
+      const isVerified =
+        secureHash.toLowerCase() === expectedHash.toLowerCase();
 
       return {
         isVerified,
@@ -222,17 +235,22 @@ export class VNPayService {
    * Excludes specified keys from the hash calculation
    */
   private buildHashData(
-    callback: Record<string, any>,
+    callback: VNPayCallbackParamsDto | VnpayHashSource,
     excludeKeys: string[] = [],
   ): string {
-    const filteredKeys = Object.keys(callback)
+    const callbackRecord = callback as Record<string, string | undefined>;
+
+    const filteredKeys = Object.keys(callbackRecord)
       .filter((key) => !excludeKeys.includes(key))
-      .filter((key) => callback[key] !== undefined && callback[key] !== null)
+      .filter(
+        (key) =>
+          callbackRecord[key] !== undefined && callbackRecord[key] !== null,
+      )
       .sort();
 
     const canonicalParams: Record<string, string> = {};
     for (const key of filteredKeys) {
-      canonicalParams[key] = String(callback[key]);
+      canonicalParams[key] = String(callbackRecord[key]);
     }
 
     return this.buildQueryString(canonicalParams);
@@ -320,7 +338,7 @@ export class VNPayService {
     return raw || VNPayHelpers.generateTxnRef().slice(0, 34);
   }
 
-  private toAmountInVnd(value: unknown): number {
+  private toAmountInVnd(value?: string | number | null): number {
     if (typeof value === 'number') {
       return value > 1000 ? value / 100 : value;
     }
@@ -330,6 +348,14 @@ export class VNPayService {
     }
 
     return 0;
+  }
+
+  private toReturnQueryFromVnpay(
+    callback: VNPayCallbackParamsDto,
+  ): ReturnQueryFromVNPay {
+    return {
+      ...callback,
+    } as ReturnQueryFromVNPay;
   }
 
   private resolveVnpayHost(paymentUrl: string): string {

@@ -1,10 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { Order } from '../commons/schemas/order.schema';
-import { OrderItem } from '../commons/schemas/order-item.schema';
 import { ORDER_STATUS } from '@eyewear/shared';
 import { ReturnRequest, ReturnStatus } from '../commons/schemas/return.schema';
+
+type RevenueOrderLike = Pick<Order, 'createdAt' | 'payment'>;
+type MatchStage = PipelineStage.Match['$match'];
+type DateRangeFilter = {
+  $gte?: Date;
+  $lte?: Date;
+};
+type RefundMatchStage = {
+  status: {
+    $in: ReturnStatus[];
+  };
+  createdAt?: DateRangeFilter;
+};
+type RevenueOverviewRow = {
+  totalRevenue: number;
+  totalOrders: number;
+};
+type RevenueTimeSeriesRow = {
+  _id: string;
+  revenue: number;
+  orders: number;
+};
+type RevenueCategoryRow = {
+  category?: string;
+  revenue: number;
+  orders: number;
+  units: number;
+};
+type ProductRevenueRow = {
+  productId: Types.ObjectId | string;
+  name: string;
+  revenue: number;
+  orders: number;
+  units: number;
+  avgPrice: number;
+};
 
 // Orders that count as revenue (paid, processing, shipped, delivered)
 const REVENUE_ORDER_STATUSES = [
@@ -25,15 +60,15 @@ export class RevenueService {
   /**
    * Get the revenue date for an order (paidAt if available, otherwise createdAt)
    */
-  private getRevenueDate(order: any): Date {
+  private getRevenueDate(order: RevenueOrderLike): Date {
     return order.payment?.paidAt || order.createdAt;
   }
 
   /**
    * Build date filter for revenue queries
    */
-  private buildDateFilter(from?: Date, to?: Date): any {
-    const filter: any = {};
+  private buildDateFilter(from?: Date, to?: Date): MatchStage {
+    const filter: MatchStage = {};
 
     if (from || to) {
       filter.$or = [];
@@ -77,7 +112,7 @@ export class RevenueService {
    * Get total refund amount for a date range (used for revenue calculations)
    */
   private async getTotalRefunds(from?: Date, to?: Date): Promise<number> {
-    const matchStage: any = {
+    const matchStage: RefundMatchStage = {
       status: { $in: [ReturnStatus.APPROVED, ReturnStatus.COMPLETED] },
     };
 
@@ -93,7 +128,9 @@ export class RevenueService {
       }
     }
 
-    const refunds = await this.returnModel.aggregate([
+    const refunds = await this.returnModel.aggregate<{
+      totalRefundAmount?: number;
+    }>([
       { $match: matchStage },
       {
         $group: {
@@ -103,7 +140,7 @@ export class RevenueService {
       },
     ]);
 
-    const result = refunds[0] as { totalRefundAmount?: number } | undefined;
+    const result = refunds[0];
     return result?.totalRefundAmount || 0;
   }
 
@@ -111,7 +148,10 @@ export class RevenueService {
    * Get revenue overview metrics
    * Net Revenue = Total Order Revenue - Total Refunds
    */
-  async getOverview(from?: Date, to?: Date): Promise<{
+  async getOverview(
+    from?: Date,
+    to?: Date,
+  ): Promise<{
     totalRevenue: number;
     totalOrders: number;
     avgOrderValue: number;
@@ -126,12 +166,12 @@ export class RevenueService {
 
     const dateFilter = this.buildDateFilter(from, to);
 
-    const matchStage: any = { ...statusFilter };
+    const matchStage: MatchStage = { ...statusFilter };
     if (Object.keys(dateFilter).length > 0) {
       Object.assign(matchStage, dateFilter);
     }
 
-    const result = await this.orderModel.aggregate([
+    const result = await this.orderModel.aggregate<RevenueOverviewRow>([
       { $match: matchStage },
       {
         $group: {
@@ -142,8 +182,12 @@ export class RevenueService {
       },
     ]);
 
-    const stats = result[0] || { totalRevenue: 0, totalOrders: 0 };
-    const avgOrderValue = stats.totalOrders > 0 ? stats.totalRevenue / stats.totalOrders : 0;
+    const stats: RevenueOverviewRow = result[0] || {
+      totalRevenue: 0,
+      totalOrders: 0,
+    };
+    const avgOrderValue =
+      stats.totalOrders > 0 ? stats.totalRevenue / stats.totalOrders : 0;
 
     // Get total refunds for the period
     const totalRefunds = await this.getTotalRefunds(from, to);
@@ -200,9 +244,10 @@ export class RevenueService {
     }
 
     // Use MongoDB's date operators with timezone support
-    const timezoneOffset = timezone === 'Asia/Ho_Chi_Minh' ? '+07:00' : '+00:00';
+    const timezoneOffset =
+      timezone === 'Asia/Ho_Chi_Minh' ? '+07:00' : '+00:00';
 
-    const result = await this.orderModel.aggregate([
+    const result = await this.orderModel.aggregate<RevenueTimeSeriesRow>([
       {
         $match: {
           ...statusFilter,
@@ -254,7 +299,10 @@ export class RevenueService {
   /**
    * Get revenue breakdown by category
    */
-  async getByCategory(from?: Date, to?: Date): Promise<{
+  async getByCategory(
+    from?: Date,
+    to?: Date,
+  ): Promise<{
     items: Array<{
       category: string;
       revenue: number;
@@ -268,12 +316,12 @@ export class RevenueService {
 
     const dateFilter = this.buildDateFilter(from, to);
 
-    const matchStage: any = { ...statusFilter };
+    const matchStage: MatchStage = { ...statusFilter };
     if (Object.keys(dateFilter).length > 0) {
       Object.assign(matchStage, dateFilter);
     }
 
-    const result = await this.orderModel.aggregate([
+    const result = await this.orderModel.aggregate<RevenueCategoryRow>([
       { $match: matchStage },
       { $unwind: '$items' },
       {
@@ -349,13 +397,13 @@ export class RevenueService {
 
     const dateFilter = this.buildDateFilter(from, to);
 
-    const matchStage: any = { ...statusFilter };
+    const matchStage: MatchStage = { ...statusFilter };
     if (Object.keys(dateFilter).length > 0) {
       Object.assign(matchStage, dateFilter);
     }
 
     // Build search filter
-    const productMatch: any = {};
+    const productMatch: MatchStage = {};
     if (search) {
       productMatch.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -364,7 +412,7 @@ export class RevenueService {
     }
 
     // Get total count
-    const countPipeline: any[] = [
+    const countPipeline: PipelineStage[] = [
       { $match: matchStage },
       { $unwind: '$items' },
       {
@@ -388,11 +436,13 @@ export class RevenueService {
       },
     });
 
-    const countResult = await this.orderModel.aggregate(countPipeline);
+    const countResult = await this.orderModel.aggregate<{
+      _id: Types.ObjectId;
+    }>(countPipeline);
     const total = countResult.length;
 
     // Get paginated results
-    const aggregationPipeline: any[] = [
+    const aggregationPipeline: PipelineStage[] = [
       { $match: matchStage },
       { $unwind: '$items' },
       {
@@ -447,7 +497,8 @@ export class RevenueService {
       { $limit: limit },
     );
 
-    const result = await this.orderModel.aggregate(aggregationPipeline);
+    const result =
+      await this.orderModel.aggregate<ProductRevenueRow>(aggregationPipeline);
 
     return {
       items: result.map((item) => ({

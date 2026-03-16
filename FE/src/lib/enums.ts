@@ -22,7 +22,6 @@ import {
   ORDER_TYPES,
   ORDER_STATUS,
   PREORDER_STATUS,
-  PRESCRIPTION_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
   SHIPPING_METHOD,
@@ -34,7 +33,6 @@ import {
 export { ORDER_TYPES as OrderType };
 export { ORDER_STATUS as OrderStatus };
 export { PREORDER_STATUS as PreorderStatus };
-export { PRESCRIPTION_STATUS as PrescriptionStatus };
 export { PAYMENT_METHOD as PaymentMethod };
 export { PAYMENT_STATUS as PaymentStatus };
 export { SHIPPING_METHOD as ShippingMethod };
@@ -154,30 +152,6 @@ export function isWaitingPreorderStatus(status: string | undefined): status is P
 }
 
 /**
- * Prescription Status Display Labels
- */
-export const PrescriptionStatusLabel: Record<PRESCRIPTION_STATUS, string> = {
-  [PRESCRIPTION_STATUS.PENDING_REVIEW]: 'Pending Review',
-  [PRESCRIPTION_STATUS.NEEDS_UPDATE]: 'Needs Update',
-  [PRESCRIPTION_STATUS.APPROVED]: 'Approved',
-  [PRESCRIPTION_STATUS.IN_MANUFACTURING]: 'In Manufacturing',
-  [PRESCRIPTION_STATUS.READY_TO_SHIP]: 'Ready to Ship',
-  [PRESCRIPTION_STATUS.COMPLETED]: 'Completed',
-};
-
-/**
- * Prescription Status Color Mapping for UI
- */
-export const PrescriptionStatusColor: Record<PRESCRIPTION_STATUS, 'success' | 'info' | 'warning' | 'error'> = {
-  [PRESCRIPTION_STATUS.PENDING_REVIEW]: 'warning',
-  [PRESCRIPTION_STATUS.NEEDS_UPDATE]: 'error',
-  [PRESCRIPTION_STATUS.APPROVED]: 'success',
-  [PRESCRIPTION_STATUS.IN_MANUFACTURING]: 'info',
-  [PRESCRIPTION_STATUS.READY_TO_SHIP]: 'success',
-  [PRESCRIPTION_STATUS.COMPLETED]: 'success',
-};
-
-/**
  * Payment Method Display Labels
  */
 export const PaymentMethodLabel: Record<PAYMENT_METHOD, string> = {
@@ -251,13 +225,6 @@ export function isPreorderStatus(value: unknown): value is PREORDER_STATUS {
 }
 
 /**
- * Type guard for PrescriptionStatus
- */
-export function isPrescriptionStatus(value: unknown): value is PRESCRIPTION_STATUS {
-  return typeof value === 'string' && Object.values(PRESCRIPTION_STATUS).includes(value as PRESCRIPTION_STATUS);
-}
-
-/**
  * Type guard for PaymentMethod
  */
 export function isPaymentMethod(value: unknown): value is PAYMENT_METHOD {
@@ -287,7 +254,6 @@ export const Enums = {
   OrderType: ORDER_TYPES,
   OrderStatus: ORDER_STATUS,
   PreorderStatus: PREORDER_STATUS,
-  PrescriptionStatus: PRESCRIPTION_STATUS,
   PaymentMethod: PAYMENT_METHOD,
   PaymentStatus: PAYMENT_STATUS,
   UserRole: USER_ROLES,
@@ -299,8 +265,6 @@ export const Enums = {
   OrderStatusColor,
   PreorderStatusLabel,
   PreorderStatusColor,
-  PrescriptionStatusLabel,
-  PrescriptionStatusColor,
   PaymentMethodLabel,
   PaymentMethodIcon,
   ShippingMethodLabel,
@@ -311,7 +275,6 @@ export const Enums = {
   isOrderType,
   isOrderStatus,
   isPreorderStatus,
-  isPrescriptionStatus,
   isPaymentMethod,
   isUserRole,
   isShippingMethod,

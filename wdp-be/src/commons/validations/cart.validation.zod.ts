@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 /**
  * Strict Cart Item Schema
- * - All fields required
+ * - productId and quantity are required
+ * - variantSku is optional (for lens and service products)
  * - No extra fields allowed (strict mode)
  * - Quantity must be positive
- * - SKU must be valid format
+ * - SKU must be valid format when provided
  */
 export const CartItemSchema = z
   .object({
@@ -17,7 +18,8 @@ export const CartItemSchema = z
       .string()
       .min(3, 'Variant SKU must be at least 3 characters')
       .max(50, 'Variant SKU must not exceed 50 characters')
-      .trim(),
+      .trim()
+      .optional(),
     quantity: z
       .number()
       .int('Quantity must be an integer')
@@ -55,6 +57,7 @@ export const UpdateCartItemSchema = z
  * Strict Remove from Cart Schema
  * - For removing items from cart
  * - Only requires the cart item identifier
+ * - variantSku is optional (for lens and service products)
  */
 export const RemoveFromCartSchema = z
   .object({
@@ -66,7 +69,8 @@ export const RemoveFromCartSchema = z
       .string()
       .min(3, 'Variant SKU must be at least 3 characters')
       .max(50, 'Variant SKU must not exceed 50 characters')
-      .trim(),
+      .trim()
+      .optional(),
   })
   .strict();
 

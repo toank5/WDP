@@ -76,9 +76,21 @@ export class Review {
   updatedAt: Date;
 
   // Virtual property for populated fields
-  user?: any;
-  product?: any;
-  order?: any;
+  user?: {
+    _id: Types.ObjectId;
+    fullName?: string;
+    avatar?: string;
+  };
+  product?: {
+    _id: Types.ObjectId;
+    name?: string;
+    slug?: string;
+  };
+  order?: {
+    _id: Types.ObjectId;
+    orderNumber?: string;
+    orderStatus?: string;
+  };
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);

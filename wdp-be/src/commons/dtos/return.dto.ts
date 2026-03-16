@@ -1,4 +1,16 @@
-import { IsEnum, IsString, IsArray, IsNumber, IsOptional, IsObject, IsBoolean, Min, ArrayNotEmpty, ValidateNested, IsDateString } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsObject,
+  IsBoolean,
+  Min,
+  ArrayNotEmpty,
+  ValidateNested,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // Import enums from shared package
@@ -94,7 +106,9 @@ export class StaffVerificationDto {
   @IsOptional()
   staffNotes?: string;
 
-  @ApiPropertyOptional({ enum: ['EXCELLENT', 'GOOD', 'ACCEPTABLE', 'POOR', 'UNACCEPTABLE'] })
+  @ApiPropertyOptional({
+    enum: ['EXCELLENT', 'GOOD', 'ACCEPTABLE', 'POOR', 'UNACCEPTABLE'],
+  })
   @IsString()
   @IsOptional()
   conditionRating?: string;
@@ -193,7 +207,10 @@ export class CreateReturnRequestDto {
  * Update Return Status DTO (Staff/Manager)
  */
 export class UpdateReturnStatusDto {
-  @ApiProperty({ enum: ReturnStatus, description: 'Target status to transition to' })
+  @ApiProperty({
+    enum: ReturnStatus,
+    description: 'Target status to transition to',
+  })
   @IsEnum(ReturnStatus)
   status: ReturnStatus;
 
@@ -262,7 +279,10 @@ export class InspectReturnItemDto {
   @IsString()
   orderItemId: string;
 
-  @ApiProperty({ enum: ReturnItemCondition, description: 'Condition of the returned item' })
+  @ApiProperty({
+    enum: ReturnItemCondition,
+    description: 'Condition of the returned item',
+  })
   @IsEnum(ReturnItemCondition)
   condition: ReturnItemCondition;
 
@@ -284,17 +304,26 @@ export class InspectReturnItemDto {
  * Transition: AWAITING_ITEMS → IN_REVIEW → APPROVED
  */
 export class InspectReturnDto {
-  @ApiProperty({ type: [InspectReturnItemDto], description: 'List of items with their conditions' })
+  @ApiProperty({
+    type: [InspectReturnItemDto],
+    description: 'List of items with their conditions',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => InspectReturnItemDto)
   items: InspectReturnItemDto[];
 
-  @ApiProperty({ enum: ReturnType, description: 'Resolution type: REFUND or EXCHANGE' })
+  @ApiProperty({
+    enum: ReturnType,
+    description: 'Resolution type: REFUND or EXCHANGE',
+  })
   @IsEnum(ReturnType)
   resolutionType: ReturnType;
 
-  @ApiProperty({ description: 'Approved refund amount (for REFUND type)', required: false })
+  @ApiProperty({
+    description: 'Approved refund amount (for REFUND type)',
+    required: false,
+  })
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -352,7 +381,10 @@ export class ApproveReturnResolutionDto {
  * Creates RETURN_IN or SCRAP inventory movements
  */
 export class ProcessReturnInventoryDto {
-  @ApiProperty({ description: 'Array of inventory movements created', type: [Object] })
+  @ApiProperty({
+    description: 'Array of inventory movements created',
+    type: [Object],
+  })
   inventoryMovements: Array<{
     sku: string;
     type: 'RETURN_IN' | 'SCRAP';
