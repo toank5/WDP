@@ -1,140 +1,414 @@
 "use client"
 
 import * as React from "react"
-import * as SheetPrimitive from "@radix-ui/react-dialog"
-import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import {
+  Drawer,
+  DrawerProps,
+  Box,
+  BoxProps,
+  Typography,
+  IconButton,
+  SxProps,
+  Theme,
+} from "@mui/material"
+import CloseIcon from "@mui/icons-material/Close"
+import { useTheme } from "@mui/material/styles"
 
-import { cn } from "@/lib/utils"
+/**
+ * Side from which the sheet/drawer emerges
+ */
+export type SheetSide = "top" | "bottom" | "left" | "right"
 
-const Sheet = SheetPrimitive.Root
+/**
+ * Props for the Sheet component (root)
+ */
+export interface SheetRootProps {
+  /**
+   * Whether the sheet is open
+   */
+  open: boolean
+  /**
+   * Callback when the open state changes
+   */
+  onOpenChange: (open: boolean) => void
+  /**
+   * Children to render
+   */
+  children: React.ReactNode
+}
 
-const SheetTrigger = SheetPrimitive.Trigger
+/**
+ * Props for the Sheet content
+ */
+export interface SheetContentProps {
+  /**
+   * Side from which the sheet emerges
+   * @default "right"
+   */
+  side?: SheetSide
+  /**
+   * Whether the sheet is open
+   */
+  open: boolean
+  /**
+   * Callback when the sheet closes
+   */
+  onClose: () => void
+  /**
+   * Children to render
+   */
+  children: React.ReactNode
+  /**
+   * Optional class name (uses sx prop instead)
+   */
+  className?: string
+  /**
+   * Additional MUI sx prop for custom styling
+   */
+  sx?: SxProps<Theme>
+  /**
+   * Maximum width of the sheet (for side sheets)
+   */
+  maxWidth?: number | string
+  /**
+   * Width of the sheet
+   */
+  width?: number | string
+  /**
+   * Height of the sheet
+   */
+  height?: number | string
+}
 
-const SheetClose = SheetPrimitive.Close
+/**
+ * Props for the Sheet header
+ */
+export interface SheetHeaderProps extends BoxProps {
+  /**
+   * Children to render
+   */
+  children: React.ReactNode
+}
 
-const SheetPortal = SheetPrimitive.Portal
+/**
+ * Props for the Sheet footer
+ */
+export interface SheetFooterProps extends BoxProps {
+  /**
+   * Children to render
+   */
+  children: React.ReactNode
+}
 
-const SheetOverlay = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref}
-  />
-))
-SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
+/**
+ * Props for the Sheet title
+ */
+export interface SheetTitleProps {
+  /**
+   * Title text
+   */
+  children: React.ReactNode
+  /**
+   * Optional class name (uses sx prop instead)
+   */
+  className?: string
+  /**
+   * Additional MUI sx prop for custom styling
+   */
+  sx?: SxProps<Theme>
+}
 
-const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
-  {
-    variants: {
-      side: {
-        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
-        bottom:
-          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-        right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
-      },
-    },
-    defaultVariants: {
-      side: "right",
+/**
+ * Props for the Sheet description
+ */
+export interface SheetDescriptionProps {
+  /**
+   * Description text
+   */
+  children: React.ReactNode
+  /**
+   * Optional class name (uses sx prop instead)
+   */
+  className?: string
+  /**
+   * Additional MUI sx prop for custom styling
+   */
+  sx?: SxProps<Theme>
+}
+
+/**
+ * Sheet context for managing state
+ */
+interface SheetContextValue {
+  open: boolean
+  onClose: () => void
+}
+
+const SheetContext = React.createContext<SheetContextValue | null>(null)
+
+/**
+ * Hook to access sheet context
+ */
+function useSheetContext(): SheetContextValue {
+  const context = React.useContext(SheetContext)
+  if (!context) {
+    throw new Error("Sheet components must be used within SheetContent")
+  }
+  return context
+}
+
+/**
+ * Sheet root component (context provider)
+ * Manages the open state and provides context to child components
+ */
+export function Sheet({ open, onOpenChange, children }: SheetRootProps) {
+  const handleClose = React.useCallback(() => {
+    onOpenChange(false)
+  }, [onOpenChange])
+
+  const contextValue = React.useMemo<SheetContextValue>(
+    () => ({
+      open,
+      onClose: handleClose,
+    }),
+    [open, handleClose]
+  )
+
+  return <SheetContext.Provider value={contextValue}>{children}</SheetContext.Provider>
+}
+
+/**
+ * Sheet content component (the actual drawer)
+ * Renders the drawer overlay and content
+ */
+export function SheetContent({
+  side = "right",
+  open,
+  onClose,
+  children,
+  className,
+  sx,
+  maxWidth,
+  width,
+  height,
+}: SheetContentProps) {
+  const theme = useTheme()
+  const isVertical = side === "left" || side === "right"
+
+  // Map side to MUI Drawer anchor
+  const getAnchor = (side: SheetSide): DrawerProps["anchor"] => {
+    switch (side) {
+      case "top":
+        return "top"
+      case "bottom":
+        return "bottom"
+      case "left":
+        return "left"
+      case "right":
+        return "right"
+    }
+  }
+
+  // Calculate width based on side and maxWidth
+  const getWidth = (): number | string | undefined => {
+    if (width) return width
+    if (maxWidth) return maxWidth
+    if (isVertical) {
+      return {
+        xs: "85vw",
+        sm: 400,
+      }
+    }
+    return undefined
+  }
+
+  // Calculate height based on side
+  const getHeight = (): number | string | undefined => {
+    if (height) return height
+    if (!isVertical) {
+      return "auto"
+    }
+    return "100%"
+  }
+
+  const drawerSx: SxProps<Theme> = {
+    "& .MuiDrawer-paper": {
+      width: getWidth(),
+      height: getHeight(),
+      maxWidth: isVertical ? maxWidth || "85vw" : undefined,
+      maxHeight: !isVertical ? "85vh" : undefined,
+      bgcolor: "background.paper",
+      border: "none",
+      boxShadow: theme.shadows[20],
+      ...sx,
     },
   }
-)
 
-interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
-
-const SheetContent = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Content>,
-  SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
+  return (
+    <Drawer
+      anchor={getAnchor(side)}
+      open={open}
+      onClose={onClose}
+      sx={drawerSx}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: "rgba(0, 0, 0, 0.5)",
+          },
+        },
+      }}
     >
+      <SheetContext.Provider
+        value={React.useMemo(
+          () => ({
+            open,
+            onClose,
+          }),
+          [open, onClose]
+        )}
+      >
+        <Box sx={{ position: "relative", height: "100%", display: "flex", flexDirection: "column" }}>
+          {/* Close button */}
+          <IconButton
+            onClick={onClose}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              zIndex: 1,
+              color: "text.secondary",
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+            aria-label="Close sheet"
+          >
+            <CloseIcon />
+          </IconButton>
+          {children}
+        </Box>
+      </SheetContext.Provider>
+    </Drawer>
+  )
+}
+
+/**
+ * Sheet header component
+ * Renders the header section of the sheet
+ */
+export function SheetHeader({ children, sx, ...props }: SheetHeaderProps) {
+  const headerSx: SxProps<Theme> = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+    pr: 5, // Padding right to accommodate close button
+    ...sx,
+  }
+
+  return (
+    <Box sx={headerSx} {...props}>
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
-SheetContent.displayName = SheetPrimitive.Content.displayName
+    </Box>
+  )
+}
 
-const SheetHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col space-y-2 text-center sm:text-left",
-      className
-    )}
-    {...props}
-  />
-)
-SheetHeader.displayName = "SheetHeader"
+/**
+ * Sheet footer component
+ * Renders the footer section of the sheet (typically action buttons)
+ */
+export function SheetFooter({ children, sx, ...props }: SheetFooterProps) {
+  const theme = useTheme()
 
-const SheetFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className
-    )}
-    {...props}
-  />
-)
-SheetFooter.displayName = "SheetFooter"
+  const footerSx: SxProps<Theme> = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+    mt: "auto",
+    p: 2,
+    pt: 3,
+    borderTop: `1px solid ${theme.palette.divider}`,
+    [theme.breakpoints.up("sm")]: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      alignItems: "center",
+    },
+    ...sx,
+  }
 
-const SheetTitle = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title
-    ref={ref}
-    className={cn("text-lg font-semibold text-foreground", className)}
-    {...props}
-  />
-))
-SheetTitle.displayName = SheetPrimitive.Title.displayName
+  return (
+    <Box sx={footerSx} {...props}>
+      {children}
+    </Box>
+  )
+}
 
-const SheetDescription = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
-))
-SheetDescription.displayName = SheetPrimitive.Description.displayName
+/**
+ * Sheet title component
+ * Renders the title text for the sheet
+ */
+export function SheetTitle({ children, sx }: SheetTitleProps) {
+  const titleSx: SxProps<Theme> = {
+    fontSize: "1.25rem",
+    fontWeight: 700,
+    color: "text.primary",
+    ...sx,
+  }
 
+  return (
+    <Typography variant="h6" component="h2" sx={titleSx}>
+      {children}
+    </Typography>
+  )
+}
+
+/**
+ * Sheet description component
+ * Renders the description text for the sheet
+ */
+export function SheetDescription({ children, sx }: SheetDescriptionProps) {
+  const descriptionSx: SxProps<Theme> = {
+    fontSize: "0.875rem",
+    color: "text.secondary",
+    ...sx,
+  }
+
+  return (
+    <Typography variant="body2" sx={descriptionSx}>
+      {children}
+    </Typography>
+  )
+}
+
+/**
+ * Sheet body component
+ * Renders the main content area of the sheet
+ */
+export interface SheetBodyProps extends BoxProps {
+  /**
+   * Children to render
+   */
+  children: React.ReactNode
+}
+
+export function SheetBody({ children, sx, ...props }: SheetBodyProps) {
+  const bodySx: SxProps<Theme> = {
+    flex: 1,
+    overflow: "auto",
+    p: 2,
+    ...sx,
+  }
+
+  return (
+    <Box sx={bodySx} {...props}>
+      {children}
+    </Box>
+  )
+}
+
+// Re-export all components for convenience
 export {
-  Sheet,
-  SheetPortal,
-  SheetOverlay,
-  SheetTrigger,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetFooter,
-  SheetTitle,
-  SheetDescription,
+  Sheet as SheetRoot,
+  SheetContent as SheetPortal,
+  SheetContent as SheetOverlay,
+  SheetContent as SheetClose,
 }
