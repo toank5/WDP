@@ -57,19 +57,19 @@ export const RootNavigator = () => {
           animationDuration: 300,
         }}
       >
-        {!isAuthenticated ? (
-          // Not logged in - show Auth Stack
+        {/* Always show Main Navigator (Store first) */}
+        <Stack.Screen
+          name="Main"
+          component={MainTabNavigator}
+          options={{ headerShown: false }}
+        />
+
+        {/* Auth Navigator - shown only when needed */}
+        {isAuthenticated ? null : (
           <Stack.Screen
             name="Auth"
             component={AuthNavigator}
-            options={{ headerShown: false }}
-          />
-        ) : (
-          // Logged in - show Main Stack with tabs
-          <Stack.Screen
-            name="Main"
-            component={MainTabNavigator}
-            options={{ headerShown: false }}
+            options={{ headerShown: false, presentation: 'card' }}
           />
         )}
       </Stack.Navigator>
