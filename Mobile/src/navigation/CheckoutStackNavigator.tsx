@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useTheme } from 'react-native-paper'
 import { AddressScreen } from '../screens/checkout/AddressScreen'
 import { PaymentScreen } from '../screens/checkout/PaymentScreen'
+import { ReviewScreen } from '../screens/checkout/ReviewScreen'
 import type { CheckoutStackParamList } from './types'
 
 const Stack = createNativeStackNavigator<CheckoutStackParamList>()
@@ -37,6 +38,13 @@ export const CheckoutStackNavigator = () => {
       <Stack.Screen
         name="CheckoutPayment"
         component={PaymentScreen}
+        options={{
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="CheckoutReview"
+        component={ReviewScreen}
         options={{
           gestureEnabled: true,
         }}
