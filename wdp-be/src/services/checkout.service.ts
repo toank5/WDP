@@ -11,7 +11,12 @@ import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Inventory } from '../commons/schemas/inventory.schema';
-import { PREORDER_STATUS, ORDER_STATUS, ORDER_TYPES, PRODUCT_CATEGORIES } from '@eyewear/shared';
+import {
+  PREORDER_STATUS,
+  ORDER_STATUS,
+  ORDER_TYPES,
+  PRODUCT_CATEGORIES,
+} from '@eyewear/shared';
 import {
   CreateCheckoutDto,
   CheckoutCalculation,
@@ -19,7 +24,10 @@ import {
   CheckoutOrderInfo,
   VNPayIpnResponseDto,
 } from '../dtos/checkout.dto';
-import { VNPayVerificationResultDto, VNPayCallbackParamsDto } from '../dtos/vnpay.dto';
+import {
+  VNPayVerificationResultDto,
+  VNPayCallbackParamsDto,
+} from '../dtos/vnpay.dto';
 import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
@@ -57,6 +65,8 @@ interface AggregatedCartItem {
     slug?: string;
   };
 }
+
+type VnpParamMap = Record<string, string | number | undefined>;
 
 @Injectable()
 export class CheckoutService {
@@ -209,7 +219,8 @@ export class CheckoutService {
     try {
       // Verify VNPAY signature - convert params to proper format
       const callbackParams = this.normalizeVnpayParams(params);
-      const verification = await this.vnpayService.verifyCallback(callbackParams);
+      const verification =
+        await this.vnpayService.verifyCallback(callbackParams);
 
       if (!verification.success) {
         this.logger.warn(
@@ -358,7 +369,8 @@ export class CheckoutService {
     }
 
     const transactionId =
-      verification.transactionId || this.safeString(params['vnp_TransactionNo']);
+      verification.transactionId ||
+      this.safeString(params['vnp_TransactionNo']);
     const txnRef = this.safeString(params['vnp_TxnRef']);
     const paidAt = this.parseVnpPayDate(this.safeString(params['vnp_PayDate']));
 
@@ -369,7 +381,8 @@ export class CheckoutService {
       amount: order.totalAmount,
       transactionId,
       paidAt,
-      bankCode: verification.bankCode || this.safeString(params['vnp_BankCode']),
+      bankCode:
+        verification.bankCode || this.safeString(params['vnp_BankCode']),
       bankTransactionNo: this.safeString(params['vnp_BankTranNo']),
       cardType: this.safeString(params['vnp_CardType']),
       txnRef,
@@ -647,7 +660,8 @@ export class CheckoutService {
       }
     }
 
-    const totalAmount = subtotal + shippingFee - comboDiscount - promotionDiscount;
+    const totalAmount =
+      subtotal + shippingFee - comboDiscount - promotionDiscount;
 
     return {
       subtotal,
@@ -693,7 +707,6 @@ export class CheckoutService {
         : undefined,
       expectedShipDate: item.isPreorder ? undefined : undefined,
       reservedQuantity: 0,
-      isPrescription: item.isPrescription || false,
     }));
 
     // Create order
@@ -736,7 +749,6 @@ export class CheckoutService {
         quantity: item.quantity,
         priceAtOrder: item.priceAtOrder,
         isPreorder: item.isPreorder,
-        isPrescription: item.isPrescription,
       })),
     };
   }
@@ -760,7 +772,7 @@ export class CheckoutService {
   }
 
   private async resolveOrderFromVnpParams(
-    params: Record<string, any>,
+    params: VnpParamMap,
   ): Promise<Order | null> {
     const txnRef = String(params['vnp_TxnRef'] || '').trim();
     if (txnRef) {
@@ -770,7 +782,9 @@ export class CheckoutService {
       }
     }
 
-    const orderInfo = this.extractOrderInfo(params['vnp_OrderInfo']);
+    const orderInfo = this.extractOrderInfo(
+      this.safeString(params['vnp_OrderInfo']),
+    );
     if (orderInfo?.orderNumber) {
       return this.orderModel.findOne({ orderNumber: orderInfo.orderNumber });
     }
@@ -818,8 +832,12 @@ export class CheckoutService {
       vnp_TransactionNo: toString(params.vnp_TransactionNo),
       vnp_TxnRef: toString(params.vnp_TxnRef),
       vnp_SecureHash: toString(params.vnp_SecureHash),
-      vnp_SecureHashType: params.vnp_SecureHashType ? toString(params.vnp_SecureHashType) : undefined,
-      vnp_TransactionStatus: params.vnp_TransactionStatus ? toString(params.vnp_TransactionStatus) : undefined,
+      vnp_SecureHashType: params.vnp_SecureHashType
+        ? toString(params.vnp_SecureHashType)
+        : undefined,
+      vnp_TransactionStatus: params.vnp_TransactionStatus
+        ? toString(params.vnp_TransactionStatus)
+        : undefined,
     };
   }
 

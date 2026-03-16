@@ -82,9 +82,9 @@ ComboSchema.index({ status: 1, startDate: 1, endDate: 1 });
 ComboSchema.index({ isFeatured: 1, status: 1 });
 
 // Pre-save hook to calculate discount
-ComboSchema.pre('save', async function () {
-  if ((this as any).originalPrice > 0 && (this as any).comboPrice >= 0) {
-    (this as any).discountAmount = (this as any).originalPrice - (this as any).comboPrice;
-    (this as any).discountPercentage = ((this as any).discountAmount / (this as any).originalPrice) * 100;
+ComboSchema.pre('save', async function (this: Combo) {
+  if (this.originalPrice && this.originalPrice > 0 && this.comboPrice >= 0) {
+    this.discountAmount = this.originalPrice - this.comboPrice;
+    this.discountPercentage = (this.discountAmount / this.originalPrice) * 100;
   }
 });

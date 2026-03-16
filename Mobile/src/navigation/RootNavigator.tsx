@@ -16,8 +16,6 @@ const CheckoutPaymentScreen = () => null as any
 const CheckoutReviewScreen = () => null as any
 const OrderDetailScreen = () => null as any
 const OrderHistoryScreen = () => null as any
-const PrescriptionDetailScreen = () => null as any
-const PrescriptionListScreen = () => null as any
 const AddressManagementScreen = () => null as any
 const AddressFormScreen = () => null as any
 const ProfileSettingsScreen = () => null as any
@@ -100,8 +98,6 @@ export const RootNavigator = () => {
             <Stack.Screen name="CheckoutReview" component={CheckoutReviewScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-            <Stack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
-            <Stack.Screen name="PrescriptionList" component={PrescriptionListScreen} />
             <Stack.Screen name="AddressManagement" component={AddressManagementScreen} />
             <Stack.Screen name="AddressForm" component={AddressFormScreen} />
             <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />

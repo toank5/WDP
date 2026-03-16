@@ -35,6 +35,7 @@ import {
   UserRole,
   MANAGER_OR_ADMIN,
 } from '../commons/guards/rbac.guard';
+import type { AuthenticatedRequest } from '../commons/types/express.types';
 
 @ApiTags('reviews')
 @Controller('reviews')
@@ -62,7 +63,10 @@ export class ReviewController {
     description: 'Order not delivered, duplicate review, or validation error',
   })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Order not found' })
-  async createReview(@Request() req, @Body() createReviewDto: CreateReviewDto) {
+  async createReview(
+    @Request() req: AuthenticatedRequest,
+    @Body() createReviewDto: CreateReviewDto,
+  ) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
     const userName = req.user.fullName;
@@ -192,7 +196,7 @@ export class ReviewController {
     description: 'Check completed successfully',
   })
   async canUserReviewProduct(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('productId') productId: string,
     @Param('orderId') orderId: string,
     @Query('variantSku') variantSku?: string,
@@ -226,7 +230,7 @@ export class ReviewController {
     status: HttpStatus.OK,
     description: 'Unreviewed products retrieved successfully',
   })
-  async getUnreviewedProducts(@Request() req) {
+  async getUnreviewedProducts(@Request() req: AuthenticatedRequest) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
     const products = await this.reviewService.getUnreviewedProducts(userId);
@@ -296,7 +300,7 @@ export class ReviewController {
   })
   async updateReview(
     @Param('reviewId') reviewId: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() updateReviewDto: UpdateReviewDto,
   ) {
     const userId = req.user?._id?.toString();
@@ -338,7 +342,10 @@ export class ReviewController {
     status: HttpStatus.NOT_FOUND,
     description: 'Review not found',
   })
-  async deleteReview(@Param('reviewId') reviewId: string, @Request() req) {
+  async deleteReview(
+    @Param('reviewId') reviewId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const userId = req.user?._id?.toString();
     if (!userId) throw new BadRequestException('User ID not found in request');
     await this.reviewService.deleteReview(reviewId, userId);

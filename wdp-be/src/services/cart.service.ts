@@ -60,12 +60,12 @@ export class CartService {
   private async getOrCreateCart(customerId: string): Promise<CartDocument> {
     const customerObjId = new mongoose.Types.ObjectId(customerId);
     let cart = await this.cartModel
-      .findOne({ customerId: customerObjId as any })
+      .findOne({ customerId: customerObjId })
       .exec();
 
     if (!cart) {
       cart = await this.cartModel.create({
-        customerId: customerObjId as any,
+        customerId: customerObjId,
         items: [],
       });
     }
@@ -172,7 +172,7 @@ export class CartService {
       (item: AggregatedCartItem) => ({
         _id: item._id || '',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        productId: (item.productId as any).toString() || '',
+        productId: item.productId?.toString() || '',
         variantSku: item.variantSku,
         productName: item.productName,
         productImage: item.productImage,
@@ -517,7 +517,7 @@ export class CartService {
     return {
       _id: cart._id || '',
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      customerId: (cart.customerId as any).toString(),
+      customerId: cart.customerId?.toString() || '',
       items,
       totalItems,
       subtotal,

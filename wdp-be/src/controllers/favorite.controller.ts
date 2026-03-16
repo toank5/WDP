@@ -10,8 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   Req,
-  ParseIntPipe,
-  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -64,7 +62,9 @@ export class FavoriteController {
     description: 'Unauthorized',
     type: ErrorResponseDto,
   })
-  async getFavorites(@Req() req: AuthenticatedRequest): Promise<FavoritesListResponseDto> {
+  async getFavorites(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<FavoritesListResponseDto> {
     const userId = req.user?._id?.toString();
     if (!userId) {
       throw new Error('User ID not found in request');
@@ -82,7 +82,8 @@ export class FavoriteController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get favorites count',
-    description: 'Returns the total number of favorites for the authenticated user.',
+    description:
+      'Returns the total number of favorites for the authenticated user.',
   })
   @ApiOkResponse({
     description: 'Favorites count retrieved successfully',
@@ -109,7 +110,8 @@ export class FavoriteController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Check if product is favorited',
-    description: 'Checks if a specific product (with optional variant) is in the user favorites.',
+    description:
+      'Checks if a specific product (with optional variant) is in the user favorites.',
   })
   @ApiOkResponse({
     description: 'Check result',
@@ -253,6 +255,10 @@ export class FavoriteController {
       throw new Error('User ID not found in request');
     }
 
-    return this.favoriteService.removeFavoriteByProduct(productId, userId, variantId);
+    return this.favoriteService.removeFavoriteByProduct(
+      productId,
+      userId,
+      variantId,
+    );
   }
 }

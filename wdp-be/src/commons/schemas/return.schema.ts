@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 
 // Import enums from shared package
 import {
@@ -11,7 +11,13 @@ import {
 } from '@eyewear/shared';
 
 // Re-export enums for backward compatibility
-export { ReturnStatus, ReturnItemStatus, ReturnItemCondition, ReturnReason, ReturnType };
+export {
+  ReturnStatus,
+  ReturnItemStatus,
+  ReturnItemCondition,
+  ReturnReason,
+  ReturnType,
+};
 
 /**
  * Return Request Status Flow (Simplified)
@@ -65,11 +71,19 @@ export class ReturnLineItem {
   isPrescription?: boolean;
 
   // Item-level status for inventory tracking (legacy)
-  @Prop({ type: String, enum: ReturnItemStatus, default: ReturnItemStatus.AWAITING_RETURN })
+  @Prop({
+    type: String,
+    enum: ReturnItemStatus,
+    default: ReturnItemStatus.AWAITING_RETURN,
+  })
   itemStatus?: ReturnItemStatus;
 
   // Item condition (set by Sale Staff during inspection)
-  @Prop({ type: String, enum: ReturnItemCondition, default: ReturnItemCondition.PENDING })
+  @Prop({
+    type: String,
+    enum: ReturnItemCondition,
+    default: ReturnItemCondition.PENDING,
+  })
   condition?: ReturnItemCondition;
 
   // Inventory movement reference (when item is received back)
@@ -286,6 +300,10 @@ export class ReturnRequest extends Document {
   @Prop({ type: ExchangeDetailsSchema })
   exchangeDetails?: ExchangeDetails;
 
+  // Resolution type (set during approval)
+  @Prop({ type: String, enum: ReturnType })
+  resolutionType?: ReturnType;
+
   // Customer submission details
   @Prop()
   customerNotes?: string;
@@ -373,6 +391,10 @@ export class ReturnRequest extends Document {
     netRevenue: number; // Original - Refund
     recordedAt?: Date; // When this was recorded in revenue
   };
+
+  // Timestamp fields (added automatically by @Schema({ timestamps: true }))
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export const ReturnRequestSchema = SchemaFactory.createForClass(ReturnRequest);

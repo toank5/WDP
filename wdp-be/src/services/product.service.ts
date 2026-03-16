@@ -228,7 +228,10 @@ export class ProductService {
     }
 
     // Auto-create inventory entry for lens products using SKU pattern LENS-{slug}
-    if (savedProduct.category === PRODUCT_CATEGORIES.LENSES && savedProduct.slug) {
+    if (
+      savedProduct.category === PRODUCT_CATEGORIES.LENSES &&
+      savedProduct.slug
+    ) {
       const lensSku = `LENS-${savedProduct.slug}`;
       await this.inventoryService.ensureInventoryForSkus([lensSku]);
     }
@@ -418,7 +421,10 @@ export class ProductService {
     }
 
     // Handle lens product inventory
-    if (updatedProduct && updatedProduct.category === PRODUCT_CATEGORIES.LENSES) {
+    if (
+      updatedProduct &&
+      updatedProduct.category === PRODUCT_CATEGORIES.LENSES
+    ) {
       if (updatedProduct.slug) {
         const lensSku = `LENS-${updatedProduct.slug}`;
         await this.inventoryService.ensureInventoryForSkus([lensSku]);

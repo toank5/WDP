@@ -7,34 +7,20 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-
-export enum UserRole {
-  ADMIN = 0,
-  MANAGER = 1,
-  OPERATION = 2,
-  SALE = 3,
-  CUSTOMER = 4,
-}
+import { ROLES } from '@eyewear/shared';
 
 interface RequestWithUser {
   user?: {
-    role: UserRole | string | number;
+    role: ROLES | string;
   };
 }
 
-function normalizeRole(role: UserRole | string | number): UserRole | null {
-  if (typeof role === 'number') {
-    return Number.isInteger(role) ? (role as UserRole) : null;
-  }
-
+function normalizeRole(role: ROLES | string): ROLES | null {
   if (typeof role === 'string') {
-    const numericRole = Number.parseInt(role, 10);
-    if (!Number.isNaN(numericRole)) {
-      return numericRole as UserRole;
+    // Check if it's a valid ROLES enum value
+    if (Object.values(ROLES).includes(role as ROLES)) {
+      return role as ROLES;
     }
-
-    const enumValue = (UserRole as unknown as Record<string, number>)[role];
-    return typeof enumValue === 'number' ? (enumValue as UserRole) : null;
   }
 
   return null;
@@ -45,10 +31,10 @@ export class RbacGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      'roles',
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<ROLES[]>('roles', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!requiredRoles) {
       return true;
@@ -81,10 +67,13 @@ export class RbacGuard implements CanActivate {
 }
 
 // Decorator to specify required roles
-export const Roles = (...roles: UserRole[]) => SetMetadata('roles', roles);
+export const Roles = (...roles: ROLES[]) => SetMetadata('roles', roles);
+
+// Re-export ROLES as UserRole for backward compatibility
+export { ROLES as UserRole } from '@eyewear/shared';
 
 // Manager and Admin only
-export const MANAGER_OR_ADMIN = [UserRole.MANAGER, UserRole.ADMIN];
+export const MANAGER_OR_ADMIN = [ROLES.MANAGER, ROLES.ADMIN];
 
 // Admin only
-export const ADMIN_ONLY = [UserRole.ADMIN];
+export const ADMIN_ONLY = [ROLES.ADMIN];

@@ -86,13 +86,6 @@ export interface Product {
   lensType?: 'single-vision' | 'bifocal' | 'progressive' | 'photochromic'
   index?: number
   coatings?: string[]
-  suitableForPrescriptionRange?: {
-    minSPH?: number
-    maxSPH?: number
-    minCYL?: number
-    maxCYL?: number
-  }
-  isPrescriptionRequired?: boolean
 
   // Service-specific
   serviceType?: 'eye-test' | 'lens-cutting' | 'frame-adjustment' | 'cleaning'
@@ -133,7 +126,7 @@ export type OrderStatus =
   | 'cancelled'
   | 'refunded'
 
-export type OrderType = 'in-stock' | 'pre-order' | 'prescription'
+export type OrderType = 'in-stock' | 'pre-order'
 
 export interface Order {
   _id: string
@@ -160,27 +153,6 @@ export interface OrderItem {
   productImage: string
   price: number
   quantity: number
-}
-
-// Prescription Types
-export interface Prescription {
-  _id: string
-  userId: string
-  name: string
-  rightEye: EyePrescription
-  leftEye: EyePrescription
-  pd: number
-  notes?: string
-  image?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface EyePrescription {
-  sph: number
-  cyl: number
-  axis: number
-  add?: number
 }
 
 // Review Types

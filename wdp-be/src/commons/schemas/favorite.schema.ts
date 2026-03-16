@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Favorite {
-  _id?: string;
+  _id?: mongoose.Types.ObjectId;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

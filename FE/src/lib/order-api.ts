@@ -8,7 +8,6 @@ import { ROLES } from './validations'
 import {
   ORDER_TYPES,
   ORDER_STATUS,
-  PRESCRIPTION_STATUS,
   PAYMENT_METHOD,
   PREORDER_STATUS,
   PAYMENT_STATUS,
@@ -23,7 +22,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost://3000'
 // Enums can be used as both values and types in TypeScript
 export { ORDER_TYPES as OrderType }
 export { ORDER_STATUS as OrderStatus }
-export { PRESCRIPTION_STATUS as PrescriptionStatus }
 export { PAYMENT_METHOD as PaymentMethod }
 export { PREORDER_STATUS as PreorderStatus }
 export { PAYMENT_STATUS as PaymentStatus }
@@ -58,35 +56,6 @@ export interface OrderItem {
   preorderStatus?: PREORDER_STATUS
   expectedShipDate?: string
   reservedQuantity?: number
-  // Prescription fields
-  isPrescription?: boolean
-  prescriptionStatus?: PRESCRIPTION_STATUS
-  prescriptionData?: PrescriptionData
-  prescriptionUrl?: string
-  // Manufacturing proof fields (on OrderItem level)
-  manufacturingProofUrl?: string
-  manufacturingStatus?: 'PENDING' | 'COMPLETED' | 'FAILED'
-  manufacturedAt?: string
-}
-
-export interface PrescriptionData {
-  pd: number
-  sph: {
-    right: number
-    left: number
-  }
-  cyl: {
-    right: number
-    left: number
-  }
-  axis: {
-    right: number
-    left: number
-  }
-  add: {
-    right: number
-    left: number
-  }
 }
 
 export interface OrderPayment {
@@ -184,19 +153,9 @@ export interface ApproveOrderRequest {
   note?: string
 }
 
-export interface ApprovePrescriptionRequest {
-  itemId: string
-  note?: string
-}
-
-export interface RequestPrescriptionUpdateRequest {
-  itemId: string
-  message: string
-}
-
 export interface UpdateManufacturingStatusRequest {
   itemId: string
-  status: 'IN_MANUFACTURING' | 'READY_TO_SHIP' | 'COMPLETED'
+  status: 'PENDING' | 'COMPLETED' | 'FAILED'
   note?: string
 }
 
@@ -463,37 +422,11 @@ class OrderAPI {
   }
 
   /**
-   * Approve prescription (Sales Staff)
-   */
-  async approvePrescription(orderId: string, request: ApprovePrescriptionRequest): Promise<Order> {
-    try {
-      const response = await api.post(`/orders/${orderId}/prescription/approve`, request)
-      return unwrapApiPayload<Order>(response.data)
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
-  }
-
-  /**
-   * Request prescription update from customer (Sales Staff)
-   */
-  async requestPrescriptionUpdate(orderId: string, request: RequestPrescriptionUpdateRequest): Promise<Order> {
-    try {
-      const response = await api.post(`/orders/${orderId}/prescription/request-update`, request)
-      return unwrapApiPayload<Order>(response.data)
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
-  }
-
-  /**
    * Update manufacturing status (Operations Staff)
    */
   async updateManufacturingStatus(orderId: string, request: UpdateManufacturingStatusRequest): Promise<Order> {
     try {
-      const response = await api.post(`/orders/${orderId}/prescription/manufacturing`, request)
+      const response = await api.post(`/orders/${orderId}/manufacturing`, request)
       return unwrapApiPayload<Order>(response.data)
     } catch (error) {
       const message = extractApiMessage(error)

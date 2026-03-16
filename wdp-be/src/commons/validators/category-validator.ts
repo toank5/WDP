@@ -41,10 +41,7 @@ export class CategoryRequiredFieldsConstraint implements ValidatorConstraintInte
         );
 
       case PRODUCT_CATEGORIES.LENSES:
-        return (
-          object.lensType !== undefined &&
-          object.index !== undefined
-        );
+        return object.lensType !== undefined && object.index !== undefined;
 
       case PRODUCT_CATEGORIES.SERVICES:
         return (

@@ -16,7 +16,6 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
-  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserService } from '../services/user.service';
@@ -76,11 +75,13 @@ export class AccountController {
         _id: user._id.toString(),
         fullName: user.fullName,
         email: user.email,
-        phone: (user as any).phone,
+        phone: user.phone,
         avatar: user.avatar,
-        dateOfBirth: (user as any).dateOfBirth,
-        preferredLanguage: (user as any).preferredLanguage,
-        preferredCurrency: (user as any).preferredCurrency,
+        dateOfBirth: user.dateOfBirth
+          ? user.dateOfBirth.toISOString().split('T')[0]
+          : undefined,
+        preferredLanguage: user.preferredLanguage,
+        preferredCurrency: user.preferredCurrency,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
@@ -122,19 +123,19 @@ export class AccountController {
       user.fullName = updateData.fullName;
     }
     if (updateData.phone !== undefined) {
-      (user as any).phone = updateData.phone;
+      user.phone = updateData.phone;
     }
     if (updateData.avatar !== undefined) {
       user.avatar = updateData.avatar;
     }
     if (updateData.dateOfBirth !== undefined) {
-      (user as any).dateOfBirth = updateData.dateOfBirth;
+      user.dateOfBirth = new Date(updateData.dateOfBirth);
     }
     if (updateData.preferredLanguage !== undefined) {
-      (user as any).preferredLanguage = updateData.preferredLanguage;
+      user.preferredLanguage = updateData.preferredLanguage;
     }
     if (updateData.preferredCurrency !== undefined) {
-      (user as any).preferredCurrency = updateData.preferredCurrency;
+      user.preferredCurrency = updateData.preferredCurrency;
     }
 
     await user.save();
@@ -146,11 +147,13 @@ export class AccountController {
         _id: user._id.toString(),
         fullName: user.fullName,
         email: user.email,
-        phone: (user as any).phone,
+        phone: user.phone,
         avatar: user.avatar,
-        dateOfBirth: (user as any).dateOfBirth,
-        preferredLanguage: (user as any).preferredLanguage,
-        preferredCurrency: (user as any).preferredCurrency,
+        dateOfBirth: user.dateOfBirth
+          ? user.dateOfBirth.toISOString().split('T')[0]
+          : undefined,
+        preferredLanguage: user.preferredLanguage,
+        preferredCurrency: user.preferredCurrency,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
@@ -164,7 +167,8 @@ export class AccountController {
   @Get('preferences')
   @ApiOperation({
     summary: 'Get user preferences',
-    description: 'Retrieves communication preferences of the authenticated user.',
+    description:
+      'Retrieves communication preferences of the authenticated user.',
   })
   @ApiOkResponse({
     description: 'Preferences retrieved successfully',
@@ -180,7 +184,7 @@ export class AccountController {
       throw new BadRequestException('User not found');
     }
 
-    const preferences = (user as any).preferences || {
+    const preferences = user.preferences || {
       newsletterSubscribed: false,
       emailOffers: false,
       newCollectionAlerts: false,
@@ -224,8 +228,8 @@ export class AccountController {
     }
 
     // Initialize preferences if not exists
-    if (!(user as any).preferences) {
-      (user as any).preferences = {
+    if (!user.preferences) {
+      user.preferences = {
         newsletterSubscribed: false,
         emailOffers: false,
         newCollectionAlerts: false,
@@ -234,13 +238,13 @@ export class AccountController {
 
     // Update provided fields
     if (updateData.newsletterSubscribed !== undefined) {
-      (user as any).preferences.newsletterSubscribed = updateData.newsletterSubscribed;
+      user.preferences.newsletterSubscribed = updateData.newsletterSubscribed;
     }
     if (updateData.emailOffers !== undefined) {
-      (user as any).preferences.emailOffers = updateData.emailOffers;
+      user.preferences.emailOffers = updateData.emailOffers;
     }
     if (updateData.newCollectionAlerts !== undefined) {
-      (user as any).preferences.newCollectionAlerts = updateData.newCollectionAlerts;
+      user.preferences.newCollectionAlerts = updateData.newCollectionAlerts;
     }
 
     await user.save();
@@ -248,7 +252,7 @@ export class AccountController {
     return new CustomApiResponse<UserPreferencesResponseDto>(
       HttpStatus.OK,
       'Preferences updated successfully',
-      (user as any).preferences,
+      user.preferences,
     );
   }
 

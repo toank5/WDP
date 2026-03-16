@@ -355,7 +355,8 @@ export class InventoryService {
           item.productIsActive !== false &&
           // For products with variants (frames), check variant is active
           // For products without variants (lenses, services), variantIsActive is undefined
-          (item.variantIsActive === undefined || item.variantIsActive !== false),
+          (item.variantIsActive === undefined ||
+            item.variantIsActive !== false),
       );
     }
 
@@ -393,7 +394,11 @@ export class InventoryService {
     if (sku.startsWith('LENS-')) {
       const slug = sku.replace(/^LENS-/, '');
       const product = await this.productModel
-        .findOne({ slug, category: PRODUCT_CATEGORIES.LENSES, isDeleted: false })
+        .findOne({
+          slug,
+          category: PRODUCT_CATEGORIES.LENSES,
+          isDeleted: false,
+        })
         .lean();
 
       if (product) {

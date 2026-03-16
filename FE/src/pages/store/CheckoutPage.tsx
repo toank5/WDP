@@ -699,7 +699,6 @@ const CheckoutPage: React.FC = () => {
                       const itemPrice = normalizeCartItemPrice(item)
                       const lineTotal = itemPrice * item.quantity
                       const isPreorder = item.variantDetails?.isPreorder || false
-                      const isPrescription = item.variantDetails?.isPrescription || false
 
                       return (
                         <div key={item._id} className="p-6">
@@ -731,12 +730,6 @@ const CheckoutPage: React.FC = () => {
                                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
                                         <FiClock size={12} />
                                         Pre-order
-                                      </span>
-                                    )}
-                                    {isPrescription && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
-                                        <FiEye size={12} />
-                                        Custom Lens
                                       </span>
                                     )}
                                   </div>

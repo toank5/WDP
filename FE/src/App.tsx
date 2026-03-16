@@ -4,7 +4,6 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
-import PrescriptionPage from './pages/PrescriptionPage'
 import FavoritesPage from './pages/FavoritesPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
@@ -28,7 +27,6 @@ import OrderFailedPage from './pages/store/OrderFailedPage'
 import AccountPage from './pages/AccountPage'
 import OrderHistoryPage from './pages/store/OrderHistoryPage'
 import OrderDetailPage from './pages/store/OrderDetailPage'
-import PrescriptionUploadPage from './pages/store/PrescriptionUploadPage'
 import VirtualTryOnPage from './pages/store/VirtualTryOnPage'
 
 // Customer account pages
@@ -39,7 +37,6 @@ import SecurityPage from './pages/account/SecurityPage'
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
 import { ReturnsManagementPage } from './pages/staff/ReturnsManagementPage'
-// import { PrescriptionManagementPage } from './pages/staff/PrescriptionManagementPage' // REMOVED: Unified into OrderDetailDrawer
 
 // Operations pages
 import OperationsDashboard from './pages/OperationsDashboard'
@@ -77,7 +74,6 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/prescription" element={<PrescriptionPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -122,11 +118,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/prescription/upload" element={<PrescriptionUploadPage />} />
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
           <Route path="/policies/:type" element={<PolicyDetailPage />} />
-
-          {/* Prescriptions routes - REMOVED: Prescriptions now only created during checkout/order flow */}
 
           {/* Admin/Staff/Operations routes */}
           <Route
@@ -147,7 +140,6 @@ function App() {
             <Route path="products-catalog/:id" element={<ProductDetailAdminPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
             <Route path="returns" element={<ReturnsManagementPage />} />
-            {/* <Route path="prescriptions" element={<PrescriptionManagementPage />} /> REMOVED: Unified into OrderDetailDrawer */}
             <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />

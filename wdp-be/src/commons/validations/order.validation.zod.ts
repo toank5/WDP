@@ -149,70 +149,6 @@ export const OrderTrackingSchema = z
   .strict();
 
 /**
- * Strict Eye Prescription Schema
- * - For individual eye measurements
- */
-const EyePrescriptionSchema = z
-  .object({
-    right: z.number().refine((val) => val >= -30 && val <= 30, {
-      message: 'Value must be between -30 and +30',
-    }),
-    left: z.number().refine((val) => val >= -30 && val <= 30, {
-      message: 'Value must be between -30 and +30',
-    }),
-  })
-  .strict();
-
-/**
- * Strict Axis Prescription Schema
- * - For axis values (0-180 degrees)
- */
-const AxisPrescriptionSchema = z
-  .object({
-    right: z
-      .number()
-      .int('Axis must be an integer')
-      .min(0, 'Axis must be at least 0')
-      .max(180, 'Axis must be at most 180'),
-    left: z
-      .number()
-      .int('Axis must be an integer')
-      .min(0, 'Axis must be at least 0')
-      .max(180, 'Axis must be at most 180'),
-  })
-  .strict();
-
-/**
- * Strict Order Prescription Schema
- * - For prescription glasses orders
- * - All numeric values have valid ranges
- */
-export const OrderPrescriptionSchema = z
-  .object({
-    pd: z
-      .number()
-      .positive('PD (Pupillary Distance) must be greater than 0')
-      .max(80, 'PD (Pupillary Distance) must not exceed 80mm'),
-    sph: EyePrescriptionSchema,
-    cyl: EyePrescriptionSchema,
-    axis: AxisPrescriptionSchema,
-    add: z
-      .object({
-        right: z
-          .number()
-          .min(0, 'Add power must be at least 0')
-          .max(4, 'Add power must not exceed 4'),
-        left: z
-          .number()
-          .min(0, 'Add power must be at least 0')
-          .max(4, 'Add power must not exceed 4'),
-      })
-      .strict()
-      .optional(),
-  })
-  .strict();
-
-/**
  * Strict Order History Schema
  * - For tracking order status changes
  */
@@ -289,21 +225,11 @@ const PreorderOrderSchema = BaseOrderSchema.extend({
 });
 
 /**
- * Prescription Order Schema
- * - Requires prescription data
- */
-const PrescriptionOrderSchema = BaseOrderSchema.extend({
-  orderType: z.literal(ORDER_TYPES.PRESCRIPTION),
-  prescription: OrderPrescriptionSchema,
-});
-
-/**
  * Discriminated union for order types
  */
 export const CreateOrderSchema = z.discriminatedUnion('orderType', [
   ReadyOrderSchema,
   PreorderOrderSchema,
-  PrescriptionOrderSchema,
 ]);
 
 /**
@@ -390,7 +316,6 @@ export type OrderItemInput = z.infer<typeof OrderItemSchema>;
 export type ShippingAddressInput = z.infer<typeof ShippingAddressSchema>;
 export type OrderPaymentInput = z.infer<typeof OrderPaymentSchema>;
 export type OrderTrackingInput = z.infer<typeof OrderTrackingSchema>;
-export type OrderPrescriptionInput = z.infer<typeof OrderPrescriptionSchema>;
 export type OrderHistoryInput = z.infer<typeof OrderHistorySchema>;
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof UpdateOrderStatusSchema>;

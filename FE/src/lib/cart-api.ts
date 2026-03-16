@@ -24,7 +24,6 @@ export interface CartItem {
     size?: string
     color?: string
     isPreorder?: boolean
-    isPrescription?: boolean
   }
   addedAt: string
 }

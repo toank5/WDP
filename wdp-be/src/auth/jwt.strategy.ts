@@ -6,7 +6,7 @@ import { Model } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from 'src/commons/schemas/user.schema';
 import { JwtPayload } from 'src/commons/types/express.types';
-import { UserRole } from 'src/commons/guards/rbac.guard';
+import { ROLES } from '@eyewear/shared';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -31,30 +31,38 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Convert to plain object and normalize role
     const userObj = user.toObject();
 
-    // Normalize role to numeric value (must match frontend roleMap in auth-store.ts)
-    let numericRole = UserRole.CUSTOMER;
+    // Normalize role to ROLES enum string value (must match frontend roleMap in auth-store.ts)
+    let normalizedRole = ROLES.CUSTOMER;
 
-    if (typeof userObj.role === 'number') {
-      // Already numeric
-      numericRole = userObj.role;
-    } else if (typeof userObj.role === 'string') {
-      // String role - check if it's a string-number or role name
-      const parsedNum = Number.parseInt(userObj.role, 10);
-      if (!Number.isNaN(parsedNum)) {
-        // String-number like "1"
-        numericRole = parsedNum;
+    if (typeof userObj.role === 'string') {
+      // Check if it's a valid ROLES enum value
+      if (Object.values(ROLES).includes(userObj.role)) {
+        normalizedRole = userObj.role;
       } else {
-        // Role name like 'MANAGER' - convert to numeric using UserRole enum
-        const roleNameToNumber: Record<string, number> = {
-          ADMIN: UserRole.ADMIN,
-          MANAGER: UserRole.MANAGER,
-          OPERATION: UserRole.OPERATION,
-          SALE: UserRole.SALE,
-          CUSTOMER: UserRole.CUSTOMER,
-        };
-        const upperRole = userObj.role.toUpperCase();
-        numericRole = roleNameToNumber[upperRole] ?? UserRole.CUSTOMER;
+        // Try to convert string-number to ROLES enum
+        const parsedNum = Number.parseInt(userObj.role, 10);
+        if (!Number.isNaN(parsedNum)) {
+          // String-number like "0" -> convert to ROLES
+          const roleMap: Record<number, ROLES> = {
+            0: ROLES.ADMIN,
+            1: ROLES.MANAGER,
+            2: ROLES.OPERATION,
+            3: ROLES.SALE,
+            4: ROLES.CUSTOMER,
+          };
+          normalizedRole = roleMap[parsedNum] ?? ROLES.CUSTOMER;
+        }
       }
+    } else if (typeof userObj.role === 'number') {
+      // Numeric role - convert to ROLES enum
+      const roleMap: Record<number, ROLES> = {
+        0: ROLES.ADMIN,
+        1: ROLES.MANAGER,
+        2: ROLES.OPERATION,
+        3: ROLES.SALE,
+        4: ROLES.CUSTOMER,
+      };
+      normalizedRole = roleMap[userObj.role] ?? ROLES.CUSTOMER;
     }
 
     console.log(
@@ -63,14 +71,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       'Type:',
       typeof userObj.role,
       'Normalized:',
-      numericRole,
+      normalizedRole,
     );
 
     return {
       ...userObj,
       _id: user._id?.toString(),
       userId: user._id?.toString(),
-      role: numericRole,
+      role: normalizedRole,
     };
   }
 }

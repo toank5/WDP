@@ -6,12 +6,65 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Promotion, PromotionStatus, PromotionType } from '../commons/schemas/promotion.schema';
+import {
+  Promotion,
+  PromotionScope,
+  PromotionStatus,
+  PromotionType,
+} from '../commons/schemas/promotion.schema';
 import {
   CreatePromotionDto,
   UpdatePromotionDto,
   ListPromotionsQueryDto,
 } from '../commons/dtos/promotion.dto';
+
+type PromotionValidationPayload = {
+  _id: string;
+  code: string;
+  name: string;
+  description?: string;
+  type: PromotionType;
+  value: number;
+  minOrderValue: number;
+  scope: PromotionScope;
+  applicableCategories?: string[];
+  applicableProductIds?: string[];
+  startDate: Date;
+  endDate: Date;
+  usageLimit?: number;
+  usageCount?: number;
+  maxUsesPerCustomer?: number;
+  status: PromotionStatus;
+  isStackable?: boolean;
+  tags?: string[];
+  isFeatured?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type PromotionListResultItem = {
+  code: string;
+  name: string;
+  description?: string;
+  type: PromotionType;
+  value: number;
+  minOrderValue: number;
+  scope: PromotionScope;
+  applicableCategories?: string[];
+  applicableProductIds?: string[];
+  startDate: Date;
+  endDate: Date;
+  usageLimit?: number;
+  usageCount?: number;
+  maxUsesPerCustomer?: number;
+  status: PromotionStatus;
+  isStackable?: boolean;
+  tags?: string[];
+  isFeatured?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  remainingUses?: number;
+};
 
 @Injectable()
 export class PromotionService {
@@ -70,19 +123,12 @@ export class PromotionService {
    * Get all promotions with filtering and pagination
    */
   async findAll(params: ListPromotionsQueryDto = {}): Promise<{
-    items: Promotion[];
+    items: PromotionListResultItem[];
     total: number;
     page: number;
     limit: number;
   }> {
-    const {
-      search,
-      status,
-      type,
-      isFeatured,
-      page = 1,
-      limit = 20,
-    } = params;
+    const { search, status, type, isFeatured, page = 1, limit = 20 } = params;
 
     const query: Record<string, unknown> = {};
 
@@ -126,7 +172,7 @@ export class PromotionService {
     ]);
 
     // Add remaining uses
-    const itemsWithRemaining = items.map((item) => ({
+    const itemsWithRemaining: PromotionListResultItem[] = items.map((item) => ({
       ...item,
       remainingUses: item.usageLimit
         ? item.usageLimit - (item.usageCount || 0)
@@ -134,7 +180,7 @@ export class PromotionService {
     }));
 
     return {
-      items: itemsWithRemaining as any,
+      items: itemsWithRemaining,
       total,
       page,
       limit,
@@ -156,15 +202,17 @@ export class PromotionService {
    * Get promotion by code
    */
   async findByCode(code: string): Promise<Promotion> {
-    const promotion = await this.promotionModel.findOne({
-      code: code.toUpperCase(),
-    }).lean();
+    const promotion = await this.promotionModel
+      .findOne({
+        code: code.toUpperCase(),
+      })
+      .exec();
 
     if (!promotion) {
       throw new NotFoundException('Promotion not found');
     }
 
-    return promotion as unknown as Promotion;
+    return promotion;
   }
 
   /**
@@ -191,16 +239,20 @@ export class PromotionService {
     code: string,
     cartTotal: number,
     productIds?: string[],
-    customerId?: string,
+    _customerId?: string,
   ): Promise<{
     isValid: boolean;
-    promotion?: any;
+    promotion?: PromotionValidationPayload;
     discountAmount?: number;
     message?: string;
   }> {
-    const promotion = await this.promotionModel.findOne({
-      code: code.toUpperCase(),
-    }).lean();
+    void _customerId;
+
+    const promotion = await this.promotionModel
+      .findOne({
+        code: code.toUpperCase(),
+      })
+      .lean();
 
     if (!promotion) {
       return {
@@ -242,7 +294,10 @@ export class PromotionService {
     }
 
     // Check usage limit
-    if (promotion.usageLimit && (promotion.usageCount || 0) >= promotion.usageLimit) {
+    if (
+      promotion.usageLimit &&
+      (promotion.usageCount || 0) >= promotion.usageLimit
+    ) {
       return {
         isValid: false,
         message: 'This promotion has reached its usage limit',
@@ -262,10 +317,16 @@ export class PromotionService {
     let applicableAmount = cartTotal;
 
     // If scope is specific categories or products, calculate applicable amount
-    if (promotion.scope === 'specific_categories' && productIds?.length) {
+    if (
+      promotion.scope === PromotionScope.SPECIFIC_CATEGORIES &&
+      productIds?.length
+    ) {
       // For now, apply to full cart - in production, would filter by category
       applicableAmount = cartTotal;
-    } else if (promotion.scope === 'specific_products' && productIds?.length) {
+    } else if (
+      promotion.scope === PromotionScope.SPECIFIC_PRODUCTS &&
+      productIds?.length
+    ) {
       // Check if cart contains applicable products
       const hasApplicableProduct = productIds.some((id) =>
         promotion.applicableProductIds?.includes(id),
@@ -274,7 +335,7 @@ export class PromotionService {
       if (!hasApplicableProduct) {
         return {
           isValid: false,
-          message: 'This promotion does not apply to any items in your cart',
+          message: 'This promotion does not apply to items in your cart',
         };
       }
     }
@@ -301,12 +362,15 @@ export class PromotionService {
     } else {
       // Fixed amount
       discountAmount = Math.min(promotion.value, applicableAmount);
-      console.log('[PromotionService] Fixed amount discount calculated:', discountAmount);
+      console.log(
+        '[PromotionService] Fixed amount discount calculated:',
+        discountAmount,
+      );
     }
 
     // Return promotion with explicit type string to ensure correct serialization
     // Ensure _id is properly converted to string for API response
-    const promotionResponse = {
+    const promotionResponse: PromotionValidationPayload = {
       ...promotion,
       type: promotionType as PromotionType,
       _id: promotion._id?.toString(), // Explicitly convert ObjectId to string
@@ -363,14 +427,20 @@ export class PromotionService {
     if (updateDto.description) promotion.description = updateDto.description;
     if (updateDto.code) promotion.code = updateDto.code.toUpperCase();
     if (updateDto.value !== undefined) promotion.value = updateDto.value;
-    if (updateDto.minOrderValue !== undefined) promotion.minOrderValue = updateDto.minOrderValue;
-    if (updateDto.startDate) promotion.startDate = new Date(updateDto.startDate);
+    if (updateDto.minOrderValue !== undefined)
+      promotion.minOrderValue = updateDto.minOrderValue;
+    if (updateDto.startDate)
+      promotion.startDate = new Date(updateDto.startDate);
     if (updateDto.endDate) promotion.endDate = new Date(updateDto.endDate);
-    if (updateDto.usageLimit !== undefined) promotion.usageLimit = updateDto.usageLimit;
-    if (updateDto.maxUsesPerCustomer !== undefined) promotion.maxUsesPerCustomer = updateDto.maxUsesPerCustomer;
-    if (updateDto.isStackable !== undefined) promotion.isStackable = updateDto.isStackable;
+    if (updateDto.usageLimit !== undefined)
+      promotion.usageLimit = updateDto.usageLimit;
+    if (updateDto.maxUsesPerCustomer !== undefined)
+      promotion.maxUsesPerCustomer = updateDto.maxUsesPerCustomer;
+    if (updateDto.isStackable !== undefined)
+      promotion.isStackable = updateDto.isStackable;
     if (updateDto.tags) promotion.tags = updateDto.tags;
-    if (updateDto.isFeatured !== undefined) promotion.isFeatured = updateDto.isFeatured;
+    if (updateDto.isFeatured !== undefined)
+      promotion.isFeatured = updateDto.isFeatured;
     if (updateDto.status) promotion.status = updateDto.status;
 
     const savedPromotion = await promotion.save();
@@ -380,10 +450,7 @@ export class PromotionService {
   /**
    * Update promotion status
    */
-  async updateStatus(
-    id: string,
-    status: PromotionStatus,
-  ): Promise<Promotion> {
+  async updateStatus(id: string, status: PromotionStatus): Promise<Promotion> {
     const promotion = await this.promotionModel.findById(id);
     if (!promotion) {
       throw new NotFoundException('Promotion not found');
@@ -425,8 +492,6 @@ export class PromotionService {
     featuredPromotions: number;
     totalUsage: number;
   }> {
-    const now = new Date();
-
     const [total, active, scheduled, expired, featured] = await Promise.all([
       this.promotionModel.countDocuments(),
       this.promotionModel.countDocuments({ status: PromotionStatus.ACTIVE }),
@@ -437,7 +502,7 @@ export class PromotionService {
 
     // Get total usage
     const usageAgg = await this.promotionModel
-      .aggregate([
+      .aggregate<{ totalUsage: number }>([
         {
           $group: {
             _id: null,

@@ -119,21 +119,21 @@ PromotionSchema.index({ status: 1, startDate: 1, endDate: 1 });
 PromotionSchema.index({ isFeatured: 1, status: 1 });
 
 // Pre-save hook to validate dates and set status
-PromotionSchema.pre('save', async function () {
+PromotionSchema.pre('save', async function (this: Promotion) {
   const now = new Date();
 
-  if ((this as any).endDate <= (this as any).startDate) {
+  if (this.endDate <= this.startDate) {
     throw new Error('End date must be after start date');
   }
 
   // Auto-update status based on dates
-  if ((this as any).status !== PromotionStatus.INACTIVE) {
-    if (now < (this as any).startDate) {
-      (this as any).status = PromotionStatus.SCHEDULED;
-    } else if (now > (this as any).endDate) {
-      (this as any).status = PromotionStatus.EXPIRED;
+  if (this.status !== PromotionStatus.INACTIVE) {
+    if (now < this.startDate) {
+      this.status = PromotionStatus.SCHEDULED;
+    } else if (now > this.endDate) {
+      this.status = PromotionStatus.EXPIRED;
     } else {
-      (this as any).status = PromotionStatus.ACTIVE;
+      this.status = PromotionStatus.ACTIVE;
     }
   }
 });
