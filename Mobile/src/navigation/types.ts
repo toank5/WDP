@@ -17,6 +17,14 @@ export type MainTabParamList = {
   AccountTab: undefined
 }
 
+// Checkout Stack Param List
+export type CheckoutStackParamList = {
+  CheckoutAddress: undefined
+  CheckoutPayment: undefined
+  CheckoutReview: undefined
+  CheckoutSuccess: { orderId: string }
+}
+
 // Root Stack Param List
 export type RootStackParamList = {
   Auth: undefined
@@ -56,3 +64,6 @@ export type MainTabRouteProps = import('@react-navigation/bottom-tabs').RoutePro
 
 export type AuthStackNavigation = import('@react-navigation/native-stack').NativeStackNavigationProp<AuthStackParamList>
 export type AuthStackRouteProps = import('@react-navigation/native-stack').RouteProp<AuthStackParamList>
+
+export type CheckoutStackNavigation = import('@react-navigation/native-stack').NativeStackNavigationProp<CheckoutStackParamList>
+export type CheckoutStackRouteProps = import('@react-navigation/native-stack').RouteProp<CheckoutStackParamList>
