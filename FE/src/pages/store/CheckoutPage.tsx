@@ -343,9 +343,13 @@ const CheckoutPage: React.FC = () => {
 
       // If VNPAY, redirect to payment
       if (response.paymentUrl) {
+        // Clear promotion before redirecting to payment
+        useCartStore.getState().clearPromotionCode()
         window.location.href = response.paymentUrl
       } else {
         // No payment URL, go to order success directly
+        // Clear promotion before navigating to success page
+        useCartStore.getState().clearPromotionCode()
         navigate(`/order-success/${response.order._id}`)
       }
     } catch (err) {

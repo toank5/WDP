@@ -165,12 +165,7 @@ interface FrameData {
 interface LensData {
   lensType: (typeof LENS_TYPES)[number]
   index: number
-  coatings: string
-  isPrescriptionRequired: boolean
-  minSPH: number
-  maxSPH: number
-  minCYL: number
-  maxCYL: number
+  coatings: string[]
 }
 
 interface ServiceData {
@@ -446,13 +441,10 @@ export function ProductManagementPage() {
   const [lensData, setLensData] = useState<LensData>({
     lensType: 'single-vision',
     index: 1.5,
-    coatings: '',
-    isPrescriptionRequired: false,
-    minSPH: 0,
-    maxSPH: 0,
-    minCYL: 0,
-    maxCYL: 0,
+    coatings: [],
   })
+
+  const [coatingInput, setCoatingInput] = useState('')
 
   const [serviceData, setServiceData] = useState<ServiceData>({
     serviceType: 'eye-test',
@@ -550,17 +542,7 @@ export function ProductManagementPage() {
         // Lens-specific fields
         lensType: lensData.lensType,
         index: lensData.index,
-        coatings: lensData.coatings.split(',').map((c) => c.trim()).filter(Boolean),
-        suitableForPrescriptionRange:
-          lensData.minSPH || lensData.maxSPH || lensData.minCYL || lensData.maxCYL
-            ? {
-                minSPH: lensData.minSPH || undefined,
-                maxSPH: lensData.maxSPH || undefined,
-                minCYL: lensData.minCYL || undefined,
-                maxCYL: lensData.maxCYL || undefined,
-              }
-            : undefined,
-        isPrescriptionRequired: lensData.isPrescriptionRequired,
+        coatings: lensData.coatings,
 
         // Service-specific fields
         serviceType: serviceData.serviceType,
@@ -615,17 +597,7 @@ export function ProductManagementPage() {
       // Lens-specific fields
       lensType: lensData.lensType,
       index: lensData.index,
-      coatings: lensData.coatings.split(',').map((c) => c.trim()).filter(Boolean),
-      suitableForPrescriptionRange:
-        lensData.minSPH || lensData.maxSPH || lensData.minCYL || lensData.maxCYL
-          ? {
-              minSPH: lensData.minSPH || undefined,
-              maxSPH: lensData.maxSPH || undefined,
-              minCYL: lensData.minCYL || undefined,
-              maxCYL: lensData.maxCYL || undefined,
-            }
-          : undefined,
-      isPrescriptionRequired: lensData.isPrescriptionRequired,
+      coatings: lensData.coatings,
 
       // Service-specific fields
       serviceType: serviceData.serviceType,
@@ -730,13 +702,9 @@ export function ProductManagementPage() {
     setLensData({
       lensType: 'single-vision',
       index: 1.5,
-      coatings: '',
-      isPrescriptionRequired: false,
-      minSPH: 0,
-      maxSPH: 0,
-      minCYL: 0,
-      maxCYL: 0,
+      coatings: [],
     })
+    setCoatingInput('')
     setServiceData({
       serviceType: 'eye-test',
       durationMinutes: 30,
@@ -1042,20 +1010,7 @@ export function ProductManagementPage() {
           ...basePayload,
           lensType: lensData.lensType,
           index: lensData.index,
-          coatings: lensData.coatings
-            ? lensData.coatings
-                .split(',')
-                .map((c) => c.trim())
-                .filter(Boolean)
-            : [],
-          isPrescriptionRequired: lensData.isPrescriptionRequired,
-          suitableForPrescriptionRange: {
-            minSPH: lensData.minSPH || undefined,
-            maxSPH: lensData.maxSPH || undefined,
-            minCYL: lensData.minCYL || undefined,
-            maxCYL: lensData.maxCYL || undefined,
-          },
-          variants: finalVariants,
+          coatings: lensData.coatings,
         }
       } else if (category === 'service') {
         payload = {
@@ -1217,16 +1172,21 @@ export function ProductManagementPage() {
       setPendingImage3DFiles([])
       setTagInput('')
 
-      // Convert ProductVariant[] to FormVariant[] by adding empty file arrays
-      setVariants(
-        ((product as Product & { variants?: ProductVariant[] }).variants || []).map(
-          (v) => ({
-            ...v,
-            images2DFiles: [],
-            images3DFiles: [],
-          })
+      // Only load variants for frame products
+      if (product.category === 'frame') {
+        // Convert ProductVariant[] to FormVariant[] by adding empty file arrays
+        setVariants(
+          ((product as Product & { variants?: ProductVariant[] }).variants || []).map(
+            (v) => ({
+              ...v,
+              images2DFiles: [],
+              images3DFiles: [],
+            })
+          )
         )
-      )
+      } else {
+        setVariants([])
+      }
 
       if (product.category === 'frame') {
         const p = product as Product & {
@@ -1248,24 +1208,13 @@ export function ProductManagementPage() {
           lensType: string
           index: number
           coatings?: string[]
-          isPrescriptionRequired: boolean
-          suitableForPrescriptionRange?: {
-            minSPH?: number
-            maxSPH?: number
-            minCYL?: number
-            maxCYL?: number
-          }
         }
         setLensData({
           lensType: p.lensType as (typeof LENS_TYPES)[number],
           index: p.index,
-          coatings: p.coatings?.join(', ') || '',
-          isPrescriptionRequired: p.isPrescriptionRequired,
-          minSPH: p.suitableForPrescriptionRange?.minSPH || 0,
-          maxSPH: p.suitableForPrescriptionRange?.maxSPH || 0,
-          minCYL: p.suitableForPrescriptionRange?.minCYL || 0,
-          maxCYL: p.suitableForPrescriptionRange?.maxCYL || 0,
+          coatings: p.coatings || [],
         })
+        setCoatingInput('')
       } else if (product.category === 'service') {
         const p = product as Product & {
           serviceType: string
@@ -2252,108 +2201,77 @@ export function ProductManagementPage() {
                       />
                     </Grid>
                     <Grid size={12}>
-                      <TextField
-                        fullWidth
-                        label="Coatings"
-                        value={lensData.coatings}
-                        onChange={(e) => setLensData({ ...lensData, coatings: e.target.value })}
-                        placeholder="Anti-reflective, UV protection, Scratch resistant"
-                        helperText="Separate with commas (e.g., AR, UV, Scratch)"
-                      />
-                    </Grid>
-                    <Grid size={12}>
-                      <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, mb: 1 }}>
+                          Coatings
+                        </Typography>
                         <Box
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          p={2}
+                          sx={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            border: 1,
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            p: 1,
+                            minHeight: 56,
+                            alignItems: 'center',
+                            '&:focus-within': {
+                              borderColor: 'primary.main',
+                            },
+                          }}
                         >
-                          <Box>
-                            <Typography variant="body2" fontWeight={500}>
-                              Prescription Required
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {lensData.isPrescriptionRequired
-                                ? 'Customer must provide prescription'
-                                : 'No prescription needed'}
-                            </Typography>
-                          </Box>
-                          <FormControlLabel
-                            control={
-                              <Checkbox
-                                checked={lensData.isPrescriptionRequired}
-                                onChange={(e) =>
-                                  setLensData({
-                                    ...lensData,
-                                    isPrescriptionRequired: e.target.checked,
-                                  })
-                                }
-                                color="primary"
-                              />
-                            }
-                            label=""
+                          {lensData.coatings.map((coating, index) => (
+                            <Chip
+                              key={index}
+                              label={coating}
+                              onDelete={() => {
+                                setLensData({
+                                  ...lensData,
+                                  coatings: lensData.coatings.filter((_, i) => i !== index),
+                                })
+                              }}
+                              size="small"
+                            />
+                          ))}
+                          <TextField
+                            value={coatingInput}
+                            onChange={(e) => setCoatingInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && coatingInput.trim()) {
+                                e.preventDefault()
+                                setLensData({
+                                  ...lensData,
+                                  coatings: [...lensData.coatings, coatingInput.trim()],
+                                })
+                                setCoatingInput('')
+                              } else if (e.key === 'Backspace' && !coatingInput && lensData.coatings.length > 0) {
+                                setLensData({
+                                  ...lensData,
+                                  coatings: lensData.coatings.slice(0, -1),
+                                })
+                              }
+                            }}
+                            placeholder={lensData.coatings.length === 0 ? 'Type and press Enter to add coatings' : ''}
+                            variant="standard"
+                            size="small"
+                            sx={{
+                              flex: 1,
+                              minWidth: 120,
+                              '& .MuiInputBase-root': {
+                                border: 'none',
+                                '&:before, &:after': {
+                                  display: 'none',
+                                },
+                              },
+                            }}
                           />
                         </Box>
-                      </Card>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                          Press Enter to add each coating (e.g., AR, UV, Scratch resistant)
+                        </Typography>
+                      </Box>
                     </Grid>
-                    {lensData.isPrescriptionRequired && (
-                      <>
-                        <Grid size={12}>
-                          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                            Prescription Range
-                          </Typography>
-                        </Grid>
-                        <Grid size={6}>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            label="Min SPH"
-                            value={lensData.minSPH}
-                            onChange={(e) =>
-                              setLensData({ ...lensData, minSPH: parseFloat(e.target.value) || 0 })
-                            }
-                            inputProps={{ step: 0.25 }}
-                          />
-                        </Grid>
-                        <Grid size={6}>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            label="Max SPH"
-                            value={lensData.maxSPH}
-                            onChange={(e) =>
-                              setLensData({ ...lensData, maxSPH: parseFloat(e.target.value) || 0 })
-                            }
-                            inputProps={{ step: 0.25 }}
-                          />
-                        </Grid>
-                        <Grid size={6}>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            label="Min CYL"
-                            value={lensData.minCYL}
-                            onChange={(e) =>
-                              setLensData({ ...lensData, minCYL: parseFloat(e.target.value) || 0 })
-                            }
-                            inputProps={{ step: 0.25 }}
-                          />
-                        </Grid>
-                        <Grid size={6}>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            label="Max CYL"
-                            value={lensData.maxCYL}
-                            onChange={(e) =>
-                              setLensData({ ...lensData, maxCYL: parseFloat(e.target.value) || 0 })
-                            }
-                            inputProps={{ step: 0.25 }}
-                          />
-                        </Grid>
-                      </>
-                    )}
                   </Grid>
                 )}
 
@@ -2421,8 +2339,8 @@ export function ProductManagementPage() {
               </CardContent>
             </Card>
 
-            {/* Variants Section (for frames and lenses) */}
-            {(category === 'frame' || category === 'lens') && (
+            {/* Variants Section (for frames only) */}
+            {category === 'frame' && (
               <Card>
                 <CardContent>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>

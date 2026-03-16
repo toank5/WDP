@@ -13,7 +13,7 @@ export class OrderItem {
   productId: mongoose.Types.ObjectId;
 
   @Prop()
-  variantSku: string;
+  variantSku?: string;
 
   @Prop()
   quantity: number;

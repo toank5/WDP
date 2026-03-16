@@ -164,7 +164,6 @@ function SpecsTable({ product }: SpecsTableProps) {
       specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', emoji: '👁️' })
       specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', emoji: '🔍' })
       if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), emoji: '🛡️' })
-      specs.push({ label: 'Prescription Required', value: product.isPrescriptionRequired ? 'Yes' : 'No', emoji: '💊' })
     } else if (product.category === 'service') {
       specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', emoji: '🔧' })
       specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, emoji: '⏱️' })
@@ -1071,7 +1070,24 @@ export function ProductDetailPage() {
 
   // Get appropriate stock message and status for display
   const getStockDisplayInfo = () => {
-    if (!product || !selectedVariant) {
+    if (!product) {
+      return { message: 'Product not available', showPreorderBadge: false, stockStatus: 'unavailable' }
+    }
+
+    // For lens and service products, they don't have variants
+    if (!isFrameProduct(product)) {
+      if (!product.isActive) {
+        return { message: 'Product not available', showPreorderBadge: false, stockStatus: 'unavailable' }
+      }
+      return {
+        message: 'In Stock',
+        showPreorderBadge: false,
+        stockStatus: 'in-stock',
+      }
+    }
+
+    // For frame products, check if variant is selected
+    if (!selectedVariant) {
       return { message: 'Select options', showPreorderBadge: false, stockStatus: 'select' }
     }
 
@@ -1370,17 +1386,31 @@ export function ProductDetailPage() {
 
     setIsAdding(true)
     try {
+      // Generate variant name and SKU based on product type
+      let variantName = 'Standard'
+      let itemVariantSku: string | undefined = selectedVariant?.sku
+
+      if (isFrameProduct(product) && selectedVariant) {
+        variantName = `${selectedVariant.size} - ${selectedVariant.color}`
+      } else if (product.category === 'lens') {
+        // For lens products, don't send variantSku - they don't have variants
+        itemVariantSku = undefined
+        variantName = `Index ${product.index}`
+      } else if (product.category === 'service') {
+        // For service products, don't send variantSku - they don't have variants
+        itemVariantSku = undefined
+        variantName = `${product.durationMinutes || 0} min`
+      }
+
       const result = await cartApi.addItem({
-        variantSku: selectedVariant?.sku,
+        variantSku: itemVariantSku,
         productId: product._id,
         quantity,
         productData: {
           name: product.name,
           price: getDisplayPrice(),
-          variantSku: selectedVariant?.sku,
-          variantName: selectedVariant
-            ? `${selectedVariant.size} - ${selectedVariant.color}`
-            : 'Standard',
+          variantSku: itemVariantSku,
+          variantName,
           image: images2D[0] ? formatImageUrl(images2D[0]) : '',
         },
       })
@@ -1408,13 +1438,23 @@ export function ProductDetailPage() {
     if (!product) return
 
     try {
+      // Generate variant SKU and name based on product type
+      let variantId: string | undefined = selectedVariant?.sku
+      let variantName: string | undefined
+
+      if (isFrameProduct(product) && selectedVariant) {
+        variantName = `${selectedVariant.size} - ${selectedVariant.color}`
+      } else if (product.category === 'lens') {
+        // For lens products, use the generated SKU format LENS-{slug}
+        variantId = product.slug ? `LENS-${product.slug}` : undefined
+        variantName = `Index ${product.index}`
+      }
+
       const result = await wishlistApi.toggleItem({
         productId: product._id,
         productName: product.name,
-        variantId: selectedVariant?.sku,
-        variantName: selectedVariant
-          ? `${selectedVariant.size} - ${selectedVariant.color}`
-          : undefined,
+        variantId,
+        variantName,
         image: formatImageUrl(images2D[0]) || '',
       })
 

@@ -11,7 +11,7 @@ import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Inventory } from '../commons/schemas/inventory.schema';
-import { PREORDER_STATUS, ORDER_STATUS, ORDER_TYPES } from '@eyewear/shared';
+import { PREORDER_STATUS, ORDER_STATUS, ORDER_TYPES, PRODUCT_CATEGORIES } from '@eyewear/shared';
 import {
   CreateCheckoutDto,
   CheckoutCalculation,
@@ -53,6 +53,8 @@ interface AggregatedCartItem {
     }>;
     isActive: boolean;
     isPreorderEnabled: boolean;
+    category?: string;
+    slug?: string;
   };
 }
 
@@ -554,17 +556,26 @@ export class CheckoutService {
       }
     } else {
       // Product without variant - check base inventory
-      const inventory = await this.inventoryService.findBySku(
-        product._id.toString(),
-      );
+      // For lens products, use LENS-{slug} format
+      // For service products, use product._id format (services don't have inventory)
+      let inventorySku: string;
+      if (product.category === PRODUCT_CATEGORIES.LENSES && product.slug) {
+        inventorySku = `LENS-${product.slug}`;
+      } else {
+        inventorySku = product._id.toString();
+      }
 
-      if (!inventory) {
+      const inventory = await this.inventoryService.findBySku(inventorySku);
+
+      // For service products, inventory check is optional
+      const isServiceProduct = product.category === PRODUCT_CATEGORIES.SERVICES;
+      if (!inventory && !isServiceProduct) {
         throw new BadRequestException(
           'Inventory information not found for this product',
         );
       }
 
-      if (inventory.availableQuantity < item.quantity) {
+      if (inventory && inventory.availableQuantity < item.quantity) {
         throw new BadRequestException(
           `Insufficient stock for ${product.name}. Only ${inventory.availableQuantity} available.`,
         );

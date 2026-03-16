@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Prescription } from '../commons/schemas/prescription.schema';
@@ -129,7 +134,9 @@ export class PrescriptionService {
 
     // Check if user owns this prescription
     if (prescription.userId.toString() !== userId) {
-      throw new ForbiddenException('You do not have permission to view this prescription');
+      throw new ForbiddenException(
+        'You do not have permission to view this prescription',
+      );
     }
 
     return this.toResponseDto(prescription);
@@ -151,7 +158,9 @@ export class PrescriptionService {
 
     // Check if user owns this prescription
     if (prescription.userId.toString() !== userId) {
-      throw new ForbiddenException('You do not have permission to update this prescription');
+      throw new ForbiddenException(
+        'You do not have permission to update this prescription',
+      );
     }
 
     // Don't allow updating verified prescriptions
@@ -195,7 +204,9 @@ export class PrescriptionService {
 
     // Check if user owns this prescription
     if (prescription.userId.toString() !== userId) {
-      throw new ForbiddenException('You do not have permission to delete this prescription');
+      throw new ForbiddenException(
+        'You do not have permission to delete this prescription',
+      );
     }
 
     await this.prescriptionModel.deleteOne({ _id: prescriptionId });

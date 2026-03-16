@@ -7,7 +7,7 @@
  */
 export interface CartItem {
   productId: string;
-  variantSku: string;
+  variantSku?: string; // Optional for lens and service products
   quantity: number;
 }
 
@@ -16,7 +16,7 @@ export interface CartItem {
  */
 export interface AddToCartRequest {
   productId: string;
-  variantSku: string;
+  variantSku?: string; // Optional for lens and service products
   quantity: number;
 }
 

@@ -83,9 +83,6 @@ export class ProductService {
     if (category === PRODUCT_CATEGORIES.LENSES) {
       if (!data.lensType) errors.push('lensType is required for lens products');
       if (!data.index) errors.push('index is required for lens products');
-      if (data.isPrescriptionRequired === undefined) {
-        errors.push('isPrescriptionRequired is required for lens products');
-      }
     }
 
     if (category === PRODUCT_CATEGORIES.SERVICES) {
@@ -228,6 +225,12 @@ export class ProductService {
     if (savedProduct.variants && savedProduct.variants.length > 0) {
       const skus = savedProduct.variants.map((v) => v.sku);
       await this.inventoryService.ensureInventoryForSkus(skus);
+    }
+
+    // Auto-create inventory entry for lens products using SKU pattern LENS-{slug}
+    if (savedProduct.category === PRODUCT_CATEGORIES.LENSES && savedProduct.slug) {
+      const lensSku = `LENS-${savedProduct.slug}`;
+      await this.inventoryService.ensureInventoryForSkus([lensSku]);
     }
 
     return savedProduct;
@@ -412,6 +415,14 @@ export class ProductService {
     ) {
       const skus = updatedProduct.variants.map((v) => v.sku);
       await this.inventoryService.ensureInventoryForSkus(skus);
+    }
+
+    // Handle lens product inventory
+    if (updatedProduct && updatedProduct.category === PRODUCT_CATEGORIES.LENSES) {
+      if (updatedProduct.slug) {
+        const lensSku = `LENS-${updatedProduct.slug}`;
+        await this.inventoryService.ensureInventoryForSkus([lensSku]);
+      }
     }
 
     return updatedProduct;
@@ -834,6 +845,7 @@ export class ProductService {
         return {
           id: product._id.toString(),
           name: product.name,
+          slug: product.slug,
           category: product.category,
           shape: product.shape,
           material: product.material,

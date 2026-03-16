@@ -98,7 +98,12 @@ export class CartService {
           'items.productImage': { $arrayElemAt: ['$product.images2D', 0] },
           'items.price': {
             $cond: {
-              if: { $ifNull: ['$items.variantSku', false] },
+              if: {
+                $and: [
+                  { $ne: ['$items.variantSku', null] },
+                  { $ne: ['$items.variantSku', ''] },
+                ],
+              },
               then: {
                 $arrayElemAt: [
                   {
@@ -122,7 +127,12 @@ export class CartService {
           },
           'items.variantDetails': {
             $cond: [
-              { $ifNull: ['$items.variantSku', false] },
+              {
+                $and: [
+                  { $ne: ['$items.variantSku', null] },
+                  { $ne: ['$items.variantSku', ''] },
+                ],
+              },
               {
                 $arrayElemAt: [
                   {
@@ -321,9 +331,7 @@ export class CartService {
           );
         }
       } else if (!preorderEnabled) {
-        throw new BadRequestException(
-          'Insufficient stock. Only 0 available.',
-        );
+        throw new BadRequestException('Insufficient stock. Only 0 available.');
       }
     }
 
@@ -475,7 +483,8 @@ export class CartService {
           : 0;
         const canFulfillFromStock = item.quantity <= availableStock;
         const canProceedAsPreorder =
-          item.quantity > availableStock && (product.isPreorderEnabled || false);
+          item.quantity > availableStock &&
+          (product.isPreorderEnabled || false);
 
         if (!canFulfillFromStock && !canProceedAsPreorder) {
           invalidItems.push({
