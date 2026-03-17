@@ -17,6 +17,16 @@ export type MainTabParamList = {
   AccountTab: undefined
 }
 
+// Main stack param list (for nested navigation)
+export type MainStackParamList = {
+  MainTab: undefined
+  ProductDetail: { slug: string; productId: string }
+  Cart: undefined
+  Checkout: undefined
+  OrderDetail: { orderId: string }
+  Account: undefined
+}
+
 // Root Stack Param List
 export type RootStackParamList = {
   Auth: undefined

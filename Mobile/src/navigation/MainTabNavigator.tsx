@@ -1,18 +1,16 @@
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { useTheme, IconButton } from 'react-native-paper'
+import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'
-
-// Placeholder screens - will be implemented in later commits
-const HomeScreen = () => null as any
-const SearchScreen = () => null as any
-const CartScreen = () => null as any
-const AccountScreen = () => null as any
+import { HomeScreen, SearchScreen, CartScreen, AccountScreen } from '../screens'
+import { useCartStore } from '../store/cart-store'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
 
 export const MainTabNavigator = () => {
   const theme = useTheme()
+  const cart = useCartStore()
+  const cartCount = cart.totalItems || 0
 
   return (
     <Tab.Navigator
@@ -59,7 +57,17 @@ export const MainTabNavigator = () => {
         options={{
           tabBarLabel: 'Giỏ hàng',
           tabBarIcon: ({ color, size }) => (
-            <IconButton icon="cart" size={size} iconColor={color} />
+            <View>
+              <IconButton icon="cart" size={size} iconColor={color} />
+              {cartCount > 0 && (
+                <Badge
+                  style={styles.cartBadge}
+                  size={20}
+                >
+                  {cartCount > 99 ? '99+' : cartCount}
+                </Badge>
+              )}
+            </View>
           ),
         }}
       />
@@ -75,4 +83,12 @@ export const MainTabNavigator = () => {
       />
     </Tab.Navigator>
   )
+}
+
+const styles = {
+  cartBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+  },
 }
