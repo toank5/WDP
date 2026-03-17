@@ -5,10 +5,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useAuthStore, initializeAuthStore } from '../store/auth-store'
 import { AuthNavigator } from './AuthNavigator'
 import { MainTabNavigator } from './MainTabNavigator'
+import { ProductDetailScreen } from '../screens'
 import type { RootStackParamList } from './types'
 
 // Placeholder screens - will be implemented in later commits
-const ProductDetailScreen = () => null as any
 const ProductListScreen = () => null as any
 const CheckoutScreen = () => null as any
 const CheckoutAddressScreen = () => null as any
