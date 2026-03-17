@@ -3,8 +3,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
-  Image,
 } from 'react-native'
 import {
   Text,
@@ -18,12 +16,13 @@ import {
   Portal,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
-import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import type { RootStackParamList, AuthUser } from '../../types'
+import type { NavigationProp } from '@react-navigation/native'
+import type { MainTabParamList, RootStackParamList, AuthUser } from '../../types'
 import { useAuthStore } from '../../store/auth-store'
-import { Loading } from '../../components/Loading'
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Account'>
+type Props = {
+  navigation: NavigationProp<MainTabParamList & RootStackParamList>
+}
 
 interface MenuItem {
   icon: string

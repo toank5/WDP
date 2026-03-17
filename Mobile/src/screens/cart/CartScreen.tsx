@@ -15,17 +15,18 @@ import {
   ActivityIndicator,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
-import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import type { RootStackParamList, CartItem, CartResponse } from '../../types'
+import type { NavigationProp } from '@react-navigation/native'
+import type { MainTabParamList, RootStackParamList } from '../../types'
 import {
   getCart,
   updateCartItem,
   removeFromCart,
   clearCart,
 } from '../../services/cart-api'
-import { Loading } from '../../components/Loading'
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Cart'>
+type Props = {
+  navigation: NavigationProp<MainTabParamList & RootStackParamList>
+}
 
 // Price formatter
 const formatPrice = (price: number): string => {
@@ -37,7 +38,7 @@ const formatPrice = (price: number): string => {
 }
 
 interface CartItemCardProps {
-  item: CartItem
+  item: any
   onUpdateQty: (itemId: string, qty: number) => void
   onRemove: (itemId: string) => void
   updating: Set<string>
@@ -120,7 +121,7 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
 export function CartScreen({ navigation }: Props) {
   const theme = useTheme()
 
-  const [cart, setCart] = useState<CartResponse | null>(null)
+  const [cart, setCart] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
 
@@ -220,11 +221,15 @@ export function CartScreen({ navigation }: Props) {
 
   const handleCheckout = () => {
     if (!cart || cart.items.length === 0) return
-    navigation.navigate('Checkout')
+    navigation.navigate('Checkout' as any)
   }
 
   if (loading) {
-    return <Loading />
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    )
   }
 
   const hasItems = cart && cart.items.length > 0
@@ -252,7 +257,7 @@ export function CartScreen({ navigation }: Props) {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {cart!.items.map((item) => (
+            {cart!.items.map((item: any) => (
               <CartItemCard
                 key={item._id}
                 item={item}
@@ -322,7 +327,7 @@ export function CartScreen({ navigation }: Props) {
           </Text>
           <Button
             mode="contained"
-            onPress={() => navigation.navigate('Main', { screen: 'HomeTab' })}
+            onPress={() => navigation.navigate('HomeTab' as any)}
             style={styles.emptyButton}
           >
             Mua sắm ngay
@@ -336,6 +341,12 @@ export function CartScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#f8fafc',
   },
   header: {

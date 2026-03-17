@@ -17,13 +17,13 @@ import {
   ActivityIndicator,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
-import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import type { RootStackParamList } from '../../types'
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
+import type { MainTabParamList } from '../../types'
 import { getAllProducts, type Product } from '../../services/product-api'
 import { CustomButton } from '../../components/Button'
 import { Loading } from '../../components/Loading'
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Main'>
+type Props = BottomTabScreenProps<MainTabParamList, 'HomeTab'>
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 
