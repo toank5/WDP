@@ -59,16 +59,6 @@ export {
   type CreateOrderPayload,
 } from './order-api'
 
-// Prescription API
-export {
-  getPrescriptions,
-  getPrescriptionById,
-  createPrescription,
-  updatePrescription,
-  deletePrescription,
-  type CreatePrescriptionPayload,
-} from './prescription-api'
-
 // Review API
 export {
   getProductReviews,
