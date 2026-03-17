@@ -1,4 +1,5 @@
 import React from 'react'
+import { View } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'

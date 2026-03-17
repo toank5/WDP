@@ -6,6 +6,7 @@ import {
   Image,
   Dimensions,
   Alert,
+  TouchableOpacity,
 } from 'react-native'
 import {
   Text,
