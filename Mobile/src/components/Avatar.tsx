@@ -1,6 +1,6 @@
 import React from 'react'
-import { Avatar as RNPAvatar, useTheme, MD3Colors } from 'react-native-paper'
-import { StyleSheet, View } from 'react-native'
+import { Avatar as RNPAvatar, useTheme } from 'react-native-paper'
+import { StyleSheet, TouchableOpacity } from 'react-native'
 
 interface AvatarProps {
   uri?: string
@@ -20,15 +20,13 @@ export function CustomAvatar({
   onPress,
 }: AvatarProps) {
   const theme = useTheme()
-  const colors = theme.colors as MD3Colors
-
   const avatar = (
     <RNPAvatar.Text
       size={size}
       label={label || '?'}
       style={[
         styles.avatar,
-        { backgroundColor: backgroundColor || colors.primary },
+        { backgroundColor: backgroundColor || theme.colors.primary },
         style,
       ]}
       theme={theme}
@@ -44,7 +42,11 @@ export function CustomAvatar({
   )
 
   if (onPress) {
-    return <View onPress={onPress}>{avatar}</View>
+    return (
+      <TouchableOpacity onPress={onPress}>
+        {avatar}
+      </TouchableOpacity>
+    )
   }
 
   return avatar
@@ -52,6 +54,6 @@ export function CustomAvatar({
 
 const styles = StyleSheet.create({
   avatar: {
-    overflow: 'hidden',
+    borderRadius: 50,
   },
 })

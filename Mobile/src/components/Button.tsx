@@ -66,7 +66,7 @@ export function CustomButton({
         onPress={onPress}
         loading={loading}
         disabled={disabled || loading}
-        icon={icon}
+        icon={icon || undefined}
         color={buttonColor || colors.primary}
         textColor={textColor}
         style={[styles.button, { height: getButtonHeight() }]}
