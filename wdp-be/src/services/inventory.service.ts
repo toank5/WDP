@@ -10,12 +10,12 @@ import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Supplier } from '../commons/schemas/supplier.schema';
 import { Order } from '../commons/schemas/order.schema';
-import { ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_STATUS, PRODUCT_CATEGORIES } from '@eyewear/shared';
 import {
   InventoryMovement,
   MovementType,
 } from '../commons/schemas/inventory-movement.schema';
-import { PREORDER_STATUS } from '../commons/enums/preorder.enum';
+import { PREORDER_STATUS } from '@eyewear/shared';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
@@ -185,6 +185,24 @@ export class InventoryService {
         (p.variants || []).map((v) => v.sku),
       );
 
+      // Find all active lens products and generate their SKUs
+      const activeLensProducts = await this.productModel
+        .find({
+          isDeleted: false,
+          isActive: { $ne: false },
+          category: PRODUCT_CATEGORIES.LENSES,
+          slug: { $exists: true, $ne: null },
+        })
+        .select('slug')
+        .lean();
+
+      const lensSkus = activeLensProducts
+        .filter((p) => p.slug)
+        .map((p) => `LENS-${p.slug}`);
+
+      // Combine variant SKUs and lens SKUs
+      allActiveSkus = [...allActiveSkus, ...lensSkus];
+
       // If there's also a SKU search filter, filter the active SKUs
       if (sku && allActiveSkus.length > 0) {
         const regex = new RegExp(sku, 'i');
@@ -239,10 +257,9 @@ export class InventoryService {
     // Get all SKUs to fetch product information
     const skus = filteredItems.map((item) => item.sku);
 
-    // Find products containing these SKUs in their variants
-    const products = await this.productModel
-      .find({ 'variants.sku': { $in: skus }, isDeleted: false })
-      .lean();
+    // Separate SKUs into lens SKUs (LENS-{slug}) and variant SKUs
+    const lensSkus = skus.filter((sku) => sku.startsWith('LENS-'));
+    const variantSkus = skus.filter((sku) => !sku.startsWith('LENS-'));
 
     // Create a map of SKU to product/variant info
     const skuInfoMap = new Map<
@@ -259,17 +276,54 @@ export class InventoryService {
       }
     >();
 
-    for (const product of products) {
-      if (product.variants) {
-        for (const variant of product.variants) {
-          if (skus.includes(variant.sku)) {
-            skuInfoMap.set(variant.sku, {
+    // Find products containing variant SKUs
+    if (variantSkus.length > 0) {
+      const products = await this.productModel
+        .find({ 'variants.sku': { $in: variantSkus }, isDeleted: false })
+        .lean();
+
+      for (const product of products) {
+        if (product.variants) {
+          for (const variant of product.variants) {
+            if (variantSkus.includes(variant.sku)) {
+              skuInfoMap.set(variant.sku, {
+                productName: product.name,
+                productCategory: product.category,
+                variantSize: variant.size,
+                variantColor: variant.color,
+                variantPrice: variant.price,
+                variantIsActive: variant.isActive,
+                productIsActive: product.isActive ?? true,
+                productId: product._id.toString(),
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Find lens products by slug for lens SKUs
+    if (lensSkus.length > 0) {
+      // Extract slugs from lens SKUs (remove "LENS-" prefix)
+      const lensSlugs = lensSkus.map((sku) => sku.replace(/^LENS-/, ''));
+
+      const lensProducts = await this.productModel
+        .find({
+          slug: { $in: lensSlugs },
+          category: PRODUCT_CATEGORIES.LENSES,
+          isDeleted: false,
+        })
+        .lean();
+
+      for (const product of lensProducts) {
+        if (product.slug) {
+          const lensSku = `LENS-${product.slug}`;
+          if (lensSkus.includes(lensSku)) {
+            skuInfoMap.set(lensSku, {
               productName: product.name,
               productCategory: product.category,
-              variantSize: variant.size,
-              variantColor: variant.color,
-              variantPrice: variant.price,
-              variantIsActive: variant.isActive,
+              variantPrice: product.basePrice,
+              variantIsActive: true, // Lens products don't have variant-level activation
               productIsActive: product.isActive ?? true,
               productId: product._id.toString(),
             });
@@ -298,7 +352,11 @@ export class InventoryService {
     if (activeOnly) {
       enrichedItems = enrichedItems.filter(
         (item) =>
-          item.variantIsActive !== false && item.productIsActive !== false,
+          item.productIsActive !== false &&
+          // For products with variants (frames), check variant is active
+          // For products without variants (lenses, services), variantIsActive is undefined
+          (item.variantIsActive === undefined ||
+            item.variantIsActive !== false),
       );
     }
 
@@ -330,26 +388,50 @@ export class InventoryService {
       return null;
     }
 
-    // Find product containing this SKU
-    const product = await this.productModel
-      .findOne({ 'variants.sku': sku, isDeleted: false })
-      .lean();
-
     let enrichedItem: InventoryItemEnriched = { ...inventoryItem };
 
-    if (product) {
-      const variant = product.variants?.find((v) => v.sku === sku);
-      enrichedItem = {
-        ...inventoryItem,
-        productName: product.name,
-        productCategory: product.category,
-        variantSize: variant?.size,
-        variantColor: variant?.color,
-        variantPrice: variant?.price,
-        variantIsActive: variant?.isActive,
-        productIsActive: product.isActive ?? true,
-        productId: product._id.toString(),
-      };
+    // Check if this is a lens SKU (LENS-{slug})
+    if (sku.startsWith('LENS-')) {
+      const slug = sku.replace(/^LENS-/, '');
+      const product = await this.productModel
+        .findOne({
+          slug,
+          category: PRODUCT_CATEGORIES.LENSES,
+          isDeleted: false,
+        })
+        .lean();
+
+      if (product) {
+        enrichedItem = {
+          ...inventoryItem,
+          productName: product.name,
+          productCategory: product.category,
+          variantPrice: product.basePrice,
+          variantIsActive: true, // Lens products don't have variant-level activation
+          productIsActive: product.isActive ?? true,
+          productId: product._id.toString(),
+        };
+      }
+    } else {
+      // Find product containing this SKU in variants
+      const product = await this.productModel
+        .findOne({ 'variants.sku': sku, isDeleted: false })
+        .lean();
+
+      if (product) {
+        const variant = product.variants?.find((v) => v.sku === sku);
+        enrichedItem = {
+          ...inventoryItem,
+          productName: product.name,
+          productCategory: product.category,
+          variantSize: variant?.size,
+          variantColor: variant?.color,
+          variantPrice: variant?.price,
+          variantIsActive: variant?.isActive,
+          productIsActive: product.isActive ?? true,
+          productId: product._id.toString(),
+        };
+      }
     }
 
     return enrichedItem;

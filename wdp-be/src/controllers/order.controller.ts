@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
   Patch,
@@ -12,6 +11,8 @@ import {
   HttpCode,
   Req,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,6 +25,7 @@ import {
   ApiForbiddenResponse,
   ApiQuery,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { OrderService } from '../services/order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -33,25 +35,21 @@ import {
   CheckoutResponseDto,
   UpdateOrderStatusDto,
   ApproveOrderDto,
-  ApprovePrescriptionDto,
-  RequestPrescriptionUpdateDto,
   UpdateManufacturingStatusDto,
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
 } from '../dtos/order.dto';
-import {
-  VerifyOrderPrescriptionDto,
-  OrdersAwaitingVerificationResponse,
-} from '../dtos/prescription.dto';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import {
   VNPayCallbackParamsDto,
   VNPayVerificationResultDto,
 } from '../dtos/vnpay.dto';
-import { ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_STATUS } from '@eyewear/shared';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @ApiTags('Orders')
 @ApiBearerAuth()
@@ -160,7 +158,7 @@ export class OrderController {
       throw new BadRequestException('User ID not found in request');
     }
 
-    const role = Number(req.user?.role);
+    const role = req.user?.role;
     if (role === UserRole.SALE) {
       return this.orderService.getSalesPendingApprovalOrders(query);
     }
@@ -198,7 +196,7 @@ export class OrderController {
     @Req() req: AuthenticatedRequest,
     @Query() query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
-    const role = Number(req.user?.role);
+    const role = req.user?.role;
     if (role === UserRole.SALE) {
       return this.orderService.getSalesPendingApprovalOrders(query);
     }
@@ -228,30 +226,6 @@ export class OrderController {
     @Query() query: OrderListQueryDto,
   ): Promise<OrderListResponseDto> {
     return this.orderService.getSalesPendingApprovalOrders(query);
-  }
-
-  /**
-   * Get orders awaiting prescription verification
-   * GET /orders/prescription/awaiting-verification
-   */
-  @Get('prescription/awaiting-verification')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get orders awaiting prescription verification',
-    description:
-      'Returns a list of prescription orders in PAID status with items pending verification. Sales staff can review and verify prescriptions.',
-  })
-  @ApiOkResponse({
-    description: 'Orders awaiting verification retrieved successfully',
-    type: OrdersAwaitingVerificationResponse,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async getOrdersAwaitingVerification(
-    @Query() query: OrderListQueryDto,
-  ): Promise<OrdersAwaitingVerificationResponse> {
-    return this.orderService.getOrdersAwaitingVerification(query);
   }
 
   /**
@@ -342,7 +316,8 @@ export class OrderController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update order status',
-    description: 'Updates the status of an order. Admin/Manager/Operation/Sales only.',
+    description:
+      'Updates the status of an order. Admin/Manager/Operation/Sales only.',
   })
   @ApiOkResponse({
     description: 'Order status updated successfully',
@@ -438,122 +413,15 @@ export class OrderController {
   }
 
   /**
-   * Approve prescription (Sales Staff)
-   * POST /orders/:id/prescription/approve
-   */
-  @Post(':id/prescription/approve')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Approve prescription and send to lab',
-    description:
-      'Sales staff reviews prescription data and approves it. When all prescriptions are approved, order moves to PROCESSING for Operations.',
-  })
-  @ApiOkResponse({
-    description: 'Prescription approved successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async approvePrescription(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') orderId: string,
-    @Body() dto: ApprovePrescriptionDto,
-  ): Promise<OrderResponseDto> {
-    const approverId = req.user?._id?.toString();
-    return this.orderService.approvePrescription(orderId, dto, approverId);
-  }
-
-  /**
-   * Request prescription update (Sales Staff)
-   * POST /orders/:id/prescription/request-update
-   */
-  @Post(':id/prescription/request-update')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Request prescription update from customer',
-    description:
-      'Sales staff identifies an issue with prescription data and requests customer to update it. Order status changes to ON_HOLD.',
-  })
-  @ApiOkResponse({
-    description: 'Update request sent successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async requestPrescriptionUpdate(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') orderId: string,
-    @Body() dto: RequestPrescriptionUpdateDto,
-  ): Promise<OrderResponseDto> {
-    const requesterId = req.user?._id?.toString();
-    return this.orderService.requestPrescriptionUpdate(
-      orderId,
-      dto,
-      requesterId,
-    );
-  }
-
-  /**
-   * Verify order prescription with editable data
-   * PUT /orders/:orderId/items/:orderItemId/verify-prescription
-   */
-  @Put(':orderId/items/:orderItemId/verify-prescription')
-  @UseGuards(JwtAuthGuard, RbacGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALE)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Verify order prescription',
-    description:
-      'Sales staff verifies prescription data. Can approve as-is or with corrections. When approved, item status changes to APPROVED.',
-  })
-  @ApiOkResponse({
-    description: 'Prescription verified successfully',
-    type: OrderResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid prescription or order state',
-    type: ErrorResponseDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Order or item not found',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
-  async verifyOrderPrescription(
-    @Req() req: AuthenticatedRequest,
-    @Param('orderId') orderId: string,
-    @Param('orderItemId') orderItemId: string,
-    @Body() dto: VerifyOrderPrescriptionDto,
-  ): Promise<OrderResponseDto> {
-    const verifierId = req.user?._id?.toString();
-    return this.orderService.verifyOrderPrescription(
-      orderId,
-      orderItemId,
-      dto,
-      verifierId,
-    );
-  }
-
-  /**
    * Update manufacturing status (Operations Staff)
-   * POST /orders/:id/prescription/manufacturing
+   * POST /orders/:id/manufacturing
    */
-  @Post(':id/prescription/manufacturing')
+  @Post(':id/manufacturing')
   @UseGuards(JwtAuthGuard, RbacGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATION)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Update prescription manufacturing status',
+    summary: 'Update manufacturing status',
     description:
       'Operations staff updates the manufacturing status as they progress through production (IN_MANUFACTURING → READY_TO_SHIP).',
   })
@@ -572,11 +440,65 @@ export class OrderController {
     @Body() dto: UpdateManufacturingStatusDto,
   ): Promise<OrderResponseDto> {
     const updaterId = req.user?._id?.toString();
-    return this.orderService.updateManufacturingStatus(
-      orderId,
-      dto,
-      updaterId,
-    );
+    return this.orderService.updateManufacturingStatus(orderId, dto, updaterId);
+  }
+
+  /**
+   * Upload manufacturing proof for OrderItem (Operations Staff)
+   * POST /orders/:orderId/items/:itemId/manufacturing-proof
+   */
+  @Post(':orderId/items/:itemId/manufacturing-proof')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATION)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return cb(
+            new BadRequestException(
+              'Only image files are allowed (JPEG, PNG, WebP)',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+      },
+    }),
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Upload manufacturing proof',
+    description:
+      'Operations staff uploads a photo of the finished glasses as manufacturing proof. Updates the OrderItem with proof URL and sets manufacturing status to COMPLETED.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiOkResponse({
+    description: 'Manufacturing proof uploaded successfully',
+    type: OrderResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file or upload failed',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Order or item not found',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
+  async uploadManufacturingProof(
+    @Param('orderId') orderId: string,
+    @Param('itemId') itemId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<OrderResponseDto> {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    return this.orderService.uploadManufacturingProof(orderId, itemId, file);
   }
 
   /**
@@ -672,5 +594,53 @@ export class OrderController {
       total,
       byStatus: statusCounts,
     };
+  }
+}
+
+/**
+ * Staff Order Management Controller
+ *
+ * Endpoints for staff (Operation/Sale/Manager/Admin) to view and manage orders
+ * Separate from customer endpoints to prevent unauthorized access
+ */
+@ApiTags('Orders - Staff Management')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RbacGuard)
+@Controller('staff/orders')
+export class StaffOrderController {
+  constructor(private readonly orderService: OrderService) {}
+
+  /**
+   * Get order details (Staff view)
+   * GET /staff/orders/:id
+   *
+   * Staff can view any order for business purposes:
+   * - Sale staff: to approve orders and process prescriptions
+   * - Operation staff: to fulfill and ship orders
+   * - Manager/Admin: full access for oversight
+   */
+  @Get(':id')
+  @Roles(UserRole.SALE, UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get order details (Staff view)',
+    description:
+      'Returns detailed information about a specific order. Staff can view all orders for business operations.',
+  })
+  @ApiOkResponse({
+    description: 'Order retrieved successfully',
+    type: OrderResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Order not found',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ErrorResponseDto })
+  async getStaffOrderById(
+    @Param('id') orderId: string,
+  ): Promise<OrderResponseDto> {
+    // Staff can view any order without ownership restriction
+    // This is necessary for business operations
+    return this.orderService.getOrderById(orderId);
   }
 }

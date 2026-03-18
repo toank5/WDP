@@ -11,6 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../commons/types/express.types';
 import {
   ApiTags,
   ApiOperation,
@@ -24,6 +25,8 @@ import {
   CreateCheckoutResponseDto,
   VNPayIpnResponseDto,
 } from '../dtos/checkout.dto';
+
+type VnpQueryParams = Record<string, string | number | undefined>;
 
 @ApiTags('checkout')
 @Controller('checkout')
@@ -72,10 +75,10 @@ export class CheckoutController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createPayment(
     @Body() createCheckoutDto: CreateCheckoutDto,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<CreateCheckoutResponseDto> {
     // Get customer ID from JWT token
-    const customerId = (req as any).user?.userId || (req as any).user?._id;
+    const customerId = req.user?.userId || req.user?._id?.toString();
 
     if (!customerId) {
       throw new Error('Customer ID not found in token');
@@ -154,7 +157,7 @@ export class CheckoutController {
     type: VNPayIpnResponseDto,
   })
   async handleVnpayIpn(
-    @Query() params: Record<string, any>,
+    @Query() params: VnpQueryParams,
   ): Promise<VNPayIpnResponseDto> {
     this.logger.log('Received VNPAY IPN callback', { params });
 
@@ -169,7 +172,9 @@ export class CheckoutController {
 
       return result;
     } catch (error) {
-      this.logger.error('Error processing VNPAY IPN', { error: error.message });
+      this.logger.error('Error processing VNPAY IPN', {
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       return {
         RspCode: '99',
@@ -212,8 +217,11 @@ export class CheckoutController {
     try {
       this.logger.log('Calling handleVnpayReturn service...');
       const result = await this.checkoutService.handleVnpayReturn(params);
-      
-      this.logger.log('Service returned result:', JSON.stringify(result, null, 2));
+
+      this.logger.log(
+        'Service returned result:',
+        JSON.stringify(result, null, 2),
+      );
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -232,8 +240,14 @@ export class CheckoutController {
       }
     } catch (error) {
       this.logger.error('===== EXCEPTION IN VNPAY RETURN HANDLER =====');
-      this.logger.error('Error message:', error.message);
-      this.logger.error('Error stack:', error.stack);
+      this.logger.error(
+        'Error message:',
+        error instanceof Error ? error.message : String(error),
+      );
+      this.logger.error(
+        'Error stack:',
+        error instanceof Error ? error.stack : 'No stack trace',
+      );
       this.logger.error('Params received:', JSON.stringify(params, null, 2));
 
       // On error, redirect to failed page
@@ -258,20 +272,17 @@ export class CheckoutController {
   })
   @ApiResponse({ status: 200, description: 'Order found' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async getOrder(
-    @Query('orderNumber') orderNumber: string,
-    @Req() req: Request,
-  ) {
+  async getOrder(@Query('orderNumber') orderNumber: string) {
     const order = await this.checkoutService.getOrderByNumber(orderNumber);
 
     if (!order) {
       return { success: false, message: 'Order not found' };
     }
 
-    // Return complete order object (toObject handles ObjectId conversion)
+    // Return the order object directly.
     return {
       success: true,
-      data: (order as any).toObject(),
+      data: order,
     };
   }
 }

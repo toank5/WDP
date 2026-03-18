@@ -3,59 +3,30 @@
 import axios from 'axios'
 import { api } from './api-client'
 import { extractApiMessage } from './api-client'
+import { useAuthStore } from '@/store/auth-store'
+import { ROLES } from './validations'
+import {
+  ORDER_TYPES,
+  ORDER_STATUS,
+  PAYMENT_METHOD,
+  PREORDER_STATUS,
+  PAYMENT_STATUS,
+  SHIPPING_METHOD,
+  SHIPPING_CARRIER,
+} from '@eyewear/shared'
 
 // Get the API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost://3000'
 
-// Order enums
-export enum OrderType {
-  READY = 'READY',
-  PREORDER = 'PREORDER',
-  PRESCRIPTION = 'PRESCRIPTION',
-}
-
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  PENDING_PAYMENT = 'PENDING_PAYMENT',
-  PAID = 'PAID',
-  ON_HOLD = 'ON_HOLD',
-  PROCESSING = 'PROCESSING',
-  CONFIRMED = 'CONFIRMED',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  RETURNED = 'RETURNED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum PrescriptionStatus {
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  NEEDS_UPDATE = 'NEEDS_UPDATE',
-  APPROVED = 'APPROVED',
-  IN_MANUFACTURING = 'IN_MANUFACTURING',
-  READY_TO_SHIP = 'READY_TO_SHIP',
-  COMPLETED = 'COMPLETED',
-}
-
-export enum PaymentMethod {
-  VNPAY = 'VNPAY',
-  CASH = 'CASH',
-  BANK_TRANSFER = 'BANK_TRANSFER',
-}
-
-export enum PreorderStatus {
-  PENDING_STOCK = 'PENDING_STOCK',
-  PARTIALLY_RESERVED = 'PARTIALLY_RESERVED',
-  READY_TO_FULFILL = 'READY_TO_FULFILL',
-  FULFILLED = 'FULFILLED',
-  CANCELED = 'CANCELED',
-}
-
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+// Re-export enums with PascalCase naming for backward compatibility
+// Enums can be used as both values and types in TypeScript
+export { ORDER_TYPES as OrderType }
+export { ORDER_STATUS as OrderStatus }
+export { PAYMENT_METHOD as PaymentMethod }
+export { PREORDER_STATUS as PreorderStatus }
+export { PAYMENT_STATUS as PaymentStatus }
+export { SHIPPING_METHOD as ShippingMethod }
+export { SHIPPING_CARRIER as ShippingCarrier }
 
 // Order types
 export interface ShippingAddress {
@@ -82,34 +53,9 @@ export interface OrderItem {
   }
   // Pre-order fields
   isPreorder?: boolean
-  preorderStatus?: PreorderStatus
+  preorderStatus?: PREORDER_STATUS
   expectedShipDate?: string
   reservedQuantity?: number
-  // Prescription fields
-  isPrescription?: boolean
-  prescriptionStatus?: PrescriptionStatus
-  prescriptionData?: PrescriptionData
-  prescriptionUrl?: string
-}
-
-export interface PrescriptionData {
-  pd: number
-  sph: {
-    right: number
-    left: number
-  }
-  cyl: {
-    right: number
-    left: number
-  }
-  axis: {
-    right: number
-    left: number
-  }
-  add: {
-    right: number
-    left: number
-  }
 }
 
 export interface OrderPayment {
@@ -117,7 +63,7 @@ export interface OrderPayment {
   amount: number
   transactionId?: string
   paidAt?: Date | string
-  status?: PaymentStatus
+  status?: PAYMENT_STATUS
 }
 
 export interface OrderTracking {
@@ -128,7 +74,7 @@ export interface OrderTracking {
 }
 
 export interface OrderHistoryItem {
-  status: OrderStatus
+  status: ORDER_STATUS
   changedBy?: string
   timestamp: Date
   note?: string
@@ -138,8 +84,8 @@ export interface Order {
   _id: string
   orderNumber: string
   customerId: string
-  orderType: OrderType
-  orderStatus: OrderStatus
+  orderType: ORDER_TYPES
+  orderStatus: ORDER_STATUS
   items: OrderItem[]
   subtotal: number
   shippingFee: number
@@ -151,6 +97,12 @@ export interface Order {
   assignedStaffId?: string
   notes?: string
   history?: OrderHistoryItem[]
+  // Promotion fields
+  promotionId?: string
+  promotionCode?: string
+  promotionDiscount?: number
+  comboDiscount?: number
+  comboId?: string
   createdAt: string
   updatedAt: string
 }
@@ -163,12 +115,13 @@ export interface CheckoutRequest {
     priceAtOrder: number
   }>
   shippingAddress: ShippingAddress
-  shippingMethod: 'STANDARD' | 'EXPRESS'
+  shippingMethod: SHIPPING_METHOD
   payment: {
-    method: PaymentMethod
+    method: PAYMENT_METHOD
   }
-  orderType?: OrderType
+  orderType?: ORDER_TYPES
   notes?: string
+  promotionCode?: string
 }
 
 export interface CheckoutResponse {
@@ -177,10 +130,10 @@ export interface CheckoutResponse {
 }
 
 export interface OrderListQueryParams {
-  status?: OrderStatus
+  status?: ORDER_STATUS
   showAll?: boolean
   search?: string
-  orderType?: OrderType
+  orderType?: ORDER_TYPES
   dateFrom?: string
   dateTo?: string
   page?: number
@@ -200,19 +153,9 @@ export interface ApproveOrderRequest {
   note?: string
 }
 
-export interface ApprovePrescriptionRequest {
-  itemId: string
-  note?: string
-}
-
-export interface RequestPrescriptionUpdateRequest {
-  itemId: string
-  message: string
-}
-
 export interface UpdateManufacturingStatusRequest {
   itemId: string
-  status: 'IN_MANUFACTURING' | 'READY_TO_SHIP' | 'COMPLETED'
+  status: 'PENDING' | 'COMPLETED' | 'FAILED'
   note?: string
 }
 
@@ -287,23 +230,27 @@ class OrderAPI {
   /**
    * Checkout - Create order from cart
    * This uses the new checkout endpoint with VNPAY integration
+   * Note: Items are fetched from the database cart, not sent in request
    */
   async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
     try {
-      // Use the new checkout endpoint
       // Map postalCode to zipCode for backend compatibility
       const { postalCode, ...addressRest } = request.shippingAddress
+
+      // Build checkout payload - only send fields that DTO accepts
+      // Items are fetched from database cart by the backend
       const payload = {
         shippingAddress: {
           ...addressRest,
           zipCode: postalCode,
         },
         notes: request.notes,
+        promotionCode: request.promotionCode,
       }
 
-      console.log('Sending checkout request:', payload)
+      console.log('[OrderAPI] Sending checkout request:', JSON.stringify(payload, null, 2))
       const response = await api.post('/checkout/create-payment', payload)
-      console.log('Received response:', response)
+      console.log('[OrderAPI] Received response:', response)
 
       // The response structure is: { statusCode, message, metadata: { paymentUrl, orderId, ... } }
       const data = response.data.metadata || response.data
@@ -313,8 +260,8 @@ class OrderAPI {
           _id: data.orderId,
           orderNumber: data.orderNumber,
           customerId: '',
-          orderType: request.orderType || OrderType.READY,
-          orderStatus: OrderStatus.PENDING,
+          orderType: request.orderType || ORDER_TYPES.READY,
+          orderStatus: ORDER_STATUS.PENDING,
           items: [],
           subtotal: 0,
           shippingFee: 0,
@@ -475,37 +422,11 @@ class OrderAPI {
   }
 
   /**
-   * Approve prescription (Sales Staff)
-   */
-  async approvePrescription(orderId: string, request: ApprovePrescriptionRequest): Promise<Order> {
-    try {
-      const response = await api.post(`/orders/${orderId}/prescription/approve`, request)
-      return unwrapApiPayload<Order>(response.data)
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
-  }
-
-  /**
-   * Request prescription update from customer (Sales Staff)
-   */
-  async requestPrescriptionUpdate(orderId: string, request: RequestPrescriptionUpdateRequest): Promise<Order> {
-    try {
-      const response = await api.post(`/orders/${orderId}/prescription/request-update`, request)
-      return unwrapApiPayload<Order>(response.data)
-    } catch (error) {
-      const message = extractApiMessage(error)
-      throw new Error(message)
-    }
-  }
-
-  /**
    * Update manufacturing status (Operations Staff)
    */
   async updateManufacturingStatus(orderId: string, request: UpdateManufacturingStatusRequest): Promise<Order> {
     try {
-      const response = await api.post(`/orders/${orderId}/prescription/manufacturing`, request)
+      const response = await api.post(`/orders/${orderId}/manufacturing`, request)
       return unwrapApiPayload<Order>(response.data)
     } catch (error) {
       const message = extractApiMessage(error)
@@ -515,10 +436,22 @@ class OrderAPI {
 
   /**
    * Get order by ID
+   * Uses different endpoints based on user role:
+   * - Staff (ADMIN, MANAGER, OPERATION, SALE): /staff/orders/:id
+   * - Customer: /orders/:id
    */
   async getOrderById(orderId: string): Promise<Order> {
     try {
-      const response = await api.get(`/orders/${orderId}`)
+      // Get current user role from auth store
+      const authState = useAuthStore.getState()
+      const userRole = authState.user?.role
+
+      // Determine endpoint based on role
+      // Staff roles (0-3) use staff endpoint, customers (4) use customer endpoint
+      const isStaff = userRole !== undefined && userRole < ROLES.CUSTOMER
+      const endpoint = isStaff ? `/staff/orders/${orderId}` : `/orders/${orderId}`
+
+      const response = await api.get(endpoint)
 
       return unwrapApiPayload<Order>(response.data)
     } catch (error) {
@@ -573,7 +506,7 @@ class OrderAPI {
   /**
    * Update order fulfillment status.
    */
-  async updateOrderStatus(orderId: string, status: OrderStatus, note?: string): Promise<Order> {
+  async updateOrderStatus(orderId: string, status: ORDER_STATUS, note?: string): Promise<Order> {
     try {
       const response = await api.patch(`/orders/${orderId}/status`, {
         status,
@@ -623,7 +556,33 @@ class OrderAPI {
       estimatedDelivery: request.estimatedDelivery,
     })
 
-    return this.updateOrderStatus(orderId, OrderStatus.SHIPPED, request.note)
+    return this.updateOrderStatus(orderId, ORDER_STATUS.SHIPPED, request.note)
+  }
+
+  /**
+   * Upload manufacturing proof for OrderItem (Operations Staff)
+   * POST /orders/:orderId/items/:itemId/manufacturing-proof
+   */
+  async uploadManufacturingProof(orderId: string, itemId: string, file: File): Promise<Order> {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await api.post(
+        `/orders/${orderId}/items/${itemId}/manufacturing-proof`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      return unwrapApiPayload<Order>(response.data)
+    } catch (error) {
+      const message = extractApiMessage(error)
+      throw new Error(message)
+    }
   }
 
   /**

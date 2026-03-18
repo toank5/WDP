@@ -130,6 +130,9 @@ export class VNPayCallbackParamsDto {
 
   @ApiProperty({ required: false })
   vnp_SecureHashType?: string;
+
+  @ApiProperty({ required: false })
+  vnp_TransactionStatus?: string;
 }
 
 /**

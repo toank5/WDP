@@ -1,448 +1,306 @@
-import React, { useCallback } from 'react'
-import { View, StyleSheet, ScrollView, Image } from 'react-native'
+import React, { useState } from 'react'
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+} from 'react-native'
 import {
   Text,
-  Button,
-  Surface,
-  useTheme,
+  Card,
+  List,
+  Divider,
   Avatar,
   IconButton,
-  Divider,
-  List,
+  Button,
+  Dialog,
+  Portal,
 } from 'react-native-paper'
+import { useTheme } from 'react-native-paper'
+import type { NavigationProp } from '@react-navigation/native'
+import type { MainTabParamList, RootStackParamList } from '../../types'
 import { useAuthStore } from '../../store/auth-store'
-import { useCartStore } from '../../store/cart-store'
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
-interface MenuItem {
-  id: string
-  title: string
-  icon: string
-  description?: string
-  badge?: number
-  route?: string
-  onPress?: () => void
+type Props = {
+  navigation: NavigationProp<MainTabParamList & RootStackParamList>
 }
 
-/**
- * AccountScreen - User account home screen
- *
- * Features:
- * - Display user profile
- * - Menu options (orders, prescriptions, addresses, settings, logout)
- * - Logout functionality
- */
-export const AccountScreen = () => {
+interface MenuItem {
+  icon: string
+  title: string
+  subtitle?: string
+  onPress: () => void
+  showChevron?: boolean
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  {
+    icon: 'account-edit',
+    title: 'Thông tin cá nhân',
+    subtitle: 'Cập nhật tên, email, số điện thoại',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'map-marker',
+    title: 'Địa chỉ giao hàng',
+    subtitle: 'Quản lý địa chỉ giao hàng mặc định',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'heart',
+    title: 'Danh sách yêu thích',
+    subtitle: 'Xem các sản phẩm đã lưu',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'receipt',
+    title: 'Lịch sử đơn hàng',
+    subtitle: 'Xem và theo dõi đơn hàng',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'bell',
+    title: 'Thông báo',
+    subtitle: 'Quản lý thông báo của bạn',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'shield-lock',
+    title: 'Bảo mật',
+    subtitle: 'Thay đổi mật khẩu và cài đặt bảo mật',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'help-circle',
+    title: 'Trợ giúp & Hỗ trợ',
+    subtitle: 'Câu hỏi thường gặp và liên hệ',
+    onPress: () => {},
+    showChevron: true,
+  },
+  {
+    icon: 'information',
+    title: 'Về chúng tôi',
+    subtitle: 'Thông tin về công ty',
+    onPress: () => {},
+    showChevron: true,
+  },
+]
+
+interface ProfileCardProps {
+  user: any
+  onEditProfile: () => void
+}
+
+function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
   const theme = useTheme()
-  const navigation = useNavigation() as NativeStackNavigationProp<any>
-  const { user, logout } = useAuthStore()
-  const { itemCount } = useCartStore()
-
-  const menuItems: MenuItem[] = React.useMemo(() => {
-    return [
-      {
-        id: 'orders',
-        title: 'Đơn hàng của tôi',
-        icon: 'package-variant-closed',
-        description: 'Xem lịch sử và trạng thái đơn hàng',
-        route: 'OrderHistory',
-      },
-      {
-        id: 'prescriptions',
-        title: 'Đơn kính của tôi',
-        icon: 'clipboard-text',
-        description: 'Quản lý các đơn kính đã lưu',
-        route: 'PrescriptionList',
-      },
-      {
-        id: 'addresses',
-        title: 'Sổ địa chỉ',
-        icon: 'map-marker',
-        description: 'Quản lý địa chỉ giao hàng',
-        route: 'AddressManagement',
-      },
-      {
-        id: 'settings',
-        title: 'Cài đặt tài khoản',
-        icon: 'cog',
-        description: 'Chỉnh sửa thông tin cá nhân',
-        route: 'ProfileSettings',
-      },
-      {
-        id: 'about',
-        title: 'Về chúng tôi',
-        icon: 'information',
-        description: 'Thông tin về ứng dụng',
-        route: 'About',
-      },
-      {
-        id: 'contact',
-        title: 'Liên hệ',
-        icon: 'email',
-        description: 'Gửi phản hồi hoặc hỗ trợ',
-        route: 'Contact',
-      },
-      {
-        id: 'logout',
-        title: 'Đăng xuất',
-        icon: 'logout',
-        description: 'Thoát khỏi tài khoản',
-        onPress: handleLogout,
-      },
-    ]
-  }, [user])
-
-  const handleMenuPress = useCallback((item: MenuItem) => {
-    if (item.onPress) {
-      item.onPress()
-    } else if (item.route) {
-      navigation.navigate(item.route as never)
-    }
-  }, [navigation])
-
-  const handleLogout = useCallback(() => {
-    // Clear cart on logout
-    // TODO: Add logout confirmation dialog
-
-    // Perform logout
-    logout()
-
-    // Navigate to Store
-    navigation.navigate('Store' as never)
-  }, [logout, navigation])
-
-  const handleProfilePress = useCallback(() => {
-    navigation.navigate('ProfileSettings' as never)
-  }, [navigation])
-
-  const handleOrderHistoryPress = useCallback(() => {
-    navigation.navigate('OrderHistory' as never)
-  }, [navigation])
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <Surface style={styles.header} elevation={2}>
-        <View style={styles.headerRow}>
-          <Text variant="titleLarge" style={styles.headerTitle}>
-            Tài khoản
-          </Text>
-          <View style={styles.headerSpacer} />
+    <Card style={styles.profileCard}>
+      <View style={styles.profileContent}>
+        <Avatar.Text
+          size={60}
+          label={user?.fullName?.split(' ').slice(-1)[0]?.charAt(0).toUpperCase() || 'U'}
+          style={styles.avatar}
+        />
+        <View style={styles.profileInfo}>
+          <Text style={styles.userName}>{user?.fullName || 'Người dùng'}</Text>
+          <Text style={styles.userEmail}>{user?.email || ''}</Text>
         </View>
-      </Surface>
+        <IconButton
+          icon="pencil"
+          size={20}
+          onPress={onEditProfile}
+          style={styles.editButton}
+          iconColor={theme.colors.primary}
+        />
+      </View>
+    </Card>
+  )
+}
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        {/* User Profile Card */}
-        <Surface style={styles.profileCard} elevation={1}>
-          <View style={styles.profileContent}>
-            <Avatar.Text
-              size={80}
-              label={user?.name?.charAt(0) || 'U'}
-              style={styles.avatar}
-            />
-            <View style={styles.profileInfo}>
-              <Text variant="titleLarge" style={styles.userName}>
-                {user?.name || 'Người dùng'}
-              </Text>
-              <Text variant="bodyMedium" style={styles.userEmail}>
-                {user?.email || 'email@example.com'}
-              </Text>
-              <Text variant="bodySmall" style={styles.memberSince}>
-                Thành viên từ: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'Chưa có thông tin'}
-              </Text>
-            </View>
+function MenuItemComponent({ item }: { item: MenuItem }) {
+  const theme = useTheme()
+
+  return (
+    <List.Item
+      title={item.title}
+      description={item.subtitle}
+      left={(props) => (
+        <List.Icon
+          {...props}
+          icon={item.icon}
+          color={theme.colors.primary}
+        />
+      )}
+      right={(props) =>
+        item.showChevron ? (
+          <List.Icon {...props} icon="chevron-right" />
+        ) : null
+      }
+      onPress={item.onPress}
+      style={styles.menuItem}
+      titleStyle={styles.menuItemTitle}
+      descriptionStyle={styles.menuItemDescription}
+    />
+  )
+}
+
+export function AccountScreen({ navigation }: Props) {
+  const theme = useTheme()
+  const { user, logout } = useAuthStore()
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    setLogoutDialogVisible(false)
+    // Navigation will be handled by auth state change
+  }
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Profile Card */}
+      <ProfileCard user={user} onEditProfile={() => console.log('Navigate to edit profile')} />
+
+      {/* Menu Items */}
+      <Card style={styles.menuCard}>
+        {MENU_ITEMS.map((item, index) => (
+          <View key={index}>
+            <MenuItemComponent item={item} />
+            {index < MENU_ITEMS.length - 1 && <Divider />}
           </View>
+        ))}
+      </Card>
 
-          <Button
-            mode="contained"
-            onPress={handleProfilePress}
-            style={styles.editProfileButton}
-            contentStyle={styles.editProfileButtonContent}
-            icon="pencil"
-          >
-            Chỉnh sửa hồ sơ
-          </Button>
-        </Surface>
+      {/* App Info */}
+      <View style={styles.appInfo}>
+        <Text style={styles.appVersion}>Phiên bản 1.0.0</Text>
+        <Text style={styles.appCopyright}>© 2026 Glasses Platform</Text>
+      </View>
 
-        {/* Quick Actions */}
-        <Surface style={styles.quickActionsCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Hành động nhanh
-          </Text>
+      {/* Logout Button */}
+      <Button
+        mode="outlined"
+        onPress={() => setLogoutDialogVisible(true)}
+        style={styles.logoutButton}
+        icon="logout"
+        textColor={theme.colors.error}
+      >
+        Đăng xuất
+      </Button>
 
-          <View style={styles.quickActionsRow}>
-            <View style={styles.quickAction}>
-              <IconButton
-                icon="package-variant-closed"
-                size={28}
-                onPress={handleOrderHistoryPress}
-                style={styles.quickActionIcon}
-              />
-              <Text variant="bodySmall" style={styles.quickActionLabel}>
-                Đơn hàng
-              </Text>
-            </View>
-
-            <View style={styles.quickAction}>
-              <IconButton
-                icon="cart"
-                size={28}
-                onPress={() => navigation.navigate('Cart' as never)}
-                style={styles.quickActionIcon}
-              />
-              <Text variant="bodySmall" style={styles.quickActionLabel}>
-                Giỏ hàng
-                {itemCount > 0 && (
-                  <Text style={styles.quickActionBadge}>{itemCount}</Text>
-                )}
-              </Text>
-            </View>
-
-            <View style={styles.quickAction}>
-              <IconButton
-                icon="heart"
-                size={28}
-                onPress={() => navigation.navigate('Favorites' as never)}
-                style={styles.quickActionIcon}
-              />
-              <Text variant="bodySmall" style={styles.quickActionLabel}>
-                Yêu thích
-              </Text>
-            </View>
-
-            <View style={styles.quickAction}>
-              <IconButton
-                icon="help-circle"
-                size={28}
-                onPress={() => navigation.navigate('Contact' as never)}
-                style={styles.quickActionIcon}
-              />
-              <Text variant="bodySmall" style={styles.quickActionLabel}>
-                Hỗ trợ
-              </Text>
-            </View>
-          </View>
-        </Surface>
-
-        {/* Menu Items */}
-        <Surface style={styles.menuCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Cài đặt
-          </Text>
-
-          {menuItems.map((item) => (
-            <List.Item
-              key={item.id}
-              title={item.title}
-              description={item.description}
-              left={(props) => (
-                <List.Icon
-                  {...props}
-                  icon={item.icon}
-                  color={
-                    item.id === 'logout'
-                      ? theme.colors.error
-                      : theme.colors.primary
-                  }
-                />
-              )}
-              right={(props) =>
-                item.badge ? (
-                  <Text style={styles.badge}>{item.badge}</Text>
-                ) : (
-                  <List.Icon {...props} icon="chevron-right" />
-                )
-              }
-              onPress={() => handleMenuPress(item)}
-              style={
-                item.id === 'logout'
-                  ? styles.logoutItem
-                  : styles.menuItem
-              }
-              titleStyle={
-                item.id === 'logout'
-                  ? styles.logoutTitle
-                  : styles.menuTitle
-              }
-            />
-          ))}
-        </Surface>
-
-        {/* App Info */}
-        <Surface style={styles.infoCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Thông tin ứng dụng
-          </Text>
-
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
-              Phiên bản:
+      {/* Logout Confirmation Dialog */}
+      <Portal>
+        <Dialog
+          visible={logoutDialogVisible}
+          onDismiss={() => setLogoutDialogVisible(false)}
+        >
+          <Dialog.Title>Xác nhận đăng xuất</Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
             </Text>
-            <Text variant="bodyMedium" style={styles.infoValue}>
-              1.0.0
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
-              Xây dựng:
-            </Text>
-            <Text variant="bodyMedium" style={styles.infoValue}>
-              WDP Team
-            </Text>
-          </View>
-
-          <Button
-            mode="text"
-            onPress={() => navigation.navigate('About' as never)}
-            style={styles.moreInfoButton}
-          >
-            Xem thêm thông tin
-          </Button>
-        </Surface>
-      </ScrollView>
-    </View>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setLogoutDialogVisible(false)}>
+              Hủy
+            </Button>
+            <Button
+              onPress={handleLogout}
+              textColor={theme.colors.error}
+            >
+              Đăng xuất
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
   },
   profileCard: {
-    padding: 20,
-    borderRadius: 12,
     marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   profileContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#f8fafc',
   },
   avatar: {
-    marginRight: 16,
+    backgroundColor: '#3b82f6',
   },
   profileInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   userName: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    color: '#1e293b',
+    marginBottom: 2,
   },
   userEmail: {
-    opacity: 0.8,
-    marginBottom: 4,
+    fontSize: 14,
+    color: '#64748b',
   },
-  memberSince: {
-    opacity: 0.6,
-    fontSize: 12,
-  },
-  editProfileButton: {
-    borderRadius: 8,
-  },
-  editProfileButtonContent: {
-    paddingVertical: 8,
-  },
-  quickActionsCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  quickAction: {
-    alignItems: 'center',
-  },
-  quickActionIcon: {
-    marginBottom: 4,
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  quickActionBadge: {
-    backgroundColor: theme => theme.colors.error,
-    color: '#fff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 4,
-    fontSize: 10,
-    fontWeight: 'bold',
+  editButton: {
+    margin: 0,
   },
   menuCard: {
-    borderRadius: 12,
-    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   menuItem: {
     paddingVertical: 4,
   },
-  menuTitle: {
-    fontWeight: '500',
+  menuItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  logoutItem: {
-    backgroundColor: '#ffebee',
-    paddingVertical: 4,
-  },
-  logoutTitle: {
-    color: '#c62828',
-    fontWeight: '500',
-  },
-  badge: {
-    backgroundColor: '#e53935',
-    color: '#fff',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+  menuItemDescription: {
     fontSize: 12,
-    fontWeight: 'bold',
+    marginTop: 2,
   },
-  infoCard: {
-    padding: 16,
+  appInfo: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  appVersion: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  appCopyright: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  logoutButton: {
+    marginBottom: 24,
     borderRadius: 12,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  infoLabel: {
-    opacity: 0.7,
-  },
-  infoValue: {
-    fontWeight: '500',
-  },
-  moreInfoButton: {
-    marginTop: 8,
+  dialogText: {
+    fontSize: 16,
+    color: '#475569',
   },
 })

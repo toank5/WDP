@@ -8,7 +8,7 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '../enums/product.enum';
+} from '@eyewear/shared';
 
 /**
  * Strict Product Variant Schema
@@ -39,19 +39,6 @@ const variantSchema = z
     isActive: z.boolean().optional().default(true),
   })
   .strict();
-
-/**
- * Prescription range schema - strict
- */
-const prescriptionRangeSchema = z
-  .object({
-    minSPH: z.number().optional(),
-    maxSPH: z.number().optional(),
-    minCYL: z.number().optional(),
-    maxCYL: z.number().optional(),
-  })
-  .strict()
-  .optional();
 
 /**
  * Base product schema (common fields) - strict
@@ -105,9 +92,6 @@ export const createLensProductSchema = baseProductSchema
       .min(1.5, 'Lens index must be at least 1.5')
       .max(2.0, 'Lens index must not exceed 2.0'),
     coatings: z.array(z.string().max(50)).optional().default([]),
-    suitableForPrescriptionRange: prescriptionRangeSchema,
-    isPrescriptionRequired: z.boolean(),
-    variants: z.array(variantSchema).optional(),
   })
   .strict();
 
@@ -170,8 +154,6 @@ export const updateProductSchema = z
     lensType: z.nativeEnum(LENS_TYPE).optional(),
     index: z.number().min(1.5).max(2.0).optional(),
     coatings: z.array(z.string().max(50)).optional(),
-    suitableForPrescriptionRange: prescriptionRangeSchema,
-    isPrescriptionRequired: z.boolean().optional(),
     serviceType: z.nativeEnum(SERVICE_TYPE).optional(),
     durationMinutes: z.number().int().positive().optional(),
     serviceNotes: z.string().max(1000).optional(),

@@ -11,37 +11,23 @@ export default defineConfig({
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Always use source - Vite handles transpilation efficiently
+      // This avoids issues with the built dist not being available during initial dev
+      '@eyewear/shared': path.resolve(__dirname, '../packages/shared/src'),
     },
   },
   build: {
-    // Split Virtual Try-On into separate chunk
+    // Simplified chunk splitting to avoid circular dependencies
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Virtual Try-On components - separate chunk
-          if (id.includes('/virtual-tryon/')) {
-            return 'virtual-try-on';
+          // Only split out large independent chunks to avoid circular deps
+          // Three.js is large and mostly independent
+          if (id.includes('three') || id.includes('@react-three') || id.includes('@react-three/drei') || id.includes('@react-three/fiber')) {
+            return 'vendor-three';
           }
-
-          // Three.js and 3D libraries - separate chunk
-          if (id.includes('three') || id.includes('@react-three')) {
-            return 'three';
-          }
-
-          // MUI components - vendor chunk
-          if (id.includes('@mui') || id.includes('@emotion')) {
-            return 'mui';
-          }
-
-          // React and router - vendor chunk
-          if (id.includes('react') || id.includes('react-router')) {
-            return 'react-vendor';
-          }
-
-          // API and state management
-          if (id.includes('/lib/') || id.includes('/store/')) {
-            return 'api-store';
-          }
+          // Everything else - let Vite handle default chunking
+          // This prevents circular dependencies between vendor chunks
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
@@ -49,7 +35,7 @@ export default defineConfig({
       },
     },
     // Improve chunk size warning threshold
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 1000,
     // Optimize chunk loading
     minify: 'terser',
     terserOptions: {

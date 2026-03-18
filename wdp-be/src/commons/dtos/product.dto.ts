@@ -23,7 +23,7 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '../enums/product.enum';
+} from '@eyewear/shared';
 import {
   CategoryRequiredFields,
   Images2DNotEmpty,
@@ -98,40 +98,6 @@ export class ProductVariantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-}
-
-export class PrescriptionRangeDto {
-  @ApiPropertyOptional({
-    description: 'Minimum sphere power in diopters',
-    example: -6.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  minSPH?: number;
-
-  @ApiPropertyOptional({
-    description: 'Maximum sphere power in diopters',
-    example: 6.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  maxSPH?: number;
-
-  @ApiPropertyOptional({
-    description: 'Minimum cylinder power in diopters',
-    example: -2.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  minCYL?: number;
-
-  @ApiPropertyOptional({
-    description: 'Maximum cylinder power in diopters',
-    example: 2.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  maxCYL?: number;
 }
 
 // Frame Product DTO
@@ -327,32 +293,6 @@ export class CreateLensProductDto {
   @IsOptional()
   @IsArray()
   coatings?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Prescription range this lens supports',
-    type: PrescriptionRangeDto,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PrescriptionRangeDto)
-  suitableForPrescriptionRange?: PrescriptionRangeDto;
-
-  @ApiProperty({
-    description: 'Whether prescription is required for this lens',
-    example: true,
-  })
-  @IsBoolean()
-  isPrescriptionRequired: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Product variants with different SKUs',
-    type: [ProductVariantDto],
-  })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductVariantDto)
-  variants?: ProductVariantDto[];
 }
 
 // Service Product DTO
@@ -557,6 +497,12 @@ export class ProductListItemDto {
     example: 'Designer Round Eyeglasses',
   })
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Product slug for URL-friendly identifier',
+    example: 'designer-round-eyeglasses',
+  })
+  slug?: string;
 
   @ApiProperty({
     description: 'Product category',
@@ -827,23 +773,6 @@ export class CreateProductDto {
   @IsArray()
   coatings?: string[];
 
-  @ApiPropertyOptional({
-    description: 'Prescription range (for lens products)',
-    type: PrescriptionRangeDto,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PrescriptionRangeDto)
-  suitableForPrescriptionRange?: PrescriptionRangeDto;
-
-  @ApiPropertyOptional({
-    description: 'Whether prescription is required (for lens products)',
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isPrescriptionRequired?: boolean;
-
   // Service-specific
   @ApiPropertyOptional({
     description: 'Service type (for service products)',
@@ -1032,23 +961,6 @@ export class UpdateProductDto {
   @IsOptional()
   @IsArray()
   coatings?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Prescription range',
-    type: PrescriptionRangeDto,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PrescriptionRangeDto)
-  suitableForPrescriptionRange?: PrescriptionRangeDto;
-
-  @ApiPropertyOptional({
-    description: 'Prescription required',
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isPrescriptionRequired?: boolean;
 
   @ApiPropertyOptional({
     description: 'Service type',

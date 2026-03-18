@@ -1,5 +1,5 @@
 import { IsBoolean, IsDate, IsNumber, IsOptional, Min } from 'class-validator';
-import { PREORDER_STATUS } from '../enums/preorder.enum';
+import { PREORDER_STATUS } from '@eyewear/shared';
 
 /**
  * DTO for updating variant pre-order configuration

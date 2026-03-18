@@ -12,6 +12,7 @@ import {
   LoginRequestDto,
   LoginResponseDto,
   RegisterRequestDto,
+  UserResponseDto,
 } from 'src/commons/dtos/auth.dto';
 import { CustomApiResponse } from 'src/commons/dtos/custom-api-response.dto';
 import * as customApiRequestInterface from 'src/commons/interfaces/custom-api-request.interface';
@@ -24,6 +25,64 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from '../mail/email.service';
+import { ROLES } from '@eyewear/shared';
+
+/**
+ * Transform user object for API response
+ * Returns string-based role values from shared package ROLES enum
+ * ('ADMIN', 'MANAGER', 'OPERATION', 'SALE', 'CUSTOMER')
+ */
+function transformUserForResponse(
+  user: Document | object,
+): Record<string, unknown> {
+  const userObj =
+    'toObject' in user && typeof user.toObject === 'function'
+      ? (user.toObject() as Record<string, unknown>)
+      : (user as Record<string, unknown>);
+
+  // Normalize role to string-based ROLES enum value
+  let normalizedRole = ROLES.CUSTOMER;
+
+  const role = userObj.role;
+
+  if (typeof role === 'string') {
+    // Check if it's a valid ROLES enum value
+    if (Object.values(ROLES).includes(role as ROLES)) {
+      normalizedRole = role as ROLES;
+    } else {
+      // Try to convert string-number to ROLES enum
+      const parsedNum = Number.parseInt(role, 10);
+      if (!Number.isNaN(parsedNum)) {
+        // String-number like "4" -> convert to ROLES
+        const roleMap: Record<number, ROLES> = {
+          0: ROLES.ADMIN,
+          1: ROLES.MANAGER,
+          2: ROLES.OPERATION,
+          3: ROLES.SALE,
+          4: ROLES.CUSTOMER,
+        };
+        normalizedRole = roleMap[parsedNum] ?? ROLES.CUSTOMER;
+      }
+    }
+  } else if (typeof role === 'number') {
+    // Numeric role - convert to ROLES enum
+    const roleMap: Record<number, ROLES> = {
+      0: ROLES.ADMIN,
+      1: ROLES.MANAGER,
+      2: ROLES.OPERATION,
+      3: ROLES.SALE,
+      4: ROLES.CUSTOMER,
+    };
+    normalizedRole = roleMap[role] ?? ROLES.CUSTOMER;
+  }
+
+  return {
+    ...userObj,
+    _id: userObj._id?.toString(),
+    role: normalizedRole,
+    passwordHash: undefined, // Never return password hash
+  };
+}
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService {
@@ -50,16 +109,26 @@ export class AuthService {
     if (!isPasswordMatch) throw new BadRequestException('Invalid password');
 
     const accessToken = await this.jwtService.signAsync(
-      { id: user._id },
+      { id: user._id, role: user.role },
       {
         expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
         secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
     );
 
+    // Transform user object with string role name
+    const transformedUser = transformUserForResponse(user);
+
+    console.log(
+      'AuthService - Login user role:',
+      user.role,
+      '-> Transformed:',
+      transformedUser.role,
+    );
+
     return new CustomApiResponse(HttpStatus.OK, 'Login successful', {
       accessToken,
-      user,
+      user: transformedUser as unknown as UserResponseDto,
     });
   }
 
@@ -98,11 +167,21 @@ export class AuthService {
     }
 
     const accessToken = await this.jwtService.signAsync(
-      { id: newUser._id },
+      { id: newUser._id, role: newUser.role },
       {
         expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION'),
         secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       },
+    );
+
+    // Transform user object with string role name
+    const transformedUser = transformUserForResponse(newUser);
+
+    console.log(
+      'AuthService - Register user role:',
+      newUser.role,
+      '-> Transformed:',
+      transformedUser.role,
     );
 
     return new CustomApiResponse(
@@ -110,7 +189,7 @@ export class AuthService {
       'Register successful. Please check your email to verify your account.',
       {
         accessToken,
-        user: newUser,
+        user: transformedUser,
       },
     );
   }

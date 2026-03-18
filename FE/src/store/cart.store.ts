@@ -70,6 +70,21 @@ function createGuestCartItem(
 }
 
 /**
+ * Validated promotion in cart
+ * discountAmount is stored from API validation for consistent tracking
+ * Note: Display discount is recalculated dynamically based on current cart subtotal
+ */
+export interface AppliedPromotion {
+  code: string
+  name: string
+  type: 'percentage' | 'fixed_amount'
+  value: number
+  description?: string
+  minOrderValue: number
+  discountAmount: number  // Stored from API validation for backend reference
+}
+
+/**
  * Cart Store State
  * Manages the shopping cart state with server-side persistence
  */
@@ -80,6 +95,9 @@ interface CartState {
   subtotal: number
   loading: boolean
   error: string | null
+
+  // Promotion
+  appliedPromotion: AppliedPromotion | null
 
   // Actions
   loadCart: () => Promise<void>
@@ -99,6 +117,8 @@ interface CartState {
   removeItem: (itemId: string) => Promise<void>
   clearCart: () => Promise<void>
   refreshCart: () => Promise<void>
+  setPromotionCode: (promotion: AppliedPromotion | null) => void
+  clearPromotionCode: () => void
 
   // Internal state
   _hydrated: boolean
@@ -162,6 +182,7 @@ export const useCartStore = create<CartState>()(
       subtotal: 0,
       loading: false,
       error: null,
+      appliedPromotion: null,
       _hydrated: false,
 
       setHydrated: () => {
@@ -170,8 +191,9 @@ export const useCartStore = create<CartState>()(
 
       /**
        * Load cart from server or localStorage
-       * - If authenticated: load from backend API
+       * - If authenticated AND customer: load from backend API
        * - If not authenticated: load from localStorage (guest cart)
+       * - If authenticated but not customer: use empty cart (non-customer roles don't have carts)
        */
       loadCart: async () => {
         const { isAuthenticated, accessToken, user } = await import('@/store/auth-store').then(
@@ -181,16 +203,30 @@ export const useCartStore = create<CartState>()(
         set({ loading: true, error: null })
 
         try {
-          if (isAuthenticated && accessToken) {
-            // Authenticated user: load from backend
+          // Import UserRole enum
+          const { UserRole } = await import('@/lib/enums')
+
+          // Debug logging for role detection
+          console.log('[CartStore] loadCart: Checking user role:', {
+            isAuthenticated,
+            hasAccessToken: !!accessToken,
+            userRole: user?.role,
+            userRoleType: typeof user?.role,
+            expectedCustomer: UserRole.CUSTOMER,
+            isCustomer: user?.role === UserRole.CUSTOMER,
+          })
+
+          if (isAuthenticated && accessToken && user?.role === UserRole.CUSTOMER) {
+            // Authenticated customer: load from backend
             const cartData = await cartApi.getCart()
             set({
               items: cartData.items || [],
               totalItems: cartData.totalItems || 0,
               subtotal: cartData.subtotal || 0,
+              appliedPromotion: null, // Always clear promotions when loading cart from backend
               loading: false,
             })
-          } else {
+          } else if (!isAuthenticated) {
             // Guest user: load from localStorage
             const guestItems = getGuestCart()
             set({
@@ -200,6 +236,15 @@ export const useCartStore = create<CartState>()(
                 const price = normalizePrice(item.price)
                 return sum + price * item.quantity
               }, 0),
+              loading: false,
+            })
+          } else {
+            // Authenticated but not customer (admin, manager, staff): use empty cart
+            console.log('[CartStore] loadCart: Non-customer user, using empty cart')
+            set({
+              items: [],
+              totalItems: 0,
+              subtotal: 0,
               loading: false,
             })
           }
@@ -435,6 +480,22 @@ export const useCartStore = create<CartState>()(
       refreshCart: async () => {
         await get().loadCart()
       },
+
+      /**
+       * Set promotion code
+       * Stores the validated promotion in the cart state
+       */
+      setPromotionCode: (promotion: AppliedPromotion | null) => {
+        set({ appliedPromotion: promotion })
+      },
+
+      /**
+       * Clear promotion code
+       * Removes the applied promotion from the cart state
+       */
+      clearPromotionCode: () => {
+        set({ appliedPromotion: null })
+      },
     }),
     {
       name: 'wdp-cart-store',
@@ -445,6 +506,7 @@ export const useCartStore = create<CartState>()(
         totalItems: state.totalItems,
         subtotal: state.subtotal,
         _hydrated: state._hydrated,
+        // Note: appliedPromotion is NOT persisted - it should be cleared after each session
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated()
@@ -523,6 +585,21 @@ export async function saveUserCartToGuestCart(): Promise<void> {
 export function useCart() {
   const store = useCartStore()
 
+  // Calculate discount amount dynamically from applied promotion based on current subtotal
+  // This ensures discount is always correct even if cart contents change
+  let discountAmount = 0
+  if (store.appliedPromotion) {
+    if (store.appliedPromotion.type === 'percentage') {
+      discountAmount = Math.round((store.subtotal * store.appliedPromotion.value) / 100)
+    } else {
+      // Fixed amount discount - cap at subtotal to avoid negative total
+      discountAmount = Math.min(store.appliedPromotion.value, store.subtotal)
+    }
+  }
+
+  // Calculate total after discount
+  const totalAfterDiscount = store.subtotal - discountAmount
+
   return {
     ...store,
     /**
@@ -543,5 +620,33 @@ export function useCart() {
       currency: 'VND',
       maximumFractionDigits: 0,
     }).format(store.subtotal),
+
+    /**
+     * Get discount amount from applied promotion (calculated dynamically)
+     */
+    discountAmount,
+
+    /**
+     * Get formatted discount amount
+     */
+    formattedDiscount: new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(discountAmount),
+
+    /**
+     * Get total after discount
+     */
+    totalAfterDiscount,
+
+    /**
+     * Get formatted total after discount
+     */
+    formattedTotal: new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(totalAfterDiscount),
   }
 }

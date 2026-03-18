@@ -9,29 +9,10 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '../enums/product.enum';
+} from '@eyewear/shared';
 import { ProductVariant, ProductVariantSchema } from './product-variant.schema';
 
 export type ProductDocument = HydratedDocument<Product>;
-
-// Prescription range sub-schema
-@Schema({ _id: false })
-export class PrescriptionRange {
-  @Prop({ type: Number })
-  minSPH?: number;
-
-  @Prop({ type: Number })
-  maxSPH?: number;
-
-  @Prop({ type: Number })
-  minCYL?: number;
-
-  @Prop({ type: Number })
-  maxCYL?: number;
-}
-
-export const PrescriptionRangeSchema =
-  SchemaFactory.createForClass(PrescriptionRange);
 
 @Schema({ timestamps: true })
 export class Product {
@@ -172,15 +153,6 @@ export class Product {
     lowercase: true,
   })
   coatings?: string[];
-
-  @Prop({ type: PrescriptionRangeSchema })
-  suitableForPrescriptionRange?: PrescriptionRange;
-
-  @Prop({
-    type: Boolean,
-    default: false,
-  })
-  isPrescriptionRequired?: boolean;
 
   // Service-specific fields
   @Prop({

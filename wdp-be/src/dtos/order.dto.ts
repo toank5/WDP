@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ORDER_TYPES, ORDER_STATUS } from '../commons/enums/order.enum';
+import { ORDER_TYPES, ORDER_STATUS } from '@eyewear/shared';
 
 /**
  * Shipping address DTO
@@ -129,55 +129,15 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
-}
-
-/**
- * Prescription data DTO (for OD/OS values)
- */
-export class PrescriptionDataDto {
-  @ApiProperty({ example: 62.5, description: 'Pupillary Distance' })
-  @IsNumber()
-  pd: number;
 
   @ApiProperty({
-    example: { right: -2.0, left: -1.5 },
-    description: 'Sphere (OD/OS)',
+    example: 'SUMMER2025',
+    required: false,
+    description: 'Promotion code to apply',
   })
-  @IsObject()
-  sph: {
-    right: number;
-    left: number;
-  };
-
-  @ApiProperty({
-    example: { right: -0.5, left: -0.75 },
-    description: 'Cylinder (OD/OS)',
-  })
-  @IsObject()
-  cyl: {
-    right: number;
-    left: number;
-  };
-
-  @ApiProperty({
-    example: { right: 90, left: 85 },
-    description: 'Axis (OD/OS)',
-  })
-  @IsObject()
-  axis: {
-    right: number;
-    left: number;
-  };
-
-  @ApiProperty({
-    example: { right: 1.0, left: 1.0 },
-    description: 'Addition (OD/OS)',
-  })
-  @IsObject()
-  add: {
-    right: number;
-    left: number;
-  };
+  @IsOptional()
+  @IsString()
+  promotionCode?: string;
 }
 
 /**
@@ -215,7 +175,16 @@ export class OrderItemResponseDto {
   @ApiProperty({ required: false })
   isPreorder?: boolean;
 
-  @ApiProperty({ required: false, enum: ['PENDING_STOCK', 'PARTIALLY_RESERVED', 'READY_TO_FULFILL', 'FULFILLED', 'CANCELED'] })
+  @ApiProperty({
+    required: false,
+    enum: [
+      'PENDING_STOCK',
+      'PARTIALLY_RESERVED',
+      'READY_TO_FULFILL',
+      'FULFILLED',
+      'CANCELED',
+    ],
+  })
   preorderStatus?: string;
 
   @ApiProperty({ required: false })
@@ -223,22 +192,6 @@ export class OrderItemResponseDto {
 
   @ApiProperty({ required: false })
   reservedQuantity?: number;
-
-  // Prescription fields
-  @ApiProperty({ required: false })
-  isPrescription?: boolean;
-
-  @ApiProperty({
-    required: false,
-    enum: ['PENDING_REVIEW', 'NEEDS_UPDATE', 'APPROVED', 'IN_MANUFACTURING', 'READY_TO_SHIP', 'COMPLETED'],
-  })
-  prescriptionStatus?: string;
-
-  @ApiProperty({ required: false, type: PrescriptionDataDto })
-  prescriptionData?: PrescriptionDataDto;
-
-  @ApiProperty({ required: false })
-  prescriptionUrl?: string;
 }
 
 /**
@@ -326,6 +279,21 @@ export class OrderResponseDto {
   @ApiProperty()
   tax: number;
 
+  @ApiProperty({ required: false })
+  comboDiscount?: number;
+
+  @ApiProperty({ required: false })
+  comboId?: string;
+
+  @ApiProperty({ required: false })
+  promotionDiscount?: number;
+
+  @ApiProperty({ required: false })
+  promotionId?: string;
+
+  @ApiProperty({ required: false })
+  promotionCode?: string;
+
   @ApiProperty()
   totalAmount: number;
 
@@ -379,35 +347,6 @@ export class ApproveOrderDto {
 }
 
 /**
- * Approve prescription DTO (Sales staff)
- */
-export class ApprovePrescriptionDto {
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  @IsString()
-  @IsMongoId()
-  itemId: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  note?: string;
-}
-
-/**
- * Request prescription update DTO (Sales staff)
- */
-export class RequestPrescriptionUpdateDto {
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  @IsString()
-  @IsMongoId()
-  itemId: string;
-
-  @ApiProperty({ example: 'PD value is missing or incorrect' })
-  @IsString()
-  message: string;
-}
-
-/**
  * Update manufacturing status DTO (Operations staff)
  */
 export class UpdateManufacturingStatusDto {
@@ -447,7 +386,10 @@ export class OrderListQueryDto {
   @IsEnum(ORDER_STATUS)
   status?: ORDER_STATUS;
 
-  @ApiProperty({ required: false, description: 'Set to true to show all orders regardless of status' })
+  @ApiProperty({
+    required: false,
+    description: 'Set to true to show all orders regardless of status',
+  })
   @IsOptional()
   @IsString()
   showAll?: string;

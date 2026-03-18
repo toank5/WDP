@@ -1,15 +1,17 @@
 {
-  "name": "toan.",
+  "name": "eyewear-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:shared && vite build",
+    "build:shared": "cd ../packages/shared && npm run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@eyewear/shared": "file:../packages/shared",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",
@@ -29,6 +31,7 @@
     "react-hook-form": "^7.71.2",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.12.0",
+    "recharts": "^3.8.0",
     "sonner": "^1.7.2",
     "three": "^0.170.0",
     "zustand": "^4.5.7"

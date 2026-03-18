@@ -1,297 +1,203 @@
 /**
  * Central Enum Definitions for EyeWear Project
  *
- * This file contains all enum definitions used across the frontend application.
- * Import enums from here instead of defining string literals to ensure type safety.
+ * @deprecated Import enums from @eyewear/shared directly
+ * This file re-exports from the shared package for backward compatibility
+ *
+ * Usage:
+ *   import { ORDER_STATUS, USER_ROLES as UserRole } from '@eyewear/shared';
  */
 
 // ============================================================================
-// Order Enums
+// Re-export all enums from shared package
 // ============================================================================
 
-/**
- * Order Type Enumeration
- */
-export enum OrderType {
-  READY = 'READY',
-  PREORDER = 'PREORDER',
-  PRESCRIPTION = 'PRESCRIPTION',
-}
-
-/**
- * Order Status Enumeration
- */
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  PENDING_PAYMENT = 'PENDING_PAYMENT',
-  PAID = 'PAID',
-  ON_HOLD = 'ON_HOLD',
-  PROCESSING = 'PROCESSING',
-  CONFIRMED = 'CONFIRMED',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  RETURNED = 'RETURNED',
-  CANCELLED = 'CANCELLED',
-}
-
-/**
- * Preorder Status Enumeration
- */
-export enum PreorderStatus {
-  PENDING_STOCK = 'PENDING_STOCK',
-  PARTIALLY_RESERVED = 'PARTIALLY_RESERVED',
-  READY_TO_FULFILL = 'READY_TO_FULFILL',
-  FULFILLED = 'FULFILLED',
-  CANCELED = 'CANCELED',
-}
-
-/**
- * Prescription Status Enumeration
- */
-export enum PrescriptionStatus {
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  NEEDS_UPDATE = 'NEEDS_UPDATE',
-  APPROVED = 'APPROVED',
-  IN_MANUFACTURING = 'IN_MANUFACTURING',
-  READY_TO_SHIP = 'READY_TO_SHIP',
-  COMPLETED = 'COMPLETED',
-}
-
-/**
- * Payment Method Enumeration
- */
-export enum PaymentMethod {
-  VNPAY = 'VNPAY',
-  CASH = 'CASH',
-  BANK_TRANSFER = 'BANK_TRANSFER',
-}
-
-/**
- * Payment Status Enumeration
- */
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+export * from '@eyewear/shared';
 
 // ============================================================================
-// User Role Enum
+// Aliases for backward compatibility with frontend naming conventions
 // ============================================================================
 
-/**
- * User Role Enumeration
- */
-export enum UserRole {
-  CUSTOMER = 1,
-  OPERATION = 2,
-  SALE = 3,
-  MANAGER = 4,
-  ADMIN = 5,
-}
+import {
+  ORDER_TYPES,
+  ORDER_STATUS,
+  PREORDER_STATUS,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  SHIPPING_METHOD,
+  SHIPPING_CARRIER,
+  USER_ROLES,
+} from '@eyewear/shared';
+
+// Frontend uses PascalCase for enum names
+export { ORDER_TYPES as OrderType };
+export { ORDER_STATUS as OrderStatus };
+export { PREORDER_STATUS as PreorderStatus };
+export { PAYMENT_METHOD as PaymentMethod };
+export { PAYMENT_STATUS as PaymentStatus };
+export { SHIPPING_METHOD as ShippingMethod };
+export { SHIPPING_CARRIER as ShippingCarrier };
+// UserRole is already exported as alias from shared package
+
+// ============================================================================
+// UI-specific helpers (these stay in frontend as they are UI-only)
+// ============================================================================
 
 /**
  * User Role Display Names
  */
-export const UserRoleLabels: Record<UserRole, string> = {
-  [UserRole.CUSTOMER]: 'Customer',
-  [UserRole.OPERATION]: 'Operations Staff',
-  [UserRole.SALE]: 'Sales Staff',
-  [UserRole.MANAGER]: 'Manager',
-  [UserRole.ADMIN]: 'Administrator',
-}
-
-// ============================================================================
-// Order Status Mappings
-// ============================================================================
+export const UserRoleLabels: Record<USER_ROLES, string> = {
+  [USER_ROLES.CUSTOMER]: 'Customer',
+  [USER_ROLES.OPERATION]: 'Operations Staff',
+  [USER_ROLES.SALE]: 'Sales Staff',
+  [USER_ROLES.MANAGER]: 'Manager',
+  [USER_ROLES.ADMIN]: 'Administrator',
+};
 
 /**
  * Order Status Display Labels
  */
-export const OrderStatusLabel: Record<OrderStatus, string> = {
-  [OrderStatus.PENDING]: 'Pending',
-  [OrderStatus.PENDING_PAYMENT]: 'Pending Payment',
-  [OrderStatus.PAID]: 'Paid',
-  [OrderStatus.ON_HOLD]: 'On Hold',
-  [OrderStatus.PROCESSING]: 'Processing',
-  [OrderStatus.CONFIRMED]: 'Confirmed',
-  [OrderStatus.SHIPPED]: 'Shipped',
-  [OrderStatus.DELIVERED]: 'Delivered',
-  [OrderStatus.RETURNED]: 'Returned',
-  [OrderStatus.CANCELLED]: 'Cancelled',
-}
+export const OrderStatusLabel: Record<ORDER_STATUS, string> = {
+  [ORDER_STATUS.PENDING]: 'Pending',
+  [ORDER_STATUS.PENDING_PAYMENT]: 'Pending Payment',
+  [ORDER_STATUS.PAID]: 'Paid',
+  [ORDER_STATUS.ON_HOLD]: 'On Hold',
+  [ORDER_STATUS.PROCESSING]: 'Processing',
+  [ORDER_STATUS.CONFIRMED]: 'Confirmed',
+  [ORDER_STATUS.SHIPPED]: 'Shipped',
+  [ORDER_STATUS.DELIVERED]: 'Delivered',
+  [ORDER_STATUS.RETURNED]: 'Returned',
+  [ORDER_STATUS.CANCELLED]: 'Cancelled',
+};
 
 /**
  * Order Status Color Mapping for UI
  */
-export const OrderStatusColor: Record<OrderStatus, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
-  [OrderStatus.PENDING]: 'default',
-  [OrderStatus.PENDING_PAYMENT]: 'warning',
-  [OrderStatus.PAID]: 'info',
-  [OrderStatus.ON_HOLD]: 'warning',
-  [OrderStatus.PROCESSING]: 'info',
-  [OrderStatus.CONFIRMED]: 'info',
-  [OrderStatus.SHIPPED]: 'warning',
-  [OrderStatus.DELIVERED]: 'success',
-  [OrderStatus.RETURNED]: 'error',
-  [OrderStatus.CANCELLED]: 'error',
-}
+export const OrderStatusColor: Record<ORDER_STATUS, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
+  [ORDER_STATUS.PENDING]: 'default',
+  [ORDER_STATUS.PENDING_PAYMENT]: 'warning',
+  [ORDER_STATUS.PAID]: 'info',
+  [ORDER_STATUS.ON_HOLD]: 'warning',
+  [ORDER_STATUS.PROCESSING]: 'info',
+  [ORDER_STATUS.CONFIRMED]: 'info',
+  [ORDER_STATUS.SHIPPED]: 'warning',
+  [ORDER_STATUS.DELIVERED]: 'success',
+  [ORDER_STATUS.RETURNED]: 'error',
+  [ORDER_STATUS.CANCELLED]: 'error',
+};
 
 /**
  * Valid Order Status Transitions
  * Key = current status, Value = array of allowed next statuses
  */
-export const OrderStatusTransitions: Record<OrderStatus, OrderStatus[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.PENDING_PAYMENT],
-  [OrderStatus.PENDING_PAYMENT]: [OrderStatus.PAID, OrderStatus.CANCELLED],
-  [OrderStatus.PAID]: [OrderStatus.PROCESSING, OrderStatus.ON_HOLD, OrderStatus.CANCELLED],
-  [OrderStatus.ON_HOLD]: [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-  [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-  [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.SHIPPED],
-  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
-  [OrderStatus.DELIVERED]: [],
-  [OrderStatus.RETURNED]: [],
-  [OrderStatus.CANCELLED]: [],
-}
+export const OrderStatusTransitions: Record<ORDER_STATUS, ORDER_STATUS[]> = {
+  [ORDER_STATUS.PENDING]: [ORDER_STATUS.PENDING_PAYMENT],
+  [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.PAID, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PAID]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.ON_HOLD, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.ON_HOLD]: [ORDER_STATUS.PAID, ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.SHIPPED],
+  [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
+  [ORDER_STATUS.DELIVERED]: [],
+  [ORDER_STATUS.RETURNED]: [],
+  [ORDER_STATUS.CANCELLED]: [],
+};
 
 /**
  * Check if a status transition is valid
  */
 export function isValidStatusTransition(
-  currentStatus: OrderStatus,
-  newStatus: OrderStatus
+  currentStatus: ORDER_STATUS,
+  newStatus: ORDER_STATUS,
 ): boolean {
-  const allowedTransitions = OrderStatusTransitions[currentStatus]
-  return allowedTransitions.includes(newStatus)
+  const allowedTransitions = OrderStatusTransitions[currentStatus];
+  return allowedTransitions.includes(newStatus);
 }
-
-// ============================================================================
-// Preorder Status Mappings
-// ============================================================================
 
 /**
  * Preorder Status Display Labels
  */
-export const PreorderStatusLabel: Record<PreorderStatus, string> = {
-  [PreorderStatus.PENDING_STOCK]: 'Pending Stock',
-  [PreorderStatus.PARTIALLY_RESERVED]: 'Partially Reserved',
-  [PreorderStatus.READY_TO_FULFILL]: 'Ready to Fulfill',
-  [PreorderStatus.FULFILLED]: 'Fulfilled',
-  [PreorderStatus.CANCELED]: 'Canceled',
-}
+export const PreorderStatusLabel: Record<PREORDER_STATUS, string> = {
+  [PREORDER_STATUS.PENDING_STOCK]: 'Pending Stock',
+  [PREORDER_STATUS.PARTIALLY_RESERVED]: 'Partially Reserved',
+  [PREORDER_STATUS.READY_TO_FULFILL]: 'Ready to Fulfill',
+  [PREORDER_STATUS.FULFILLED]: 'Fulfilled',
+  [PREORDER_STATUS.CANCELED]: 'Canceled',
+};
 
 /**
  * Preorder Status Color Mapping for UI
  */
-export const PreorderStatusColor: Record<PreorderStatus, 'success' | 'info' | 'warning' | 'error'> = {
-  [PreorderStatus.PENDING_STOCK]: 'warning',
-  [PreorderStatus.PARTIALLY_RESERVED]: 'warning',
-  [PreorderStatus.READY_TO_FULFILL]: 'success',
-  [PreorderStatus.FULFILLED]: 'success',
-  [PreorderStatus.CANCELED]: 'error',
-}
+export const PreorderStatusColor: Record<PREORDER_STATUS, 'success' | 'info' | 'warning' | 'error'> = {
+  [PREORDER_STATUS.PENDING_STOCK]: 'warning',
+  [PREORDER_STATUS.PARTIALLY_RESERVED]: 'warning',
+  [PREORDER_STATUS.READY_TO_FULFILL]: 'success',
+  [PREORDER_STATUS.FULFILLED]: 'success',
+  [PREORDER_STATUS.CANCELED]: 'error',
+};
 
 /**
  * Preorder statuses that indicate the item is waiting for stock
  */
-export const WAITING_PREORDER_STATUSES = new Set<PreorderStatus>([
-  PreorderStatus.PENDING_STOCK,
-  PreorderStatus.PARTIALLY_RESERVED,
-])
+export const WAITING_PREORDER_STATUSES = new Set<PREORDER_STATUS>([
+  PREORDER_STATUS.PENDING_STOCK,
+  PREORDER_STATUS.PARTIALLY_RESERVED,
+]);
 
 /**
  * Type guard for waiting preorder status
  */
-export function isWaitingPreorderStatus(status: string | undefined): status is PreorderStatus {
-  return status !== undefined && WAITING_PREORDER_STATUSES.has(status as PreorderStatus)
+export function isWaitingPreorderStatus(status: string | undefined): status is PREORDER_STATUS {
+  return status !== undefined && WAITING_PREORDER_STATUSES.has(status as PREORDER_STATUS);
 }
-
-// ============================================================================
-// Prescription Status Mappings
-// ============================================================================
-
-/**
- * Prescription Status Display Labels
- */
-export const PrescriptionStatusLabel: Record<PrescriptionStatus, string> = {
-  [PrescriptionStatus.PENDING_REVIEW]: 'Pending Review',
-  [PrescriptionStatus.NEEDS_UPDATE]: 'Needs Update',
-  [PrescriptionStatus.APPROVED]: 'Approved',
-  [PrescriptionStatus.IN_MANUFACTURING]: 'In Manufacturing',
-  [PrescriptionStatus.READY_TO_SHIP]: 'Ready to Ship',
-  [PrescriptionStatus.COMPLETED]: 'Completed',
-}
-
-/**
- * Prescription Status Color Mapping for UI
- */
-export const PrescriptionStatusColor: Record<PrescriptionStatus, 'success' | 'info' | 'warning' | 'error'> = {
-  [PrescriptionStatus.PENDING_REVIEW]: 'warning',
-  [PrescriptionStatus.NEEDS_UPDATE]: 'error',
-  [PrescriptionStatus.APPROVED]: 'success',
-  [PrescriptionStatus.IN_MANUFACTURING]: 'info',
-  [PrescriptionStatus.READY_TO_SHIP]: 'success',
-  [PrescriptionStatus.COMPLETED]: 'success',
-}
-
-// ============================================================================
-// Payment Method Mappings
-// ============================================================================
 
 /**
  * Payment Method Display Labels
  */
-export const PaymentMethodLabel: Record<PaymentMethod, string> = {
-  [PaymentMethod.VNPAY]: 'VNPay',
-  [PaymentMethod.CASH]: 'Cash on Delivery',
-  [PaymentMethod.BANK_TRANSFER]: 'Bank Transfer',
-}
+export const PaymentMethodLabel: Record<PAYMENT_METHOD, string> = {
+  [PAYMENT_METHOD.VNPAY]: 'VNPay',
+  [PAYMENT_METHOD.CASH]: 'Cash on Delivery',
+  [PAYMENT_METHOD.BANK_TRANSFER]: 'Bank Transfer',
+  [PAYMENT_METHOD.CARD]: 'Credit/Debit Card',
+  [PAYMENT_METHOD.MOMO]: 'MoMo Wallet',
+  [PAYMENT_METHOD.ZALO_PAY]: 'ZaloPay',
+};
 
 /**
  * Payment Method Icons (emoji for quick reference)
  */
-export const PaymentMethodIcon: Record<PaymentMethod, string> = {
-  [PaymentMethod.VNPAY]: '💳',
-  [PaymentMethod.CASH]: '💵',
-  [PaymentMethod.BANK_TRANSFER]: '🏦',
-}
-
-// ============================================================================
-// Shipping Enums
-// ============================================================================
-
-/**
- * Shipping Method Enumeration
- */
-export enum ShippingMethod {
-  STANDARD = 'STANDARD',
-  EXPRESS = 'EXPRESS',
-}
+export const PaymentMethodIcon: Record<PAYMENT_METHOD, string> = {
+  [PAYMENT_METHOD.VNPAY]: '💳',
+  [PAYMENT_METHOD.CASH]: '💵',
+  [PAYMENT_METHOD.BANK_TRANSFER]: '🏦',
+  [PAYMENT_METHOD.CARD]: '💳',
+  [PAYMENT_METHOD.MOMO]: '📱',
+  [PAYMENT_METHOD.ZALO_PAY]: '📱',
+};
 
 /**
  * Shipping Method Display Labels
  */
-export const ShippingMethodLabel: Record<ShippingMethod, string> = {
-  [ShippingMethod.STANDARD]: 'Standard Delivery',
-  [ShippingMethod.EXPRESS]: 'Express Delivery',
-}
+export const ShippingMethodLabel: Record<SHIPPING_METHOD, string> = {
+  [SHIPPING_METHOD.STANDARD]: 'Standard Delivery',
+  [SHIPPING_METHOD.EXPRESS]: 'Express Delivery',
+};
 
 /**
  * Shipping Method Fees
  */
-export const ShippingMethodFee: Record<ShippingMethod, number> = {
-  [ShippingMethod.STANDARD]: 30000,
-  [ShippingMethod.EXPRESS]: 50000,
-}
+export const ShippingMethodFee: Record<SHIPPING_METHOD, number> = {
+  [SHIPPING_METHOD.STANDARD]: 30000,
+  [SHIPPING_METHOD.EXPRESS]: 50000,
+};
 
 /**
  * Shipping Method Estimated Days
  */
-export const ShippingMethodDays: Record<ShippingMethod, string> = {
-  [ShippingMethod.STANDARD]: '3-5 business days',
-  [ShippingMethod.EXPRESS]: '1-2 business days',
-}
+export const ShippingMethodDays: Record<SHIPPING_METHOD, string> = {
+  [SHIPPING_METHOD.STANDARD]: '3-5 business days',
+  [SHIPPING_METHOD.EXPRESS]: '1-2 business days',
+};
 
 // ============================================================================
 // Type Guards for Enums
@@ -300,66 +206,58 @@ export const ShippingMethodDays: Record<ShippingMethod, string> = {
 /**
  * Type guard for OrderType
  */
-export function isOrderType(value: unknown): value is OrderType {
-  return typeof value === 'string' && Object.values(OrderType).includes(value as OrderType)
+export function isOrderType(value: unknown): value is ORDER_TYPES {
+  return typeof value === 'string' && Object.values(ORDER_TYPES).includes(value as ORDER_TYPES);
 }
 
 /**
  * Type guard for OrderStatus
  */
-export function isOrderStatus(value: unknown): value is OrderStatus {
-  return typeof value === 'string' && Object.values(OrderStatus).includes(value as OrderStatus)
+export function isOrderStatus(value: unknown): value is ORDER_STATUS {
+  return typeof value === 'string' && Object.values(ORDER_STATUS).includes(value as ORDER_STATUS);
 }
 
 /**
  * Type guard for PreorderStatus
  */
-export function isPreorderStatus(value: unknown): value is PreorderStatus {
-  return typeof value === 'string' && Object.values(PreorderStatus).includes(value as PreorderStatus)
-}
-
-/**
- * Type guard for PrescriptionStatus
- */
-export function isPrescriptionStatus(value: unknown): value is PrescriptionStatus {
-  return typeof value === 'string' && Object.values(PrescriptionStatus).includes(value as PrescriptionStatus)
+export function isPreorderStatus(value: unknown): value is PREORDER_STATUS {
+  return typeof value === 'string' && Object.values(PREORDER_STATUS).includes(value as PREORDER_STATUS);
 }
 
 /**
  * Type guard for PaymentMethod
  */
-export function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return typeof value === 'string' && Object.values(PaymentMethod).includes(value as PaymentMethod)
+export function isPaymentMethod(value: unknown): value is PAYMENT_METHOD {
+  return typeof value === 'string' && Object.values(PAYMENT_METHOD).includes(value as PAYMENT_METHOD);
 }
 
 /**
  * Type guard for UserRole
  */
-export function isUserRole(value: unknown): value is UserRole {
-  return typeof value === 'number' && Object.values(UserRole).includes(value as UserRole)
+export function isUserRole(value: unknown): value is USER_ROLES {
+  return typeof value === 'string' && Object.values(USER_ROLES).includes(value as USER_ROLES);
 }
 
 /**
  * Type guard for ShippingMethod
  */
-export function isShippingMethod(value: unknown): value is ShippingMethod {
-  return typeof value === 'string' && Object.values(ShippingMethod).includes(value as ShippingMethod)
+export function isShippingMethod(value: unknown): value is SHIPPING_METHOD {
+  return typeof value === 'string' && Object.values(SHIPPING_METHOD).includes(value as SHIPPING_METHOD);
 }
 
 // ============================================================================
-// Export all enums and utilities
+// Export all enums and utilities for convenience
 // ============================================================================
 
 export const Enums = {
-  // Enums
-  OrderType,
-  OrderStatus,
-  PreorderStatus,
-  PrescriptionStatus,
-  PaymentMethod,
-  PaymentStatus,
-  UserRole,
-  ShippingMethod,
+  // Enums (use SCREAMING_CASE from shared package)
+  OrderType: ORDER_TYPES,
+  OrderStatus: ORDER_STATUS,
+  PreorderStatus: PREORDER_STATUS,
+  PaymentMethod: PAYMENT_METHOD,
+  PaymentStatus: PAYMENT_STATUS,
+  UserRole: USER_ROLES,
+  ShippingMethod: SHIPPING_METHOD,
 
   // Labels
   UserRoleLabels,
@@ -367,8 +265,6 @@ export const Enums = {
   OrderStatusColor,
   PreorderStatusLabel,
   PreorderStatusColor,
-  PrescriptionStatusLabel,
-  PrescriptionStatusColor,
   PaymentMethodLabel,
   PaymentMethodIcon,
   ShippingMethodLabel,
@@ -379,7 +275,6 @@ export const Enums = {
   isOrderType,
   isOrderStatus,
   isPreorderStatus,
-  isPrescriptionStatus,
   isPaymentMethod,
   isUserRole,
   isShippingMethod,
@@ -388,4 +283,4 @@ export const Enums = {
 
   // Sets
   WAITING_PREORDER_STATUSES,
-}
+};

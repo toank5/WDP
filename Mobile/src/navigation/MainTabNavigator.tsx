@@ -1,23 +1,17 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { useTheme, IconButton } from 'react-native-paper'
+import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'
-import { StoreScreen } from '../screens/store/StoreScreen'
-import { CartScreen } from '../screens/cart/CartScreen'
-import { AccountScreen } from '../screens/account/AccountScreen'
-
-// Placeholder screens - will be implemented in later commits
-const SearchScreen = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>Tính năng tìm kiếm sẽ có sớm!</Text>
-  </View>
-)
+import { HomeScreen, SearchScreen, CartScreen, AccountScreen } from '../screens'
+import { useCartStore } from '../store/cart-store'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
 
 export const MainTabNavigator = () => {
   const theme = useTheme()
+  const cart = useCartStore()
+  const cartCount = cart.totalItems || 0
 
   return (
     <Tab.Navigator
@@ -40,7 +34,7 @@ export const MainTabNavigator = () => {
     >
       <Tab.Screen
         name="HomeTab"
-        component={StoreScreen}
+        component={HomeScreen}
         options={{
           tabBarLabel: 'Cửa hàng',
           tabBarIcon: ({ color, size }) => (
@@ -64,7 +58,17 @@ export const MainTabNavigator = () => {
         options={{
           tabBarLabel: 'Giỏ hàng',
           tabBarIcon: ({ color, size }) => (
-            <IconButton icon="cart" size={size} iconColor={color} />
+            <View>
+              <IconButton icon="cart" size={size} iconColor={color} />
+              {cartCount > 0 && (
+                <Badge
+                  style={styles.cartBadge}
+                  size={20}
+                >
+                  {cartCount > 99 ? '99+' : cartCount}
+                </Badge>
+              )}
+            </View>
           ),
         }}
       />
@@ -83,15 +87,9 @@ export const MainTabNavigator = () => {
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  placeholderText: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.6,
+  cartBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
   },
 })

@@ -39,6 +39,7 @@ import {
 } from '../commons/guards/rbac.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
+import { MovementType } from '../commons/schemas/inventory-movement.schema';
 
 // Roles that can access inventory endpoints (Operation, Manager, Admin)
 export const INVENTORY_ACCESS_ROLES = [
@@ -818,9 +819,17 @@ export class InventoryController {
     @Query('offset') offset?: string,
   ) {
     try {
+      const parsedMovementType = movementType
+        ? (Object.values(MovementType).includes(
+            movementType as MovementType,
+          )
+            ? (movementType as MovementType)
+            : undefined)
+        : undefined;
+
       const result = await this.inventoryService.getAllMovements({
         sku,
-        movementType: movementType as any,
+        movementType: parsedMovementType,
         supplierId,
         limit: limit ? parseInt(limit, 10) : 50,
         offset: offset ? parseInt(offset, 10) : 0,

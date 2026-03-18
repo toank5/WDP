@@ -14,9 +14,9 @@ import {
   FiClock,
   FiEye,
 } from 'react-icons/fi'
-import { cartApi, CartResponse, CartItem, normalizeCartItemPrice } from '@/lib/cart-api'
-import { useCartStore } from '@/store/cart.store'
-import { orderApi, CheckoutRequest, OrderType, PaymentMethod } from '@/lib/order-api'
+import { cartApi, normalizeCartItemPrice } from '@/lib/cart-api'
+import { useCart, useCartStore } from '@/store/cart.store'
+import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
 
@@ -114,10 +114,14 @@ type CheckoutStep = 'address' | 'payment' | 'review'
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address')
-  const [cart, setCart] = useState<CartResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Use useCart() hook for reactive cart state and dynamic discount calculation
+  const cartState = useCart()
+  // Destructure what we need
+  const { items, totalItems, subtotal, appliedPromotion, discountAmount, totalAfterDiscount } = cartState
 
   // Form state
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -157,29 +161,69 @@ const CheckoutPage: React.FC = () => {
       // and loads the cart from the appropriate source
       const cartStore = useCartStore.getState()
 
-      // Ensure cart is loaded
-      if (cartStore.items.length === 0 && !cartStore._hydrated) {
-        await cartStore.loadCart()
+      // Log initial state before load
+      console.log('[CheckoutPage] Initial cart state:', {
+        itemsCount: cartStore.items.length,
+        appliedPromotion: cartStore.appliedPromotion,
+        _hydrated: cartStore._hydrated,
+      })
+
+      // Check for guest cart items that need to be synced to database
+      const guestCartKey = 'guest_cart'
+      const guestCartData = localStorage.getItem(guestCartKey)
+      const hasGuestCart = guestCartData && JSON.parse(guestCartData).length > 0
+
+      if (hasGuestCart) {
+        console.log('[CheckoutPage] Found guest cart, migrating to user cart...')
+        // Import migrateGuestCartToUserCart dynamically to avoid circular deps
+        const { migrateGuestCartToUserCart } = await import('@/store/cart.store')
+        await migrateGuestCartToUserCart()
+        console.log('[CheckoutPage] Guest cart migration complete')
       }
 
-      // Get updated cart data
-      const updatedCartStore = useCartStore.getState()
-      const cartData: CartResponse = {
-        _id: '',
-        customerId: '',
-        items: updatedCartStore.items,
-        totalItems: updatedCartStore.totalItems,
-        subtotal: updatedCartStore.subtotal,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      // Force reload cart from database to get authoritative state
+      // This ensures we have the latest cart state from the server
+      await cartStore.loadCart()
+
+      // Wait for hydration if not already hydrated
+      let attempts = 0
+      let currentStore = useCartStore.getState()
+      while (!currentStore._hydrated && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+        currentStore = useCartStore.getState()
+        attempts++
       }
 
-      if (!cartData || cartData.items.length === 0) {
+      // Log the state for debugging after load and hydration
+      console.log('[CheckoutPage] Cart state after load:', {
+        items: currentStore.items.length,
+        appliedPromotion: currentStore.appliedPromotion,
+        promotionCode: currentStore.appliedPromotion?.code,
+        promotionType: currentStore.appliedPromotion?.type,
+        promotionValue: currentStore.appliedPromotion?.value,
+        _hydrated: currentStore._hydrated,
+        localStorageRaw: localStorage.getItem('wdp-cart-store'),
+      })
+
+      // Also check raw localStorage for debugging
+      try {
+        const rawStore = localStorage.getItem('wdp-cart-store')
+        if (rawStore) {
+          const parsed = JSON.parse(rawStore)
+          console.log('[CheckoutPage] Raw localStorage data:', {
+            hasAppliedPromotion: !!parsed.state?.appliedPromotion,
+            appliedPromotion: parsed.state?.appliedPromotion,
+          })
+        }
+      } catch (e) {
+        console.error('[CheckoutPage] Failed to parse localStorage:', e)
+      }
+
+      // Check if cart is empty
+      if (currentStore.items.length === 0) {
         navigate('/cart')
         return
       }
-
-      setCart(cartData)
     } catch (err) {
       console.error('Failed to load cart:', err)
       setError('Failed to load cart. Please try again.')
@@ -228,8 +272,9 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handlePlaceOrder = async () => {
-    if (!cart) {
-      console.error('No cart found')
+    // Cart is now from the store, check if items exist
+    if (items.length === 0) {
+      console.error('No cart items found')
       return
     }
 
@@ -237,29 +282,74 @@ const CheckoutPage: React.FC = () => {
     setError(null)
 
     try {
+      // Get fresh cart state at checkout time to ensure we have the latest promotion
+      const cartStore = useCartStore.getState()
+      const currentAppliedPromotion = cartStore.appliedPromotion
+
+      console.log('[CheckoutPage] === PRE-CHECKOUT STATE ===')
+      console.log('[CheckoutPage] Cart store state:', {
+        itemsCount: cartStore.items.length,
+        subtotal: cartStore.subtotal,
+        appliedPromotion: cartStore.appliedPromotion,
+        _hydrated: cartStore._hydrated,
+      })
+      console.log('[CheckoutPage] Applied promotion details:', {
+        code: currentAppliedPromotion?.code,
+        name: currentAppliedPromotion?.name,
+        type: currentAppliedPromotion?.type,
+        value: currentAppliedPromotion?.value,
+        discountAmount: currentAppliedPromotion?.discountAmount,
+      })
+      console.log('[CheckoutPage] Dynamic discount from useCart():', {
+        discountAmount: cartState.discountAmount,
+        totalAfterDiscount: cartState.totalAfterDiscount,
+      })
+
       const checkoutRequest: CheckoutRequest = {
-        items: cart.items.map((item) => ({
+        items: items.map((item) => ({
           productId: item.productId,
           variantSku: item.variantSku,
           quantity: item.quantity,
           priceAtOrder: normalizeCartItemPrice(item),
         })),
         shippingAddress,
-        shippingMethod: 'STANDARD', // Default shipping method
+        shippingMethod: ShippingMethod.STANDARD, // Default shipping method
         payment: {
           method: paymentMethod,
         },
         orderType,
         notes: notes.trim() || undefined,
+        promotionCode: currentAppliedPromotion?.code,
       }
+
+      // Debug: Log checkout request
+      console.log('[CheckoutPage] === SENDING CHECKOUT REQUEST ===')
+      console.log('[CheckoutPage] Full request:', checkoutRequest)
+      console.log('[CheckoutPage] Promotion code in request:', checkoutRequest.promotionCode)
 
       const response = await orderApi.checkout(checkoutRequest)
 
+      // Debug: Log response
+      console.log('[CheckoutPage] === CHECKOUT RESPONSE ===')
+      console.log('[CheckoutPage] Full response:', response)
+      console.log('[CheckoutPage] Order promotion details:', {
+        orderId: response.order._id,
+        promotionId: response.order.promotionId,
+        promotionCode: response.order.promotionCode,
+        promotionDiscount: response.order.promotionDiscount,
+        totalAmount: response.order.totalAmount,
+        subtotal: response.order.subtotal,
+      })
+
       // If VNPAY, redirect to payment
       if (response.paymentUrl) {
+        // Clear promotion before redirecting to payment
+        useCartStore.getState().clearPromotionCode()
         window.location.href = response.paymentUrl
       } else {
         // No payment URL, go to order success directly
+        // Clear promotion before navigating to success page
+        useCartStore.getState().clearPromotionCode()
         navigate(`/order-success/${response.order._id}`)
       }
     } catch (err) {
@@ -278,7 +368,8 @@ const CheckoutPage: React.FC = () => {
     )
   }
 
-  if (!cart) {
+  // Cart is now from the store - check if items exist
+  if (items.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -295,9 +386,10 @@ const CheckoutPage: React.FC = () => {
     )
   }
 
-  const subtotal = cart.subtotal || 0
   const shippingFee = calculateShippingFee()
-  const total = subtotal + shippingFee
+  // Use the dynamically calculated discount from useCart() hook
+  // This automatically recalculates based on promotion type (percentage or fixed)
+  const total = totalAfterDiscount + shippingFee
 
   // Step indicator
   const steps: { key: CheckoutStep; label: string; icon: React.ReactNode }[] = [
@@ -577,7 +669,7 @@ const CheckoutPage: React.FC = () => {
 
                   <div className="flex justify-between pt-4">
                     <button
-                      onClick={() => setCurrentStep('shipping')}
+                      onClick={() => setCurrentStep('address')}
                       className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors"
                     >
                       Back
@@ -599,15 +691,14 @@ const CheckoutPage: React.FC = () => {
                 {/* Order Items - Detailed List */}
                 <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
                   <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
-                    <h2 className="text-lg font-bold text-slate-900">Order Items ({cart.items.length})</h2>
+                    <h2 className="text-lg font-bold text-slate-900">Order Items ({items.length})</h2>
                   </div>
                   <div className="divide-y divide-slate-200">
-                    {cart.items.map((item) => {
+                    {items.map((item) => {
                       // Get the actual price value using type-safe normalization
                       const itemPrice = normalizeCartItemPrice(item)
                       const lineTotal = itemPrice * item.quantity
                       const isPreorder = item.variantDetails?.isPreorder || false
-                      const isPrescription = item.variantDetails?.isPrescription || false
 
                       return (
                         <div key={item._id} className="p-6">
@@ -639,12 +730,6 @@ const CheckoutPage: React.FC = () => {
                                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
                                         <FiClock size={12} />
                                         Pre-order
-                                      </span>
-                                    )}
-                                    {isPrescription && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
-                                        <FiEye size={12} />
-                                        Custom Lens
                                       </span>
                                     )}
                                   </div>
@@ -774,9 +859,17 @@ const CheckoutPage: React.FC = () => {
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span className="uppercase">Subtotal ({cart.totalItems} items)</span>
+                  <span className="uppercase">Subtotal ({totalItems} items)</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {appliedPromotion && (
+                  <div className="flex justify-between text-xs font-semibold text-green-600">
+                    <span className="uppercase">
+                      Discount ({appliedPromotion.code})
+                    </span>
+                    <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
                   <span className="text-green-600 font-medium">Free</span>

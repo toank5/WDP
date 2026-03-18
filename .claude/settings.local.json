@@ -11,7 +11,20 @@
       "Bash(curl -s http://localhost:8386/)",
       "Bash(curl -s http://localhost:8386/reviews/product/123)",
       "Read(//c/Users/lapto/.claude/projects/d--Code-Project-WDP/**)",
-      "Bash(npm install date-fns)"
+      "Bash(npm install date-fns)",
+      "Bash(npx tsc:*)",
+      "Bash(node fix-promotion.js)",
+      "Bash(node -e \":*)",
+      "Bash(curl -s http://localhost:8386/health)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8386)",
+      "Bash(npm install:*)",
+      "Bash(curl -s http://localhost:3001/manager/revenue/overview)",
+      "Read(//d/Code/Project/WP/FE/**)"
+    ],
+    "additionalDirectories": [
+      "d:\\Code\\Project\\WDP\\packages\\shared\\src",
+      "d:\\Code\\Project\\FE\\src\\lib"
     ]
   }
 }

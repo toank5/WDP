@@ -1,0 +1,13 @@
+{
+  "name": "eyewear-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "FE"
+  ],
+  "scripts": {
+    "build:shared": "cd packages/shared && npm run build",
+    "build:fe": "cd FE && npm run build"
+  }
+}

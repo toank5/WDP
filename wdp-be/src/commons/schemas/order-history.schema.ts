@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { ORDER_STATUS } from '../enums/order.enum';
+import { ORDER_STATUS } from '@eyewear/shared';
 
 @Schema({ _id: false })
 export class OrderHistory {

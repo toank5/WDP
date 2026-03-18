@@ -4,7 +4,6 @@ import {
   Container,
   Typography,
   Stack,
-  Grid,
   Card,
   CardContent,
   TextField,
@@ -19,6 +18,7 @@ import {
   Divider,
   useTheme,
   Paper,
+  Grid,
 } from '@mui/material'
 import {
   LocationOn,
@@ -244,7 +244,7 @@ export default function ContactPage() {
       <Container maxWidth="lg" sx={{ mt: { xs: -8, md: -12 }, position: 'relative', zIndex: 2, mb: 8 }}>
         <Grid container spacing={4}>
           {/* Contact Information */}
-          <Grid item xs={12} lg={5}>
+          <Grid size={{ xs: 12, lg: 5 }}>
             <Stack spacing={3}>
               <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 3 }}>
                 <Stack spacing={4}>
@@ -340,7 +340,7 @@ export default function ContactPage() {
           </Grid>
 
           {/* Contact Form */}
-          <Grid item xs={12} lg={7}>
+          <Grid size={{ xs: 12, lg: 7 }}>
             <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 3, height: '100%' }}>
               <Stack spacing={3}>
                 <Box>
@@ -358,7 +358,7 @@ export default function ContactPage() {
                   <Stack spacing={3}>
                     {/* Name & Email */}
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           label="Full Name"
@@ -371,7 +371,7 @@ export default function ContactPage() {
                           required
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           label="Email Address"

@@ -31,14 +31,13 @@ export type RootStackParamList = {
   Main: undefined
   ProductDetail: { slug: string; productId: string }
   ProductList: { category?: string }
+  Cart: undefined
   Checkout: undefined
   CheckoutAddress: undefined
   CheckoutPayment: undefined
   CheckoutReview: undefined
   OrderDetail: { orderId: string }
   OrderHistory: undefined
-  PrescriptionDetail: { prescriptionId: string }
-  PrescriptionList: undefined
   AddressManagement: undefined
   AddressForm: { addressId?: string }
   ProfileSettings: undefined

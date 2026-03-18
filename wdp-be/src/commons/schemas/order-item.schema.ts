@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { PREORDER_STATUS } from '../enums/preorder.enum';
-import { PRESCRIPTION_STATUS } from '../enums/order.enum';
-import { OrderPrescriptionSchema } from './order-prescription.schema';
+import { PREORDER_STATUS } from '@eyewear/shared';
 
 @Schema({ _id: false })
 export class OrderItem {
@@ -13,7 +11,7 @@ export class OrderItem {
   productId: mongoose.Types.ObjectId;
 
   @Prop()
-  variantSku: string;
+  variantSku?: string;
 
   @Prop()
   quantity: number;
@@ -47,37 +45,25 @@ export class OrderItem {
   })
   reservedQuantity?: number; // How much has been reserved from incoming stock
 
-  // Prescription fields
-  @Prop({
-    type: Boolean,
-    default: false,
-  })
-  isPrescription: boolean;
-
-  @Prop({
-    type: String,
-    enum: PRESCRIPTION_STATUS,
-    default: null,
-  })
-  prescriptionStatus?: PRESCRIPTION_STATUS;
-
-  @Prop({
-    type: OrderPrescriptionSchema,
-    default: null,
-  })
-  prescriptionData?: {
-    pd: number;
-    sph: { right: number; left: number };
-    cyl: { right: number; left: number };
-    axis: { right: number; left: number };
-    add: { right: number; left: number };
-  };
-
+  // Manufacturing proof fields (for the actual glasses being made)
   @Prop({
     type: String,
     default: null,
   })
-  prescriptionUrl?: string; // URL to uploaded prescription image
+  manufacturingProofUrl?: string;
+
+  @Prop({
+    type: String,
+    enum: ['PENDING', 'COMPLETED', 'FAILED'],
+    default: 'PENDING',
+  })
+  manufacturingStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  manufacturedAt?: Date;
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
