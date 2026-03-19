@@ -71,3 +71,18 @@ export {
 
 // Wishlist API
 export { getWishlist, addToWishlist, removeFromWishlist } from './wishlist-api'
+
+// User API
+export {
+  getMyProfile,
+  updateMyProfile,
+  getMyPreferences,
+  updateMyPreferences,
+  changePassword,
+  deleteMyAccount,
+  type UserProfile,
+  type UpdateProfileRequest,
+  type ChangePasswordRequest,
+  type UserPreferences,
+  type UpdatePreferencesRequest,
+} from './user-api'

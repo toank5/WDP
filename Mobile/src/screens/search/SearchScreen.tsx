@@ -40,8 +40,12 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
-// Categories
-const CATEGORIES: ProductCategory[] = ['frame', 'lens', 'service']
+// Categories - Synced with FE (Frames, Lenses, Services)
+const CATEGORIES: Array<{ id: ProductCategory; name: string }> = [
+  { id: 'frame', name: 'Frames' },
+  { id: 'lens', name: 'Lenses' },
+  { id: 'service', name: 'Services' },
+]
 
 // Color options
 const COLOR_OPTIONS = [
@@ -343,12 +347,12 @@ export function SearchScreen({ navigation }: Props) {
                 </Chip>
                 {CATEGORIES.map((cat) => (
                   <Chip
-                    key={cat}
-                    selected={tempFilters.category === cat}
-                    onPress={() => setTempFilters((prev) => ({ ...prev, category: cat }))}
+                    key={cat.id}
+                    selected={tempFilters.category === cat.id}
+                    onPress={() => setTempFilters((prev) => ({ ...prev, category: cat.id }))}
                     style={styles.filterChip}
                   >
-                    {cat}
+                    {cat.name}
                   </Chip>
                 ))}
               </View>

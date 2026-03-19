@@ -36,11 +36,11 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
-// Category data
+// Category data - Synced with FE (Frames, Lenses, Services)
 const categories = [
-  { id: 'frame', name: 'Gọng kính', icon: 'sunglasses', color: '#6366f1' },
-  { id: 'lens', name: 'Kính mát', icon: 'eye', color: '#ec4899' },
-  { id: 'service', name: 'Dịch vụ', icon: 'account-heart', color: '#f59e0b' },
+  { id: 'frame', name: 'Frames', icon: 'glasses', color: '#2563eb' },
+  { id: 'lens', name: 'Lenses', icon: 'eye', color: '#8b5cf6' },
+  { id: 'service', name: 'Services', icon: 'account-heart', color: '#ec4899' },
 ]
 
 // Feature data

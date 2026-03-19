@@ -10,9 +10,9 @@ import {
   Chip,
   SegmentedButtons,
   Divider,
+  Modal,
+  Portal,
 } from 'react-native-paper'
-import DateTimePicker from '@react-native-community/datetimepicker'
-import { APP_CONFIG } from '../../config'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { PrescriptionItem } from './PrescriptionListScreen'
 
@@ -71,6 +71,11 @@ export const PrescriptionDetailScreen: React.FC<PrescriptionDetailScreenProps> =
       : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // Default 1 year
   )
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [dateInput, setDateInput] = useState(
+    expiryDate
+      ? expiryDate.toISOString().split('T')[0]
+      : ''
+  )
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -168,15 +173,28 @@ export const PrescriptionDetailScreen: React.FC<PrescriptionDetailScreenProps> =
   ])
 
   // Handle date change
-  const handleDateChange = useCallback((event: any, date?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios')
-    if (date) {
-      setExpiryDate(date)
-    }
+  const handleDateChange = useCallback((date: Date) => {
+    setExpiryDate(date)
+    setShowDatePicker(false)
   }, [])
+
+  const handleDateInputChange = (text: string) => {
+    setDateInput(text)
+    try {
+      if (text) {
+        const date = new Date(text)
+        setExpiryDate(date)
+      }
+    } catch (e) {
+      console.warn('Invalid date format')
+    }
+  }
 
   // Format date for display
   const formatDate = useCallback((date: Date) => {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return 'Chưa chọn'
+    }
     return date.toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
@@ -256,6 +274,14 @@ export const PrescriptionDetailScreen: React.FC<PrescriptionDetailScreenProps> =
           {/* Expiry Date */}
           <View style={styles.dateRow}>
             <Text variant="bodyMedium">Ngày hết hạn:</Text>
+            <TextInput
+              label="Ngày hết hạn (YYYY-MM-DD)"
+              value={dateInput}
+              onChangeText={handleDateInputChange}
+              mode="outlined"
+              style={styles.dateInput}
+              placeholder="YYYY-MM-DD"
+            />
             <Button
               mode="outlined"
               onPress={() => setShowDatePicker(true)}
@@ -434,17 +460,41 @@ export const PrescriptionDetailScreen: React.FC<PrescriptionDetailScreenProps> =
         </Surface>
       </ScrollView>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={expiryDate}
-          mode="date"
-          display="default"
-          onChange={handleDateChange}
-          minimumDate={new Date()}
-          style={styles.datePicker}
-        />
-      )}
+      {/* Date Picker Modal */}
+      <Portal>
+        <Modal
+          visible={showDatePicker}
+          onDismiss={() => setShowDatePicker(false)}
+          contentContainerStyle={styles.modalContent}
+        >
+          <View style={styles.modalHeader}>
+            <Text variant="titleLarge">Chọn ngày hết hạn</Text>
+            <IconButton
+              icon="close"
+              onPress={() => setShowDatePicker(false)}
+              style={styles.modalClose}
+            />
+          </View>
+          <View style={styles.datePickerContainer}>
+            <TextInput
+              label="Nhập ngày (YYYY-MM-DD)"
+              value={dateInput}
+              onChangeText={handleDateInputChange}
+              mode="outlined"
+              style={styles.dateInputModal}
+              placeholder="YYYY-MM-DD"
+              autoFocus
+            />
+          </View>
+          <Button
+            mode="contained"
+            onPress={() => handleDateChange(expiryDate)}
+            style={styles.modalButton}
+          >
+            Xác nhận
+          </Button>
+        </Modal>
+      </Portal>
     </KeyboardAvoidingView>
   )
 }
@@ -541,5 +591,29 @@ const styles = StyleSheet.create({
   },
   datePicker: {
     backgroundColor: '#fff',
+  },
+  dateInputModal: {
+    marginBottom: 16,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    margin: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalClose: {
+    margin: 0,
+  },
+  datePickerContainer: {
+    marginBottom: 16,
+  },
+  modalButton: {
+    marginTop: 8,
   },
 })

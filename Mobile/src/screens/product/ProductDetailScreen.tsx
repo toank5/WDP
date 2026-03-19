@@ -38,6 +38,13 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
+// Category display names - Synced with FE (Frames, Lenses, Services)
+const CATEGORY_NAMES: Record<string, string> = {
+  frame: 'Frames',
+  lens: 'Lenses',
+  service: 'Services',
+}
+
 // Reassurance points
 const REASSURANCE_POINTS = [
   { icon: '🚚', text: 'Miễn phí giao hàng' },
@@ -328,7 +335,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
             style={styles.categoryBadge}
             textStyle={styles.categoryBadgeText}
           >
-            {product.category}
+            {CATEGORY_NAMES[product.category] || product.category}
           </Chip>
 
           {/* Product Name */}

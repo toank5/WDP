@@ -49,4 +49,10 @@ export const API_ENDPOINTS = {
   // Inventory
   INVENTORY_CHECK: (sku: string) => `/inventory/${sku}`,
   INVENTORY_BULK_CHECK: '/inventory/check-availability',
+
+  // Account/Profile
+  ACCOUNT_PROFILE: '/account/profile',
+  ACCOUNT_PREFERENCES: '/account/preferences',
+  ACCOUNT_CHANGE_PASSWORD: '/account/change-password',
+  ACCOUNT_DELETE: '/account',
 }
