@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   StyleSheet,
   ScrollView,
   Image,
   Alert,
+  RefreshControl,
 } from 'react-native'
 import {
   Text,
@@ -123,6 +124,7 @@ export function CartScreen({ navigation }: Props) {
 
   const [cart, setCart] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
 
   const loadCart = async () => {
@@ -137,6 +139,15 @@ export function CartScreen({ navigation }: Props) {
       setLoading(false)
     }
   }
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadCart()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadCart()
@@ -256,6 +267,13 @@ export function CartScreen({ navigation }: Props) {
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
           >
             {cart!.items.map((item: any) => (
               <CartItemCard

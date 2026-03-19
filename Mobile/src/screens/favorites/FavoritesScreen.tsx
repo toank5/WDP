@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Image,
   Dimensions,
   Alert,
+  RefreshControl,
 } from 'react-native'
 import {
   Text,
@@ -124,6 +125,7 @@ export function FavoritesScreen({ navigation }: Props) {
   const theme = useTheme()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [addingToCartIds, setAddingToCartIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -142,6 +144,15 @@ export function FavoritesScreen({ navigation }: Props) {
       setLoading(false)
     }
   }
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadFavorites()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
 
   const handleRemove = async (productId: string) => {
     Alert.alert(
@@ -286,6 +297,13 @@ export function FavoritesScreen({ navigation }: Props) {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary}
+            />
+          }
         >
           <View style={styles.productsGrid}>
             {products.map((product) => (

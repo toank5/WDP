@@ -6,6 +6,7 @@ import {
   Dimensions,
   Image,
   TextInput,
+  RefreshControl,
 } from 'react-native'
 import {
   Text,
@@ -129,6 +130,7 @@ export function SearchScreen({ navigation }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('relevance')
   const [maxPrice, setMaxPrice] = useState(50000000)
@@ -159,6 +161,15 @@ export function SearchScreen({ navigation }: Props) {
       setLoading(false)
     }
   }, [])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadProducts()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadProducts])
 
   useEffect(() => {
     loadProducts()
@@ -300,6 +311,13 @@ export function SearchScreen({ navigation }: Props) {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
