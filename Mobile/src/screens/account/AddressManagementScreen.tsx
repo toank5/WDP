@@ -7,18 +7,14 @@ import {
 } from 'react-native'
 import {
   Text,
-  Card,
   Button,
   IconButton,
   TextInput,
   Chip,
   FAB,
-  Divider,
   Dialog,
   Portal,
-  ActivityIndicator,
 } from 'react-native-paper'
-import { useTheme } from 'react-native-paper'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../types'
 import { Loading } from '../../components/Loading'
@@ -51,8 +47,17 @@ const DEFAULT_FORM_DATA: AddressFormData = {
   type: 'SHIPPING',
 }
 
+// Colors
+const COLORS = {
+  primary: '#3b82f6',
+  error: '#ef4444',
+  warning: '#f59e0b',
+  surface: '#ffffff',
+  onSurface: '#f1f5f9',
+  onSurfaceDisabled: '#64748b',
+}
+
 export function AddressManagementScreen({ navigation }: Props) {
-  const theme = useTheme()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [editingAddress, setEditingAddress] = useState<Address | null>(null)
@@ -145,16 +150,17 @@ export function AddressManagementScreen({ navigation }: Props) {
 
   const handleAddNew = () => {
     setEditingAddress(null)
-    setFormData({ ...DEFAULT_FORM_DATA, isDefault: addresses.length === 0 })
+    setIsDefaultAddress(addresses.length === 0)
+    setFormData({ ...DEFAULT_FORM_DATA })
     setShowAddDialog(true)
   }
 
-  const handleSetDefault = (address: Address) => {
+  const handleSetDefault = (_address: Address) => {
     // TODO: Call API to set default address
     Alert.alert('Thành công', 'Đã đặt làm địa chỉ mặc định')
   }
 
-  const handleDelete = (address: Address) => {
+  const handleDelete = (_address: Address) => {
     Alert.alert(
       'Xóa địa chỉ',
       'Bạn có chắc chắn muốn xóa địa chỉ này?',
@@ -240,67 +246,65 @@ export function AddressManagementScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={styles.addressesGrid}>
-            {addresses.map((address, index) => (
-              <Card key={address.id} style={styles.addressCard}>
-                <Card.Content style={styles.addressCardContent}>
-                  <View style={styles.addressHeader}>
-                    <View style={styles.addressIconContainer}>
-                      <Text style={styles.addressIcon}>📍</Text>
-                      <Chip
-                        label={address.type === 'SHIPPING' ? 'Shipping' : 'Billing'}
-                        style={styles.typeChip}
-                        textStyle={styles.typeChipText}
-                      />
+            {addresses.map((address) => {
+              const cardStyle = [
+                styles.addressCard,
+                address.isDefault && styles.defaultCard,
+              ]
+
+              return (
+                <View key={address.id} style={cardStyle}>
+                  <View style={styles.addressCardContent}>
+                    <View style={styles.addressHeader}>
+                      <View style={styles.addressIconContainer}>
+                        <Text style={styles.addressIcon}>📍</Text>
+                        <Chip style={styles.typeChip}>
+                          <Text style={styles.typeChipText}>
+                            {address.type === 'SHIPPING' ? 'Shipping' : 'Billing'}
+                          </Text>
+                        </Chip>
+                      </View>
                     </View>
-                    {address.isDefault && (
-                      <Chip
-                        label="Default"
-                        mode="flat"
-                        compact
-                        style={styles.defaultChip}
-                        textStyle={styles.defaultChipText}
-                      />
-                    )}
-                  </View>
 
-                  <View style={styles.addressInfo}>
-                    <Text style={styles.addressStreet}>{address.street}</Text>
-                    <Text style={styles.addressCity}>
-                      {address.city}, {address.zipCode}
-                    </Text>
-                    {address.phone && (
-                      <Text style={styles.addressPhone}>{address.phone}</Text>
-                    )}
-                  </View>
+                    <View style={styles.addressInfo}>
+                      <Text style={styles.addressStreet}>{address.street}</Text>
+                      <Text style={styles.addressCity}>
+                        {address.city}, {address.zipCode}
+                      </Text>
+                      {address.phone && (
+                        <Text style={styles.addressPhone}>{address.phone}</Text>
+                      )}
+                    </View>
 
-                  <View style={styles.addressActions}>
-                    <IconButton
-                      icon="pencil"
-                      size={20}
-                      onPress={() => handleEdit(address)}
-                      style={styles.actionButton}
-                      iconColor={theme.colors.primary}
-                    />
-                    <IconButton
-                      icon="delete"
-                      size={20}
-                      onPress={() => handleDelete(address)}
-                      style={styles.actionButton}
-                      iconColor={theme.colors.error}
-                    />
-                    {!address.isDefault && (
+                    <View style={styles.addressActions}>
                       <IconButton
-                        icon="star"
+                        icon="pencil"
                         size={20}
-                        onPress={() => handleSetDefault(address)}
+                        onPress={() => handleEdit(address)}
                         style={styles.actionButton}
-                        iconColor={theme.colors.warning}
+                        iconColor={COLORS.primary}
                       />
-                    )}
+                      <IconButton
+                        icon="delete"
+                        size={20}
+                        onPress={() => handleDelete(address)}
+                        style={styles.actionButton}
+                        iconColor={COLORS.error}
+                      />
+                      {!address.isDefault && (
+                        <IconButton
+                          icon="star"
+                          size={20}
+                          onPress={() => handleSetDefault(address)}
+                          style={styles.actionButton}
+                          iconColor={COLORS.warning}
+                        />
+                      )}
+                    </View>
                   </View>
-                </Card.Content>
-              </Card>
-            ))}
+                </View>
+              )
+            })}
           </View>
         )}
       </ScrollView>
@@ -383,14 +387,14 @@ export function AddressManagementScreen({ navigation }: Props) {
                   <Chip
                     selected={formData.type === 'SHIPPING'}
                     onPress={() => setFormData({ ...formData, type: 'SHIPPING' })}
-                    style={[styles.typeChip, formData.type === 'SHIPPING' && styles.typeChipSelected]}
+                    style={[styles.typeChipDialog, formData.type === 'SHIPPING' && styles.typeChipSelected]}
                   >
                     Shipping
                   </Chip>
                   <Chip
                     selected={formData.type === 'BILLING'}
                     onPress={() => setFormData({ ...formData, type: 'BILLING' })}
-                    style={[styles.typeChip, formData.type === 'BILLING' && styles.typeChipSelected]}
+                    style={[styles.typeChipDialog, formData.type === 'BILLING' && styles.typeChipSelected]}
                   >
                     Billing
                   </Chip>
@@ -440,7 +444,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme?.colors?.surface || '#fff',
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     elevation: 4,
@@ -449,15 +453,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
+  headerTitle: {
+    flex: 1,
+  },
   headerText: {
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
-    color: theme?.colors?.onSurface || '#1e293b',
+    color: COLORS.onSurface,
   },
   headerPage: {
     fontSize: 14,
-    color: theme?.colors?.onSurfaceDisabled || '#64748b',
+    color: COLORS.onSurfaceDisabled,
     marginLeft: 4,
   },
   content: {
@@ -475,11 +482,11 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1e293b',
+    color: COLORS.onSurface,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.onSurfaceDisabled,
     maxWidth: 300,
   },
   addAddressRow: {
@@ -489,7 +496,7 @@ const styles = StyleSheet.create({
   },
   addressesCount: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.onSurfaceDisabled,
   },
   addButton: {
     borderRadius: 8,
@@ -507,12 +514,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: COLORS.onSurface,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.onSurfaceDisabled,
     textAlign: 'center',
   },
   addressesGrid: {
@@ -521,6 +528,11 @@ const styles = StyleSheet.create({
   addressCard: {
     borderRadius: 12,
     overflow: 'hidden',
+    marginBottom: 16,
+  },
+  defaultCard: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
   },
   addressCardContent: {
     padding: 16,
@@ -541,7 +553,7 @@ const styles = StyleSheet.create({
   },
   typeChip: {
     height: 24,
-    backgroundColor: theme?.colors?.primary || '#3b82f6',
+    backgroundColor: COLORS.primary,
   },
   typeChipText: {
     color: '#fff',
@@ -549,7 +561,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   defaultChip: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: COLORS.warning,
   },
   defaultChipText: {
     color: '#fff',
@@ -561,15 +573,15 @@ const styles = StyleSheet.create({
   addressStreet: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: COLORS.onSurface,
   },
   addressCity: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.onSurface,
   },
   addressPhone: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: COLORS.onSurface,
   },
   addressActions: {
     flexDirection: 'row',
@@ -580,13 +592,12 @@ const styles = StyleSheet.create({
     margin: 0,
     padding: 4,
     borderRadius: 8,
-    backgroundColor: '#f1f5f9',
   },
   fab: {
     position: 'absolute',
     right: 16,
     bottom: 16,
-    backgroundColor: theme?.colors?.primary || '#3b82f6',
+    backgroundColor: COLORS.primary,
   },
   dialogContent: {
     paddingVertical: 8,
@@ -596,7 +607,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#ef4444',
+    color: COLORS.error,
     marginLeft: 12,
     marginBottom: 4,
   },
@@ -606,19 +617,19 @@ const styles = StyleSheet.create({
   addressTypeLabel: {
     fontSize: 14,
     fontWeight: '600',
+    color: COLORS.onSurface,
     marginBottom: 8,
-    color: '#1e293b',
   },
   addressTypeButtons: {
     flexDirection: 'row',
     gap: 8,
   },
-  typeChip: {
+  typeChipDialog: {
     height: 32,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: COLORS.warning,
   },
   typeChipSelected: {
-    backgroundColor: theme?.colors?.primary || '#3b82f6',
+    backgroundColor: COLORS.primary,
   },
   defaultToggleRow: {
     flexDirection: 'row',
@@ -627,18 +638,18 @@ const styles = StyleSheet.create({
   },
   defaultLabel: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.onSurface,
     marginRight: 8,
   },
   defaultToggle: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: COLORS.onSurface,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   defaultToggleSelected: {
-    backgroundColor: theme?.colors?.primary || '#3b82f6',
-    borderColor: theme?.colors?.primary || '#3b82f6',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
 })
