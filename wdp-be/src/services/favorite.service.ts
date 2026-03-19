@@ -240,6 +240,17 @@ export class FavoriteService {
     productId: string,
     variantId?: string,
   ): Promise<CheckFavoriteResponseDto> {
+    // Validate userId and productId are valid ObjectIds
+    if (!userId || !Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+    if (!productId || !Types.ObjectId.isValid(productId)) {
+      throw new BadRequestException('Invalid product ID');
+    }
+    if (variantId && !Types.ObjectId.isValid(variantId)) {
+      throw new BadRequestException('Invalid variant ID');
+    }
+
     const query: FavoriteQuery = {
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),

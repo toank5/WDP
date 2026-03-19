@@ -2,6 +2,8 @@
  * Cart-related type definitions shared between frontend and backend
  */
 
+import { TypedPrescription } from './order.models';
+
 /**
  * Cart Item
  */
@@ -9,6 +11,8 @@ export interface CartItem {
   productId: string;
   variantSku?: string; // Optional for lens and service products
   quantity: number;
+  requiresPrescription?: boolean;
+  typedPrescription?: TypedPrescription;
 }
 
 /**
@@ -18,6 +22,8 @@ export interface AddToCartRequest {
   productId: string;
   variantSku?: string; // Optional for lens and service products
   quantity: number;
+  requiresPrescription?: boolean;
+  typedPrescription?: TypedPrescription;
 }
 
 /**

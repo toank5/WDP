@@ -11,6 +11,8 @@ import { Order } from '../commons/schemas/order.schema';
 import { OrderItem } from '../commons/schemas/order-item.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { ProductVariant } from '../commons/schemas/product-variant.schema';
+import { User } from '../commons/schemas/user.schema';
+import { WorkOrder } from '../commons/schemas/work-order.schema';
 import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
@@ -26,15 +28,27 @@ import {
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
+  ReviewPrescriptionDto,
+  PrescriptionQueueQueryDto,
+  LabJobQueryDto,
+  LabJobResponseDto,
+  UpdateLabJobStatusDto,
   SHIPPING_METHODS,
 } from '../dtos/order.dto';
 
-import { ORDER_STATUS, ORDER_TYPES, PREORDER_STATUS } from '@eyewear/shared';
+import {
+  ORDER_STATUS,
+  ORDER_TYPES,
+  PREORDER_STATUS,
+  PRESCRIPTION_REVIEW_STATUS,
+  LAB_JOB_STATUS,
+} from '@eyewear/shared';
 import { Request } from 'express';
 import {
   VNPayCallbackParamsDto,
   VNPayVerificationResultDto,
 } from '../dtos/vnpay.dto';
+import { sendEmail, sendOrderShippedEmail } from '../mail/email.service';
 
 type OrderStatusPredicate =
   | ORDER_STATUS
@@ -56,6 +70,8 @@ export class OrderService {
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(WorkOrder.name) private workOrderModel: Model<WorkOrder>,
     @InjectModel(ProductVariant.name)
     private productVariantModel: Model<ProductVariant>,
     private readonly cartService: CartService,
@@ -707,6 +723,242 @@ export class OrderService {
     return this.getOrderWithDetails(orderId);
   }
 
+  async getPrescriptionQueue(
+    query: PrescriptionQueueQueryDto,
+  ): Promise<OrderResponseDto[]> {
+    const filterStatus = query.status || PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW;
+    const orders = await this.orderModel
+      .find({
+        items: {
+          $elemMatch: {
+            requiresPrescription: true,
+            prescriptionReviewStatus: filterStatus,
+          },
+        },
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    const mapped = await Promise.all(
+      orders.map((order) => this.getOrderWithDetails(String(order._id))),
+    );
+
+    return mapped.map((order) => ({
+      ...order,
+      items: order.items.filter(
+        (item) =>
+          item.requiresPrescription && item.prescriptionReviewStatus === filterStatus,
+      ),
+    }));
+  }
+
+  async getPrescriptionOrderItem(orderItemId: string): Promise<{
+    order: OrderResponseDto;
+    item: OrderResponseDto['items'][number];
+  }> {
+    const order = await this.orderModel.findOne({ 'items.itemId': orderItemId });
+    if (!order) {
+      throw new NotFoundException('Prescription item not found');
+    }
+
+    const enriched = await this.getOrderWithDetails(String(order._id));
+    const item = enriched.items.find((i) => i.itemId === orderItemId);
+    if (!item) {
+      throw new NotFoundException('Prescription item not found');
+    }
+
+    return { order: enriched, item };
+  }
+
+  async reviewPrescription(
+    orderItemId: string,
+    dto: ReviewPrescriptionDto,
+    reviewedBy?: string,
+  ): Promise<{ order: OrderResponseDto; workOrder?: LabJobResponseDto }> {
+    if (dto.status === PRESCRIPTION_REVIEW_STATUS.REJECTED && !dto.note?.trim()) {
+      throw new BadRequestException('Rejection note is required');
+    }
+
+    if (
+      dto.status !== PRESCRIPTION_REVIEW_STATUS.APPROVED &&
+      dto.status !== PRESCRIPTION_REVIEW_STATUS.REJECTED
+    ) {
+      throw new BadRequestException('Only APPROVED or REJECTED are allowed');
+    }
+
+    const order = await this.orderModel.findOne({ 'items.itemId': orderItemId });
+    if (!order) {
+      throw new NotFoundException('Prescription item not found');
+    }
+
+    const item = order.items.find((i) => i.itemId === orderItemId);
+    if (!item || !item.requiresPrescription) {
+      throw new NotFoundException('Prescription item not found');
+    }
+
+    item.prescriptionReviewStatus = dto.status;
+    item.prescriptionReviewNote = dto.note?.trim() || undefined;
+
+    order.history.push({
+      status: order.orderStatus,
+      changedBy: reviewedBy ? new Types.ObjectId(reviewedBy) : undefined,
+      timestamp: new Date(),
+      note: `Prescription ${dto.status} for item ${orderItemId}${dto.note ? `: ${dto.note}` : ''}`,
+    });
+
+    await order.save();
+
+    if (dto.status === PRESCRIPTION_REVIEW_STATUS.REJECTED) {
+      await this.notifyPrescriptionRejected(order, item);
+      return { order: await this.getOrderWithDetails(String(order._id)) };
+    }
+
+    const workOrder = await this.createWorkOrderFromOrderItem(order, item);
+    return {
+      order: await this.getOrderWithDetails(String(order._id)),
+      workOrder,
+    };
+  }
+
+  async getLabJobs(query: LabJobQueryDto): Promise<LabJobResponseDto[]> {
+    const statuses = query.status
+      ? [query.status]
+      : [LAB_JOB_STATUS.PENDING, LAB_JOB_STATUS.IN_PROGRESS];
+
+    const jobs = await this.workOrderModel
+      .find({ status: { $in: statuses } })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    return Promise.all(jobs.map((job) => this.mapLabJob(job)));
+  }
+
+  async updateLabJobStatus(
+    workOrderId: string,
+    dto: UpdateLabJobStatusDto,
+    updatedBy?: string,
+  ): Promise<LabJobResponseDto> {
+    const workOrder = await this.workOrderModel.findById(workOrderId);
+    if (!workOrder) {
+      throw new NotFoundException('Lab job not found');
+    }
+
+    workOrder.status = dto.status;
+    workOrder.notes = dto.note || workOrder.notes;
+    await workOrder.save();
+
+    const order = await this.orderModel.findById(workOrder.orderId);
+    if (order) {
+      order.history.push({
+        status: order.orderStatus,
+        changedBy: updatedBy ? new Types.ObjectId(updatedBy) : undefined,
+        timestamp: new Date(),
+        note: `Lab job ${String(workOrder._id)} updated to ${dto.status}${dto.note ? `: ${dto.note}` : ''}`,
+      });
+      await order.save();
+    }
+
+    if (dto.status === LAB_JOB_STATUS.ISSUE) {
+      await this.notifyLabIssue(workOrder, dto.note);
+    }
+
+    return this.mapLabJob(workOrder);
+  }
+
+  private async createWorkOrderFromOrderItem(
+    order: Order,
+    item: OrderItem,
+  ): Promise<LabJobResponseDto> {
+    if (!item.typedPrescription || !item.itemId) {
+      throw new BadRequestException('Prescription snapshot is missing for work order');
+    }
+
+    let existing = await this.workOrderModel.findOne({ orderItemId: item.itemId });
+    if (!existing) {
+      existing = await this.workOrderModel.create({
+        orderId: order._id,
+        orderItemId: item.itemId,
+        rightEye: item.typedPrescription.rightEye,
+        leftEye: item.typedPrescription.leftEye,
+        pd: item.typedPrescription.pd,
+        pdRight: item.typedPrescription.pdRight,
+        pdLeft: item.typedPrescription.pdLeft,
+        lensType: 'STANDARD',
+        status: LAB_JOB_STATUS.PENDING,
+      });
+    }
+
+    return this.mapLabJob(existing);
+  }
+
+  private async mapLabJob(workOrder: WorkOrder): Promise<LabJobResponseDto> {
+    const order = await this.orderModel.findById(workOrder.orderId);
+    const item = order?.items.find((it) => it.itemId === workOrder.orderItemId);
+    const customer = order
+      ? await this.userModel.findById(order.customerId).select('fullName').exec()
+      : null;
+    const product = item
+      ? await this.productModel.findById(item.productId).select('name').exec()
+      : null;
+
+    return {
+      _id: String(workOrder._id),
+      orderId: String(workOrder.orderId),
+      orderItemId: workOrder.orderItemId,
+      rightEye: workOrder.rightEye,
+      leftEye: workOrder.leftEye,
+      pd: workOrder.pd,
+      pdRight: workOrder.pdRight,
+      pdLeft: workOrder.pdLeft,
+      lensType: workOrder.lensType,
+      status: workOrder.status,
+      notes: workOrder.notes,
+      orderNumber: order?.orderNumber,
+      customerName: customer?.fullName,
+      frameName: product?.name,
+      frameSku: item?.variantSku,
+    };
+  }
+
+  private async notifyPrescriptionRejected(order: Order, item: OrderItem): Promise<void> {
+    const user = await this.userModel.findById(order.customerId).select('email fullName');
+    if (!user?.email) {
+      return;
+    }
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: `Prescription update required for order ${order.orderNumber}`,
+        html: `<p>Hi ${user.fullName || 'Customer'},</p><p>Your prescription for item ${item.itemId} in order <strong>${order.orderNumber}</strong> needs correction.</p><p>Note from our sales staff: ${item.prescriptionReviewNote || 'Please contact support.'}</p>`,
+      });
+    } catch {
+      // Email failures should not block order workflow.
+    }
+  }
+
+  private async notifyLabIssue(workOrder: WorkOrder, note?: string): Promise<void> {
+    const order = await this.orderModel.findById(workOrder.orderId);
+    if (!order) {
+      return;
+    }
+
+    const user = await this.userModel.findById(order.customerId).select('email fullName');
+    if (!user?.email) {
+      return;
+    }
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: `Lab issue update for order ${order.orderNumber}`,
+        html: `<p>Hi ${user.fullName || 'Customer'},</p><p>Our lab reported an issue while processing your prescription order ${order.orderNumber}.</p><p>${note || 'Our support team will contact you shortly.'}</p>`,
+      });
+    } catch {
+      // Ignore email errors.
+    }
+  }
+
   /**
    * Operations: Update manufacturing status
    */
@@ -857,7 +1109,10 @@ export class OrderService {
         }
 
         return {
-          _id: `${String(order._id)}-${String(item.productId)}-${item.variantSku || 'default'}`,
+          _id:
+            item.itemId ||
+            `${String(order._id)}-${String(item.productId)}-${item.variantSku || 'default'}`,
+          itemId: item.itemId,
           productId: String(item.productId),
           variantSku: item.variantSku,
           quantity: item.quantity,
@@ -870,6 +1125,13 @@ export class OrderService {
           preorderStatus: item.preorderStatus,
           expectedShipDate: item.expectedShipDate,
           reservedQuantity: item.reservedQuantity,
+          requiresPrescription: item.requiresPrescription,
+          typedPrescription: item.typedPrescription,
+          prescriptionReviewStatus: item.prescriptionReviewStatus,
+          prescriptionReviewNote: item.prescriptionReviewNote,
+          manufacturingStatus: item.manufacturingStatus,
+          manufacturingProofUrl: item.manufacturingProofUrl,
+          manufacturedAt: item.manufacturedAt,
         };
       }),
     );
@@ -884,6 +1146,7 @@ export class OrderService {
       subtotal: order.subtotal,
       shippingFee: order.shippingFee,
       tax: order.tax,
+      prescriptionLensFeeTotal: order.prescriptionLensFeeTotal,
       totalAmount: order.totalAmount,
       shippingAddress: order.shippingAddress,
       payment: order.payment
@@ -940,6 +1203,11 @@ export class OrderService {
     }
 
     const previousStatus = order.orderStatus;
+
+    if (updateDto.status === ORDER_STATUS.SHIPPED) {
+      await this.ensurePrescriptionWorkOrdersCompleted(order);
+    }
+
     order.orderStatus = updateDto.status;
 
     // Handle stock based on status changes
@@ -972,7 +1240,59 @@ export class OrderService {
 
     await order.save();
 
+    if (updateDto.status === ORDER_STATUS.SHIPPED) {
+      await this.notifyOrderShipped(order);
+    }
+
     return this.getOrderWithDetails(orderId);
+  }
+
+  private async ensurePrescriptionWorkOrdersCompleted(order: Order): Promise<void> {
+    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+    if (prescribedItems.length === 0) {
+      return;
+    }
+
+    const itemIds = prescribedItems.map((item) => item.itemId).filter(Boolean) as string[];
+    if (itemIds.length !== prescribedItems.length) {
+      throw new BadRequestException('Prescription items are missing identifiers');
+    }
+
+    const jobs = await this.workOrderModel
+      .find({ orderItemId: { $in: itemIds } })
+      .select('orderItemId status')
+      .exec();
+
+    const allCompleted = itemIds.every((itemId) =>
+      jobs.some(
+        (job) => job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED,
+      ),
+    );
+
+    if (!allCompleted) {
+      throw new BadRequestException(
+        'All prescription lab jobs must be COMPLETED before shipping',
+      );
+    }
+  }
+
+  private async notifyOrderShipped(order: Order): Promise<void> {
+    const user = await this.userModel.findById(order.customerId).select('email fullName');
+    if (!user?.email || !order.tracking?.trackingNumber) {
+      return;
+    }
+
+    try {
+      await sendOrderShippedEmail(
+        user.email,
+        user.fullName || 'Customer',
+        order.orderNumber,
+        order.tracking.trackingNumber,
+        '',
+      );
+    } catch {
+      // Ignore notification failures.
+    }
   }
 
   /**

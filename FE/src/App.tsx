@@ -37,6 +37,8 @@ import SecurityPage from './pages/account/SecurityPage'
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
 import { ReturnsManagementPage } from './pages/staff/ReturnsManagementPage'
+import StaffPrescriptionsPage from './pages/staff/StaffPrescriptionsPage'
+import LabJobsPage from './pages/staff/LabJobsPage'
 
 // Operations pages
 import OperationsDashboard from './pages/OperationsDashboard'
@@ -121,6 +123,23 @@ function App() {
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
           <Route path="/policies/:type" element={<PolicyDetailPage />} />
 
+          <Route
+            path="/staff/prescriptions"
+            element={
+              <ProtectedRoute>
+                <StaffPrescriptionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/lab-jobs"
+            element={
+              <ProtectedRoute>
+                <LabJobsPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Admin/Staff/Operations routes */}
           <Route
             path="/dashboard"
@@ -139,6 +158,8 @@ function App() {
             <Route path="all-products" element={<ProductCatalogPage />} />
             <Route path="products-catalog/:id" element={<ProductDetailAdminPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="prescriptions" element={<StaffPrescriptionsPage />} />
+            <Route path="lab-jobs" element={<LabJobsPage />} />
             <Route path="returns" element={<ReturnsManagementPage />} />
             <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />

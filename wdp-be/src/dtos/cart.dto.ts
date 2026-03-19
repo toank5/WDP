@@ -6,6 +6,8 @@ import {
   Min,
   IsArray,
   ValidateNested,
+  IsBoolean,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -39,6 +41,40 @@ export class AddToCartDto {
   @IsNumber()
   @Min(1)
   quantity: number;
+
+  @ApiProperty({
+    description: 'Whether this item requires customer typed prescription',
+    example: true,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  requiresPrescription?: boolean;
+
+  @ApiProperty({
+    description: 'Typed prescription snapshot provided by customer',
+    required: false,
+  })
+  @IsOptional()
+  @IsObject()
+  typedPrescription?: {
+    rightEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    leftEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
+  };
 }
 
 /**
@@ -117,6 +153,29 @@ export class CartItemResponseDto {
     example: '2024-01-15T10:30:00.000Z',
   })
   addedAt: Date;
+
+  @ApiProperty({ required: false })
+  requiresPrescription?: boolean;
+
+  @ApiProperty({ required: false })
+  typedPrescription?: {
+    rightEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    leftEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
+  };
 }
 
 /**

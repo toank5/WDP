@@ -16,6 +16,8 @@ import {
   ORDER_STATUS,
   ORDER_TYPES,
   PRODUCT_CATEGORIES,
+  PRESCRIPTION_REVIEW_STATUS,
+  POLICY_TYPES,
 } from '@eyewear/shared';
 import {
   CreateCheckoutDto,
@@ -32,6 +34,7 @@ import { CartService } from './cart.service';
 import { VNPayService } from './vnpay.service';
 import { InventoryService } from './inventory.service';
 import { PromotionService } from './promotion.service';
+import { PolicyService } from './policy.service';
 
 // Aggregated cart item with product details
 interface AggregatedCartItem {
@@ -46,6 +49,25 @@ interface AggregatedCartItem {
   variantDetails?: {
     size?: string;
     color?: string;
+  };
+  requiresPrescription?: boolean;
+  typedPrescription?: {
+    rightEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    leftEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
   };
   product?: {
     _id: mongoose.Types.ObjectId;
@@ -84,7 +106,27 @@ export class CheckoutService {
     private readonly vnpayService: VNPayService,
     private readonly inventoryService: InventoryService,
     private readonly promotionService: PromotionService,
+    private readonly policyService: PolicyService,
   ) {}
+
+  private async getPrescriptionLensFee(): Promise<number> {
+    try {
+      const prescriptionPolicy =
+        await this.policyService.getCurrentPolicyByType(
+          POLICY_TYPES.PRESCRIPTION,
+        );
+      const fee = Number(
+        (
+          prescriptionPolicy?.config as {
+            prescriptionLensFee?: unknown;
+          }
+        )?.prescriptionLensFee ?? 0,
+      );
+      return Number.isFinite(fee) && fee > 0 ? fee : 0;
+    } catch {
+      return 0;
+    }
+  }
 
   /**
    * Generate unique order number
@@ -126,9 +168,17 @@ export class CheckoutService {
     // Step 2: Validate inventory and determine item types
     const checkoutItems: CheckoutItemDto[] = [];
     let hasPreorder = false;
+    const prescriptionLensFee = await this.getPrescriptionLensFee();
 
     for (const item of cartItems) {
-      const validation = await this.validateCartItem(item);
+      const validation = await this.validateCartItem(item, prescriptionLensFee);
+
+      if (item.requiresPrescription && !item.typedPrescription) {
+        throw new BadRequestException(
+          `Prescription data is required for ${item.productName || 'this item'}`,
+        );
+      }
+
       checkoutItems.push({
         productId: item.productId.toString(),
         variantSku: item.variantSku,
@@ -138,6 +188,8 @@ export class CheckoutService {
         productImage: item.productImage,
         variantDetails: item.variantDetails,
         isPreorder: validation.isPreorder,
+        requiresPrescription: item.requiresPrescription,
+        typedPrescription: item.typedPrescription,
       });
 
       if (validation.isPreorder) {
@@ -150,6 +202,7 @@ export class CheckoutService {
       checkoutItems,
       customerId,
       createCheckoutDto.promotionCode,
+      prescriptionLensFee,
     );
 
     // Step 4: Create order with PENDING_PAYMENT status
@@ -504,6 +557,8 @@ export class CheckoutService {
           productImage: '$items.productImage',
           price: '$items.price',
           variantDetails: '$items.variantDetails',
+          requiresPrescription: '$items.requiresPrescription',
+          typedPrescription: '$items.typedPrescription',
           product: 1,
         },
       },
@@ -516,7 +571,10 @@ export class CheckoutService {
   /**
    * Validate cart item and determine if it's a pre-order
    */
-  private async validateCartItem(item: AggregatedCartItem): Promise<{
+  private async validateCartItem(
+    item: AggregatedCartItem,
+    prescriptionLensFee = 0,
+  ): Promise<{
     price: number;
     isPreorder: boolean;
     errorMessage?: string;
@@ -595,7 +653,10 @@ export class CheckoutService {
       }
     }
 
-    return { price, isPreorder };
+    const finalPrice =
+      price + (item.requiresPrescription ? prescriptionLensFee : 0);
+
+    return { price: finalPrice, isPreorder };
   }
 
   /**
@@ -606,7 +667,14 @@ export class CheckoutService {
     items: CheckoutItemDto[],
     customerId: string,
     promotionCode?: string,
+    prescriptionLensFee = 0,
   ): Promise<CheckoutCalculation> {
+    const prescriptionLensFeeTotal = items.reduce(
+      (sum, item) =>
+        sum + (item.requiresPrescription ? prescriptionLensFee * item.quantity : 0),
+      0,
+    );
+
     const subtotal = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
@@ -665,6 +733,7 @@ export class CheckoutService {
 
     return {
       subtotal,
+      prescriptionLensFeeTotal,
       shippingFee,
       comboDiscount,
       promotionDiscount,
@@ -698,6 +767,7 @@ export class CheckoutService {
     // Create order items
     const orderItems: OrderItem[] = items.map((item) => ({
       productId: new mongoose.Types.ObjectId(item.productId),
+      itemId: new mongoose.Types.ObjectId().toString(),
       variantSku: item.variantSku || '',
       quantity: item.quantity,
       priceAtOrder: item.price,
@@ -707,6 +777,13 @@ export class CheckoutService {
         : undefined,
       expectedShipDate: item.isPreorder ? undefined : undefined,
       reservedQuantity: 0,
+      requiresPrescription: item.requiresPrescription || false,
+      typedPrescription: item.typedPrescription,
+      prescriptionReviewStatus:
+        item.requiresPrescription && item.typedPrescription
+          ? PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW
+          : undefined,
+      prescriptionReviewNote: undefined,
     }));
 
     // Create order
@@ -721,6 +798,7 @@ export class CheckoutService {
       comboDiscount: calculation.comboDiscount || 0,
       comboId: calculation.appliedCombo?.id,
       promotionDiscount: calculation.promotionDiscount || 0,
+      prescriptionLensFeeTotal: calculation.prescriptionLensFeeTotal || 0,
       promotionCode: calculation.appliedPromotion?.code,
       promotionId: calculation.appliedPromotion?.promotionId
         ? new mongoose.Types.ObjectId(calculation.appliedPromotion.promotionId)
@@ -749,6 +827,7 @@ export class CheckoutService {
         quantity: item.quantity,
         priceAtOrder: item.priceAtOrder,
         isPreorder: item.isPreorder,
+        requiresPrescription: item.requiresPrescription,
       })),
     };
   }

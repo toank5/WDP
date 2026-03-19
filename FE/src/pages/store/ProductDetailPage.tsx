@@ -10,6 +10,7 @@ import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
 import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
 import { getActiveCombos, type Combo } from '@/lib/combo-api'
 import { getActivePromotions, type Promotion, validatePromotion } from '@/lib/promotion-api'
+import { getPrescriptionLensFee } from '@/lib/policy-api'
 import {
   Box,
   Container,
@@ -35,6 +36,8 @@ import {
   useTheme,
   useMediaQuery,
   Grid,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
@@ -897,6 +900,7 @@ export function ProductDetailPage() {
   // Media state
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [zoomOpen, setZoomOpen] = useState(false)
+  const [typedPrescriptionModalOpen, setTypedPrescriptionModalOpen] = useState(false)
 
   // Cart/Wishlist state
   const [isAdding, setIsAdding] = useState(false)
@@ -926,6 +930,229 @@ export function ProductDetailPage() {
   const [validatedPromotion, setValidatedPromotion] = useState<Promotion | null>(null)
   const [promoValidationLoading, setPromoValidationLoading] = useState(false)
   const [promoError, setPromoError] = useState<string | null>(null)
+  const [prescriptionLensFee, setPrescriptionLensFee] = useState(0)
+
+  const [enableTypedPrescription, setEnableTypedPrescription] = useState(false)
+  const [typedPrescription, setTypedPrescription] = useState({
+    rightEye: { sph: '', cyl: '', axis: '', add: '' },
+    leftEye: { sph: '', cyl: '', axis: '', add: '' },
+    pd: '',
+    pdRight: '',
+    pdLeft: '',
+    notesFromCustomer: '',
+  })
+  const [typedPrescriptionErrors, setTypedPrescriptionErrors] = useState<Record<string, string>>({})
+
+  const getTypedRxError = (key: string): string | undefined => typedPrescriptionErrors[key]
+
+  const validateTypedRxSingleField = (
+    key: string,
+    rawValue: string,
+    options: { min: number; max: number; step?: number; integer?: boolean; required?: boolean; label: string }
+  ): string | undefined => {
+    const trimmed = rawValue.trim()
+
+    if (!trimmed) {
+      if (options.required !== false) {
+        return `${options.label} is required`
+      }
+      return undefined
+    }
+
+    const value = Number(trimmed)
+    if (!Number.isFinite(value)) {
+      return `${options.label} must be a valid number`
+    }
+
+    if (options.integer && !Number.isInteger(value)) {
+      return `${options.label} must be a whole number`
+    }
+
+    if (value < options.min || value > options.max) {
+      return `${options.label} must be between ${options.min} and ${options.max}`
+    }
+
+    if (options.step) {
+      const stepScaled = Math.round(options.step * 100)
+      const valueScaled = Math.round(Math.abs(value) * 100)
+      if (stepScaled > 0 && valueScaled % stepScaled !== 0) {
+        return `${options.label} must use increments of ${options.step}`
+      }
+    }
+
+    return undefined
+  }
+
+  const setTypedRxField = (key: string, value: string) => {
+    setTypedPrescription((prev) => {
+      switch (key) {
+        case 'rightEye.sph':
+          return { ...prev, rightEye: { ...prev.rightEye, sph: value } }
+        case 'rightEye.cyl':
+          return { ...prev, rightEye: { ...prev.rightEye, cyl: value } }
+        case 'rightEye.axis':
+          return { ...prev, rightEye: { ...prev.rightEye, axis: value } }
+        case 'rightEye.add':
+          return { ...prev, rightEye: { ...prev.rightEye, add: value } }
+        case 'leftEye.sph':
+          return { ...prev, leftEye: { ...prev.leftEye, sph: value } }
+        case 'leftEye.cyl':
+          return { ...prev, leftEye: { ...prev.leftEye, cyl: value } }
+        case 'leftEye.axis':
+          return { ...prev, leftEye: { ...prev.leftEye, axis: value } }
+        case 'leftEye.add':
+          return { ...prev, leftEye: { ...prev.leftEye, add: value } }
+        case 'pd':
+          return { ...prev, pd: value }
+        case 'pdRight':
+          return { ...prev, pdRight: value }
+        case 'pdLeft':
+          return { ...prev, pdLeft: value }
+        default:
+          return prev
+      }
+    })
+
+    const fieldValidationMap: Record<string, { min: number; max: number; step?: number; integer?: boolean; required?: boolean; label: string }> = {
+      'rightEye.sph': { min: -20, max: 20, step: 0.25, label: 'OD SPH' },
+      'rightEye.cyl': { min: -6, max: 6, step: 0.25, label: 'OD CYL' },
+      'rightEye.axis': { min: 0, max: 180, integer: true, label: 'OD Axis' },
+      'rightEye.add': { min: 0, max: 4, step: 0.25, label: 'OD Add' },
+      'leftEye.sph': { min: -20, max: 20, step: 0.25, label: 'OS SPH' },
+      'leftEye.cyl': { min: -6, max: 6, step: 0.25, label: 'OS CYL' },
+      'leftEye.axis': { min: 0, max: 180, integer: true, label: 'OS Axis' },
+      'leftEye.add': { min: 0, max: 4, step: 0.25, label: 'OS Add' },
+      pd: { min: 40, max: 80, step: 0.5, required: false, label: 'PD' },
+      pdRight: { min: 20, max: 40, step: 0.5, required: false, label: 'PD Right' },
+      pdLeft: { min: 20, max: 40, step: 0.5, required: false, label: 'PD Left' },
+    }
+
+    const config = fieldValidationMap[key]
+    if (!config) return
+
+    const error = validateTypedRxSingleField(key, value, config)
+    setTypedPrescriptionErrors((prev) => {
+      const next = { ...prev }
+      if (error) {
+        next[key] = error
+      } else {
+        delete next[key]
+      }
+      return next
+    })
+  }
+
+  const getTypedPrescriptionCompletionStatus = () => {
+    const requiredFields: Array<{ key: string; value: string; config: { min: number; max: number; step?: number; integer?: boolean; required?: boolean; label: string } }> = [
+      { key: 'rightEye.sph', value: typedPrescription.rightEye.sph, config: { min: -20, max: 20, step: 0.25, label: 'OD SPH' } },
+      { key: 'rightEye.cyl', value: typedPrescription.rightEye.cyl, config: { min: -6, max: 6, step: 0.25, label: 'OD CYL' } },
+      { key: 'rightEye.axis', value: typedPrescription.rightEye.axis, config: { min: 0, max: 180, integer: true, label: 'OD Axis' } },
+      { key: 'rightEye.add', value: typedPrescription.rightEye.add, config: { min: 0, max: 4, step: 0.25, label: 'OD Add' } },
+      { key: 'leftEye.sph', value: typedPrescription.leftEye.sph, config: { min: -20, max: 20, step: 0.25, label: 'OS SPH' } },
+      { key: 'leftEye.cyl', value: typedPrescription.leftEye.cyl, config: { min: -6, max: 6, step: 0.25, label: 'OS CYL' } },
+      { key: 'leftEye.axis', value: typedPrescription.leftEye.axis, config: { min: 0, max: 180, integer: true, label: 'OS Axis' } },
+      { key: 'leftEye.add', value: typedPrescription.leftEye.add, config: { min: 0, max: 4, step: 0.25, label: 'OS Add' } },
+    ]
+
+    let invalidCount = 0
+    for (const field of requiredFields) {
+      const error = validateTypedRxSingleField(field.key, field.value, field.config)
+      if (error) {
+        invalidCount += 1
+      }
+    }
+
+    return {
+      isComplete: invalidCount === 0,
+      invalidCount,
+    }
+  }
+
+  const validateTypedPrescription = () => {
+    const errors: Record<string, string> = {}
+
+    const parseField = (
+      key: string,
+      label: string,
+      rawValue: string,
+      options: { min: number; max: number; step?: number; integer?: boolean; required?: boolean }
+    ): number | undefined => {
+      const fieldError = validateTypedRxSingleField(key, rawValue, {
+        ...options,
+        label,
+      })
+      if (fieldError) {
+        errors[key] = fieldError
+        return undefined
+      }
+
+      return Number(rawValue.trim())
+    }
+
+    const rightEye = {
+      sph: parseField('rightEye.sph', 'OD SPH', typedPrescription.rightEye.sph, { min: -20, max: 20, step: 0.25 }),
+      cyl: parseField('rightEye.cyl', 'OD CYL', typedPrescription.rightEye.cyl, { min: -6, max: 6, step: 0.25 }),
+      axis: parseField('rightEye.axis', 'OD Axis', typedPrescription.rightEye.axis, { min: 0, max: 180, integer: true }),
+      add: parseField('rightEye.add', 'OD Add', typedPrescription.rightEye.add, { min: 0, max: 4, step: 0.25 }),
+    }
+
+    const leftEye = {
+      sph: parseField('leftEye.sph', 'OS SPH', typedPrescription.leftEye.sph, { min: -20, max: 20, step: 0.25 }),
+      cyl: parseField('leftEye.cyl', 'OS CYL', typedPrescription.leftEye.cyl, { min: -6, max: 6, step: 0.25 }),
+      axis: parseField('leftEye.axis', 'OS Axis', typedPrescription.leftEye.axis, { min: 0, max: 180, integer: true }),
+      add: parseField('leftEye.add', 'OS Add', typedPrescription.leftEye.add, { min: 0, max: 4, step: 0.25 }),
+    }
+
+    const pd = parseField('pd', 'PD', typedPrescription.pd, { min: 40, max: 80, step: 0.5, required: false })
+    const pdRight = parseField('pdRight', 'PD Right', typedPrescription.pdRight, { min: 20, max: 40, step: 0.5, required: false })
+    const pdLeft = parseField('pdLeft', 'PD Left', typedPrescription.pdLeft, { min: 20, max: 40, step: 0.5, required: false })
+
+    const hasMonocularPd = typedPrescription.pdRight.trim() !== '' || typedPrescription.pdLeft.trim() !== ''
+    if (hasMonocularPd) {
+      if (typedPrescription.pdRight.trim() === '') {
+        errors.pdRight = 'PD Right is required when using monocular PD'
+      }
+      if (typedPrescription.pdLeft.trim() === '') {
+        errors.pdLeft = 'PD Left is required when using monocular PD'
+      }
+    }
+
+    if (pd !== undefined && pdRight !== undefined && pdLeft !== undefined) {
+      const combinedPd = pdRight + pdLeft
+      if (Math.abs(combinedPd - pd) > 1) {
+        errors.pd = 'PD should roughly match PD Right + PD Left'
+      }
+    }
+
+    setTypedPrescriptionErrors(errors)
+
+    const hasErrors = Object.keys(errors).length > 0
+    if (hasErrors) {
+      return { isValid: false as const }
+    }
+
+    return {
+      isValid: true as const,
+      payload: {
+        rightEye: {
+          sph: rightEye.sph as number,
+          cyl: rightEye.cyl as number,
+          axis: rightEye.axis as number,
+          add: rightEye.add as number,
+        },
+        leftEye: {
+          sph: leftEye.sph as number,
+          cyl: leftEye.cyl as number,
+          axis: leftEye.axis as number,
+          add: leftEye.add as number,
+        },
+        pd,
+        pdRight,
+        pdLeft,
+        notesFromCustomer: typedPrescription.notesFromCustomer.trim() || undefined,
+      },
+    }
+  }
 
   // ==================== Computed Values ====================
 
@@ -1047,7 +1274,7 @@ export function ProductDetailPage() {
   // Check if pre-order is enabled for the product
   const isPreorderEnabled = () => {
     if (!product) return false
-    return product.isPreorderEnabled === true
+    return (product as Product & { isPreorderEnabled?: boolean }).isPreorderEnabled === true
   }
 
   // Get actual stock status considering inventory
@@ -1281,6 +1508,19 @@ export function ProductDetailPage() {
     fetchCombosAndPromotions()
   }, [product])
 
+  useEffect(() => {
+    const fetchPrescriptionPolicy = async () => {
+      try {
+        const fee = await getPrescriptionLensFee()
+        setPrescriptionLensFee(fee)
+      } catch {
+        setPrescriptionLensFee(0)
+      }
+    }
+
+    fetchPrescriptionPolicy()
+  }, [])
+
   // Reset variant state when product changes
   // Note: This is handled by the auto-selection logic in loadProduct()
   useEffect(() => {
@@ -1386,6 +1626,29 @@ export function ProductDetailPage() {
 
     setIsAdding(true)
     try {
+      let typedPrescriptionPayload: {
+        rightEye: { sph: number; cyl: number; axis: number; add: number }
+        leftEye: { sph: number; cyl: number; axis: number; add: number }
+        pd?: number
+        pdRight?: number
+        pdLeft?: number
+        notesFromCustomer?: string
+      } | undefined
+
+      if (enableTypedPrescription) {
+        const validation = validateTypedPrescription()
+        if (!validation.isValid) {
+          setSnackbarState({
+            open: true,
+            message: 'Please review the prescription form. Some fields are missing or invalid.',
+            severity: 'warning',
+          })
+          setIsAdding(false)
+          return
+        }
+        typedPrescriptionPayload = validation.payload
+      }
+
       // Generate variant name and SKU based on product type
       let variantName = 'Standard'
       let itemVariantSku: string | undefined = selectedVariant?.sku
@@ -1406,18 +1669,15 @@ export function ProductDetailPage() {
         variantSku: itemVariantSku,
         productId: product._id,
         quantity,
-        productData: {
-          name: product.name,
-          price: getDisplayPrice(),
-          variantSku: itemVariantSku,
-          variantName,
-          image: images2D[0] ? formatImageUrl(images2D[0]) : '',
-        },
+        requiresPrescription: enableTypedPrescription,
+        typedPrescription: typedPrescriptionPayload,
       })
 
       setSnackbarState({
         open: true,
-        message: result.message,
+        message: result.success && enableTypedPrescription
+          ? `Frame and typed prescription lenses added to cart${prescriptionLensFee > 0 ? ` (+${formatPrice(prescriptionLensFee)})` : ''}`
+          : result.message,
         severity: result.success ? ('success' as const) : ('error' as const),
       })
     } catch (err) {
@@ -1681,9 +1941,9 @@ export function ProductDetailPage() {
                   <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: '1.25rem' }}>
                     {product.name}
                   </Typography>
-                  {product.brand && (
+                  {(product as Product & { brand?: string }).brand && (
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.8rem' }}>
-                      by {product.brand}
+                      by {(product as Product & { brand?: string }).brand}
                     </Typography>
                   )}
                 </Box>
@@ -2119,10 +2379,302 @@ export function ProductDetailPage() {
 
                 {/* Virtual Try-On Button */}
                 <TryOnButton
-                  productId={product?.id || ''}
-                  variantId={selectedVariant?.id || ''}
+                  productId={product?._id || ''}
+                  variantId={selectedVariant?.sku || ''}
                   disabled={!product || !selectedVariant}
                 />
+
+                {product?.category === 'frame' && (
+                  <Box sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50' }}>
+                    {(() => {
+                      const prescriptionStatus = getTypedPrescriptionCompletionStatus()
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            Prescription Lens Form
+                          </Typography>
+                          {enableTypedPrescription && (
+                            <Chip
+                              size="small"
+                              color={prescriptionStatus.isComplete ? 'success' : 'warning'}
+                              label={prescriptionStatus.isComplete ? 'Completed' : `Incomplete (${prescriptionStatus.invalidCount})`}
+                              sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }}
+                            />
+                          )}
+                        </Box>
+                      )
+                    })()}
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={enableTypedPrescription}
+                          onChange={(e) => {
+                            const nextEnabled = e.target.checked
+                            setEnableTypedPrescription(nextEnabled)
+                            if (nextEnabled) {
+                              setTypedPrescriptionModalOpen(true)
+                            } else {
+                              setTypedPrescriptionModalOpen(false)
+                              setTypedPrescriptionErrors({})
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2">Add typed prescription lenses</Typography>
+                          <Chip
+                            size="small"
+                            color={prescriptionLensFee > 0 ? 'info' : 'default'}
+                            label={prescriptionLensFee > 0 ? `+${formatPrice(prescriptionLensFee)}` : 'No extra fee'}
+                            sx={{ fontWeight: 700, fontSize: '0.68rem', height: 20 }}
+                          />
+                        </Box>
+                      }
+                    />
+
+                    {enableTypedPrescription && (
+                      <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                        <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
+                          Prescription is enabled. Click "Edit prescription" to fill or update details in a popup form. Extra lens fee: {prescriptionLensFee > 0 ? formatPrice(prescriptionLensFee) : '0 VND'}.
+                        </Alert>
+
+                        <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px dashed', borderColor: 'divider' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            OD: SPH {typedPrescription.rightEye.sph || '--'}, CYL {typedPrescription.rightEye.cyl || '--'}, Axis {typedPrescription.rightEye.axis || '--'}, Add {typedPrescription.rightEye.add || '--'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            OS: SPH {typedPrescription.leftEye.sph || '--'}, CYL {typedPrescription.leftEye.cyl || '--'}, Axis {typedPrescription.leftEye.axis || '--'}, Add {typedPrescription.leftEye.add || '--'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            PD: {typedPrescription.pd || '--'} | PD Right: {typedPrescription.pdRight || '--'} | PD Left: {typedPrescription.pdLeft || '--'}
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <Button size="small" variant="outlined" onClick={() => setTypedPrescriptionModalOpen(true)}>
+                            Edit prescription
+                          </Button>
+                        </Box>
+
+                        <Dialog
+                          open={typedPrescriptionModalOpen}
+                          onClose={() => setTypedPrescriptionModalOpen(false)}
+                          fullWidth
+                          maxWidth="md"
+                        >
+                          <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="h6" component="span">Typed Prescription Lenses</Typography>
+                              <Chip
+                                size="small"
+                                color={prescriptionLensFee > 0 ? 'info' : 'default'}
+                                label={prescriptionLensFee > 0 ? `Fee: +${formatPrice(prescriptionLensFee)}` : 'Fee: 0'}
+                                sx={{ fontWeight: 700, fontSize: '0.68rem', height: 20 }}
+                              />
+                            </Box>
+                            <IconButton size="small" onClick={() => setTypedPrescriptionModalOpen(false)}>
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </DialogTitle>
+                          <DialogContent dividers>
+                            <Stack spacing={2} sx={{ mt: 0.5 }}>
+                              <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
+                                OD = right eye, OS = left eye. SPH and CYL are lens powers, Axis is 0-180, Add is near-vision addition, and PD is pupil distance in mm.
+                              </Alert>
+                              <Typography variant="caption" color="text.secondary">OD / Right Eye</Typography>
+                              <Grid container spacing={1.5}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="SPH"
+                                    type="number"
+                                    value={typedPrescription.rightEye.sph}
+                                    onChange={(e) => setTypedRxField('rightEye.sph', e.target.value)}
+                                    error={Boolean(getTypedRxError('rightEye.sph'))}
+                                    helperText={getTypedRxError('rightEye.sph') || 'Range: -20 to +20 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: -20, max: 20, step: '0.25' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="CYL"
+                                    type="number"
+                                    value={typedPrescription.rightEye.cyl}
+                                    onChange={(e) => setTypedRxField('rightEye.cyl', e.target.value)}
+                                    error={Boolean(getTypedRxError('rightEye.cyl'))}
+                                    helperText={getTypedRxError('rightEye.cyl') || 'Range: -6 to +6 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: -6, max: 6, step: '0.25' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Axis"
+                                    type="number"
+                                    value={typedPrescription.rightEye.axis}
+                                    onChange={(e) => setTypedRxField('rightEye.axis', e.target.value)}
+                                    error={Boolean(getTypedRxError('rightEye.axis'))}
+                                    helperText={getTypedRxError('rightEye.axis') || 'Whole number: 0 to 180'}
+                                    inputProps={{ inputMode: 'numeric', min: 0, max: 180, step: '1' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Add"
+                                    type="number"
+                                    value={typedPrescription.rightEye.add}
+                                    onChange={(e) => setTypedRxField('rightEye.add', e.target.value)}
+                                    error={Boolean(getTypedRxError('rightEye.add'))}
+                                    helperText={getTypedRxError('rightEye.add') || 'Range: 0 to 4 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: 0, max: 4, step: '0.25' }}
+                                  />
+                                </Grid>
+                              </Grid>
+
+                              <Typography variant="caption" color="text.secondary">OS / Left Eye</Typography>
+                              <Grid container spacing={1.5}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="SPH"
+                                    type="number"
+                                    value={typedPrescription.leftEye.sph}
+                                    onChange={(e) => setTypedRxField('leftEye.sph', e.target.value)}
+                                    error={Boolean(getTypedRxError('leftEye.sph'))}
+                                    helperText={getTypedRxError('leftEye.sph') || 'Range: -20 to +20 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: -20, max: 20, step: '0.25' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="CYL"
+                                    type="number"
+                                    value={typedPrescription.leftEye.cyl}
+                                    onChange={(e) => setTypedRxField('leftEye.cyl', e.target.value)}
+                                    error={Boolean(getTypedRxError('leftEye.cyl'))}
+                                    helperText={getTypedRxError('leftEye.cyl') || 'Range: -6 to +6 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: -6, max: 6, step: '0.25' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Axis"
+                                    type="number"
+                                    value={typedPrescription.leftEye.axis}
+                                    onChange={(e) => setTypedRxField('leftEye.axis', e.target.value)}
+                                    error={Boolean(getTypedRxError('leftEye.axis'))}
+                                    helperText={getTypedRxError('leftEye.axis') || 'Whole number: 0 to 180'}
+                                    inputProps={{ inputMode: 'numeric', min: 0, max: 180, step: '1' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Add"
+                                    type="number"
+                                    value={typedPrescription.leftEye.add}
+                                    onChange={(e) => setTypedRxField('leftEye.add', e.target.value)}
+                                    error={Boolean(getTypedRxError('leftEye.add'))}
+                                    helperText={getTypedRxError('leftEye.add') || 'Range: 0 to 4 (step 0.25)'}
+                                    inputProps={{ inputMode: 'decimal', min: 0, max: 4, step: '0.25' }}
+                                  />
+                                </Grid>
+                              </Grid>
+
+                              <Grid container spacing={1.5}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="PD (optional)"
+                                    type="number"
+                                    value={typedPrescription.pd}
+                                    onChange={(e) => setTypedRxField('pd', e.target.value)}
+                                    error={Boolean(getTypedRxError('pd'))}
+                                    helperText={getTypedRxError('pd') || 'Binocular PD: 40 to 80 mm'}
+                                    inputProps={{ inputMode: 'decimal', min: 40, max: 80, step: '0.5' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="PD Right (optional)"
+                                    type="number"
+                                    value={typedPrescription.pdRight}
+                                    onChange={(e) => setTypedRxField('pdRight', e.target.value)}
+                                    error={Boolean(getTypedRxError('pdRight'))}
+                                    helperText={getTypedRxError('pdRight') || 'Monocular PD: 20 to 40 mm'}
+                                    inputProps={{ inputMode: 'decimal', min: 20, max: 40, step: '0.5' }}
+                                  />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="PD Left (optional)"
+                                    type="number"
+                                    value={typedPrescription.pdLeft}
+                                    onChange={(e) => setTypedRxField('pdLeft', e.target.value)}
+                                    error={Boolean(getTypedRxError('pdLeft'))}
+                                    helperText={getTypedRxError('pdLeft') || 'Monocular PD: 20 to 40 mm'}
+                                    inputProps={{ inputMode: 'decimal', min: 20, max: 40, step: '0.5' }}
+                                  />
+                                </Grid>
+                              </Grid>
+
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Any note for our optician?"
+                                multiline
+                                minRows={2}
+                                value={typedPrescription.notesFromCustomer}
+                                onChange={(e) => setTypedPrescription((p) => ({ ...p, notesFromCustomer: e.target.value }))}
+                              />
+                            </Stack>
+                          </DialogContent>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, p: 2 }}>
+                            <Button variant="text" onClick={() => setTypedPrescriptionModalOpen(false)}>
+                              Close
+                            </Button>
+                            <Button
+                              variant="contained"
+                              onClick={() => {
+                                const validation = validateTypedPrescription()
+                                if (!validation.isValid) {
+                                  setSnackbarState({
+                                    open: true,
+                                    message: 'Please fix prescription errors before saving',
+                                    severity: 'warning',
+                                  })
+                                  return
+                                }
+                                setTypedPrescriptionModalOpen(false)
+                              }}
+                            >
+                              Save prescription
+                            </Button>
+                          </Box>
+                        </Dialog>
+                      </Stack>
+                    )}
+                  </Box>
+                )}
 
                 {/* Enhanced Action Buttons */}
                 <Stack spacing={1}>
@@ -2196,7 +2748,7 @@ export function ProductDetailPage() {
                           </Button>
                           <Button
                             variant={isInWishlist ? 'contained' : 'outlined'}
-                            color={isInWishlist ? 'error' : 'default'}
+                            color={isInWishlist ? 'error' : 'inherit'}
                             size="medium"
                             onClick={toggleWishlist}
                             sx={{

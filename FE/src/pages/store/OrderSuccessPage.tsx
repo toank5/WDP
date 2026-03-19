@@ -327,6 +327,12 @@ const OrderSuccessPage: React.FC = () => {
               <span>Shipping Fee</span>
               <span>{formatPrice(order.shippingFee)}</span>
             </div>
+            {(order.prescriptionLensFeeTotal ?? 0) > 0 && (
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Prescription Lens Fee (Included)</span>
+                <span>{formatPrice(order.prescriptionLensFeeTotal || 0)}</span>
+              </div>
+            )}
             <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
               <span className="text-base font-bold text-slate-900">Total</span>
               <span className="text-2xl font-bold text-blue-700">{formatPrice(order.totalAmount)}</span>

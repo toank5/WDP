@@ -92,6 +92,12 @@ export class Order {
     type: Number,
     default: 0,
   })
+  prescriptionLensFeeTotal: number;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
   comboDiscount: number;
 
   @Prop({

@@ -13,6 +13,8 @@ import {
   PAYMENT_STATUS,
   SHIPPING_METHOD,
   SHIPPING_CARRIER,
+  PRESCRIPTION_REVIEW_STATUS,
+  LAB_JOB_STATUS,
 } from '@eyewear/shared'
 
 // Get the API base URL
@@ -27,6 +29,17 @@ export { PREORDER_STATUS as PreorderStatus }
 export { PAYMENT_STATUS as PaymentStatus }
 export { SHIPPING_METHOD as ShippingMethod }
 export { SHIPPING_CARRIER as ShippingCarrier }
+export { PRESCRIPTION_REVIEW_STATUS as PrescriptionReviewStatus }
+export { LAB_JOB_STATUS as LabJobStatus }
+export { PRESCRIPTION_REVIEW_STATUS as PrescriptionStatus }
+
+export interface PrescriptionData {
+  pd?: number
+  sph: { right: number; left: number }
+  cyl: { right: number; left: number }
+  axis: { right: number; left: number }
+  add: { right: number; left: number }
+}
 
 // Order types
 export interface ShippingAddress {
@@ -41,6 +54,7 @@ export interface ShippingAddress {
 
 export interface OrderItem {
   _id: string
+  itemId?: string
   productId: string
   variantSku?: string
   productName?: string
@@ -56,6 +70,40 @@ export interface OrderItem {
   preorderStatus?: PREORDER_STATUS
   expectedShipDate?: string
   reservedQuantity?: number
+  requiresPrescription?: boolean
+  typedPrescription?: {
+    rightEye: { sph: number; cyl: number; axis: number; add: number }
+    leftEye: { sph: number; cyl: number; axis: number; add: number }
+    pd?: number
+    pdRight?: number
+    pdLeft?: number
+    notesFromCustomer?: string
+  }
+  prescriptionReviewStatus?: PRESCRIPTION_REVIEW_STATUS
+  prescriptionReviewNote?: string
+  // Backward compatibility fields for existing UI
+  isPrescription?: boolean
+  prescriptionStatus?: PRESCRIPTION_REVIEW_STATUS
+  prescriptionData?: PrescriptionData
+  prescriptionUrl?: string
+}
+
+export interface LabJob {
+  _id: string
+  orderId: string
+  orderItemId: string
+  rightEye: { sph: number; cyl: number; axis: number; add: number }
+  leftEye: { sph: number; cyl: number; axis: number; add: number }
+  pd?: number
+  pdRight?: number
+  pdLeft?: number
+  lensType: string
+  status: LAB_JOB_STATUS
+  notes?: string
+  orderNumber?: string
+  customerName?: string
+  frameName?: string
+  frameSku?: string
 }
 
 export interface OrderPayment {
@@ -88,6 +136,7 @@ export interface Order {
   orderStatus: ORDER_STATUS
   items: OrderItem[]
   subtotal: number
+  prescriptionLensFeeTotal?: number
   shippingFee: number
   tax: number
   totalAmount: number
@@ -159,6 +208,16 @@ export interface UpdateManufacturingStatusRequest {
   note?: string
 }
 
+export interface ReviewPrescriptionRequest {
+  status: PRESCRIPTION_REVIEW_STATUS.APPROVED | PRESCRIPTION_REVIEW_STATUS.REJECTED
+  note?: string
+}
+
+export interface UpdateLabJobStatusRequest {
+  status: LAB_JOB_STATUS
+  note?: string
+}
+
 export interface OrderListResponse {
   orders: Order[]
   total: number
@@ -212,6 +271,38 @@ function unwrapApiPayload<T>(raw: unknown): T {
   }
 
   return raw as T
+}
+
+function normalizeOrder(order: Order): Order {
+  return {
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      isPrescription: item.requiresPrescription,
+      prescriptionStatus: item.prescriptionReviewStatus,
+      prescriptionData: item.typedPrescription
+        ? {
+            pd: item.typedPrescription.pd,
+            sph: {
+              right: item.typedPrescription.rightEye.sph,
+              left: item.typedPrescription.leftEye.sph,
+            },
+            cyl: {
+              right: item.typedPrescription.rightEye.cyl,
+              left: item.typedPrescription.leftEye.cyl,
+            },
+            axis: {
+              right: item.typedPrescription.rightEye.axis,
+              left: item.typedPrescription.leftEye.axis,
+            },
+            add: {
+              right: item.typedPrescription.rightEye.add,
+              left: item.typedPrescription.leftEye.add,
+            },
+          }
+        : undefined,
+    })),
+  }
 }
 
 class OrderAPI {
@@ -307,7 +398,7 @@ class OrderAPI {
       const payload = unwrapApiPayload<OrderListResponse>(response.data)
 
       return {
-        orders: Array.isArray(payload?.orders) ? payload.orders : [],
+        orders: Array.isArray(payload?.orders) ? payload.orders.map(normalizeOrder) : [],
         total: payload?.total ?? 0,
         page: payload?.page ?? params.page ?? 1,
         limit: payload?.limit ?? params.limit ?? 10,
@@ -347,7 +438,7 @@ class OrderAPI {
         const payload = unwrapApiPayload<OrderListResponse>(response.data)
 
         return {
-          orders: Array.isArray(payload?.orders) ? payload.orders : [],
+          orders: Array.isArray(payload?.orders) ? payload.orders.map(normalizeOrder) : [],
           total: payload?.total ?? 0,
           page: payload?.page ?? params.page ?? 1,
           limit: payload?.limit ?? params.limit ?? 20,
@@ -396,7 +487,7 @@ class OrderAPI {
       const payload = unwrapApiPayload<OrderListResponse>(response.data)
 
       return {
-        orders: Array.isArray(payload?.orders) ? payload.orders : [],
+        orders: Array.isArray(payload?.orders) ? payload.orders.map(normalizeOrder) : [],
         total: payload?.total ?? 0,
         page: payload?.page ?? params.page ?? 1,
         limit: payload?.limit ?? params.limit ?? 20,
@@ -414,7 +505,7 @@ class OrderAPI {
   async approveOrderForOperations(orderId: string, request: ApproveOrderRequest = {}): Promise<Order> {
     try {
       const response = await api.post(`/orders/${orderId}/approve`, request)
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -427,11 +518,56 @@ class OrderAPI {
   async updateManufacturingStatus(orderId: string, request: UpdateManufacturingStatusRequest): Promise<Order> {
     try {
       const response = await api.post(`/orders/${orderId}/manufacturing`, request)
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
     }
+  }
+
+  async getPrescriptionQueue(status: PRESCRIPTION_REVIEW_STATUS = PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW): Promise<Order[]> {
+    const response = await api.get(`/staff/prescriptions?status=${status}`)
+    return unwrapApiPayload<Order[]>(response.data).map(normalizeOrder)
+  }
+
+  async getPrescriptionDetail(orderItemId: string): Promise<{ order: Order; item: OrderItem }> {
+    const response = await api.get(`/staff/prescriptions/${orderItemId}`)
+    const payload = unwrapApiPayload<{ order: Order; item: OrderItem }>(response.data)
+    return { ...payload, order: normalizeOrder(payload.order) }
+  }
+
+  async reviewPrescription(orderItemId: string, request: ReviewPrescriptionRequest): Promise<{ order: Order; workOrder?: LabJob }> {
+    const response = await api.patch(`/staff/prescriptions/${orderItemId}`, request)
+    const payload = unwrapApiPayload<{ order: Order; workOrder?: LabJob }>(response.data)
+    return { ...payload, order: normalizeOrder(payload.order) }
+  }
+
+  // Backward compatibility wrappers
+  async approvePrescription(orderId: string, request: { itemId: string; note?: string }): Promise<Order> {
+    const result = await this.reviewPrescription(request.itemId, {
+      status: PRESCRIPTION_REVIEW_STATUS.APPROVED,
+      note: request.note,
+    })
+    return result.order
+  }
+
+  async requestPrescriptionUpdate(orderId: string, request: { itemId: string; message?: string }): Promise<Order> {
+    const result = await this.reviewPrescription(request.itemId, {
+      status: PRESCRIPTION_REVIEW_STATUS.REJECTED,
+      note: request.message,
+    })
+    return result.order
+  }
+
+  async getLabJobs(status?: LAB_JOB_STATUS): Promise<LabJob[]> {
+    const url = status ? `/staff/lab-jobs?status=${status}` : '/staff/lab-jobs'
+    const response = await api.get(url)
+    return unwrapApiPayload<LabJob[]>(response.data)
+  }
+
+  async updateLabJobStatus(id: string, request: UpdateLabJobStatusRequest): Promise<LabJob> {
+    const response = await api.patch(`/staff/lab-jobs/${id}/status`, request)
+    return unwrapApiPayload<LabJob>(response.data)
   }
 
   /**
@@ -453,7 +589,7 @@ class OrderAPI {
 
       const response = await api.get(endpoint)
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -467,7 +603,7 @@ class OrderAPI {
     try {
       const response = await api.get(`/checkout/order?orderNumber=${orderNumber}`)
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -481,7 +617,7 @@ class OrderAPI {
     try {
       const response = await api.post(`/orders/${orderId}/cancel`, request)
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -496,7 +632,7 @@ class OrderAPI {
     try {
       const response = await api.post(`/orders/${orderId}/confirm-receipt`)
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -513,7 +649,7 @@ class OrderAPI {
         note,
       })
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -539,7 +675,7 @@ class OrderAPI {
 
       const response = await api.post(`/orders/${orderId}/tracking?${queryParams.toString()}`)
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)
@@ -578,7 +714,7 @@ class OrderAPI {
         }
       )
 
-      return unwrapApiPayload<Order>(response.data)
+      return normalizeOrder(unwrapApiPayload<Order>(response.data))
     } catch (error) {
       const message = extractApiMessage(error)
       throw new Error(message)

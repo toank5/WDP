@@ -14,6 +14,7 @@ import { formatImageUrl } from '@/lib/product-api'
 import { useCart } from '@/store/cart.store'
 import type { CartItem } from '@/lib/cart-api'
 import { normalizeCartItemPrice } from '@/lib/cart-api'
+import { getPrescriptionLensFee } from '@/lib/policy-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -44,6 +45,7 @@ const CartPage: React.FC = () => {
 
   const [notification, setNotification] = React.useState<string>('')
   const [updating, setUpdating] = React.useState<Set<string>>(new Set())
+  const [prescriptionLensFee, setPrescriptionLensFee] = React.useState(0)
 
   const navigate = useNavigate()
 
@@ -70,6 +72,25 @@ const CartPage: React.FC = () => {
       setTimeout(() => setNotification(''), 5000)
     }
   }, [error])
+
+  useEffect(() => {
+    const fetchPrescriptionPolicy = async () => {
+      try {
+        const fee = await getPrescriptionLensFee()
+        setPrescriptionLensFee(fee)
+      } catch {
+        setPrescriptionLensFee(0)
+      }
+    }
+
+    fetchPrescriptionPolicy()
+  }, [])
+
+  const prescriptionItemsCount = items.reduce(
+    (sum, item) => sum + (item.requiresPrescription ? item.quantity : 0),
+    0
+  )
+  const prescriptionLensFeeTotal = prescriptionItemsCount * prescriptionLensFee
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
@@ -238,6 +259,29 @@ const CartPage: React.FC = () => {
                                       {item.variantDetails.color && `Color: ${item.variantDetails.color}`}
                                     </span>
                                   )}
+
+                                  {item.requiresPrescription && (
+                                    <div className="mt-2">
+                                      <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-100 text-blue-700 rounded border border-blue-200">
+                                        Prescription lenses attached
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {item.requiresPrescription && item.typedPrescription && (
+                                    <div className="mt-2 text-[11px] text-slate-600 leading-relaxed">
+                                      <p className="font-semibold text-slate-700">Typed prescription summary</p>
+                                      <p>
+                                        OD: SPH {item.typedPrescription.rightEye.sph}, CYL {item.typedPrescription.rightEye.cyl}, Axis {item.typedPrescription.rightEye.axis}, Add {item.typedPrescription.rightEye.add}
+                                      </p>
+                                      <p>
+                                        OS: SPH {item.typedPrescription.leftEye.sph}, CYL {item.typedPrescription.leftEye.cyl}, Axis {item.typedPrescription.leftEye.axis}, Add {item.typedPrescription.leftEye.add}
+                                      </p>
+                                      {item.typedPrescription.pd !== undefined && <p>PD: {item.typedPrescription.pd}</p>}
+                                      {item.typedPrescription.pdRight !== undefined && <p>PD Right: {item.typedPrescription.pdRight}</p>}
+                                      {item.typedPrescription.pdLeft !== undefined && <p>PD Left: {item.typedPrescription.pdLeft}</p>}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -320,6 +364,12 @@ const CartPage: React.FC = () => {
                   <span className="uppercase">Shipping</span>
                   <span className="text-emerald-600">FREE</span>
                 </div>
+                {prescriptionItemsCount > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span className="uppercase">Prescription lens fee (included)</span>
+                    <span>{formatPrice(prescriptionLensFeeTotal)}</span>
+                  </div>
+                )}
                 {appliedPromotion && discountAmount > 0 && (
                   <div className="flex justify-between text-xs font-semibold text-emerald-600">
                     <span className="uppercase">

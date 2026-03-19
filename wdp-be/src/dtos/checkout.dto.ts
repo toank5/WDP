@@ -102,6 +102,25 @@ export class CheckoutItemDto {
     color?: string;
   };
   isPreorder?: boolean;
+  requiresPrescription?: boolean;
+  typedPrescription?: {
+    rightEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    leftEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
+  };
 }
 
 /**
@@ -109,6 +128,7 @@ export class CheckoutItemDto {
  */
 export interface CheckoutCalculation {
   subtotal: number;
+  prescriptionLensFeeTotal: number;
   shippingFee: number;
   comboDiscount: number;
   promotionDiscount: number;
@@ -171,5 +191,6 @@ export interface CheckoutOrderInfo {
     quantity: number;
     priceAtOrder: number;
     isPreorder: boolean;
+    requiresPrescription?: boolean;
   }>;
 }
