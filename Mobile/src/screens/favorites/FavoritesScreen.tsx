@@ -13,6 +13,7 @@ import {
   IconButton,
   Chip,
   Button,
+  Avatar,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
@@ -70,10 +71,11 @@ function ProductCard({ product, onPress, onRemove, onAddToCart, isAddingToCart }
         {product.images3D && product.images3D.length > 0 && (
           <Chip
             icon="cube-outline"
-            label="3D"
             style={styles.threeDChip}
             textStyle={styles.threeDChipText}
-          />
+          >
+            3D
+          </Chip>
         )}
       </View>
       <Card.Content style={styles.productContent}>
