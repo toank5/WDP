@@ -7,6 +7,7 @@ import { ContactScreen } from '../screens'
 import { FavoritesScreen } from '../screens'
 import { ProfileScreen } from '../screens'
 import { SecurityScreen } from '../screens'
+import { AddressManagementScreen } from '../screens'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
@@ -17,6 +18,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>()
  * - Favorites
  * - Profile Settings
  * - Security Settings
+ * - Address Management
  */
 export const AppStackNavigator = ({ navigation }: RootStackNavigation) => {
   const theme = useTheme()
@@ -65,10 +67,24 @@ export const AppStackNavigator = ({ navigation }: RootStackNavigation) => {
         }}
       />
       <Stack.Screen
+        name="ProfileEdit"
+        component={ProfileScreen}
+        options={{
+          title: 'Chỉnh sửa thông tin',
+        }}
+      />
+      <Stack.Screen
         name="SecuritySettings"
         component={SecurityScreen}
         options={{
           title: 'Bảo mật',
+        }}
+      />
+      <Stack.Screen
+        name="AddressManagement"
+        component={AddressManagementScreen}
+        options={{
+          title: 'Quản lý địa chỉ',
         }}
       />
     </Stack.Navigator>

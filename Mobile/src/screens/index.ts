@@ -15,12 +15,12 @@ export { ResetPasswordScreen } from './auth/ResetPasswordScreen'
 export { OrderHistoryScreen } from './account/OrderHistoryScreen'
 export { OrderDetailScreen } from './account/OrderDetailScreen'
 export { PrescriptionListScreen } from './account/PrescriptionListScreen'
-export { PrescriptionDetailScreen } from './account/PrescriptionDetailScreen'
 
 // New screens
 export { FavoritesScreen } from './favorites/FavoritesScreen'
 export { ProfileScreen } from './account/ProfileScreen'
 export { SecurityScreen } from './account/SecurityScreen'
+export { AddressManagementScreen } from './account/AddressManagementScreen'
 
 // Info screens
 export { AboutScreen } from './info/AboutScreen'

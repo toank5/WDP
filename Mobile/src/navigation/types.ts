@@ -41,6 +41,8 @@ export type RootStackParamList = {
   AddressManagement: undefined
   AddressForm: { addressId?: string }
   ProfileSettings: undefined
+  ProfileEdit: undefined
+  SecuritySettings: undefined
   About: undefined
   Contact: undefined
   Favorites: undefined
