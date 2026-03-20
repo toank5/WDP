@@ -13,6 +13,7 @@ import {
   Card,
   Chip,
   IconButton,
+  Button,
   Surface,
   ActivityIndicator,
 } from 'react-native-paper'
@@ -119,12 +120,14 @@ export function HomeScreen({ navigation }: Props) {
   const theme = useTheme()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
 
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getAllProducts()
       const activeProducts = data.filter((p) => !p.isDeleted && p.isActive)
       setProducts(activeProducts)
@@ -132,6 +135,7 @@ export function HomeScreen({ navigation }: Props) {
       setFeaturedProducts(activeProducts.slice(0, 6))
     } catch (error) {
       console.error('Failed to load products:', error)
+      setError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -168,6 +172,26 @@ export function HomeScreen({ navigation }: Props) {
               <ProductCardSkeleton key={index} />
             ))}
           </View>
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={() => loadProducts()}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
         </View>
       </View>
     )
@@ -230,15 +254,33 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productsScrollView}>
-          {featuredProducts.map((product) => (
-            <ProductCard
-              key={product._id}
-              product={product}
-              onPress={() => handleProductPress(product)}
-            />
-          ))}
-        </ScrollView>
+        {featuredProducts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📦</Text>
+            <Text style={styles.emptyTitle}>Chưa có sản phẩm nổi bật</Text>
+            <Text style={styles.emptyText}>
+              Các sản phẩm mới sẽ hiển thị ở đây
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.navigate('Main', { screen: 'Search' })}
+              style={styles.emptyButton}
+              icon="magnify"
+            >
+              Tìm sản phẩm
+            </Button>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productsScrollView}>
+            {featuredProducts.map((product) => (
+              <ProductCard
+                key={product._id}
+                product={product}
+                onPress={() => handleProductPress(product)}
+              />
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {/* All Products */}
@@ -246,11 +288,29 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tất cả sản phẩm</Text>
         </View>
-        <View style={styles.productsGrid}>
-          {products.map((product) => (
-            <ProductCard key={product._id} product={product} onPress={() => handleProductPress(product)} />
-          ))}
-        </View>
+        {products.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>👓</Text>
+            <Text style={styles.emptyTitle}>Chưa có sản phẩm nào</Text>
+            <Text style={styles.emptyText}>
+              Chúng tôi đang cập nhật kho sản phẩm. Hãy quay lại sau!
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => loadProducts()}
+              style={styles.emptyButton}
+              icon="refresh"
+            >
+              Làm mới
+            </Button>
+          </View>
+        ) : (
+          <View style={styles.productsGrid}>
+            {products.map((product) => (
+              <ProductCard key={product._id} product={product} onPress={() => handleProductPress(product)} />
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   )
@@ -408,5 +468,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#3b82f6',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 32,
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#1e293b',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    paddingHorizontal: 24,
   },
 })

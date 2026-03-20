@@ -125,6 +125,7 @@ export function FavoritesScreen({ navigation }: Props) {
   const theme = useTheme()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [addingToCartIds, setAddingToCartIds] = useState<Set<string>>(new Set())
 
@@ -135,11 +136,12 @@ export function FavoritesScreen({ navigation }: Props) {
   const loadFavorites = async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getWishlist()
       setProducts(data)
     } catch (error) {
       console.error('Failed to load favorites:', error)
-      Alert.alert('Lỗi', 'Không thể tải danh sách yêu thích')
+      setError('Không thể tải danh sách yêu thích. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -254,6 +256,32 @@ export function FavoritesScreen({ navigation }: Props) {
             ))}
           </View>
         </ScrollView>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>My Favorites</Text>
+            <Text style={styles.headerSubtitle}>Lỗi xảy ra</Text>
+          </View>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={loadFavorites}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
+        </View>
       </View>
     )
   }
@@ -488,5 +516,30 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     paddingHorizontal: 24,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 32,
   },
 })

@@ -125,17 +125,19 @@ export function CartScreen({ navigation }: Props) {
 
   const [cart, setCart] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
 
   const loadCart = async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getCart()
       setCart(data)
     } catch (error: any) {
       console.error('Failed to load cart:', error)
-      Alert.alert('Lỗi', 'Không thể tải giỏ hàng')
+      setError('Không thể tải giỏ hàng. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -249,6 +251,29 @@ export function CartScreen({ navigation }: Props) {
           {Array.from({ length: 3 }).map((_, index) => (
             <CartItemSkeleton key={index} />
           ))}
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={loadCart}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
         </View>
       </View>
     )
@@ -570,6 +595,31 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyButton: {
+    paddingHorizontal: 32,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
     paddingHorizontal: 32,
   },
 })

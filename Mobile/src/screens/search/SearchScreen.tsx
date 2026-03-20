@@ -130,6 +130,7 @@ export function SearchScreen({ navigation }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null)
@@ -144,6 +145,7 @@ export function SearchScreen({ navigation }: Props) {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getAllProducts()
       const activeProducts = data.filter((p) => !p.isDeleted && p.isActive)
       setProducts(activeProducts)
@@ -158,6 +160,7 @@ export function SearchScreen({ navigation }: Props) {
       }
     } catch (error) {
       console.error('Failed to load products:', error)
+      setError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -304,6 +307,40 @@ export function SearchScreen({ navigation }: Props) {
     )
   }
 
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Searchbar
+            placeholder="Tìm kiếm sản phẩm..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+          />
+          <IconButton
+            icon="filter-variant"
+            size={24}
+            onPress={openFilterModal}
+            style={styles.filterButton}
+          />
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={() => loadProducts()}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       {/* Search Bar */}
@@ -355,9 +392,34 @@ export function SearchScreen({ navigation }: Props) {
       >
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Không tìm thấy sản phẩm nào</Text>
-            <Button mode="text" onPress={() => setFilters({ ...DEFAULT_FILTERS, maxPrice })}>
+            <IconButton
+              icon="magnify"
+              size={64}
+              iconColor={theme.colors.onSurfaceDisabled}
+              style={styles.emptyIcon}
+            />
+            <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm nào</Text>
+            <Text style={styles.emptyText}>
+              Thử thay đổi bộ lọc hoặc tìm kiếm với từ khóa khác
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setFilters({ ...DEFAULT_FILTERS, maxPrice })
+                setSearchQuery('')
+              }}
+              style={styles.emptyButton}
+              icon="filter-remove"
+            >
               Xóa bộ lọc
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => navigation.navigate('Main', { screen: 'Store' })}
+              style={styles.emptyButton}
+              icon="shopping"
+            >
+              Xem tất cả sản phẩm
             </Button>
           </View>
         ) : (
@@ -545,6 +607,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 16,
   },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#1e293b',
+  },
+  emptyButton: {
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
   productsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -673,5 +748,30 @@ const styles = StyleSheet.create({
   },
   filterAction: {
     flex: 1,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 32,
   },
 })

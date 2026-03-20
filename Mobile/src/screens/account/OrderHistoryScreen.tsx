@@ -77,6 +77,7 @@ export const OrderHistoryScreen = () => {
   const navigation = useNavigation() as NativeStackNavigationProp<any>
 
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [orders, setOrders] = useState<OrderItem[]>([])
   const [selectedFilter, setSelectedFilter] = useState<OrderStatus | 'all'>('all')
@@ -177,11 +178,13 @@ export const OrderHistoryScreen = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       // TODO: Call API to get orders
       // For now, use mock data
       setOrders(mockOrders)
     } catch (error) {
       console.error('Fetch orders error:', error)
+      setError('Không thể tải lịch sử đơn hàng. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -295,6 +298,35 @@ export const OrderHistoryScreen = () => {
           {Array.from({ length: 3 }).map((_, index) => (
             <OrderCardSkeleton key={index} />
           ))}
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Surface style={styles.header} elevation={2}>
+          <View style={styles.headerRow}>
+            <IconButton icon="arrow-left" size={24} onPress={() => navigation.goBack()} />
+            <Text variant="titleLarge" style={styles.headerTitle}>
+              Đơn hàng của tôi
+            </Text>
+            <View style={styles.headerSpacer} />
+          </View>
+        </Surface>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={fetchOrders}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
         </View>
       </View>
     )
@@ -641,5 +673,30 @@ const styles = StyleSheet.create({
   },
   shopNowButton: {
     borderRadius: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 32,
   },
 })
