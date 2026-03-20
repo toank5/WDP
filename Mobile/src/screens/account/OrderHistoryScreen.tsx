@@ -13,6 +13,7 @@ import {
   Divider,
 } from 'react-native-paper'
 import { APP_CONFIG } from '../../config'
+import { OrderCardSkeleton } from '../../components/Loading'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 export type OrderStatus =
@@ -283,8 +284,18 @@ export const OrderHistoryScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Lịch sử đơn hàng</Text>
+          <Text style={styles.headerSubtitle}>
+            Đang tải lịch sử đơn hàng...
+          </Text>
+        </View>
+        <View style={styles.content}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <OrderCardSkeleton key={index} />
+          ))}
+        </View>
       </View>
     )
   }
@@ -500,6 +511,18 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     marginBottom: 8,
+  },
+  headerTitle: {
+    fontWeight: 'bold',
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  content: {
+    padding: 16,
   },
   headerRow: {
     flexDirection: 'row',

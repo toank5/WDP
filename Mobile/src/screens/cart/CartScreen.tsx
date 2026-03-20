@@ -15,6 +15,7 @@ import {
   Divider,
   ActivityIndicator,
 } from 'react-native-paper'
+import { CartItemSkeleton } from '../../components/Loading'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
 import type { MainTabParamList, RootStackParamList } from '../../types'
@@ -237,8 +238,18 @@ export function CartScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+          <Text style={styles.headerSubtitle}>
+            Đang tải giỏ hàng của bạn...
+          </Text>
+        </View>
+        <View style={styles.content}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <CartItemSkeleton key={index} />
+          ))}
+        </View>
       </View>
     )
   }
@@ -379,6 +390,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  content: {
+    padding: 16,
   },
   scrollView: {
     flex: 1,

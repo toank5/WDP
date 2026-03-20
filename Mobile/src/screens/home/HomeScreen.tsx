@@ -21,7 +21,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { MainTabParamList } from '../../types'
 import { getAllProducts, type Product } from '../../services/product-api'
 import { CustomButton } from '../../components/Button'
-import { Loading } from '../../components/Loading'
+import { Loading, ProductCardSkeleton } from '../../components/Loading'
 
 type Props = BottomTabScreenProps<MainTabParamList, 'HomeTab'>
 
@@ -159,7 +159,18 @@ export function HomeScreen({ navigation }: Props) {
   }
 
   if (loading) {
-    return <Loading />
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.sectionTitle}>Sản phẩm mới</Text>
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -249,6 +260,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  content: {
+    padding: 16,
   },
   heroBanner: {
     height: 220,

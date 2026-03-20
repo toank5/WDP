@@ -21,7 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList, Product } from '../../types'
 import { getWishlist, removeFromWishlist } from '../../services/wishlist-api'
 import { addToCart } from '../../services/cart-api'
-import { Loading } from '../../components/Loading'
+import { Loading, ProductCardSkeleton } from '../../components/Loading'
 
 type Props = NativeStackScreenProps<RootStackParamList, any>
 
@@ -237,7 +237,25 @@ export function FavoritesScreen({ navigation }: Props) {
   }
 
   if (loading) {
-    return <Loading />
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>My Favorites</Text>
+            <Text style={styles.headerSubtitle}>
+              Đang tải danh sách yêu thích...
+            </Text>
+          </View>
+        </View>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    )
   }
 
   return (

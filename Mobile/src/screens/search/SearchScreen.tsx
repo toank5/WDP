@@ -26,7 +26,7 @@ import { useTheme } from 'react-native-paper'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { MainTabParamList } from '../../types'
 import { getAllProducts, type Product, type ProductCategory } from '../../services/product-api'
-import { Loading } from '../../components/Loading'
+import { Loading, ProductCardSkeleton } from '../../components/Loading'
 
 type Props = BottomTabScreenProps<MainTabParamList, 'SearchTab'>
 
@@ -132,6 +132,7 @@ export function SearchScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null)
   const [sortBy, setSortBy] = useState('relevance')
   const [maxPrice, setMaxPrice] = useState(50000000)
 
@@ -267,7 +268,40 @@ export function SearchScreen({ navigation }: Props) {
   )
 
   if (loading) {
-    return <Loading />
+    return (
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Searchbar
+            placeholder="Tìm sản phẩm..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchbar}
+          />
+          <IconButton
+            icon="tune"
+            onPress={() => setFilterModalVisible(true)}
+            size={20}
+          />
+        </View>
+        <View style={styles.filtersContainer}>
+          <SegmentedButtons
+            value={selectedCategory}
+            onValueChange={setSelectedCategory}
+            buttons={[
+              { value: null, label: 'Tất cả' },
+              ...CATEGORIES.map((cat) => ({ value: cat.id, label: cat.name })),
+            ]}
+            style={styles.categoryButtons}
+            density="small"
+          />
+        </View>
+        <View style={styles.productsGrid}>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
+          ))}
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -459,7 +493,22 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
+  searchbar: {
+    flex: 1,
+  },
   searchBar: {
+    flex: 1,
+    elevation: 0,
+    backgroundColor: 'white',
+  },
+  filtersContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  categoryButtons: {
+    width: '100%',
+  },
+  filterButton: {
     flex: 1,
     elevation: 0,
     backgroundColor: 'white',
