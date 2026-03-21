@@ -19,6 +19,7 @@ import { useCart, useCartStore } from '@/store/cart.store'
 import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
+import { getPrescriptionLensFee } from '@/lib/policy-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -144,6 +145,7 @@ const CheckoutPage: React.FC = () => {
 
   // Notes
   const [notes, setNotes] = useState('')
+  const [prescriptionLensFee, setPrescriptionLensFee] = useState(0)
 
   // Load cart on mount - only if authenticated
   useEffect(() => {
@@ -153,6 +155,19 @@ const CheckoutPage: React.FC = () => {
       return
     }
     loadCart()
+  }, [])
+
+  useEffect(() => {
+    const fetchPrescriptionPolicy = async () => {
+      try {
+        const fee = await getPrescriptionLensFee()
+        setPrescriptionLensFee(fee)
+      } catch {
+        setPrescriptionLensFee(0)
+      }
+    }
+
+    fetchPrescriptionPolicy()
   }, [])
 
   const loadCart = async () => {
@@ -387,6 +402,11 @@ const CheckoutPage: React.FC = () => {
   }
 
   const shippingFee = calculateShippingFee()
+  const prescriptionItemsCount = items.reduce(
+    (sum, item) => sum + (item.requiresPrescription ? item.quantity : 0),
+    0
+  )
+  const prescriptionLensFeeTotal = prescriptionItemsCount * prescriptionLensFee
   // Use the dynamically calculated discount from useCart() hook
   // This automatically recalculates based on promotion type (percentage or fixed)
   const total = totalAfterDiscount + shippingFee
@@ -745,6 +765,24 @@ const CheckoutPage: React.FC = () => {
                                       )}
                                     </div>
                                   )}
+
+                                  {item.requiresPrescription && item.typedPrescription && (
+                                    <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-slate-700">
+                                      <p className="mb-1 font-semibold text-blue-900">Typed prescription</p>
+                                      <p>
+                                        OD: SPH {item.typedPrescription.rightEye.sph}, CYL {item.typedPrescription.rightEye.cyl}, AXIS {item.typedPrescription.rightEye.axis}, ADD {item.typedPrescription.rightEye.add}
+                                      </p>
+                                      <p>
+                                        OS: SPH {item.typedPrescription.leftEye.sph}, CYL {item.typedPrescription.leftEye.cyl}, AXIS {item.typedPrescription.leftEye.axis}, ADD {item.typedPrescription.leftEye.add}
+                                      </p>
+                                      {item.typedPrescription.pd !== undefined && <p>PD: {item.typedPrescription.pd}</p>}
+                                      {item.typedPrescription.pdRight !== undefined && <p>PD Right: {item.typedPrescription.pdRight}</p>}
+                                      {item.typedPrescription.pdLeft !== undefined && <p>PD Left: {item.typedPrescription.pdLeft}</p>}
+                                      {item.typedPrescription.notesFromCustomer && (
+                                        <p>Note: {item.typedPrescription.notesFromCustomer}</p>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Price & Quantity */}
@@ -874,6 +912,12 @@ const CheckoutPage: React.FC = () => {
                   <span className="uppercase">Shipping</span>
                   <span className="text-green-600 font-medium">Free</span>
                 </div>
+                {prescriptionItemsCount > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span className="uppercase">Prescription lens fee (included)</span>
+                    <span>{formatPrice(prescriptionLensFeeTotal)}</span>
+                  </div>
+                )}
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase text-slate-900 tracking-wider">
                     Total

@@ -41,6 +41,8 @@ import {
   LocalOffer,
   Discount,
   TrendingUp,
+  Description,
+  Biotech,
 } from '@mui/icons-material'
 import { roleLabels, ADMIN_ROLE, MANAGER_ROLE, OPERATION_ROLE, SALE_ROLE } from '@/lib/constants'
 import { ReactNode } from 'react'
@@ -87,6 +89,18 @@ export function DashboardLayout() {
       icon: <ShoppingCart />,
       url: '/dashboard/orders',
       staffOnly: true, // Sale and Operation
+    },
+    {
+      title: 'Prescriptions',
+      icon: <Description />,
+      url: '/dashboard/prescriptions',
+      saleOnly: true,
+    },
+    {
+      title: 'Lab Jobs',
+      icon: <Biotech />,
+      url: '/dashboard/lab-jobs',
+      operationOnly: true,
     },
     {
       title: 'Returns',

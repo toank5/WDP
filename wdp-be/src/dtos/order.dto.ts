@@ -11,7 +11,12 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ORDER_TYPES, ORDER_STATUS } from '@eyewear/shared';
+import {
+  ORDER_TYPES,
+  ORDER_STATUS,
+  PRESCRIPTION_REVIEW_STATUS,
+  LAB_JOB_STATUS,
+} from '@eyewear/shared';
 
 /**
  * Shipping address DTO
@@ -192,6 +197,112 @@ export class OrderItemResponseDto {
 
   @ApiProperty({ required: false })
   reservedQuantity?: number;
+
+  @ApiProperty({ required: false })
+  itemId?: string;
+
+  @ApiProperty({ required: false })
+  requiresPrescription?: boolean;
+
+  @ApiProperty({ required: false })
+  typedPrescription?: {
+    rightEye: { sph: number; cyl: number; axis: number; add: number };
+    leftEye: { sph: number; cyl: number; axis: number; add: number };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
+  };
+
+  @ApiProperty({ required: false, enum: PRESCRIPTION_REVIEW_STATUS })
+  prescriptionReviewStatus?: PRESCRIPTION_REVIEW_STATUS;
+
+  @ApiProperty({ required: false })
+  prescriptionReviewNote?: string;
+}
+
+export class ReviewPrescriptionDto {
+  @ApiProperty({ enum: [PRESCRIPTION_REVIEW_STATUS.APPROVED, PRESCRIPTION_REVIEW_STATUS.REJECTED] })
+  @IsString()
+  @IsEnum(PRESCRIPTION_REVIEW_STATUS)
+  status: PRESCRIPTION_REVIEW_STATUS.APPROVED | PRESCRIPTION_REVIEW_STATUS.REJECTED;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class PrescriptionQueueQueryDto {
+  @ApiProperty({ required: false, enum: PRESCRIPTION_REVIEW_STATUS })
+  @IsOptional()
+  @IsEnum(PRESCRIPTION_REVIEW_STATUS)
+  status?: PRESCRIPTION_REVIEW_STATUS;
+}
+
+export class LabJobResponseDto {
+  @ApiProperty()
+  _id: string;
+
+  @ApiProperty()
+  orderId: string;
+
+  @ApiProperty()
+  orderItemId: string;
+
+  @ApiProperty()
+  rightEye: { sph: number; cyl: number; axis: number; add: number };
+
+  @ApiProperty()
+  leftEye: { sph: number; cyl: number; axis: number; add: number };
+
+  @ApiProperty({ required: false })
+  pd?: number;
+
+  @ApiProperty({ required: false })
+  pdRight?: number;
+
+  @ApiProperty({ required: false })
+  pdLeft?: number;
+
+  @ApiProperty()
+  lensType: string;
+
+  @ApiProperty({ enum: LAB_JOB_STATUS })
+  status: LAB_JOB_STATUS;
+
+  @ApiProperty({ required: false })
+  notes?: string;
+
+  @ApiProperty({ required: false })
+  orderNumber?: string;
+
+  @ApiProperty({ required: false })
+  customerName?: string;
+
+  @ApiProperty({ required: false })
+  frameName?: string;
+
+  @ApiProperty({ required: false })
+  frameSku?: string;
+}
+
+export class LabJobQueryDto {
+  @ApiProperty({ required: false, enum: LAB_JOB_STATUS })
+  @IsOptional()
+  @IsEnum(LAB_JOB_STATUS)
+  status?: LAB_JOB_STATUS;
+}
+
+export class UpdateLabJobStatusDto {
+  @ApiProperty({ enum: LAB_JOB_STATUS })
+  @IsEnum(LAB_JOB_STATUS)
+  status: LAB_JOB_STATUS;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 /**
@@ -278,6 +389,9 @@ export class OrderResponseDto {
 
   @ApiProperty()
   tax: number;
+
+  @ApiProperty({ required: false })
+  prescriptionLensFeeTotal?: number;
 
   @ApiProperty({ required: false })
   comboDiscount?: number;

@@ -107,6 +107,9 @@ export const PrescriptionPolicyConfigSchema = z
       .positive('Max prescription age must be greater than 0 months'),
     requirePD: z.boolean(),
     allowHighPowerRange: z.boolean(),
+    prescriptionLensFee: z
+      .number()
+      .min(0, 'Prescription lens fee must be at least 0'),
   })
   .strict();
 

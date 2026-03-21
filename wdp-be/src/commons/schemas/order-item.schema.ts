@@ -1,9 +1,22 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { PREORDER_STATUS } from '@eyewear/shared';
+import {
+  PREORDER_STATUS,
+  PRESCRIPTION_REVIEW_STATUS,
+} from '@eyewear/shared';
+import {
+  TypedPrescription,
+  TypedPrescriptionSchema,
+} from './cart-item.schema';
 
 @Schema({ _id: false })
 export class OrderItem {
+  @Prop({
+    type: String,
+    default: () => new mongoose.Types.ObjectId().toString(),
+  })
+  itemId?: string;
+
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -64,6 +77,31 @@ export class OrderItem {
     default: null,
   })
   manufacturedAt?: Date;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  requiresPrescription?: boolean;
+
+  @Prop({
+    type: TypedPrescriptionSchema,
+    default: null,
+  })
+  typedPrescription?: TypedPrescription;
+
+  @Prop({
+    type: String,
+    enum: PRESCRIPTION_REVIEW_STATUS,
+    default: null,
+  })
+  prescriptionReviewStatus?: PRESCRIPTION_REVIEW_STATUS;
+
+  @Prop({
+    type: String,
+    default: null,
+  })
+  prescriptionReviewNote?: string;
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

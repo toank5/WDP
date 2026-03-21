@@ -16,6 +16,8 @@ import {
 } from '../dtos/cart.dto';
 import { InventoryService } from './inventory.service';
 import { ComboService } from './combo.service';
+import { PolicyService } from './policy.service';
+import { POLICY_TYPES } from '@eyewear/shared';
 
 // Type for cart document with Mongoose methods
 type CartDocument = HydratedDocument<Cart>;
@@ -33,6 +35,25 @@ interface AggregatedCartItem {
   variantDetails?: {
     size?: string;
     color?: string;
+  };
+  requiresPrescription?: boolean;
+  typedPrescription?: {
+    rightEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    leftEye: {
+      sph: number;
+      cyl: number;
+      axis: number;
+      add: number;
+    };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
   };
 }
 
@@ -52,7 +73,27 @@ export class CartService {
     @InjectModel(Product.name) private productModel: Model<Product>,
     private readonly inventoryService: InventoryService,
     private readonly comboService: ComboService,
+    private readonly policyService: PolicyService,
   ) {}
+
+  private async getPrescriptionLensFee(): Promise<number> {
+    try {
+      const prescriptionPolicy =
+        await this.policyService.getCurrentPolicyByType(
+          POLICY_TYPES.PRESCRIPTION,
+        );
+      const fee = Number(
+        (
+          prescriptionPolicy?.config as {
+            prescriptionLensFee?: unknown;
+          }
+        )?.prescriptionLensFee ?? 0,
+      );
+      return Number.isFinite(fee) && fee > 0 ? fee : 0;
+    } catch {
+      return 0;
+    }
+  }
 
   /**
    * Get or create cart for a customer
@@ -78,6 +119,7 @@ export class CartService {
    */
   async getCustomerCart(customerId: string): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(customerId);
+    const prescriptionLensFee = await this.getPrescriptionLensFee();
 
     // Aggregate to get cart with product details
     const pipeline: PipelineStage[] = [
@@ -148,6 +190,8 @@ export class CartService {
               null,
             ],
           },
+          'items.requiresPrescription': '$items.requiresPrescription',
+          'items.typedPrescription': '$items.typedPrescription',
         },
       },
       {
@@ -176,7 +220,9 @@ export class CartService {
         variantSku: item.variantSku,
         productName: item.productName,
         productImage: item.productImage,
-        price: item.price || 0,
+        price:
+          (item.price || 0) +
+          (item.requiresPrescription ? prescriptionLensFee : 0),
         quantity: item.quantity,
         variantDetails: item.variantDetails
           ? {
@@ -185,6 +231,8 @@ export class CartService {
             }
           : undefined,
         addedAt: item.addedAt,
+        requiresPrescription: item.requiresPrescription,
+        typedPrescription: item.typedPrescription,
       }),
     );
 
@@ -272,6 +320,10 @@ export class CartService {
       const newQuantity =
         cart.items[existingItemIndex].quantity + addItemDto.quantity;
       cart.items[existingItemIndex].quantity = newQuantity;
+      cart.items[existingItemIndex].requiresPrescription =
+        addItemDto.requiresPrescription || false;
+      cart.items[existingItemIndex].typedPrescription =
+        addItemDto.typedPrescription;
     } else {
       // Add new item
       const cartItem: CartItem = {
@@ -279,6 +331,8 @@ export class CartService {
         productId: new mongoose.Types.ObjectId(addItemDto.productId),
         variantSku: addItemDto.variantSku || '',
         quantity: addItemDto.quantity,
+        requiresPrescription: addItemDto.requiresPrescription || false,
+        typedPrescription: addItemDto.typedPrescription,
         addedAt: new Date(),
       };
       cart.items.push(cartItem);
@@ -401,6 +455,7 @@ export class CartService {
    */
   async getCartSubtotal(customerId: string): Promise<number> {
     const cart = await this.getOrCreateCart(customerId);
+    const prescriptionLensFee = await this.getPrescriptionLensFee();
 
     let subtotal = 0;
     for (const item of cart.items) {
@@ -419,7 +474,9 @@ export class CartService {
         }
       }
 
-      subtotal += price * item.quantity;
+      const linePrice =
+        price + (item.requiresPrescription ? prescriptionLensFee : 0);
+      subtotal += linePrice * item.quantity;
     }
 
     return subtotal;
@@ -590,6 +647,7 @@ export class CartService {
     };
   }> {
     const cart = await this.getOrCreateCart(customerId);
+    const prescriptionLensFee = await this.getPrescriptionLensFee();
     let subtotal = 0;
 
     // Calculate regular subtotal
@@ -608,7 +666,9 @@ export class CartService {
         }
       }
 
-      subtotal += price * item.quantity;
+      const linePrice =
+        price + (item.requiresPrescription ? prescriptionLensFee : 0);
+      subtotal += linePrice * item.quantity;
     }
 
     // Check for combo pricing

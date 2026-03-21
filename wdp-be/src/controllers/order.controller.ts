@@ -39,6 +39,11 @@ import {
   CancelOrderDto,
   OrderListQueryDto,
   OrderListResponseDto,
+  PrescriptionQueueQueryDto,
+  ReviewPrescriptionDto,
+  LabJobQueryDto,
+  LabJobResponseDto,
+  UpdateLabJobStatusDto,
 } from '../dtos/order.dto';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
@@ -642,5 +647,61 @@ export class StaffOrderController {
     // Staff can view any order without ownership restriction
     // This is necessary for business operations
     return this.orderService.getOrderById(orderId);
+  }
+
+}
+
+@ApiTags('Staff - Prescription & Lab Jobs')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RbacGuard)
+@Controller('staff')
+export class StaffPrescriptionController {
+  constructor(private readonly orderService: OrderService) {}
+
+  @Get('prescriptions')
+  @Roles(UserRole.SALE, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async getPrescriptionQueue(
+    @Query() query: PrescriptionQueueQueryDto,
+  ): Promise<OrderResponseDto[]> {
+    return this.orderService.getPrescriptionQueue(query);
+  }
+
+  @Get('prescriptions/:orderItemId')
+  @Roles(UserRole.SALE, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async getPrescriptionDetail(@Param('orderItemId') orderItemId: string) {
+    return this.orderService.getPrescriptionOrderItem(orderItemId);
+  }
+
+  @Patch('prescriptions/:orderItemId')
+  @Roles(UserRole.SALE, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async reviewPrescription(
+    @Req() req: AuthenticatedRequest,
+    @Param('orderItemId') orderItemId: string,
+    @Body() dto: ReviewPrescriptionDto,
+  ) {
+    const reviewerId = req.user?._id?.toString();
+    return this.orderService.reviewPrescription(orderItemId, dto, reviewerId);
+  }
+
+  @Get('lab-jobs')
+  @Roles(UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async getLabJobs(@Query() query: LabJobQueryDto): Promise<LabJobResponseDto[]> {
+    return this.orderService.getLabJobs(query);
+  }
+
+  @Patch('lab-jobs/:id/status')
+  @Roles(UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async updateLabJobStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateLabJobStatusDto,
+  ): Promise<LabJobResponseDto> {
+    const updaterId = req.user?._id?.toString();
+    return this.orderService.updateLabJobStatus(id, dto, updaterId);
   }
 }

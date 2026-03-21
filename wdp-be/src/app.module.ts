@@ -45,6 +45,7 @@ import { CheckoutService } from './services/checkout.service';
 import {
   OrderController,
   StaffOrderController,
+  StaffPrescriptionController,
 } from './controllers/order.controller';
 import { OrderService } from './services/order.service';
 import { Order, OrderSchema } from './commons/schemas/order.schema';
@@ -64,6 +65,7 @@ import {
   OrderHistory,
   OrderHistorySchema,
 } from './commons/schemas/order-history.schema';
+import { WorkOrder, WorkOrderSchema } from './commons/schemas/work-order.schema';
 import { VNPayService } from './services/vnpay.service';
 import {
   ProductVariant,
@@ -163,6 +165,7 @@ import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
       { name: OrderPayment.name, schema: OrderPaymentSchema },
       { name: OrderTracking.name, schema: OrderTrackingSchema },
       { name: OrderHistory.name, schema: OrderHistorySchema },
+      { name: WorkOrder.name, schema: WorkOrderSchema },
       { name: Review.name, schema: ReviewSchema },
       { name: Combo.name, schema: ComboSchema },
       { name: Promotion.name, schema: PromotionSchema },
@@ -186,6 +189,7 @@ import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
     CartController,
     OrderController,
     StaffOrderController,
+    StaffPrescriptionController,
     CheckoutController,
     ReviewController,
     ComboController,

@@ -104,3 +104,13 @@ export async function getPolicyHistory<T extends PolicyType>(type: T): Promise<P
   const res = await api.get<ApiResponse<Policy<T>[]>>(`/policies/${type}/history`)
   return res.data.metadata
 }
+
+/**
+ * Get normalized prescription lens fee from active prescription policy.
+ * Returns 0 when policy is missing or fee is invalid.
+ */
+export async function getPrescriptionLensFee(): Promise<number> {
+  const policy = await getPolicyByType('prescription')
+  const fee = Number((policy?.config as { prescriptionLensFee?: unknown } | undefined)?.prescriptionLensFee ?? 0)
+  return Number.isFinite(fee) && fee > 0 ? fee : 0
+}

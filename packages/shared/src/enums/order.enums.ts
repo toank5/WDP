@@ -40,6 +40,25 @@ export enum PREORDER_STATUS {
 }
 
 /**
+ * Typed prescription review status (sales verification)
+ */
+export enum PRESCRIPTION_REVIEW_STATUS {
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
+/**
+ * Lab work order processing status
+ */
+export enum LAB_JOB_STATUS {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  ISSUE = 'ISSUE',
+}
+
+/**
  * Payment Method Enumeration
  */
 export enum PAYMENT_METHOD {

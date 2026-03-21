@@ -2,12 +2,38 @@
  * Order-related type definitions shared between frontend and backend
  */
 
-import { ORDER_STATUS, ORDER_TYPES, PAYMENT_METHOD, PAYMENT_STATUS, PREORDER_STATUS, SHIPPING_CARRIER } from '../enums/order.enums';
+import {
+  ORDER_STATUS,
+  ORDER_TYPES,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  PREORDER_STATUS,
+  SHIPPING_CARRIER,
+  PRESCRIPTION_REVIEW_STATUS,
+  LAB_JOB_STATUS,
+} from '../enums/order.enums';
+
+export interface EyePrescription {
+  sph: number;
+  cyl: number;
+  axis: number;
+  add: number;
+}
+
+export interface TypedPrescription {
+  rightEye: EyePrescription;
+  leftEye: EyePrescription;
+  pd?: number;
+  pdRight?: number;
+  pdLeft?: number;
+  notesFromCustomer?: string;
+}
 
 /**
  * Order Item - represents a single item in an order
  */
 export interface OrderItem {
+  itemId?: string;
   productId: string;
   variantSku: string;
   quantity: number;
@@ -17,6 +43,26 @@ export interface OrderItem {
   preorderStatus?: PREORDER_STATUS;
   expectedShipDate?: string;
   reservedQuantity?: number;
+  requiresPrescription?: boolean;
+  typedPrescription?: TypedPrescription;
+  prescriptionReviewStatus?: PRESCRIPTION_REVIEW_STATUS;
+  prescriptionReviewNote?: string;
+}
+
+export interface WorkOrder {
+  _id?: string;
+  orderId: string;
+  orderItemId: string;
+  rightEye: EyePrescription;
+  leftEye: EyePrescription;
+  pd?: number;
+  pdRight?: number;
+  pdLeft?: number;
+  lensType: string;
+  status: LAB_JOB_STATUS;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**

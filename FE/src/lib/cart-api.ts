@@ -25,6 +25,15 @@ export interface CartItem {
     color?: string
     isPreorder?: boolean
   }
+  requiresPrescription?: boolean
+  typedPrescription?: {
+    rightEye: { sph: number; cyl: number; axis: number; add: number }
+    leftEye: { sph: number; cyl: number; axis: number; add: number }
+    pd?: number
+    pdRight?: number
+    pdLeft?: number
+    notesFromCustomer?: string
+  }
   addedAt: string
 }
 
@@ -48,6 +57,15 @@ export interface AddCartItemRequest {
   productId: string
   variantSku?: string
   quantity: number
+  requiresPrescription?: boolean
+  typedPrescription?: {
+    rightEye: { sph: number; cyl: number; axis: number; add: number }
+    leftEye: { sph: number; cyl: number; axis: number; add: number }
+    pd?: number
+    pdRight?: number
+    pdLeft?: number
+    notesFromCustomer?: string
+  }
 }
 
 /**
@@ -109,9 +127,13 @@ class CartAPI {
         productId: string
         quantity: number
         variantSku?: string
+        requiresPrescription?: boolean
+        typedPrescription?: AddCartItemRequest['typedPrescription']
       } = {
         productId: params.productId,
         quantity: params.quantity,
+        requiresPrescription: params.requiresPrescription,
+        typedPrescription: params.typedPrescription,
       }
 
       // Only include variantSku if it's provided (for frame products)

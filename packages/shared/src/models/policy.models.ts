@@ -60,6 +60,7 @@ export interface PrescriptionPolicyConfig {
   maxPrescriptionAgeMonths: number;
   requirePD: boolean;
   allowHighPowerRange: boolean;
+  prescriptionLensFee: number;
 }
 
 /**

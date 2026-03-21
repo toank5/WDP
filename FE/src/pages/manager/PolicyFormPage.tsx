@@ -256,6 +256,9 @@ const PolicyFormPage: React.FC = () => {
       if (c.allowHighPowerRange === undefined) {
         errors.allowHighPowerRange = 'Allow high power range is required'
       }
+      if (c.prescriptionLensFee === undefined || c.prescriptionLensFee < 0) {
+        errors.prescriptionLensFee = 'Prescription lens fee must be at least 0'
+      }
     }
 
     if (type === 'cancellation') {
@@ -849,6 +852,32 @@ const PolicyFormPage: React.FC = () => {
             )}
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
               How old a prescription can be before it's considered expired
+            </p>
+          </div>
+          <div className="space-y-2 text-left">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              Prescription Lens Fee (VND)
+            </label>
+            <input
+              type="number"
+              min="0"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              value={c.prescriptionLensFee ?? ''}
+              onChange={(e) => {
+                clearFieldError('prescriptionLensFee')
+                setFormData({
+                  ...formData,
+                  config: Object.assign({}, c, { prescriptionLensFee: parseInt(e.target.value) || 0 }),
+                })
+              }}
+            />
+            {validationErrors.prescriptionLensFee && (
+              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                {validationErrors.prescriptionLensFee}
+              </p>
+            )}
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">
+              Extra fee added when customer selects typed prescription lenses
             </p>
           </div>
           <div className="space-y-3">

@@ -701,6 +701,59 @@ export default function OrderDetailDrawer({
 
                 <Box>
                   <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                    Order Summary
+                  </Typography>
+                  <Stack spacing={0.75}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Subtotal
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatPrice(order.subtotal || 0)}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Shipping Fee
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatPrice(order.shippingFee || 0)}
+                      </Typography>
+                    </Stack>
+                    {(order.prescriptionLensFeeTotal ?? 0) > 0 ? (
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="body2" color="text.secondary">
+                          Prescription Lens Fee (Included)
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatPrice(order.prescriptionLensFeeTotal || 0)}
+                        </Typography>
+                      </Stack>
+                    ) : null}
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Tax
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatPrice(order.tax || 0)}
+                      </Typography>
+                    </Stack>
+                    <Divider sx={{ my: 0.5 }} />
+                    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        Total
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary.main">
+                        {formatPrice(order.totalAmount || 0)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
                     Timeline
                   </Typography>
                   <List dense sx={{ py: 0 }}>
