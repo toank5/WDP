@@ -114,3 +114,46 @@ export async function getPrescriptionLensFee(): Promise<number> {
   const fee = Number((policy?.config as { prescriptionLensFee?: unknown } | undefined)?.prescriptionLensFee ?? 0)
   return Number.isFinite(fee) && fee > 0 ? fee : 0
 }
+
+/**
+ * Normalized shipping policy values for checkout pricing and labels.
+ */
+export interface ShippingPolicyPricing {
+  defaultCarrier: string
+  standardDaysLabel: string
+  expressDaysLabel: string
+  standardShippingFee: number
+  expressShippingFee: number
+  freeShippingMinAmount: number
+}
+
+/**
+ * Get normalized shipping policy pricing from active shipping policy.
+ * Falls back to static defaults when policy is missing or partially invalid.
+ */
+export async function getShippingPolicyPricing(): Promise<ShippingPolicyPricing> {
+  const policy = await getPolicyByType('shipping')
+  const config = (policy?.config as Partial<StrictPolicyConfigMap['shipping']> | undefined) ?? {}
+
+  const standardDaysMin = Number(config.standardDaysMin ?? 3)
+  const standardDaysMax = Number(config.standardDaysMax ?? 5)
+  const expressDaysMin = Number(config.expressDaysMin ?? 1)
+  const expressDaysMax = Number(config.expressDaysMax ?? 2)
+  const standardShippingFee = Number(config.standardShippingFee ?? 30000)
+  const expressShippingFee = Number(config.expressShippingFee ?? 50000)
+  const freeShippingMinAmount = Number(config.freeShippingMinAmount ?? 0)
+
+  const normalizedStandardMin = Number.isFinite(standardDaysMin) && standardDaysMin > 0 ? standardDaysMin : 3
+  const normalizedStandardMax = Number.isFinite(standardDaysMax) && standardDaysMax > 0 ? standardDaysMax : 5
+  const normalizedExpressMin = Number.isFinite(expressDaysMin) && expressDaysMin > 0 ? expressDaysMin : 1
+  const normalizedExpressMax = Number.isFinite(expressDaysMax) && expressDaysMax > 0 ? expressDaysMax : 2
+
+  return {
+    defaultCarrier: (config.defaultCarrier || 'Default Carrier').toString(),
+    standardDaysLabel: `${normalizedStandardMin}-${normalizedStandardMax} business days`,
+    expressDaysLabel: `${normalizedExpressMin}-${normalizedExpressMax} business days`,
+    standardShippingFee: Number.isFinite(standardShippingFee) && standardShippingFee >= 0 ? standardShippingFee : 30000,
+    expressShippingFee: Number.isFinite(expressShippingFee) && expressShippingFee >= 0 ? expressShippingFee : 50000,
+    freeShippingMinAmount: Number.isFinite(freeShippingMinAmount) && freeShippingMinAmount >= 0 ? freeShippingMinAmount : 0,
+  }
+}

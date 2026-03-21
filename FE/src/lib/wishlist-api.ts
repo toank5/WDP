@@ -41,6 +41,10 @@ export interface FavoriteProductSummary {
 const WISHLIST_STORAGE_KEY = 'guest_wishlist'
 
 class WishlistAPI {
+  private isMongoObjectId(value?: string): boolean {
+    return !!value && /^[a-fA-F0-9]{24}$/.test(value)
+  }
+
   /**
    * Get guest wishlist from localStorage
    */
@@ -120,11 +124,11 @@ class WishlistAPI {
   /**
    * Check if a product/variant is in wishlist
    */
-  async isFavorited(productId: string, variantId?: string): Promise<boolean> {
+  async isFavorited(productId: string, variantId?: string, variantSku?: string): Promise<boolean> {
     if (this.isCustomerUser()) {
       try {
         const params = new URLSearchParams({ productId })
-        if (variantId) {
+        if (this.isMongoObjectId(variantId)) {
           params.append('variantId', variantId)
         }
         const response = await api.get(`/store/favorites/check?${params.toString()}`)
@@ -138,7 +142,9 @@ class WishlistAPI {
 
     // Guest user: check localStorage
     const wishlist = this.getGuestWishlist()
-    const wishlistItemId = variantId ? `${productId}-${variantId}` : productId
+    const wishlistItemId = variantSku
+      ? `${productId}-${variantSku}`
+      : (variantId ? `${productId}-${variantId}` : productId)
     return wishlist.some((item) => item.wishlistItemId === wishlistItemId)
   }
 
@@ -160,7 +166,7 @@ class WishlistAPI {
       try {
         await api.post('/store/favorites', {
           productId: params.productId,
-          variantId: params.variantId,
+          variantId: this.isMongoObjectId(params.variantId) ? params.variantId : undefined,
           variantSku: params.variantSku,
         })
 
@@ -216,8 +222,8 @@ class WishlistAPI {
         if (params.favoriteId) {
           await api.delete(`/store/favorites/${params.favoriteId}`)
         } else {
-          const url = params.variantId || params.variantSku
-            ? `/store/favorites/by-product/${params.productId}?variantId=${params.variantId || params.variantSku}`
+          const url = this.isMongoObjectId(params.variantId)
+            ? `/store/favorites/by-product/${params.productId}?variantId=${params.variantId}`
             : `/store/favorites/by-product/${params.productId}`
           await api.delete(url)
         }
@@ -265,7 +271,7 @@ class WishlistAPI {
       try {
         const response = await api.post('/store/favorites/toggle', {
           productId: params.productId,
-          variantId: params.variantId,
+          variantId: this.isMongoObjectId(params.variantId) ? params.variantId : undefined,
           variantSku: params.variantSku,
         })
 
@@ -284,7 +290,7 @@ class WishlistAPI {
     }
 
     // Guest user: toggle in localStorage
-    const isAlreadyFavorited = await this.isFavorited(params.productId, params.variantId)
+    const isAlreadyFavorited = await this.isFavorited(params.productId, params.variantId, params.variantSku)
 
     if (isAlreadyFavorited) {
       const result = await this.removeItem({ productId: params.productId, variantId: params.variantId, variantSku: params.variantSku })
@@ -362,7 +368,7 @@ class WishlistAPI {
       for (const item of guestWishlist) {
         await api.post('/store/favorites', {
           productId: item.productId,
-          variantId: item.variantId,
+          variantId: this.isMongoObjectId(item.variantId) ? item.variantId : undefined,
           variantSku: item.variantSku,
         })
       }

@@ -57,6 +57,7 @@ export interface OrderItem {
   itemId?: string
   productId: string
   variantSku?: string
+  category?: string
   productName?: string
   productImage?: string
   priceAtOrder: number
@@ -278,6 +279,8 @@ function normalizeOrder(order: Order): Order {
     ...order,
     items: order.items.map((item) => ({
       ...item,
+      category: (item as OrderItem & { productCategory?: string }).category
+        ?? (item as OrderItem & { productCategory?: string }).productCategory,
       isPrescription: item.requiresPrescription,
       prescriptionStatus: item.prescriptionReviewStatus,
       prescriptionData: item.typedPrescription
@@ -335,6 +338,7 @@ class OrderAPI {
           ...addressRest,
           zipCode: postalCode,
         },
+        shippingMethod: request.shippingMethod,
         notes: request.notes,
         promotionCode: request.promotionCode,
       }

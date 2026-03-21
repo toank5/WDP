@@ -5,7 +5,9 @@ import {
   IsNumber,
   IsOptional,
   IsObject,
+  IsEnum,
 } from 'class-validator';
+import { SHIPPING_METHOD } from '@eyewear/shared';
 
 /**
  * Shipping address for checkout
@@ -76,6 +78,16 @@ export class CreateCheckoutDto {
   @IsString()
   @IsOptional()
   promotionCode?: string;
+
+  @ApiProperty({
+    description: 'Shipping method for this order',
+    enum: SHIPPING_METHOD,
+    required: false,
+    example: SHIPPING_METHOD.STANDARD,
+  })
+  @IsOptional()
+  @IsEnum(SHIPPING_METHOD)
+  shippingMethod?: SHIPPING_METHOD;
 
   @ApiProperty({
     description: 'Client IP address for VNPAY',

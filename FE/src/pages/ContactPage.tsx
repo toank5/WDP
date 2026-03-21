@@ -20,6 +20,7 @@ import {
   Paper,
   Grid,
 } from '@mui/material'
+import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   LocationOn,
   Phone,
@@ -124,7 +125,7 @@ export default function ContactPage() {
       })
 
       // Success
-      toast.success('Message sent successfully! We\'ll get back to you within 24 hours.')
+      toast.success("Message sent successfully! We'll get back to you within 24 hours.")
 
       // Reset form
       setFormData({ name: '', email: '', subject: '', message: '' })
@@ -137,14 +138,18 @@ export default function ContactPage() {
     }
   }
 
-  const handleInputChange = (field: keyof ContactFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name?: string; value: unknown }) => {
-    const value = typeof e === 'string' ? e : e.target.value
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }))
+  const handleInputChange =
+    (field: keyof ContactFormData) =>
+    (
+      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+    ) => {
+      const value = e.target.value
+      setFormData((prev) => ({ ...prev, [field]: value }))
+      // Clear error when user starts typing
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: undefined }))
+      }
     }
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -165,7 +170,17 @@ export default function ContactPage() {
     }
   }
 
-  const InfoItem = ({ icon, label, value, link }: { icon: React.ReactNode; label: string; value: string; link?: string }) => (
+  const InfoItem = ({
+    icon,
+    label,
+    value,
+    link,
+  }: {
+    icon: React.ReactNode
+    label: string
+    value: string
+    link?: boolean
+  }) => (
     <Stack direction="row" spacing={2} alignItems="flex-start">
       <Box
         sx={{
@@ -183,12 +198,23 @@ export default function ContactPage() {
         {icon}
       </Box>
       <Box>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}
+        >
           {label}
         </Typography>
         <Typography
           variant="body1"
-          sx={{ fontWeight: 500, ...(link && { color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }) }}
+          sx={{
+            fontWeight: 500,
+            ...(link && {
+              color: 'primary.main',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }),
+          }}
         >
           {value}
         </Typography>
@@ -231,17 +257,27 @@ export default function ContactPage() {
             >
               GET IN TOUCH
             </Typography>
-            <Typography variant="h3" fontWeight={800} sx={{ fontSize: { xs: '2rem', md: '2.5rem' } }}>
+            <Typography
+              variant="h3"
+              fontWeight={800}
+              sx={{ fontSize: { xs: '2rem', md: '2.5rem' } }}
+            >
               We're Here to Help
             </Typography>
-            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 400, maxWidth: 600, mx: 'auto' }}>
+            <Typography
+              variant="h6"
+              sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 400, maxWidth: 600, mx: 'auto' }}
+            >
               Choose the best way to reach us. We typically respond within 24 hours.
             </Typography>
           </Stack>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ mt: { xs: -8, md: -12 }, position: 'relative', zIndex: 2, mb: 8 }}>
+      <Container
+        maxWidth="lg"
+        sx={{ mt: { xs: -8, md: -12 }, position: 'relative', zIndex: 2, mb: 8 }}
+      >
         <Grid container spacing={4}>
           {/* Contact Information */}
           <Grid size={{ xs: 12, lg: 5 }}>
@@ -261,19 +297,13 @@ export default function ContactPage() {
 
                   <Stack spacing={4}>
                     <InfoItem icon={<LocationOn />} label="Address" value={CONTACT_INFO.address} />
+                    <InfoItem icon={<Phone />} label="Phone" value={CONTACT_INFO.phone} link />
+                    <InfoItem icon={<Email />} label="Email" value={CONTACT_INFO.email} link />
                     <InfoItem
-                      icon={<Phone />}
-                      label="Phone"
-                      value={CONTACT_INFO.phone}
-                      link
+                      icon={<AccessTime />}
+                      label="Working Hours"
+                      value={CONTACT_INFO.workingHours}
                     />
-                    <InfoItem
-                      icon={<Email />}
-                      label="Email"
-                      value={CONTACT_INFO.email}
-                      link
-                    />
-                    <InfoItem icon={<AccessTime />} label="Working Hours" value={CONTACT_INFO.workingHours} />
                   </Stack>
 
                   <Divider />
@@ -321,16 +351,48 @@ export default function ContactPage() {
                     Quick Links
                   </Typography>
                   <Stack spacing={1}>
-                    <Typography component="a" href="/prescription" sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                    <Typography
+                      component="a"
+                      href="/prescription"
+                      sx={{
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
                       Prescription Guide
                     </Typography>
-                    <Typography component="a" href="/store" sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                    <Typography
+                      component="a"
+                      href="/store"
+                      sx={{
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
                       Shop Frames
                     </Typography>
-                    <Typography component="a" href="/policies/returns" sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                    <Typography
+                      component="a"
+                      href="/policies/returns"
+                      sx={{
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
                       Returns & Refunds
                     </Typography>
-                    <Typography component="a" href="/policies/shipping" sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                    <Typography
+                      component="a"
+                      href="/policies/shipping"
+                      sx={{
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
                       Shipping Info
                     </Typography>
                   </Stack>
@@ -403,7 +465,11 @@ export default function ContactPage() {
                           </MenuItem>
                         ))}
                       </Select>
-                      {errors.subject && <Typography variant="caption" color="error">{errors.subject}</Typography>}
+                      {errors.subject && (
+                        <Typography variant="caption" color="error">
+                          {errors.subject}
+                        </Typography>
+                      )}
                     </FormControl>
 
                     {/* Message */}
@@ -421,7 +487,11 @@ export default function ContactPage() {
                     />
 
                     {/* Attachment */}
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={2}
+                      alignItems={{ sm: 'center' }}
+                    >
                       <Button
                         variant="outlined"
                         component="label"
@@ -430,7 +500,12 @@ export default function ContactPage() {
                         startIcon={<AttachFile />}
                       >
                         {attachment ? 'Change File' : 'Attach File (Optional)'}
-                        <input type="file" hidden onChange={handleFileChange} accept="image/*,.pdf" />
+                        <input
+                          type="file"
+                          hidden
+                          onChange={handleFileChange}
+                          accept="image/*,.pdf"
+                        />
                       </Button>
                       {attachment && (
                         <Typography variant="body2" color="primary.main">

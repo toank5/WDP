@@ -18,6 +18,7 @@ import {
   PRODUCT_CATEGORIES,
   PRESCRIPTION_REVIEW_STATUS,
   POLICY_TYPES,
+  SHIPPING_METHOD,
 } from '@eyewear/shared';
 import {
   CreateCheckoutDto,
@@ -128,6 +129,46 @@ export class CheckoutService {
     }
   }
 
+  private async getShippingFee(
+    shippingMethod: SHIPPING_METHOD,
+    subtotal: number,
+  ): Promise<number> {
+    try {
+      const shippingPolicy = await this.policyService.getCurrentPolicyByType(
+        POLICY_TYPES.SHIPPING,
+      );
+      const config =
+        (shippingPolicy?.config as {
+          standardShippingFee?: unknown;
+          expressShippingFee?: unknown;
+          freeShippingMinAmount?: unknown;
+        }) ?? {};
+
+      const standardFee = Number(config.standardShippingFee ?? 30000);
+      const expressFee = Number(config.expressShippingFee ?? 50000);
+      const freeShippingMinAmount = Number(config.freeShippingMinAmount ?? 0);
+
+      const normalizedStandardFee =
+        Number.isFinite(standardFee) && standardFee >= 0 ? standardFee : 30000;
+      const normalizedExpressFee =
+        Number.isFinite(expressFee) && expressFee >= 0 ? expressFee : 50000;
+      const normalizedFreeMin =
+        Number.isFinite(freeShippingMinAmount) && freeShippingMinAmount >= 0
+          ? freeShippingMinAmount
+          : 0;
+
+      if (normalizedFreeMin > 0 && subtotal >= normalizedFreeMin) {
+        return 0;
+      }
+
+      return shippingMethod === SHIPPING_METHOD.EXPRESS
+        ? normalizedExpressFee
+        : normalizedStandardFee;
+    } catch {
+      return shippingMethod === SHIPPING_METHOD.EXPRESS ? 50000 : 30000;
+    }
+  }
+
   /**
    * Generate unique order number
    */
@@ -201,6 +242,7 @@ export class CheckoutService {
     const calculation = await this.calculateCheckoutTotals(
       checkoutItems,
       customerId,
+      createCheckoutDto.shippingMethod || SHIPPING_METHOD.STANDARD,
       createCheckoutDto.promotionCode,
       prescriptionLensFee,
     );
@@ -666,6 +708,7 @@ export class CheckoutService {
   private async calculateCheckoutTotals(
     items: CheckoutItemDto[],
     customerId: string,
+    shippingMethod: SHIPPING_METHOD,
     promotionCode?: string,
     prescriptionLensFee = 0,
   ): Promise<CheckoutCalculation> {
@@ -680,8 +723,7 @@ export class CheckoutService {
       0,
     );
 
-    // Free shipping
-    const shippingFee = 0;
+    const shippingFee = await this.getShippingFee(shippingMethod, subtotal);
 
     // Check for combo pricing
     let comboDiscount = 0;
