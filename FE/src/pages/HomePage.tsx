@@ -1178,7 +1178,7 @@ export function HomePage() {
                 Help
               </Typography>
               <Stack spacing={1}>
-                <Link to="/policies/contact" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link to="/contact" style={{ color: 'inherit', textDecoration: 'none' }}>
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     Contact Us
                   </Typography>
@@ -1188,12 +1188,12 @@ export function HomePage() {
                     Shipping
                   </Typography>
                 </Link>
-                <Link to="/policies/returns" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link to="/policies/return" style={{ color: 'inherit', textDecoration: 'none' }}>
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     Returns
                   </Typography>
                 </Link>
-                <Link to="/policies/faq" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link to="/contact" style={{ color: 'inherit', textDecoration: 'none' }}>
                   <Typography variant="body2" sx={{ '&:hover': { color: 'white' } }}>
                     FAQ
                   </Typography>

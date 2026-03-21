@@ -122,6 +122,24 @@ const PolicyFormPage: React.FC = () => {
     config: {},
   })
 
+  const baseFieldClass =
+    'w-full rounded-xs border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+
+  const getInputClass = (fieldName?: string) => {
+    if (fieldName && validationErrors[fieldName]) {
+      return `${baseFieldClass} border-rose-300 focus:border-rose-500 focus:ring-rose-200`
+    }
+    return baseFieldClass
+  }
+
+  const getTextareaClass = (fieldName?: string) => {
+    const base = `${baseFieldClass} resize-none leading-relaxed`
+    if (fieldName && validationErrors[fieldName]) {
+      return `${base} border-rose-300 focus:border-rose-500 focus:ring-rose-200`
+    }
+    return base
+  }
+
   useEffect(() => {
     if (id) {
       setLoading(true)
@@ -238,6 +256,12 @@ const PolicyFormPage: React.FC = () => {
       }
       if (c.expressDaysMin && c.expressDaysMax && c.expressDaysMin > c.expressDaysMax) {
         errors.expressDaysMax = 'Express shipping minimum days cannot be greater than maximum days'
+      }
+      if (c.standardShippingFee === undefined || c.standardShippingFee < 0) {
+        errors.standardShippingFee = 'Standard shipping fee must be at least 0'
+      }
+      if (c.expressShippingFee === undefined || c.expressShippingFee < 0) {
+        errors.expressShippingFee = 'Express shipping fee must be at least 0'
       }
       if (c.freeShippingMinAmount === undefined || c.freeShippingMinAmount < 0) {
         errors.freeShippingMinAmount = 'Free shipping minimum amount must be at least 0'
@@ -387,7 +411,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.returnWindowDays?.framesOnly ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.framesOnly')
@@ -415,7 +439,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.returnWindowDays?.prescriptionGlasses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.prescriptionGlasses')
@@ -443,7 +467,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.returnWindowDays?.contactLenses ?? ''}
                 onChange={(e) => {
                   clearFieldError('returnWindowDays.contactLenses')
@@ -498,7 +522,7 @@ const PolicyFormPage: React.FC = () => {
               type="number"
               min="0"
               max="100"
-              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={c.restockingFeePercent ?? ''}
               onChange={(e) => {
                 clearFieldError('restockingFeePercent')
@@ -517,7 +541,7 @@ const PolicyFormPage: React.FC = () => {
               Fee applied to the total refund amount for quality checks (0-100%).
             </p>
           </div>
-          <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200 transition-all">
             <div className="relative flex items-center">
               <input
                 type="checkbox"
@@ -564,7 +588,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.framesMonths ?? ''}
                 onChange={(e) => {
                   clearFieldError('framesMonths')
@@ -587,7 +611,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.lensesMonths ?? ''}
                 onChange={(e) => {
                   clearFieldError('lensesMonths')
@@ -605,7 +629,7 @@ const PolicyFormPage: React.FC = () => {
             </div>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -629,7 +653,7 @@ const PolicyFormPage: React.FC = () => {
                 Covers manufacturing defects
               </label>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -675,7 +699,7 @@ const PolicyFormPage: React.FC = () => {
             </label>
             <input
               type="text"
-              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={c.defaultCarrier ?? ''}
               onChange={(e) => {
                 clearFieldError('defaultCarrier')
@@ -700,7 +724,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.standardDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('standardDaysMin')
@@ -724,7 +748,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.standardDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('standardDaysMax')
@@ -748,7 +772,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.expressDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('expressDaysMin')
@@ -772,7 +796,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.expressDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('expressDaysMax')
@@ -789,6 +813,52 @@ const PolicyFormPage: React.FC = () => {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                Standard Shipping Fee (VND)
+              </label>
+              <input
+                type="number"
+                min="0"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                value={c.standardShippingFee ?? ''}
+                onChange={(e) => {
+                  clearFieldError('standardShippingFee')
+                  setFormData({
+                    ...formData,
+                    config: Object.assign({}, c, { standardShippingFee: parseInt(e.target.value) || 0 }),
+                  })
+                }}
+              />
+              {validationErrors.standardShippingFee && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.standardShippingFee}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                Express Shipping Fee (VND)
+              </label>
+              <input
+                type="number"
+                min="0"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                value={c.expressShippingFee ?? ''}
+                onChange={(e) => {
+                  clearFieldError('expressShippingFee')
+                  setFormData({
+                    ...formData,
+                    config: Object.assign({}, c, { expressShippingFee: parseInt(e.target.value) || 0 }),
+                  })
+                }}
+              />
+              {validationErrors.expressShippingFee && (
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider ml-1">
+                  {validationErrors.expressShippingFee}
+                </p>
+              )}
+            </div>
           </div>
           <div className="space-y-2 text-left">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
@@ -797,7 +867,7 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="number"
               min="0"
-              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={c.freeShippingMinAmount ?? ''}
               onChange={(e) => {
                 clearFieldError('freeShippingMinAmount')
@@ -835,7 +905,7 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="number"
               min="1"
-              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={c.maxPrescriptionAgeMonths ?? ''}
               onChange={(e) => {
                 clearFieldError('maxPrescriptionAgeMonths')
@@ -861,7 +931,7 @@ const PolicyFormPage: React.FC = () => {
             <input
               type="number"
               min="0"
-              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+              className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={c.prescriptionLensFee ?? ''}
               onChange={(e) => {
                 clearFieldError('prescriptionLensFee')
@@ -881,7 +951,7 @@ const PolicyFormPage: React.FC = () => {
             </p>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -905,7 +975,7 @@ const PolicyFormPage: React.FC = () => {
                 Require Pupillary Distance (PD)
               </label>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -946,7 +1016,7 @@ const PolicyFormPage: React.FC = () => {
             </h3>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -970,7 +1040,7 @@ const PolicyFormPage: React.FC = () => {
                 Allow cancel ready-to-ship orders before shipping
               </label>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -996,7 +1066,7 @@ const PolicyFormPage: React.FC = () => {
                 Allow cancel prescription orders before production
               </label>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -1038,7 +1108,7 @@ const PolicyFormPage: React.FC = () => {
               Refund Configuration
             </h3>
           </div>
-          <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm mb-4">
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xs border border-slate-200 mb-4">
             <div className="relative flex items-center">
               <input
                 type="checkbox"
@@ -1070,7 +1140,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.expectedProcessingDaysMin ?? ''}
                 onChange={(e) => {
                   clearFieldError('expectedProcessingDaysMin')
@@ -1094,7 +1164,7 @@ const PolicyFormPage: React.FC = () => {
               <input
                 type="number"
                 min="1"
-                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 outline-none focus:border-blue-700 text-sm"
+                className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={c.expectedProcessingDaysMax ?? ''}
                 onChange={(e) => {
                   clearFieldError('expectedProcessingDaysMax')
@@ -1119,7 +1189,7 @@ const PolicyFormPage: React.FC = () => {
     // Privacy & Terms (no specific config)
     if (type === 'privacy' || type === 'terms') {
       return (
-        <div className="p-8 text-center bg-slate-50/50 border border-slate-100 border-dashed rounded-2xl">
+        <div className="p-8 text-center bg-slate-50/50 border border-slate-200 border-dashed rounded-xs">
           <FiAlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
           <div className="text-slate-400 font-bold uppercase tracking-widest text-xs">
             No additional configuration needed for {type} policy
@@ -1132,7 +1202,7 @@ const PolicyFormPage: React.FC = () => {
     }
 
     return (
-      <div className="p-12 text-center bg-slate-50/50 border border-slate-100 border-dashed rounded-4xl animate-in fade-in duration-700">
+      <div className="p-12 text-center bg-slate-50/50 border border-slate-200 border-dashed rounded-xs animate-in fade-in duration-700">
         <FiAlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-4" />
         <div className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">
           Configuration for {type} policy type
@@ -1143,36 +1213,42 @@ const PolicyFormPage: React.FC = () => {
 
   if (loading && id) {
     return (
-      <div className="fixed inset-0 bg-slate-50/80 backdrop-blur-xl flex items-center justify-center z-50">
-        <div className="relative">
-          <div className="w-20 h-20 border-4 border-blue-50/50 border-t-blue-600 rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-blue-600 uppercase tracking-widest">
-            WDP
-          </div>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80">
+        <div className="rounded-xs border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-blue-100 border-t-blue-600" />
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Loading policy...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         {/* Header Section */}
-        <div className="flex justify-between items-start border-b border-slate-300 pb-4">
-          <div className="space-y-2">
-            <button
-              onClick={() => navigate('/dashboard/policies')}
-              className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-blue-700 transition-colors"
-            >
-              <FiArrowLeft className="w-3.5 h-3.5" />
-              Discard Draft
-            </button>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-800 uppercase">
-              {id ? 'Modify Policy Version' : 'New Policy Version'}
-            </h1>
-          </div>
-          <div className="p-3 bg-white border border-slate-300 rounded-xs shadow-sm">
-            <FiFileText className="w-8 h-8 text-slate-500" />
+        <div className="rounded-xs border border-slate-300 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate('/dashboard/policies')}
+                className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-colors hover:text-blue-700"
+              >
+                <FiArrowLeft className="h-3.5 w-3.5" />
+                Back to Policies
+              </button>
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">
+                {id ? 'Modify Policy Version' : 'Create Policy Version'}
+              </h1>
+              <p className="text-sm text-slate-500">
+                Fill core policy details first, then complete configuration for the selected policy type.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-xs border border-slate-200 bg-slate-50 px-3 py-2">
+              <FiFileText className="h-4 w-4 text-slate-500" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {id ? 'Editing Existing' : 'New Draft'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1194,7 +1270,7 @@ const PolicyFormPage: React.FC = () => {
                   <div className="relative">
                     <select
                       disabled={!!id}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50 cursor-pointer appearance-none"
+                      className={`${getInputClass('type')} font-semibold text-slate-900 disabled:opacity-50 cursor-pointer appearance-none`}
                       value={formData.type}
                       onChange={(e) => {
                         const newType = e.target.value
@@ -1227,7 +1303,7 @@ const PolicyFormPage: React.FC = () => {
                   </label>
                   <input
                     type="date"
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                    className={`${getInputClass('effectiveFrom')} font-semibold text-slate-900 cursor-pointer`}
                     value={formData.effectiveFrom}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => {
@@ -1255,7 +1331,7 @@ const PolicyFormPage: React.FC = () => {
                   type="text"
                   required
                   placeholder="e.g., Transparency in Digital Commerce"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 text-xl font-black text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
+                  className={`${getInputClass('title')} text-lg font-semibold text-slate-900`}
                   value={formData.title}
                   onChange={(e) => {
                     clearFieldError('title')
@@ -1282,7 +1358,7 @@ const PolicyFormPage: React.FC = () => {
                   required
                   rows={3}
                   placeholder="Provide a high-level overview that customers can quickly scan..."
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none placeholder:text-slate-300 leading-relaxed"
+                  className={`${getTextareaClass('summary')} font-semibold text-slate-700`}
                   value={formData.summary}
                   onChange={(e) => {
                     clearFieldError('summary')
@@ -1306,7 +1382,7 @@ const PolicyFormPage: React.FC = () => {
 
               {/* Content Tabs Concept */}
               <div className="space-y-6">
-                <div className="flex items-center gap-6 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200 pb-2 no-scrollbar">
                   <button
                     type="button"
                     className="px-4 py-2 text-xs font-black uppercase tracking-widest text-blue-600 border-b-2 border-blue-600 shrink-0"
@@ -1326,7 +1402,7 @@ const PolicyFormPage: React.FC = () => {
                     required
                     rows={10}
                     placeholder="Draft the complete policy content. Use clear, unambiguous language..."
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-6 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300 leading-relaxed min-h-80"
+                    className={`${getTextareaClass('bodyPlainText')} min-h-80 px-4 py-4 font-medium text-slate-800`}
                     value={formData.bodyPlainText}
                     onChange={(e) => {
                       clearFieldError('bodyPlainText')
@@ -1338,7 +1414,7 @@ const PolicyFormPage: React.FC = () => {
                       {validationErrors.bodyPlainText}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
+                  <div className="flex items-center gap-2 rounded-xs border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
                     <FiCheckCircle className="w-4 h-4 text-emerald-500" />
                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">
                       Sanitized Version Ready for Deployment
@@ -1354,26 +1430,26 @@ const PolicyFormPage: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex flex-col md:flex-row items-center justify-end gap-6 pt-6 border-t border-slate-50">
+              <div className="flex flex-col items-center justify-end gap-4 border-t border-slate-200 pt-6 md:flex-row">
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard/policies')}
-                  className="w-full md:w-auto px-10 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all active:scale-95"
+                  className="w-full rounded-xs border border-slate-300 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50 md:w-auto"
                 >
-                  Discard Changes
+                  Cancel
                 </button>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full md:w-auto px-12 py-5 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-slate-900/20 hover:shadow-slate-900/40 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-4 group"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xs bg-blue-600 px-8 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50 md:w-auto"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                   ) : (
                     <>
-                      <FiSave className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                      Seal & Publish
+                      <FiSave className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                      Save Policy
                     </>
                   )}
                 </button>
@@ -1387,3 +1463,4 @@ const PolicyFormPage: React.FC = () => {
 }
 
 export default PolicyFormPage
+

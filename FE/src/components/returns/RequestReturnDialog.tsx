@@ -63,6 +63,11 @@ interface RequestReturnDialogProps {
   onSuccess?: () => void
 }
 
+const getItemCategory = (item: OrderItem): string | undefined => {
+  const orderItem = item as OrderItem & { productCategory?: string }
+  return orderItem.category ?? orderItem.productCategory
+}
+
 /**
  * Dialog component for requesting returns/exchanges
  * Shows policy summary, item selection, and estimated refund calculation
@@ -130,10 +135,11 @@ export function RequestReturnDialog({
       const productType: ProductReturnType = item.isPrescription
         ? 'prescriptionGlasses'
         : 'framesOnly'
+      const itemCategory = getItemCategory(item)
       const result = isItemReturnable(
         policy,
         productType,
-        item.productImage,
+        itemCategory,
         order.history?.find((h) => h.status === 'DELIVERED')?.timestamp.toString()
       )
 
@@ -201,7 +207,7 @@ export function RequestReturnDialog({
           quantity: item.quantity,
           unitPrice: item.priceAtOrder,
           sku: item.variantSku,
-          category: undefined,
+          category: getItemCategory(item),
           isPrescription: item.isPrescription ?? false,
         }))
 

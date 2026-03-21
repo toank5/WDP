@@ -44,6 +44,8 @@ export interface ShippingPolicyConfig {
   standardDaysMax: number
   expressDaysMin: number
   expressDaysMax: number
+  standardShippingFee: number
+  expressShippingFee: number
   freeShippingMinAmount: number
 }
 

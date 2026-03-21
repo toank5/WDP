@@ -10,7 +10,7 @@ import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
 import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
 import { getActiveCombos, type Combo } from '@/lib/combo-api'
 import { getActivePromotions, type Promotion, validatePromotion } from '@/lib/promotion-api'
-import { getPrescriptionLensFee } from '@/lib/policy-api'
+import { getPrescriptionLensFee, getShippingPolicyPricing } from '@/lib/policy-api'
 import {
   Box,
   Container,
@@ -43,6 +43,20 @@ import {
   ArrowBack as ArrowBackIcon,
   ShoppingCart as CartIcon,
   ShoppingCartOutlined,
+  Checkroom,
+  RadioButtonUnchecked,
+  AutoAwesome,
+  PersonOutline,
+  Straighten,
+  Visibility,
+  ShieldOutlined,
+  Build,
+  AccessTime,
+  LocalShippingOutlined,
+  Autorenew,
+  VerifiedUserOutlined,
+  LockOutlined,
+  SupportAgent,
   Favorite as WishlistIcon,
   FavoriteBorder as WishlistBorderIcon,
   FlashOn as BuyNowIcon,
@@ -75,13 +89,18 @@ const VND_FORMATTER = new Intl.NumberFormat('vi-VN', {
 
 const formatPrice = (price: number): string => VND_FORMATTER.format(price)
 
-const REASSURANCE_POINTS = [
-  { icon: '🚚', text: 'Free shipping on orders over 2.000.000 ₫' },
-  { icon: '🔄', text: '30-day return policy' },
-  { icon: '✅', text: '1-year warranty' },
-  { icon: '🔒', text: 'Secure payment' },
-  { icon: '📞', text: '24/7 customer support' },
+const STATIC_REASSURANCE_POINTS = [
+  { icon: <Autorenew sx={{ fontSize: 16 }} />, text: '30-day return policy' },
+  { icon: <VerifiedUserOutlined sx={{ fontSize: 16 }} />, text: '1-year warranty' },
+  { icon: <LockOutlined sx={{ fontSize: 16 }} />, text: 'Secure payment' },
+  { icon: <SupportAgent sx={{ fontSize: 16 }} />, text: '24/7 customer support' },
 ]
+
+const DEFAULT_PDP_SHIPPING_INFO = {
+  standardDaysLabel: '3-5 business days',
+  standardShippingFee: 30000,
+  freeShippingMinAmount: 2000000,
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   frame: 'Frame',
@@ -154,22 +173,22 @@ interface SpecsTableProps {
 }
 
 function SpecsTable({ product }: SpecsTableProps) {
-  const getSpecs = (): { label: string; value: string; emoji?: string }[] => {
-    const specs: { label: string; value: string; emoji?: string }[] = []
+  const getSpecs = (): { label: string; value: string; icon?: React.ReactElement }[] => {
+    const specs: { label: string; value: string; icon?: React.ReactElement }[] = []
 
     if (product.category === 'frame') {
-      specs.push({ label: 'Frame Type', value: product.frameType || 'N/A', emoji: '👓' })
-      specs.push({ label: 'Shape', value: product.shape || 'N/A', emoji: '🔷' })
-      specs.push({ label: 'Material', value: product.material || 'N/A', emoji: '✨' })
-      if (product.gender) specs.push({ label: 'Gender', value: product.gender, emoji: '👤' })
-      if (product.bridgeFit) specs.push({ label: 'Bridge Fit', value: product.bridgeFit, emoji: '📏' })
+      specs.push({ label: 'Frame Type', value: product.frameType || 'N/A', icon: <Checkroom sx={{ fontSize: 16 }} /> })
+      specs.push({ label: 'Shape', value: product.shape || 'N/A', icon: <RadioButtonUnchecked sx={{ fontSize: 16 }} /> })
+      specs.push({ label: 'Material', value: product.material || 'N/A', icon: <AutoAwesome sx={{ fontSize: 16 }} /> })
+      if (product.gender) specs.push({ label: 'Gender', value: product.gender, icon: <PersonOutline sx={{ fontSize: 16 }} /> })
+      if (product.bridgeFit) specs.push({ label: 'Bridge Fit', value: product.bridgeFit, icon: <Straighten sx={{ fontSize: 16 }} /> })
     } else if (product.category === 'lens') {
-      specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', emoji: '👁️' })
-      specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', emoji: '🔍' })
-      if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), emoji: '🛡️' })
+      specs.push({ label: 'Lens Type', value: product.lensType || 'N/A', icon: <Visibility sx={{ fontSize: 16 }} /> })
+      specs.push({ label: 'Index', value: product.index?.toString() || 'N/A', icon: <LensIndexIcon sx={{ fontSize: 16 }} /> })
+      if (product.coatings?.length) specs.push({ label: 'Coatings', value: product.coatings.join(', '), icon: <ShieldOutlined sx={{ fontSize: 16 }} /> })
     } else if (product.category === 'service') {
-      specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', emoji: '🔧' })
-      specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, emoji: '⏱️' })
+      specs.push({ label: 'Service Type', value: product.serviceType || 'N/A', icon: <Build sx={{ fontSize: 16 }} /> })
+      specs.push({ label: 'Duration', value: `${product.durationMinutes || 0} minutes`, icon: <AccessTime sx={{ fontSize: 16 }} /> })
     }
 
     return specs
@@ -200,7 +219,9 @@ function SpecsTable({ product }: SpecsTableProps) {
             },
           }}
         >
-          <Box sx={{ fontSize: 16 }}>{spec.emoji || '📋'}</Box>
+          <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
+            {spec.icon || <FiberManualRecord sx={{ fontSize: 10 }} />}
+          </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', mb: 0.25 }}>
               {spec.label}
@@ -931,6 +952,7 @@ export function ProductDetailPage() {
   const [promoValidationLoading, setPromoValidationLoading] = useState(false)
   const [promoError, setPromoError] = useState<string | null>(null)
   const [prescriptionLensFee, setPrescriptionLensFee] = useState(0)
+  const [shippingInfo, setShippingInfo] = useState(DEFAULT_PDP_SHIPPING_INFO)
 
   const [enableTypedPrescription, setEnableTypedPrescription] = useState(false)
   const [typedPrescription, setTypedPrescription] = useState({
@@ -1521,6 +1543,32 @@ export function ProductDetailPage() {
     fetchPrescriptionPolicy()
   }, [])
 
+  useEffect(() => {
+    const fetchShippingPolicy = async () => {
+      try {
+        const pricing = await getShippingPolicyPricing()
+        setShippingInfo({
+          standardDaysLabel: pricing.standardDaysLabel,
+          standardShippingFee: pricing.standardShippingFee,
+          freeShippingMinAmount: pricing.freeShippingMinAmount,
+        })
+      } catch {
+        setShippingInfo(DEFAULT_PDP_SHIPPING_INFO)
+      }
+    }
+
+    fetchShippingPolicy()
+  }, [])
+
+  const shippingReassuranceText = shippingInfo.freeShippingMinAmount > 0
+    ? `Free shipping on orders over ${formatPrice(shippingInfo.freeShippingMinAmount)}`
+    : `Shipping from ${formatPrice(shippingInfo.standardShippingFee)} (${shippingInfo.standardDaysLabel})`
+
+  const reassurancePoints = [
+    { icon: <LocalShippingOutlined sx={{ fontSize: 16 }} />, text: shippingReassuranceText },
+    ...STATIC_REASSURANCE_POINTS,
+  ]
+
   // Reset variant state when product changes
   // Note: This is handled by the auto-selection logic in loadProduct()
   useEffect(() => {
@@ -1699,21 +1747,21 @@ export function ProductDetailPage() {
 
     try {
       // Generate variant SKU and name based on product type
-      let variantId: string | undefined = selectedVariant?.sku
+      let variantSku: string | undefined = selectedVariant?.sku
       let variantName: string | undefined
 
       if (isFrameProduct(product) && selectedVariant) {
         variantName = `${selectedVariant.size} - ${selectedVariant.color}`
       } else if (product.category === 'lens') {
         // For lens products, use the generated SKU format LENS-{slug}
-        variantId = product.slug ? `LENS-${product.slug}` : undefined
+        variantSku = product.slug ? `LENS-${product.slug}` : undefined
         variantName = `Index ${product.index}`
       }
 
       const result = await wishlistApi.toggleItem({
         productId: product._id,
         productName: product.name,
-        variantId,
+        variantSku,
         variantName,
         image: formatImageUrl(images2D[0]) || '',
       })
@@ -1812,7 +1860,10 @@ export function ProductDetailPage() {
     if (!product) return
 
     const checkWishlistStatus = async () => {
-      const isFavorited = await wishlistApi.isFavorited(product._id, selectedVariant?.sku)
+      const variantSku = isFrameProduct(product)
+        ? selectedVariant?.sku
+        : (product.category === 'lens' && product.slug ? `LENS-${product.slug}` : undefined)
+      const isFavorited = await wishlistApi.isFavorited(product._id, undefined, variantSku)
       setIsInWishlist(isFavorited)
     }
 
@@ -2771,9 +2822,9 @@ export function ProductDetailPage() {
                 {/* Enhanced Reassurance Points */}
                 <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 2.5 }}>
                   <Stack spacing={1}>
-                    {REASSURANCE_POINTS.map((point) => (
+                    {reassurancePoints.map((point) => (
                       <Box key={point.text} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Box sx={{ fontSize: 16 }}>{point.icon}</Box>
+                        <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>{point.icon}</Box>
                         <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
                           {point.text}
                         </Typography>

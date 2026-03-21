@@ -143,7 +143,9 @@ const ReturnEligibilityInfo: React.FC<ReturnEligibilityInfoProps> = ({ orderItem
     isPreorder: orderItem.isPreorder,
   })
 
-  const eligibility = isItemReturnable(returnPolicy, productType, undefined, deliveredAt)
+  const itemCategory = (orderItem as typeof orderItem & { category?: string; productCategory?: string }).category
+    ?? (orderItem as typeof orderItem & { category?: string; productCategory?: string }).productCategory
+  const eligibilityWithCategory = isItemReturnable(returnPolicy, productType, itemCategory, deliveredAt)
 
   // Get return window text based on product type
   const getReturnWindowText = () => {
@@ -162,7 +164,7 @@ const ReturnEligibilityInfo: React.FC<ReturnEligibilityInfoProps> = ({ orderItem
 
   return (
     <div className="mt-2">
-      {eligibility.eligible ? (
+      {eligibilityWithCategory.eligible ? (
         <p className="text-xs text-emerald-600 flex items-center gap-1">
           <FiCheckCircle className="w-3 h-3" />
           {getReturnWindowText()}
@@ -170,7 +172,7 @@ const ReturnEligibilityInfo: React.FC<ReturnEligibilityInfoProps> = ({ orderItem
       ) : (
         <p className="text-xs text-rose-600 flex items-center gap-1">
           <FiXCircle className="w-3 h-3" />
-          {eligibility.reason || 'Not returnable'}
+          {eligibilityWithCategory.reason || 'Not returnable'}
         </p>
       )}
     </div>
@@ -373,7 +375,7 @@ const OrderDetailPage: React.FC = () => {
           <p className="text-slate-600 mb-6">{error || 'The order you are looking for does not exist.'}</p>
           <Link
             to="/orders"
-            className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors"
+            className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors"
           >
             Back to Orders
           </Link>
@@ -426,7 +428,7 @@ const OrderDetailPage: React.FC = () => {
                 <button
                   onClick={handleCancelOrder}
                   disabled={cancelling}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {cancelling ? 'Cancelling...' : 'Cancel Order'}
                 </button>
@@ -439,7 +441,7 @@ const OrderDetailPage: React.FC = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Order Items */}
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <FiShoppingBag className="text-blue-600" />
@@ -449,7 +451,7 @@ const OrderDetailPage: React.FC = () => {
               <div className="p-6 space-y-4">
                 {order.items.map((item, index) => (
                   <div key={item._id || index} className="flex items-center gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-                    <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                       {item.productImage ? (
                         <img
                           src={formatImageUrl(item.productImage)}
@@ -517,7 +519,7 @@ const OrderDetailPage: React.FC = () => {
                                     order.orderNumber,
                                   )
                                 }
-                                className="mt-1 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-[2px] transition-colors"
+                                className="mt-1 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xs transition-colors"
                               >
                                 <FiStar className="text-sm" />
                                 Write Review
@@ -548,7 +550,7 @@ const OrderDetailPage: React.FC = () => {
 
             {/* Order Timeline */}
             {order.history && order.history.length > 0 && (
-              <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+              <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
                 <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <FiFileText className="text-blue-600" />
@@ -565,7 +567,7 @@ const OrderDetailPage: React.FC = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Order Summary */}
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
                   Order Summary
@@ -598,7 +600,7 @@ const OrderDetailPage: React.FC = () => {
             </div>
 
             {/* Shipping Address */}
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
                   <FiMapPin className="text-blue-600" />
@@ -616,7 +618,7 @@ const OrderDetailPage: React.FC = () => {
             </div>
 
             {/* Payment Info */}
-            <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
               <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
                   <FiCreditCard className="text-blue-600" />
@@ -655,7 +657,7 @@ const OrderDetailPage: React.FC = () => {
 
             {/* Tracking Info */}
             {order.tracking && (
-              <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
+              <div className="bg-white border border-slate-300 rounded-xs shadow-sm overflow-hidden">
                 <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
                     <FiTruck className="text-blue-600" />
@@ -698,7 +700,7 @@ const OrderDetailPage: React.FC = () => {
                 {policyLoading ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <div className="flex items-start gap-2">
-                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-amber-900 mb-1">Return Policy</p>
                         <div className="flex items-center gap-2 text-xs text-amber-700">
@@ -711,7 +713,7 @@ const OrderDetailPage: React.FC = () => {
                 ) : returnPolicy ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <div className="flex items-start gap-2">
-                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <FiFileText className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-amber-900 mb-1">Return Policy</p>
                         <p className="text-xs text-amber-800 mb-2">{returnPolicy.summary}</p>
@@ -742,7 +744,7 @@ const OrderDetailPage: React.FC = () => {
                 <button
                   onClick={handleConfirmReceipt}
                   disabled={confirming}
-                  className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <FiCheckCircle size={16} />
                   {confirming ? 'Confirming...' : 'Confirm Received'}
@@ -752,7 +754,7 @@ const OrderDetailPage: React.FC = () => {
               {order.orderStatus === OrderStatus.DELIVERED && returnPolicy && !hasActiveReturn && (
                 <button
                   onClick={() => setRequestReturnOpen(true)}
-                  className="w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors flex items-center justify-center gap-2"
                 >
                   <FiXCircle size={16} />
                   Request Return / Exchange
@@ -761,7 +763,7 @@ const OrderDetailPage: React.FC = () => {
 
               {/* Show existing return info - show all non-canceled returns */}
               {visibleReturns.length > 0 && visibleReturns.map((ret) => (
-                <div key={ret.id} className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-[2px]">
+                <div key={ret.id} className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xs">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <FiFileText size={16} className="text-blue-600" />
@@ -788,14 +790,14 @@ const OrderDetailPage: React.FC = () => {
               ))}
               <Link
                 to="/orders"
-                className="w-full px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+                className="w-full px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm uppercase tracking-wider rounded-xs transition-colors flex items-center justify-center gap-2"
               >
                 <FiArrowLeft size={16} />
                 Back to Orders
               </Link>
               <Link
                 to="/products"
-                className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
+                className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider rounded-xs transition-colors flex items-center justify-center gap-2"
               >
                 <FiShoppingBag size={16} />
                 Continue Shopping

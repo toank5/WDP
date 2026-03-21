@@ -19,7 +19,7 @@ import { useCart, useCartStore } from '@/store/cart.store'
 import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
-import { getPrescriptionLensFee } from '@/lib/policy-api'
+import { getPrescriptionLensFee, getShippingPolicyPricing } from '@/lib/policy-api'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -112,6 +112,24 @@ interface FormErrors {
 
 type CheckoutStep = 'address' | 'payment' | 'review'
 
+interface ShippingPricingState {
+  defaultCarrier: string
+  standardDaysLabel: string
+  expressDaysLabel: string
+  standardShippingFee: number
+  expressShippingFee: number
+  freeShippingMinAmount: number
+}
+
+const DEFAULT_SHIPPING_PRICING: ShippingPricingState = {
+  defaultCarrier: 'Default Carrier',
+  standardDaysLabel: '3-5 business days',
+  expressDaysLabel: '1-2 business days',
+  standardShippingFee: 30000,
+  expressShippingFee: 50000,
+  freeShippingMinAmount: 0,
+}
+
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address')
@@ -139,6 +157,8 @@ const CheckoutPage: React.FC = () => {
 
   // Payment
   const [paymentMethod] = useState<PaymentMethod>(PaymentMethod.VNPAY) // Only VNPAY for now
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(ShippingMethod.STANDARD)
+  const [shippingPricing, setShippingPricing] = useState<ShippingPricingState>(DEFAULT_SHIPPING_PRICING)
 
   // Order type (default to READY)
   const [orderType] = useState<OrderType>(OrderType.READY)
@@ -168,6 +188,19 @@ const CheckoutPage: React.FC = () => {
     }
 
     fetchPrescriptionPolicy()
+  }, [])
+
+  useEffect(() => {
+    const fetchShippingPolicy = async () => {
+      try {
+        const pricing = await getShippingPolicyPricing()
+        setShippingPricing(pricing)
+      } catch {
+        setShippingPricing(DEFAULT_SHIPPING_PRICING)
+      }
+    }
+
+    fetchShippingPolicy()
   }, [])
 
   const loadCart = async () => {
@@ -283,7 +316,13 @@ const CheckoutPage: React.FC = () => {
   }
 
   const calculateShippingFee = () => {
-    return 0 // Free shipping
+    if (shippingPricing.freeShippingMinAmount > 0 && totalAfterDiscount >= shippingPricing.freeShippingMinAmount) {
+      return 0
+    }
+
+    return shippingMethod === ShippingMethod.EXPRESS
+      ? shippingPricing.expressShippingFee
+      : shippingPricing.standardShippingFee
   }
 
   const handlePlaceOrder = async () => {
@@ -328,7 +367,7 @@ const CheckoutPage: React.FC = () => {
           priceAtOrder: normalizeCartItemPrice(item),
         })),
         shippingAddress,
-        shippingMethod: ShippingMethod.STANDARD, // Default shipping method
+        shippingMethod,
         payment: {
           method: paymentMethod,
         },
@@ -660,6 +699,82 @@ const CheckoutPage: React.FC = () => {
                   </h2>
                 </div>
                 <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setShippingMethod(ShippingMethod.STANDARD)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setShippingMethod(ShippingMethod.STANDARD)
+                        }
+                      }}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                        shippingMethod === ShippingMethod.STANDARD
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-300 bg-white hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            shippingMethod === ShippingMethod.STANDARD
+                              ? 'border-blue-600 bg-blue-600'
+                              : 'border-slate-400 bg-white'
+                          }`}>
+                            {shippingMethod === ShippingMethod.STANDARD ? <FiCheck size={12} className="text-white" /> : null}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">Standard Delivery</p>
+                            <p className="text-sm text-slate-500">{shippingPricing.standardDaysLabel}</p>
+                          </div>
+                        </div>
+                        <p className="font-bold text-slate-900">{formatPrice(shippingPricing.standardShippingFee)}</p>
+                      </div>
+                    </div>
+
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setShippingMethod(ShippingMethod.EXPRESS)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setShippingMethod(ShippingMethod.EXPRESS)
+                        }
+                      }}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                        shippingMethod === ShippingMethod.EXPRESS
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-300 bg-white hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            shippingMethod === ShippingMethod.EXPRESS
+                              ? 'border-blue-600 bg-blue-600'
+                              : 'border-slate-400 bg-white'
+                          }`}>
+                            {shippingMethod === ShippingMethod.EXPRESS ? <FiCheck size={12} className="text-white" /> : null}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">Express Delivery</p>
+                            <p className="text-sm text-slate-500">{shippingPricing.expressDaysLabel}</p>
+                          </div>
+                        </div>
+                        <p className="font-bold text-slate-900">{formatPrice(shippingPricing.expressShippingFee)}</p>
+                      </div>
+                    </div>
+
+                    {shippingPricing.freeShippingMinAmount > 0 && (
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                        <p className="text-xs text-emerald-800">
+                          Free shipping for orders from {formatPrice(shippingPricing.freeShippingMinAmount)}.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-2 border-blue-500 bg-blue-50 rounded-lg p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-600 flex items-center justify-center">
@@ -831,8 +946,12 @@ const CheckoutPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <FiTruck className="text-slate-400" />
                       <div>
-                        <p className="font-bold text-slate-900">Standard Delivery</p>
-                        <p className="text-sm text-slate-500">3-5 business days</p>
+                        <p className="font-bold text-slate-900">
+                          {shippingMethod === ShippingMethod.EXPRESS ? 'Express Delivery' : 'Standard Delivery'}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                          {shippingMethod === ShippingMethod.EXPRESS ? shippingPricing.expressDaysLabel : shippingPricing.standardDaysLabel}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -910,7 +1029,9 @@ const CheckoutPage: React.FC = () => {
                 )}
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
-                  <span className="text-green-600 font-medium">Free</span>
+                  <span className={shippingFee === 0 ? 'text-green-600 font-medium' : 'text-slate-700'}>
+                    {shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}
+                  </span>
                 </div>
                 {prescriptionItemsCount > 0 && (
                   <div className="flex justify-between text-xs font-semibold text-slate-500">

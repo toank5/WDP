@@ -83,6 +83,12 @@ export const ShippingPolicyConfigSchema = z
     expressDaysMax: z
       .number()
       .positive('Express shipping maximum days must be greater than 0'),
+    standardShippingFee: z
+      .number()
+      .min(0, 'Standard shipping fee must be at least 0'),
+    expressShippingFee: z
+      .number()
+      .min(0, 'Express shipping fee must be at least 0'),
     freeShippingMinAmount: z
       .number()
       .min(0, 'Free shipping minimum amount must be at least 0'),
