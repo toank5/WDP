@@ -221,7 +221,7 @@ export function HomeScreen({ navigation }: Props) {
         </View>
         {error ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Text style={styles.emptyIcon}>🛍</Text>
             <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
             <Text style={styles.emptyText}>
               Không thể tải sản phẩm nổi bật
@@ -277,7 +277,7 @@ export function HomeScreen({ navigation }: Props) {
         </View>
         {error ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Text style={styles.emptyIcon}>🛍</Text>
             <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
             <Text style={styles.emptyText}>
               Không thể tải danh sách sản phẩm
