@@ -325,7 +325,7 @@ export function SearchScreen({ navigation }: Props) {
           />
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorIcon}>🛍</Text>
           <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
           <Text style={styles.errorMessage}>{error}</Text>
           <Button
@@ -390,7 +390,34 @@ export function SearchScreen({ navigation }: Props) {
           />
         }
       >
-        {filteredProducts.length === 0 ? (
+        {error ? (
+          <View style={styles.emptyContainer}>
+            <IconButton
+              icon="shopping"
+              size={64}
+              iconColor={theme.colors.onSurfaceDisabled}
+              style={styles.emptyIcon}
+            />
+            <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
+            <Text style={styles.emptyText}>
+              Không thể tải danh sách sản phẩm
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => loadProducts()}
+              style={styles.emptyButton}
+              icon="refresh"
+            >
+              Thử lại
+            </Button>
+          </View>
+        ) : loading ? (
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : filteredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <IconButton
               icon="magnify"

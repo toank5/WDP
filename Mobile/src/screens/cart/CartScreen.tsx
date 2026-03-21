@@ -263,7 +263,7 @@ export function CartScreen({ navigation }: Props) {
           <Text style={styles.headerTitle}>Giỏ hàng</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorIcon}>🛒</Text>
           <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
           <Text style={styles.errorMessage}>{error}</Text>
           <Button
