@@ -162,41 +162,6 @@ export function HomeScreen({ navigation }: Props) {
     })
   }
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.sectionTitle}>Sản phẩm mới</Text>
-          <View style={styles.productsGrid}>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <ProductCardSkeleton key={index} />
-            ))}
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <Button
-            mode="contained"
-            onPress={() => loadProducts()}
-            style={styles.retryButton}
-            icon="refresh"
-          >
-            Thử lại
-          </Button>
-        </View>
-      </View>
-    )
-  }
-
   return (
     <ScrollView
       style={styles.container}
@@ -254,7 +219,29 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
         </View>
-        {featuredProducts.length === 0 ? (
+        {error ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
+            <Text style={styles.emptyText}>
+              Không thể tải sản phẩm nổi bật
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => loadProducts()}
+              style={styles.emptyButton}
+              icon="refresh"
+            >
+              Thử lại
+            </Button>
+          </View>
+        ) : loading ? (
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : featuredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📦</Text>
             <Text style={styles.emptyTitle}>Chưa có sản phẩm nổi bật</Text>
@@ -288,7 +275,29 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tất cả sản phẩm</Text>
         </View>
-        {products.length === 0 ? (
+        {error ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
+            <Text style={styles.emptyText}>
+              Không thể tải danh sách sản phẩm
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => loadProducts()}
+              style={styles.emptyButton}
+              icon="refresh"
+            >
+              Thử lại
+            </Button>
+          </View>
+        ) : loading ? (
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : products.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>👓</Text>
             <Text style={styles.emptyTitle}>Chưa có sản phẩm nào</Text>
