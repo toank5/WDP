@@ -1,5 +1,5 @@
 import React from 'react'
-import { View } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'
@@ -36,9 +36,9 @@ export const MainTabNavigator = () => {
         name="HomeTab"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Trang chủ',
+          tabBarLabel: 'Cửa hàng',
           tabBarIcon: ({ color, size }) => (
-            <IconButton icon="home" size={size} iconColor={color} />
+            <IconButton icon="store" size={size} iconColor={color} />
           ),
         }}
       />
@@ -53,7 +53,7 @@ export const MainTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="CartTab"
+        name="Cart"
         component={CartScreen}
         options={{
           tabBarLabel: 'Giỏ hàng',
@@ -73,7 +73,7 @@ export const MainTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="AccountTab"
+        name="Account"
         component={AccountScreen}
         options={{
           tabBarLabel: 'Tài khoản',
@@ -86,10 +86,10 @@ export const MainTabNavigator = () => {
   )
 }
 
-const styles = {
+const styles = StyleSheet.create({
   cartBadge: {
     position: 'absolute',
     top: 2,
     right: 2,
   },
-}
+})

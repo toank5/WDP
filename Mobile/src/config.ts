@@ -1,8 +1,9 @@
 // Import environment configuration
-import { API_BASE_URL, APP_CONFIG, __DEV__ } from './utils/env'
+import { API_BASE_URL, APP_CONFIG, IS_DEV } from './utils/env'
 
 // Re-export for convenience
-export { API_BASE_URL, APP_CONFIG, __DEV__ }
+export { API_BASE_URL, APP_CONFIG }
+export { IS_DEV as __DEV__ }
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -48,4 +49,10 @@ export const API_ENDPOINTS = {
   // Inventory
   INVENTORY_CHECK: (sku: string) => `/inventory/${sku}`,
   INVENTORY_BULK_CHECK: '/inventory/check-availability',
+
+  // Account/Profile
+  ACCOUNT_PROFILE: '/account/profile',
+  ACCOUNT_PREFERENCES: '/account/preferences',
+  ACCOUNT_CHANGE_PASSWORD: '/account/change-password',
+  ACCOUNT_DELETE: '/account',
 }

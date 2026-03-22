@@ -5,26 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useAuthStore, initializeAuthStore } from '../store/auth-store'
 import { AuthNavigator } from './AuthNavigator'
 import { MainTabNavigator } from './MainTabNavigator'
-import { ProductDetailScreen } from '../screens'
-import type { RootStackParamList } from './types'
 
-// Placeholder screens - will be implemented in later commits
-const ProductListScreen = () => null as any
-const CheckoutScreen = () => null as any
-const CheckoutAddressScreen = () => null as any
-const CheckoutPaymentScreen = () => null as any
-const CheckoutReviewScreen = () => null as any
-const OrderDetailScreen = () => null as any
-const OrderHistoryScreen = () => null as any
-const AddressManagementScreen = () => null as any
-const AddressFormScreen = () => null as any
-const ProfileSettingsScreen = () => null as any
-const AboutScreen = () => null as any
-const ContactScreen = () => null as any
-const FavoritesScreen = () => null as any
-const VirtualTryOnScreen = () => null as any
-
-const Stack = createNativeStackNavigator<RootStackParamList>()
+const Stack = createNativeStackNavigator()
 
 /**
  * RootNavigator - Main navigation container
@@ -75,37 +57,20 @@ export const RootNavigator = () => {
           animationDuration: 300,
         }}
       >
-        {!isAuthenticated ? (
-          // Not logged in - show Auth Stack
+        {/* Always show Main Navigator (Store first) */}
+        <Stack.Screen
+          name="Main"
+          component={MainTabNavigator}
+          options={{ headerShown: false }}
+        />
+
+        {/* Auth Navigator - shown only when needed */}
+        {isAuthenticated ? null : (
           <Stack.Screen
             name="Auth"
             component={AuthNavigator}
-            options={{ headerShown: false }}
+            options={{ headerShown: false, presentation: 'card' }}
           />
-        ) : (
-          // Logged in - show Main Stack with tabs
-          <>
-            <Stack.Screen
-              name="Main"
-              component={MainTabNavigator}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-            <Stack.Screen name="ProductList" component={ProductListScreen} />
-            <Stack.Screen name="Checkout" component={CheckoutScreen} />
-            <Stack.Screen name="CheckoutAddress" component={CheckoutAddressScreen} />
-            <Stack.Screen name="CheckoutPayment" component={CheckoutPaymentScreen} />
-            <Stack.Screen name="CheckoutReview" component={CheckoutReviewScreen} />
-            <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-            <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-            <Stack.Screen name="AddressManagement" component={AddressManagementScreen} />
-            <Stack.Screen name="AddressForm" component={AddressFormScreen} />
-            <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-            <Stack.Screen name="Contact" component={ContactScreen} />
-            <Stack.Screen name="Favorites" component={FavoritesScreen} />
-            <Stack.Screen name="VirtualTryOn" component={VirtualTryOnScreen} />
-          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

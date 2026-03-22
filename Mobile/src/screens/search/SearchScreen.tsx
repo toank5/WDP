@@ -6,6 +6,7 @@ import {
   Dimensions,
   Image,
   TextInput,
+  RefreshControl,
 } from 'react-native'
 import {
   Text,
@@ -25,7 +26,7 @@ import { useTheme } from 'react-native-paper'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { MainTabParamList } from '../../types'
 import { getAllProducts, type Product, type ProductCategory } from '../../services/product-api'
-import { Loading } from '../../components/Loading'
+import { Loading, ProductCardSkeleton } from '../../components/Loading'
 
 type Props = BottomTabScreenProps<MainTabParamList, 'SearchTab'>
 
@@ -40,8 +41,12 @@ const formatPrice = (price: number): string => {
   }).format(price)
 }
 
-// Categories
-const CATEGORIES: ProductCategory[] = ['frame', 'lens', 'service']
+// Categories - Synced with FE (Frames, Lenses, Services)
+const CATEGORIES: Array<{ id: ProductCategory; name: string }> = [
+  { id: 'frame', name: 'Frames' },
+  { id: 'lens', name: 'Lenses' },
+  { id: 'service', name: 'Services' },
+]
 
 // Color options
 const COLOR_OPTIONS = [
@@ -125,7 +130,10 @@ export function SearchScreen({ navigation }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null)
   const [sortBy, setSortBy] = useState('relevance')
   const [maxPrice, setMaxPrice] = useState(50000000)
 
@@ -137,6 +145,7 @@ export function SearchScreen({ navigation }: Props) {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getAllProducts()
       const activeProducts = data.filter((p) => !p.isDeleted && p.isActive)
       setProducts(activeProducts)
@@ -151,10 +160,20 @@ export function SearchScreen({ navigation }: Props) {
       }
     } catch (error) {
       console.error('Failed to load products:', error)
+      setError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadProducts()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadProducts])
 
   useEffect(() => {
     loadProducts()
@@ -252,7 +271,74 @@ export function SearchScreen({ navigation }: Props) {
   )
 
   if (loading) {
-    return <Loading />
+    return (
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Searchbar
+            placeholder="Tìm sản phẩm..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchbar}
+          />
+          <IconButton
+            icon="tune"
+            onPress={() => setFilterModalVisible(true)}
+            size={20}
+          />
+        </View>
+        <View style={styles.filtersContainer}>
+          <SegmentedButtons
+            value={selectedCategory}
+            onValueChange={setSelectedCategory}
+            buttons={[
+              { value: null, label: 'Tất cả' },
+              ...CATEGORIES.map((cat) => ({ value: cat.id, label: cat.name })),
+            ]}
+            style={styles.categoryButtons}
+            density="small"
+          />
+        </View>
+        <View style={styles.productsGrid}>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
+          ))}
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Searchbar
+            placeholder="Tìm kiếm sản phẩm..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+          />
+          <IconButton
+            icon="filter-variant"
+            size={24}
+            onPress={openFilterModal}
+            style={styles.filterButton}
+          />
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>🛍</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={() => loadProducts()}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -296,12 +382,71 @@ export function SearchScreen({ navigation }: Props) {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
-        {filteredProducts.length === 0 ? (
+        {error ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Không tìm thấy sản phẩm nào</Text>
-            <Button mode="text" onPress={() => setFilters({ ...DEFAULT_FILTERS, maxPrice })}>
+            <IconButton
+              icon="shopping"
+              size={64}
+              iconColor={theme.colors.onSurfaceDisabled}
+              style={styles.emptyIcon}
+            />
+            <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
+            <Text style={styles.emptyText}>
+              Không thể tải danh sách sản phẩm
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => loadProducts()}
+              style={styles.emptyButton}
+              icon="refresh"
+            >
+              Thử lại
+            </Button>
+          </View>
+        ) : loading ? (
+          <View style={styles.productsGrid}>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <ProductCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : filteredProducts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <IconButton
+              icon="magnify"
+              size={64}
+              iconColor={theme.colors.onSurfaceDisabled}
+              style={styles.emptyIcon}
+            />
+            <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm nào</Text>
+            <Text style={styles.emptyText}>
+              Thử thay đổi bộ lọc hoặc tìm kiếm với từ khóa khác
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setFilters({ ...DEFAULT_FILTERS, maxPrice })
+                setSearchQuery('')
+              }}
+              style={styles.emptyButton}
+              icon="filter-remove"
+            >
               Xóa bộ lọc
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => navigation.navigate('Main', { screen: 'Store' })}
+              style={styles.emptyButton}
+              icon="shopping"
+            >
+              Xem tất cả sản phẩm
             </Button>
           </View>
         ) : (
@@ -343,12 +488,12 @@ export function SearchScreen({ navigation }: Props) {
                 </Chip>
                 {CATEGORIES.map((cat) => (
                   <Chip
-                    key={cat}
-                    selected={tempFilters.category === cat}
-                    onPress={() => setTempFilters((prev) => ({ ...prev, category: cat }))}
+                    key={cat.id}
+                    selected={tempFilters.category === cat.id}
+                    onPress={() => setTempFilters((prev) => ({ ...prev, category: cat.id }))}
                     style={styles.filterChip}
                   >
-                    {cat}
+                    {cat.name}
                   </Chip>
                 ))}
               </View>
@@ -437,7 +582,22 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
+  searchbar: {
+    flex: 1,
+  },
   searchBar: {
+    flex: 1,
+    elevation: 0,
+    backgroundColor: 'white',
+  },
+  filtersContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  categoryButtons: {
+    width: '100%',
+  },
+  filterButton: {
     flex: 1,
     elevation: 0,
     backgroundColor: 'white',
@@ -473,6 +633,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     marginBottom: 16,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#1e293b',
+  },
+  emptyButton: {
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
   productsGrid: {
     flexDirection: 'row',
@@ -602,5 +775,30 @@ const styles = StyleSheet.create({
   },
   filterAction: {
     flex: 1,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 32,
   },
 })

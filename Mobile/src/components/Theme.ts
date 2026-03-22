@@ -18,6 +18,7 @@ export const COLORS = {
   onSurfaceDisabled: '#9e9e9e',
   background: '#f5f5f5',
   border: '#e0e0e0',
+  skeleton: '#e0e0e0',
 }
 
 // Light theme
@@ -38,6 +39,7 @@ const lightTheme = {
     onSurfaceDisabled: COLORS.onSurfaceDisabled,
     background: COLORS.background,
     outline: COLORS.border,
+    skeleton: COLORS.skeleton,
   },
 }
 
@@ -59,6 +61,7 @@ const darkTheme = {
     onSurfaceDisabled: '#757575',
     background: '#121212',
     outline: '#424242',
+    skeleton: '#2d2d2d',
   },
 }
 

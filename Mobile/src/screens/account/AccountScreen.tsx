@@ -17,7 +17,7 @@ import {
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
-import type { MainTabParamList, RootStackParamList, AuthUser } from '../../types'
+import type { MainTabParamList, RootStackParamList } from '../../types'
 import { useAuthStore } from '../../store/auth-store'
 
 type Props = {
@@ -28,7 +28,7 @@ interface MenuItem {
   icon: string
   title: string
   subtitle?: string
-  onPress: () => void
+  onPress: (navigation: NavigationProp<MainTabParamList & RootStackParamList>) => void
   showChevron?: boolean
 }
 
@@ -37,66 +37,66 @@ const MENU_ITEMS: MenuItem[] = [
     icon: 'account-edit',
     title: 'Thông tin cá nhân',
     subtitle: 'Cập nhật tên, email, số điện thoại',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('ProfileSettings'),
     showChevron: true,
   },
   {
     icon: 'map-marker',
     title: 'Địa chỉ giao hàng',
     subtitle: 'Quản lý địa chỉ giao hàng mặc định',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('AddressManagement'),
     showChevron: true,
   },
   {
     icon: 'heart',
     title: 'Danh sách yêu thích',
     subtitle: 'Xem các sản phẩm đã lưu',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('Favorites'),
     showChevron: true,
   },
   {
     icon: 'receipt',
     title: 'Lịch sử đơn hàng',
     subtitle: 'Xem và theo dõi đơn hàng',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('OrderHistory'),
     showChevron: true,
   },
   {
     icon: 'bell',
     title: 'Thông báo',
     subtitle: 'Quản lý thông báo của bạn',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('Notifications'),
     showChevron: true,
   },
   {
     icon: 'shield-lock',
     title: 'Bảo mật',
     subtitle: 'Thay đổi mật khẩu và cài đặt bảo mật',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('SecuritySettings'),
     showChevron: true,
   },
   {
     icon: 'help-circle',
     title: 'Trợ giúp & Hỗ trợ',
     subtitle: 'Câu hỏi thường gặp và liên hệ',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('Contact'),
     showChevron: true,
   },
   {
     icon: 'information',
     title: 'Về chúng tôi',
     subtitle: 'Thông tin về công ty',
-    onPress: () => {},
+    onPress: (nav) => nav.navigate('About'),
     showChevron: true,
   },
 ]
 
 interface ProfileCardProps {
-  user: AuthUser | null
-  onEditProfile: () => void
+  user: any
+  navigation: NavigationProp<MainTabParamList & RootStackParamList>
 }
 
-function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
+function ProfileCard({ user, navigation }: ProfileCardProps) {
   const theme = useTheme()
 
   return (
@@ -114,7 +114,7 @@ function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
         <IconButton
           icon="pencil"
           size={20}
-          onPress={onEditProfile}
+          onPress={() => navigation.navigate('ProfileSettings')}
           style={styles.editButton}
           iconColor={theme.colors.primary}
         />
@@ -123,7 +123,7 @@ function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
   )
 }
 
-function MenuItemComponent({ item }: { item: MenuItem }) {
+function MenuItemComponent({ item, navigation }: { item: MenuItem; navigation: NavigationProp<MainTabParamList & RootStackParamList> }) {
   const theme = useTheme()
 
   return (
@@ -142,7 +142,7 @@ function MenuItemComponent({ item }: { item: MenuItem }) {
           <List.Icon {...props} icon="chevron-right" />
         ) : null
       }
-      onPress={item.onPress}
+      onPress={() => item.onPress(navigation)}
       style={styles.menuItem}
       titleStyle={styles.menuItemTitle}
       descriptionStyle={styles.menuItemDescription}
@@ -161,27 +161,6 @@ export function AccountScreen({ navigation }: Props) {
     // Navigation will be handled by auth state change
   }
 
-  const handleOrdersPress = () => {
-    // Navigate to orders screen when implemented
-    console.log('Navigate to orders')
-  }
-
-  const handleEditProfile = () => {
-    // Navigate to edit profile screen when implemented
-    console.log('Navigate to edit profile')
-  }
-
-  // Update menu items with actual navigation handlers
-  const menuItems = MENU_ITEMS.map((item) => {
-    if (item.title === 'Lịch sử đơn hàng') {
-      return { ...item, onPress: handleOrdersPress }
-    }
-    if (item.title === 'Thông tin cá nhân') {
-      return { ...item, onPress: handleEditProfile }
-    }
-    return item
-  })
-
   return (
     <ScrollView
       style={styles.container}
@@ -189,14 +168,14 @@ export function AccountScreen({ navigation }: Props) {
       showsVerticalScrollIndicator={false}
     >
       {/* Profile Card */}
-      <ProfileCard user={user} onEditProfile={handleEditProfile} />
+      <ProfileCard user={user} navigation={navigation} />
 
       {/* Menu Items */}
       <Card style={styles.menuCard}>
-        {menuItems.map((item, index) => (
+        {MENU_ITEMS.map((item, index) => (
           <View key={index}>
-            <MenuItemComponent item={item} />
-            {index < menuItems.length - 1 && <Divider />}
+            <MenuItemComponent item={item} navigation={navigation} />
+            {index < MENU_ITEMS.length - 1 && <Divider />}
           </View>
         ))}
       </Card>
@@ -264,6 +243,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    backgroundColor: '#f8fafc',
   },
   avatar: {
     backgroundColor: '#3b82f6',
@@ -286,12 +266,12 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   menuCard: {
+    padding: 16,
     borderRadius: 16,
     overflow: 'hidden',
   },
   menuItem: {
     paddingVertical: 4,
-    paddingHorizontal: 8,
   },
   menuItemTitle: {
     fontSize: 16,

@@ -17,14 +17,12 @@ export type MainTabParamList = {
   AccountTab: undefined
 }
 
-// Main stack param list (for nested navigation)
-export type MainStackParamList = {
-  MainTab: undefined
-  ProductDetail: { slug: string; productId: string }
-  Cart: undefined
-  Checkout: undefined
-  OrderDetail: { orderId: string }
-  Account: undefined
+// Checkout Stack Param List
+export type CheckoutStackParamList = {
+  CheckoutAddress: undefined
+  CheckoutPayment: undefined
+  CheckoutReview: undefined
+  CheckoutSuccess: { orderId: string }
 }
 
 // Root Stack Param List
@@ -33,6 +31,7 @@ export type RootStackParamList = {
   Main: undefined
   ProductDetail: { slug: string; productId: string }
   ProductList: { category?: string }
+  Cart: undefined
   Checkout: undefined
   CheckoutAddress: undefined
   CheckoutPayment: undefined
@@ -42,6 +41,8 @@ export type RootStackParamList = {
   AddressManagement: undefined
   AddressForm: { addressId?: string }
   ProfileSettings: undefined
+  ProfileEdit: undefined
+  SecuritySettings: undefined
   About: undefined
   Contact: undefined
   Favorites: undefined
@@ -64,3 +65,6 @@ export type MainTabRouteProps = import('@react-navigation/bottom-tabs').RoutePro
 
 export type AuthStackNavigation = import('@react-navigation/native-stack').NativeStackNavigationProp<AuthStackParamList>
 export type AuthStackRouteProps = import('@react-navigation/native-stack').RouteProp<AuthStackParamList>
+
+export type CheckoutStackNavigation = import('@react-navigation/native-stack').NativeStackNavigationProp<CheckoutStackParamList>
+export type CheckoutStackRouteProps = import('@react-navigation/native-stack').RouteProp<CheckoutStackParamList>

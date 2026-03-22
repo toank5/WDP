@@ -13,7 +13,7 @@ export const APP_CONFIG = {
 }
 
 // Development mode check
-export const __DEV__ = process.env.__DEV__ === 'true' || __DEV__ === true
+export const IS_DEV = process.env.__DEV__ === 'true' || __DEV__ === true
 
 // Cloudinary Configuration (optional)
 export const CLOUDINARY_CONFIG = {
@@ -34,9 +34,9 @@ export const FIREBASE_CONFIG = {
 }
 
 // Log environment in development mode
-if (__DEV__) {
+if (IS_DEV) {
   console.log('Environment Configuration:')
   console.log('API_BASE_URL:', API_BASE_URL)
   console.log('APP_CONFIG:', APP_CONFIG)
-  console.log('Development Mode:', __DEV__)
+  console.log('Development Mode:', IS_DEV)
 }

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   StyleSheet,
   ScrollView,
   Image,
   Alert,
+  RefreshControl,
 } from 'react-native'
 import {
   Text,
@@ -14,6 +15,7 @@ import {
   Divider,
   ActivityIndicator,
 } from 'react-native-paper'
+import { CartItemSkeleton } from '../../components/Loading'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
 import type { MainTabParamList, RootStackParamList } from '../../types'
@@ -123,20 +125,32 @@ export function CartScreen({ navigation }: Props) {
 
   const [cart, setCart] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
 
   const loadCart = async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await getCart()
       setCart(data)
     } catch (error: any) {
       console.error('Failed to load cart:', error)
-      Alert.alert('Lỗi', 'Không thể tải giỏ hàng')
+      setError('Không thể tải giỏ hàng. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
   }
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadCart()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadCart()
@@ -226,8 +240,41 @@ export function CartScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+          <Text style={styles.headerSubtitle}>
+            Đang tải giỏ hàng của bạn...
+          </Text>
+        </View>
+        <View style={styles.content}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <CartItemSkeleton key={index} />
+          ))}
+        </View>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>🛒</Text>
+          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Button
+            mode="contained"
+            onPress={loadCart}
+            style={styles.retryButton}
+            icon="refresh"
+          >
+            Thử lại
+          </Button>
+        </View>
       </View>
     )
   }
@@ -249,13 +296,20 @@ export function CartScreen({ navigation }: Props) {
         )}
       </View>
 
+      {/* Cart Items */}
       {hasItems ? (
         <>
-          {/* Cart Items */}
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
           >
             {cart!.items.map((item: any) => (
               <CartItemCard
@@ -347,7 +401,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -363,6 +416,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  content: {
+    padding: 16,
+  },
   scrollView: {
     flex: 1,
   },
@@ -377,11 +437,11 @@ const styles = StyleSheet.create({
   itemContent: {
     flexDirection: 'row',
     padding: 12,
+    gap: 12,
   },
   imageContainer: {
     width: 80,
     height: 80,
-    marginRight: 12,
   },
   productImage: {
     width: '100%',
@@ -398,6 +458,7 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     flex: 1,
+    gap: 8,
   },
   productName: {
     fontSize: 16,
@@ -408,13 +469,14 @@ const styles = StyleSheet.create({
   variantText: {
     fontSize: 12,
     color: '#64748b',
-    marginBottom: 8,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
   price: {
     fontSize: 16,
@@ -426,6 +488,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
     borderRadius: 8,
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   qtyButton: {
     margin: 0,
@@ -441,6 +506,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
+    padding: 16,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -451,6 +517,8 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#dbeafe',
     alignItems: 'center',
+    borderRadius: 8,
+    marginBottom: 12,
   },
   freeShippingText: {
     fontSize: 12,
@@ -472,9 +540,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  shippingText: {
-    color: '#10b981',
+    color: '#1e293b',
   },
   summaryDivider: {
     marginVertical: 12,
@@ -489,8 +555,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#3b82f6',
   },
+  shippingText: {
+    color: '#10b981',
+  },
   checkoutButton: {
-    margin: 16,
+    marginBottom: 16,
     borderRadius: 12,
   },
   checkoutButtonContent: {
@@ -526,6 +595,31 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyButton: {
+    paddingHorizontal: 32,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  retryButton: {
     paddingHorizontal: 32,
   },
 })
