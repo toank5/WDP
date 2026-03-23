@@ -102,6 +102,7 @@ import {
 import { FavoriteController } from './controllers/favorite.controller';
 import { FavoriteService } from './services/favorite.service';
 import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -173,6 +174,7 @@ import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
       { name: Favorite.name, schema: FavoriteSchema },
     ]),
     PreorderModule,
+    HealthModule,
   ],
   controllers: [
     AppController,

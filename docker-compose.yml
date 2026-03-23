@@ -1,0 +1,62 @@
+# Docker Compose for Local Development
+# For Production: Use MongoDB Atlas or cloud MongoDB - set NODE_ENV=production
+# and provide DB_HOST, DB_USERNAME, DB_PASSWORD, DB_NAME environment variables
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: wdp-be/Dockerfile
+    container_name: wdp-backend
+    restart: unless-stopped
+    ports:
+      - "8386:8386"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8386
+      # Local MongoDB (used when NODE_ENV=development)
+      MONGODB_URI_LOCAL: mongodb://admin:password123@mongodb:27017/wdp?authSource=admin
+      # Production MongoDB Atlas (used when NODE_ENV=production)
+      DB_HOST: ${DB_HOST}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-wdp}
+      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:-jwtaccesstoken@04122003}
+      JWT_ACCESS_TOKEN_EXPIRATION: 8000m
+      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:-jwtrefreshtoken@04122003}
+      JWT_REFRESH_TOKEN_EXPIRATION: 7d
+      JWT_VERIFY_EMAIL_TOKEN_SECRET: ${JWT_VERIFY_EMAIL_TOKEN_SECRET:-jwtverifyemailtoken@04122003}
+      JWT_VERIFY_TOKEN_EXPIRATION: 24h
+      JWT_RESET_PASSWORD_TOKEN_SECRET: ${JWT_RESET_PASSWORD_TOKEN_SECRET:-jwtresetpasswordtoken@04122003}
+      JWT_RESET_PASSWORD_TOKEN_EXPIRATION: 1h
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-drmnbl51j}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-943411728216741}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      UPLOAD_MAX_SIZE_2D: 10
+      UPLOAD_MAX_SIZE_3D: 10
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      MAIL_FROM: ${MAIL_FROM}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-NIHAX3ZL}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET}
+      VNPAY_PAYMENT_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      VNPAY_SANDBOX: "true"
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:5173/checkout/vnpay-return}
+      VNPAY_IPN_URL: http://backend:8386/checkout/vnpay-ipn
+    # For production (MongoDB Atlas): set NODE_ENV=production and DB_* variables
+    # For local development: set NODE_ENV=development (uses local MongoDB)
+    networks:
+      - wdp-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8386/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  wdp-network:
+    driver: bridge
