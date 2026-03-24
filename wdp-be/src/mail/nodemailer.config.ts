@@ -44,9 +44,19 @@ const hbsOptions = {
 
 // Use dynamic import for ESM-only nodemailer-express-handlebars
 async function configureHandlebars() {
-  const hbs = await import('nodemailer-express-handlebars');
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
-  transporter.use('compile', hbs.default(hbsOptions));
+  // Prevent webpack from rewriting import() to require() for this ESM-only package.
+  const dynamicImport = new Function(
+    'modulePath',
+    'return import(modulePath)',
+  ) as (modulePath: string) => Promise<{
+    default: (options: typeof hbsOptions) => unknown;
+  }>;
+
+  const hbs = await dynamicImport('nodemailer-express-handlebars');
+  transporter.use(
+    'compile',
+    hbs.default(hbsOptions) as Parameters<typeof transporter.use>[1],
+  );
 }
 
 configureHandlebars().catch((err) =>

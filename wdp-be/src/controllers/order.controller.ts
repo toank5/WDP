@@ -583,11 +583,14 @@ export class OrderController {
       [ORDER_STATUS.PAID]: 0,
       [ORDER_STATUS.ON_HOLD]: 0,
       [ORDER_STATUS.PROCESSING]: 0,
+      [ORDER_STATUS.READY_TO_SHIP]: 0,
       [ORDER_STATUS.CONFIRMED]: 0,
       [ORDER_STATUS.SHIPPED]: 0,
       [ORDER_STATUS.DELIVERED]: 0,
       [ORDER_STATUS.RETURNED]: 0,
+      [ORDER_STATUS.CANCELED]: 0,
       [ORDER_STATUS.CANCELLED]: 0,
+      [ORDER_STATUS.REFUNDED]: 0,
     };
 
     for (const status of Object.values(ORDER_STATUS)) {

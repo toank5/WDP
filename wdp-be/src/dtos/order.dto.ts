@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsObject,
   IsArray,
+  IsBoolean,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -76,6 +77,23 @@ export class OrderItemDto {
   @IsNumber()
   @Min(0)
   priceAtOrder: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  requiresPrescription?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsObject()
+  typedPrescription?: {
+    rightEye: { sph: number; cyl: number; axis: number; add: number };
+    leftEye: { sph: number; cyl: number; axis: number; add: number };
+    pd?: number;
+    pdRight?: number;
+    pdLeft?: number;
+    notesFromCustomer?: string;
+  };
 }
 
 /**

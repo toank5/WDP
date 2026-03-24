@@ -33,7 +33,14 @@ import OrderDetailDrawer from '@/components/staff/OrderDetailDrawer'
 import { orderApi, Order, OrderStatus, OrderType, PreorderStatus } from '@/lib/order-api'
 import { useAuthStore } from '@/store/auth-store'
 
-type StatusFilter = 'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+type StatusFilter =
+  | 'ALL'
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'READY_TO_SHIP'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
 type TypeFilter = 'ALL' | 'PREORDER' | 'PRESCRIPTION' | 'READY'
 type SalesQueueFilter = 'ALL' | 'READY' | 'WAITING'
 
@@ -41,6 +48,7 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'PENDING', label: 'Pending Action (Default)' },
   { value: 'ALL', label: 'All statuses' },
   { value: 'PROCESSING', label: 'Processing' },
+  { value: 'READY_TO_SHIP', label: 'Ready to ship' },
   { value: 'SHIPPED', label: 'Shipped' },
   { value: 'DELIVERED', label: 'Delivered' },
   { value: 'CANCELLED', label: 'Canceled/Returned' },
@@ -106,8 +114,16 @@ const getStatusColor = (
   status: OrderStatus,
 ): 'default' | 'success' | 'info' | 'warning' | 'error' => {
   if (status === OrderStatus.DELIVERED) return 'success'
+  if (status === OrderStatus.READY_TO_SHIP) return 'warning'
   if (status === OrderStatus.SHIPPED) return 'info'
-  if (status === OrderStatus.RETURNED || status === OrderStatus.CANCELLED) return 'error'
+  if (
+    status === OrderStatus.RETURNED ||
+    status === OrderStatus.CANCELED ||
+    status === OrderStatus.CANCELLED ||
+    status === OrderStatus.REFUNDED
+  ) {
+    return 'error'
+  }
   if (status === OrderStatus.PAID || status === OrderStatus.PROCESSING || status === OrderStatus.CONFIRMED) {
     return 'warning'
   }
@@ -116,6 +132,23 @@ const getStatusColor = (
 
 const isProcessingStatus = (status: OrderStatus): boolean =>
   [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.CONFIRMED].includes(status)
+
+const matchesStatusFilter = (orderStatus: OrderStatus, statusFilter: StatusFilter): boolean => {
+  if (statusFilter === 'ALL' || statusFilter === 'PENDING') {
+    return true
+  }
+
+  if (statusFilter === 'CANCELLED') {
+    return [
+      OrderStatus.CANCELED,
+      OrderStatus.CANCELLED,
+      OrderStatus.RETURNED,
+      OrderStatus.REFUNDED,
+    ].includes(orderStatus)
+  }
+
+  return orderStatus === statusFilter
+}
 
 const isPreorderReadyForApproval = (order: Order): boolean => {
   const preorderItems = order.items.filter((item) => item.isPreorder)
@@ -197,13 +230,12 @@ const StaffOrdersPage: React.FC = () => {
       // PENDING means use default queue behavior (no params)
       // ALL means fetch all orders (showAll=true)
       // Specific status means filter by that status
-      const showAll = statusFilter === 'ALL'
+      const isCancelledBucket = statusFilter === 'CANCELLED'
+      const showAll = statusFilter === 'ALL' || isCancelledBucket
       const statusParam =
-        statusFilter === 'PENDING' || statusFilter === 'ALL'
+        statusFilter === 'PENDING' || statusFilter === 'ALL' || isCancelledBucket
           ? undefined
-          : statusFilter === 'CANCELLED'
-            ? OrderStatus.CANCELLED
-            : (statusFilter as OrderStatus)
+          : (statusFilter as OrderStatus)
 
       const params = {
         showAll,
@@ -238,7 +270,7 @@ const StaffOrdersPage: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      // Status filtering is done by API now, no need to filter here
+      const matchesStatus = matchesStatusFilter(order.orderStatus, statusFilter)
       const hasPreorder = order.orderType === OrderType.PREORDER || order.items.some((item) => item.isPreorder)
       const waitingStock = isWaitingPreorderStock(order)
       const matchesType =
@@ -261,13 +293,13 @@ const StaffOrdersPage: React.FC = () => {
       const afterFrom = dateFrom ? orderDate >= new Date(`${dateFrom}T00:00:00`) : true
       const beforeTo = dateTo ? orderDate <= new Date(`${dateTo}T23:59:59`) : true
 
-      return matchesType && matchesSalesQueue && afterFrom && beforeTo
+      return matchesStatus && matchesType && matchesSalesQueue && afterFrom && beforeTo
     })
-  }, [orders, typeFilter, salesQueueFilter, dateFrom, dateTo, isSalesMode])
+  }, [orders, statusFilter, typeFilter, salesQueueFilter, dateFrom, dateTo, isSalesMode])
 
   const salesCounters = useMemo(() => {
     const scoped = orders.filter((order) => {
-      // Status filtering is done by API now
+      const matchesStatus = matchesStatusFilter(order.orderStatus, statusFilter)
       const hasPreorder = order.orderType === OrderType.PREORDER || order.items.some((item) => item.isPreorder)
       const matchesType =
         typeFilter === 'ALL'
@@ -280,7 +312,7 @@ const StaffOrdersPage: React.FC = () => {
       const afterFrom = dateFrom ? orderDate >= new Date(`${dateFrom}T00:00:00`) : true
       const beforeTo = dateTo ? orderDate <= new Date(`${dateTo}T23:59:59`) : true
 
-      return matchesType && afterFrom && beforeTo
+      return matchesStatus && matchesType && afterFrom && beforeTo
     })
 
     const waiting = scoped.filter((order) => isWaitingPreorderStock(order)).length
@@ -291,7 +323,7 @@ const StaffOrdersPage: React.FC = () => {
       ready,
       waiting,
     }
-  }, [orders, typeFilter, dateFrom, dateTo])
+  }, [orders, statusFilter, typeFilter, dateFrom, dateTo])
 
   const handleOpenDetails = (order: Order) => {
     setSelectedOrder(order)

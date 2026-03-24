@@ -46,6 +46,10 @@ export default function StaffPrescriptionsPage() {
   const handleReview = async (orderItemId: string, status: PrescriptionReviewStatus.APPROVED | PrescriptionReviewStatus.REJECTED) => {
     try {
       const note = notes[orderItemId]
+      if (status === PrescriptionReviewStatus.REJECTED && !note?.trim()) {
+        toast.error('Please provide a rejection note before rejecting')
+        return
+      }
       await orderApi.reviewPrescription(orderItemId, { status, note })
       toast.success(`Prescription ${status.toLowerCase()}`)
       await load()
@@ -74,6 +78,7 @@ export default function StaffPrescriptionsPage() {
               <TableCell>Customer</TableCell>
               <TableCell>Frame</TableCell>
               <TableCell>Rx</TableCell>
+              <TableCell>Customer note</TableCell>
               <TableCell>Staff note</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -113,9 +118,14 @@ export default function StaffPrescriptionsPage() {
                     </Stack>
                   </TableCell>
                   <TableCell>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.typedPrescription?.notesFromCustomer?.trim() || '--'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
                     <TextField
                       size="small"
-                      placeholder="Optional note"
+                      placeholder="Required when rejecting"
                       value={notes[item.itemId || item._id] || ''}
                       onChange={(e) =>
                         setNotes((prev) => ({ ...prev, [item.itemId || item._id]: e.target.value }))

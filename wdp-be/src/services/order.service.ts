@@ -244,6 +244,12 @@ export class OrderService {
         variantSku: item.variantSku,
         quantity: item.quantity,
         priceAtOrder: item.priceAtOrder,
+        requiresPrescription: item.requiresPrescription || false,
+        typedPrescription: item.typedPrescription,
+        prescriptionReviewStatus:
+          item.requiresPrescription && item.typedPrescription
+            ? PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW
+            : undefined,
       })),
       subtotal,
       shippingFee,
@@ -342,6 +348,19 @@ export class OrderService {
         timestamp: new Date(),
         note: 'Payment successful via VNPay',
       });
+
+      const hasPrescriptionItems = order.items.some(
+        (item) => item.requiresPrescription,
+      );
+
+      if (!hasPrescriptionItems) {
+        order.orderStatus = ORDER_STATUS.PROCESSING;
+        order.history.push({
+          status: ORDER_STATUS.PROCESSING,
+          timestamp: new Date(),
+          note: 'No prescription review required. Order moved to PROCESSING.',
+        });
+      }
     } else {
       order.orderStatus = ORDER_STATUS.RETURNED;
 
@@ -536,10 +555,12 @@ export class OrderService {
       );
       // Default: Operations can see active work queue
       // 1. PROCESSING orders (ready to fulfill - approved by sales)
-      // 2. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
+      // 2. READY_TO_SHIP orders (waiting shipping handoff)
+      // 3. PAID/CONFIRMED orders with preorder items (waiting for stock allocation)
       baseQuery = {
         $or: [
           { orderStatus: ORDER_STATUS.PROCESSING },
+          { orderStatus: ORDER_STATUS.READY_TO_SHIP },
           {
             orderStatus: { $in: [ORDER_STATUS.PAID, ORDER_STATUS.CONFIRMED] },
             'items.isPreorder': true,
@@ -709,6 +730,12 @@ export class OrderService {
       }
     }
 
+    if (!this.areAllPrescriptionItemsApproved(order)) {
+      throw new BadRequestException(
+        'Prescription items are not fully approved. Review prescription items first.',
+      );
+    }
+
     order.orderStatus = ORDER_STATUS.PROCESSING;
 
     order.history.push({
@@ -806,14 +833,28 @@ export class OrderService {
       note: `Prescription ${dto.status} for item ${orderItemId}${dto.note ? `: ${dto.note}` : ''}`,
     });
 
-    await order.save();
-
     if (dto.status === PRESCRIPTION_REVIEW_STATUS.REJECTED) {
+      await order.save();
       await this.notifyPrescriptionRejected(order, item);
       return { order: await this.getOrderWithDetails(String(order._id)) };
     }
 
     const workOrder = await this.createWorkOrderFromOrderItem(order, item);
+
+    if (this.areAllPrescriptionItemsApproved(order)) {
+      if (order.orderStatus === ORDER_STATUS.PAID) {
+        order.orderStatus = ORDER_STATUS.PROCESSING;
+        order.history.push({
+          status: ORDER_STATUS.PROCESSING,
+          changedBy: reviewedBy ? new Types.ObjectId(reviewedBy) : undefined,
+          timestamp: new Date(),
+          note: 'All prescription items approved. Order moved to PROCESSING.',
+        });
+      }
+    }
+
+    await order.save();
+
     return {
       order: await this.getOrderWithDetails(String(order._id)),
       workOrder,
@@ -843,6 +884,10 @@ export class OrderService {
       throw new NotFoundException('Lab job not found');
     }
 
+    if (dto.status === LAB_JOB_STATUS.ISSUE && !dto.note?.trim()) {
+      throw new BadRequestException('Issue note is required when setting status to ISSUE');
+    }
+
     workOrder.status = dto.status;
     workOrder.notes = dto.note || workOrder.notes;
     await workOrder.save();
@@ -855,6 +900,23 @@ export class OrderService {
         timestamp: new Date(),
         note: `Lab job ${String(workOrder._id)} updated to ${dto.status}${dto.note ? `: ${dto.note}` : ''}`,
       });
+
+      if (dto.status === LAB_JOB_STATUS.COMPLETED) {
+        const allCompleted = await this.areAllOrderWorkOrdersCompleted(
+          String(order._id),
+        );
+
+        if (allCompleted && order.orderStatus === ORDER_STATUS.PROCESSING) {
+          order.orderStatus = ORDER_STATUS.READY_TO_SHIP;
+          order.history.push({
+            status: ORDER_STATUS.READY_TO_SHIP,
+            changedBy: updatedBy ? new Types.ObjectId(updatedBy) : undefined,
+            timestamp: new Date(),
+            note: 'All lab jobs completed. Order moved to READY_TO_SHIP.',
+          });
+        }
+      }
+
       await order.save();
     }
 
@@ -1204,6 +1266,16 @@ export class OrderService {
 
     const previousStatus = order.orderStatus;
 
+    if (updateDto.status === ORDER_STATUS.PROCESSING && !this.areAllPrescriptionItemsApproved(order)) {
+      throw new BadRequestException(
+        'Prescription items must be approved before moving order to PROCESSING',
+      );
+    }
+
+    if (updateDto.status === ORDER_STATUS.READY_TO_SHIP) {
+      await this.ensurePrescriptionWorkOrdersCompleted(order);
+    }
+
     if (updateDto.status === ORDER_STATUS.SHIPPED) {
       await this.ensurePrescriptionWorkOrdersCompleted(order);
     }
@@ -1215,6 +1287,7 @@ export class OrderService {
       updateDto.status === ORDER_STATUS.SHIPPED &&
       (previousStatus === ORDER_STATUS.CONFIRMED ||
         previousStatus === ORDER_STATUS.PROCESSING ||
+        previousStatus === ORDER_STATUS.READY_TO_SHIP ||
         previousStatus === ORDER_STATUS.PAID)
     ) {
       // Add tracking placeholder
@@ -1224,7 +1297,11 @@ export class OrderService {
           trackingNumber: 'TBD',
         };
       }
-    } else if (updateDto.status === ORDER_STATUS.RETURNED) {
+    } else if (
+      updateDto.status === ORDER_STATUS.RETURNED ||
+      updateDto.status === ORDER_STATUS.CANCELED ||
+      updateDto.status === ORDER_STATUS.CANCELLED
+    ) {
       // Release stock if cancelled/returned
       await this.releaseStock(orderId);
     }
@@ -1276,6 +1353,46 @@ export class OrderService {
     }
   }
 
+  private areAllPrescriptionItemsApproved(order: Order): boolean {
+    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+    if (prescribedItems.length === 0) {
+      return true;
+    }
+
+    return prescribedItems.every(
+      (item) => item.prescriptionReviewStatus === PRESCRIPTION_REVIEW_STATUS.APPROVED,
+    );
+  }
+
+  private async areAllOrderWorkOrdersCompleted(orderId: string): Promise<boolean> {
+    const order = await this.orderModel.findById(orderId).select('items').exec();
+    if (!order) {
+      return false;
+    }
+
+    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+    if (prescribedItems.length === 0) {
+      return true;
+    }
+
+    const requiredItemIds = prescribedItems
+      .map((item) => item.itemId)
+      .filter((itemId): itemId is string => Boolean(itemId));
+
+    if (requiredItemIds.length !== prescribedItems.length) {
+      return false;
+    }
+
+    const jobs = await this.workOrderModel
+      .find({ orderId: new Types.ObjectId(orderId), orderItemId: { $in: requiredItemIds } })
+      .select('orderItemId status')
+      .exec();
+
+    return requiredItemIds.every((itemId) =>
+      jobs.some((job) => job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED),
+    );
+  }
+
   private async notifyOrderShipped(order: Order): Promise<void> {
     const user = await this.userModel.findById(order.customerId).select('email fullName');
     if (!user?.email || !order.tracking?.trackingNumber) {
@@ -1306,25 +1423,39 @@ export class OrderService {
       [ORDER_STATUS.PENDING]: [ORDER_STATUS.PENDING_PAYMENT],
       [ORDER_STATUS.PENDING_PAYMENT]: [
         ORDER_STATUS.PAID,
+        ORDER_STATUS.CANCELED,
         ORDER_STATUS.CANCELLED,
       ],
       // PAID must go through Sales approval first.
       [ORDER_STATUS.PAID]: [
         ORDER_STATUS.PROCESSING,
         ORDER_STATUS.ON_HOLD,
+        ORDER_STATUS.CANCELED,
         ORDER_STATUS.CANCELLED,
       ],
       [ORDER_STATUS.ON_HOLD]: [
         ORDER_STATUS.PAID,
         ORDER_STATUS.PROCESSING,
+        ORDER_STATUS.CANCELED,
         ORDER_STATUS.CANCELLED,
       ],
-      [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
-      [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.SHIPPED],
+      [ORDER_STATUS.PROCESSING]: [
+        ORDER_STATUS.READY_TO_SHIP,
+        ORDER_STATUS.CANCELED,
+        ORDER_STATUS.CANCELLED,
+      ],
+      [ORDER_STATUS.READY_TO_SHIP]: [
+        ORDER_STATUS.SHIPPED,
+        ORDER_STATUS.CANCELED,
+        ORDER_STATUS.CANCELLED,
+      ],
+      [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.READY_TO_SHIP],
       [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
       [ORDER_STATUS.DELIVERED]: [],
       [ORDER_STATUS.RETURNED]: [],
+      [ORDER_STATUS.CANCELED]: [ORDER_STATUS.REFUNDED],
       [ORDER_STATUS.CANCELLED]: [],
+      [ORDER_STATUS.REFUNDED]: [],
     };
 
     return validTransitions[currentStatus]?.includes(newStatus) || false;
@@ -1360,14 +1491,14 @@ export class OrderService {
       );
     }
 
-    order.orderStatus = ORDER_STATUS.RETURNED;
+    order.orderStatus = ORDER_STATUS.CANCELED;
 
     // Release reserved stock
     await this.releaseStock(orderId);
 
     // Add to history
     order.history.push({
-      status: ORDER_STATUS.RETURNED,
+      status: ORDER_STATUS.CANCELED,
       timestamp: new Date(),
       note: `Order cancelled by customer. Reason: ${cancelDto.reason}`,
     });
