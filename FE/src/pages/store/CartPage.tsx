@@ -15,6 +15,7 @@ import { useCart } from '@/store/cart.store'
 import type { CartItem } from '@/lib/cart-api'
 import { normalizeCartItemPrice } from '@/lib/cart-api'
 import { getPrescriptionLensFee } from '@/lib/policy-api'
+import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -333,6 +334,11 @@ const CartPage: React.FC = () => {
                   </table>
                 </div>
               )}
+            </div>
+
+            {/* Shipping Policy Section */}
+            <div className="mt-6">
+              <ShippingPolicySection />
             </div>
 
             {items.length > 0 && (

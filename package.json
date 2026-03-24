@@ -9,6 +9,17 @@
   ],
   "scripts": {
     "build:shared": "cd packages/shared && npm run build",
-    "build:fe": "cd FE && npm run build"
+    "build:fe": "cd FE && npm run build",
+    "docker:build:be": "docker build -t wdp-be:local -f wdp-be/Dockerfile .",
+    "docker:tag:be": "docker tag wdp-be:local lthung0412/wdp-be:latest",
+    "docker:push:be": "docker push lthung0412/wdp-be:latest",
+    "docker:deploy:be": "npm run docker:build:be && npm run docker:tag:be && npm run docker:push:be",
+    "docker:pull:be": "docker pull lthung0412/wdp-be:latest",
+    "docker:run:be": "docker rm -f wdp-backend || true && docker run -d --name wdp-backend --restart unless-stopped -p 8386:8386 --env-file .env.production lthung0412/wdp-be:latest",
+    "docker:refresh:be": "npm run docker:pull:be && npm run docker:run:be",
+    "docker:build:fe": "docker build -t lthung0412/wdp-fe:latest -f FE/Dockerfile .",
+    "docker:push:fe": "docker push lthung0412/wdp-fe:latest",
+    "docker:deploy:fe": "npm run docker:build:fe && npm run docker:push:fe",
+    "docker:deploy:all": "npm run docker:deploy:be && npm run docker:deploy:fe"
   }
 }

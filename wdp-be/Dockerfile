@@ -4,7 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies for bcrypt
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ tzdata
+ENV TZ=Asia/Ho_Chi_Minh
 
 # Copy all source code
 COPY packages/shared ./packages/shared
@@ -27,7 +28,8 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 # Install bcrypt runtime dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ tzdata
+ENV TZ=Asia/Ho_Chi_Minh
 
 # Copy backend package file
 COPY wdp-be/package*.json ./

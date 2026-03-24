@@ -7,6 +7,7 @@ import { cartApi } from '@/lib/cart-api'
 
 import { wishlistApi } from '@/lib/wishlist-api'
 import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
+import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
 import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
 import { getActiveCombos, type Combo } from '@/lib/combo-api'
 import { getActivePromotions, type Promotion, validatePromotion } from '@/lib/promotion-api'
@@ -2872,6 +2873,9 @@ export function ProductDetailPage() {
               </Typography>
             </Box>
           </Paper>
+
+          {/* Shipping Policy */}
+          <ShippingPolicySection />
 
           {/* Specifications - Enhanced */}
           <Paper elevation={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
