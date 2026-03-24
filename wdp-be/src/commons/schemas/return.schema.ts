@@ -401,6 +401,4 @@ export const ReturnRequestSchema = SchemaFactory.createForClass(ReturnRequest);
 
 // Index for efficient queries
 ReturnRequestSchema.index({ userId: 1, createdAt: -1 });
-ReturnRequestSchema.index({ orderId: 1 });
 ReturnRequestSchema.index({ status: 1, createdAt: -1 });
-ReturnRequestSchema.index({ returnNumber: 1 }, { unique: true });

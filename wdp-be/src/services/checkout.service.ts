@@ -449,9 +449,10 @@ export class CheckoutService {
 
   /**
    * Process successful payment:
-   * 1. Update order status to CONFIRMED
-   * 2. Update inventory (decrease for ready-made, set preorder status for pre-orders)
-   * 3. Clear user's cart
+   * 1. Mark order as PAID
+   * 2. For non-Rx orders, immediately move to PROCESSING
+   * 3. Update inventory (reserve for ready-made, set preorder status for pre-orders)
+   * 4. Clear user's cart
    */
   private async processSuccessfulPayment(
     orderId: string,
@@ -469,7 +470,7 @@ export class CheckoutService {
     const txnRef = this.safeString(params['vnp_TxnRef']);
     const paidAt = this.parseVnpPayDate(this.safeString(params['vnp_PayDate']));
 
-    // Update order status
+    // Update order payment snapshot and status to PAID first.
     order.orderStatus = ORDER_STATUS.PAID;
     order.payment = {
       method: 'VNPAY',
@@ -502,14 +503,26 @@ export class CheckoutService {
       }
     }
 
-    await order.save();
-
-    // Add to order history
+    // Add PAID to order history
     order.history.push({
       status: ORDER_STATUS.PAID,
       timestamp: new Date(),
       note: `Payment received via VNPAY. Transaction ID: ${transactionId}`,
     });
+
+    const hasPrescriptionItems = order.items.some(
+      (item) => item.requiresPrescription,
+    );
+
+    if (!hasPrescriptionItems) {
+      order.orderStatus = ORDER_STATUS.PROCESSING;
+      order.history.push({
+        status: ORDER_STATUS.PROCESSING,
+        timestamp: new Date(),
+        note: 'No prescription review required. Order moved to PROCESSING.',
+      });
+    }
+
     await order.save();
 
     // Clear user's cart after successful payment

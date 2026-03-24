@@ -28,7 +28,7 @@ const ShippingPage: React.FC = () => {
     try {
       setLoading(true)
       const result = await orderApi.getOpsOrders({
-        status: OrderStatus.PROCESSING,
+        status: OrderStatus.READY_TO_SHIP,
         page: 1,
         limit: 100,
         sortBy: 'createdAt',
@@ -82,7 +82,7 @@ const ShippingPage: React.FC = () => {
       </Box>
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Orders appear here when they are in PROCESSING and ready for packing/shipping.
+        Orders appear here after operations marks them as READY_TO_SHIP.
       </Alert>
 
       <TableContainer component={Paper} variant="outlined">
