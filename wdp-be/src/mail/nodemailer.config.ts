@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
 import dns from 'dns';
+import fs from 'fs';
 import { config } from 'dotenv';
 
 // Ensure env vars are loaded before creating transporter
@@ -12,12 +13,24 @@ if (process.env.SMTP_PREFER_IPV4 !== 'false') {
   dns.setDefaultResultOrder('ipv4first');
 }
 
-// Get the current directory relative to dist folder
-// When built, templates will be in dist/mail/templates
+// Resolve mail template directory across ts-node/dev and bundled dist runtime.
+const templatePathCandidates = [
+  path.join(process.cwd(), 'dist', 'mail', 'templates'),
+  path.join(process.cwd(), 'dist', 'templates'),
+  path.join(__dirname, 'templates'),
+  path.join(process.cwd(), 'src', 'mail', 'templates'),
+];
+
 const templatesPath =
-  process.env.NODE_ENV === 'production'
-    ? path.join(process.cwd(), 'dist', 'mail', 'templates')
-    : path.join(__dirname, 'templates');
+  templatePathCandidates.find((candidate) => fs.existsSync(candidate)) ||
+  templatePathCandidates[templatePathCandidates.length - 1];
+
+if (!fs.existsSync(templatesPath)) {
+  console.warn(
+    'Mail templates directory was not found. Checked:',
+    templatePathCandidates,
+  );
+}
 
 // Create transporter
 const transporter = nodemailer.createTransport({
