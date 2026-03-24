@@ -17,9 +17,9 @@
     "docker:pull:be": "docker pull lthung0412/wdp-be:latest",
     "docker:run:be": "docker rm -f wdp-backend || true && docker run -d --name wdp-backend --restart unless-stopped -p 8386:8386 --env-file .env.production lthung0412/wdp-be:latest",
     "docker:refresh:be": "npm run docker:pull:be && npm run docker:run:be",
-    "docker:build:fe": "docker build -t lthung0412/wdp-fe:latest -f FE/Dockerfile .",
-    "docker:push:fe": "docker push lthung0412/wdp-fe:latest",
-    "docker:deploy:fe": "npm run docker:build:fe && npm run docker:push:fe",
-    "docker:deploy:all": "npm run docker:deploy:be && npm run docker:deploy:fe"
+    "vercel:deploy:fe": "npx vercel --yes",
+    "vercel:deploy:fe:prod": "npx vercel --prod --yes",
+    "vercel:deploy:fe:exact": "npx vercel --prod --yes",
+    "deploy:all": "npm run docker:deploy:be && npm run vercel:deploy:fe:prod"
   }
 }
