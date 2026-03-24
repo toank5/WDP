@@ -1,0 +1,28 @@
+<h2 style="margin: 0 0 16px; color: #0f172a;">Your order is on the way</h2>
+
+<p style="margin: 0 0 12px;">Hi {{name}},</p>
+<p style="margin: 0 0 16px;">
+  Great news! Your order <strong>{{orderNumber}}</strong> has been shipped.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin: 0 0 16px; border-collapse: collapse;">
+  <tr>
+    <td style="padding: 8px 0; color: #475569; width: 140px;">Order Number</td>
+    <td style="padding: 8px 0;"><strong>{{orderNumber}}</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; color: #475569;">Tracking Number</td>
+    <td style="padding: 8px 0;"><strong>{{trackingNumber}}</strong></td>
+  </tr>
+</table>
+
+<p style="margin: 0 0 20px;">
+  You can track your shipment here:
+</p>
+<p style="margin: 0 0 24px;">
+  <a href="{{trackingUrl}}" style="display: inline-block; background: #0ea5e9; color: #ffffff; text-decoration: none; padding: 10px 16px; border-radius: 6px;">Track My Order</a>
+</p>
+
+<p style="margin: 0; color: #475569;">
+  Thank you for shopping with EyeWear.
+</p>
