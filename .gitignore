@@ -106,3 +106,5 @@ coverage/
 *.sw?
 
 .vercel
+
+.env.*

@@ -1,9 +1,16 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
+import dns from 'dns';
 import { config } from 'dotenv';
 
 // Ensure env vars are loaded before creating transporter
 config();
+
+// Some hosting environments do not have outbound IPv6 routing.
+// Prefer IPv4 for DNS lookups unless explicitly disabled.
+if (process.env.SMTP_PREFER_IPV4 !== 'false') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 // Get the current directory relative to dist folder
 // When built, templates will be in dist/mail/templates

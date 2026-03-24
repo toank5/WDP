@@ -77,10 +77,32 @@ export class VNPayService {
       `Creating VNPay payment URL for orderNumber=${request.orderNumber} orderId=${request.orderId}`,
     );
 
+    const now = new Date();
+    const nowUtc = now.toISOString();
+    const nowIct = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(now);
+
     const txnRef = this.buildTxnRef(request.orderNumber, request.orderId);
     const requestDate = Number(VNPayHelpers.formatDate());
     const expireDate = Number(
       VNPayHelpers.formatDate(new Date(Date.now() + 15 * 60 * 1000)),
+    );
+    const effectiveReturnUrl = returnUrl || this.returnUrl;
+    const effectiveIpnUrl = request.ipnUrl || this.ipnUrl;
+
+    this.logger.debug(
+      `VNPay timing debug | txnRef=${txnRef} nowUtc=${nowUtc} nowIct=${nowIct} createDate=${requestDate} expireDate=${expireDate}`,
+    );
+    this.logger.debug(
+      `VNPay endpoint debug | txnRef=${txnRef} returnUrl=${effectiveReturnUrl} ipnUrl=${effectiveIpnUrl} clientIp=${clientIp || '127.0.0.1'}`,
     );
 
     const paymentUrl = this.vnpayClient.buildPaymentUrl({
@@ -89,7 +111,7 @@ export class VNPayService {
       vnp_TxnRef: txnRef,
       vnp_OrderInfo: orderDescription.substring(0, 255),
       vnp_OrderType: ProductCode.Other,
-      vnp_ReturnUrl: returnUrl || this.returnUrl,
+      vnp_ReturnUrl: effectiveReturnUrl,
       vnp_Locale: locale === 'en' ? VnpLocale.EN : VnpLocale.VN,
       vnp_CreateDate: requestDate,
       vnp_ExpireDate: expireDate,
