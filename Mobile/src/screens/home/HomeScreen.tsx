@@ -423,27 +423,25 @@ export function HomeScreen({ navigation }: Props) {
       </View>
 
       {/* Auth Buttons - Đăng nhập / Đăng ký */}
-      {!isAuthenticated && (
-        <View style={styles.authButtonsContainer}>
-          <Button
-            mode="outlined"
-            onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
-            style={styles.authButton}
-            icon="login"
-          >
-            Đăng nhập
-          </Button>
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate('Auth', { screen: 'Register' })}
-            style={[styles.authButton, { backgroundColor: theme.colors.primary }]}
-            icon="account-plus"
-            iconColor="white"
-          >
-            Đăng ký
-          </Button>
-        </View>
-      )}
+      <View style={styles.authButtonsContainer}>
+        <Button
+          mode="outlined"
+          onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
+          style={styles.authButton}
+          icon="login"
+        >
+          Đăng nhập
+        </Button>
+        <Button
+          mode="contained"
+          onPress={() => navigation.navigate('Auth', { screen: 'Register' })}
+          style={[styles.authButton, { backgroundColor: theme.colors.primary }]}
+          icon="account-plus"
+          iconColor="white"
+        >
+          Đăng ký
+        </Button>
+      </View>
 
       {/* User Info - hiển thị khi đã đăng nhập */}
       {isAuthenticated && user && (
