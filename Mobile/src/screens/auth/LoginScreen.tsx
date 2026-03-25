@@ -13,6 +13,7 @@ import {
   Text,
   HelperText,
   Checkbox,
+  IconButton,
   useTheme,
 } from 'react-native-paper'
 import { useAuthStore } from '../../store/auth-store'
@@ -34,7 +35,7 @@ interface LoginErrors {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const theme = useTheme()
+const theme = useTheme()
   const { login, isLoading } = useAuthStore()
 
   const [formData, setFormData] = useState<LoginFormData>({
@@ -116,12 +117,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     }
   }
 
+  const navigateToHome = () => {
+    navigation.navigate('Main', { screen: 'Home' })
+  }
+
   const navigateToRegister = () => {
-    navigation.navigate('Register')
+    navigation.navigate('Auth', { screen: 'Register' })
   }
 
   const navigateToForgotPassword = () => {
-    navigation.navigate('ForgotPassword')
+    navigation.navigate('Auth', { screen: 'ForgotPassword' })
+  }
+
+  const navigateBack = () => {
+    navigation.goBack()
   }
 
   return (
@@ -239,9 +248,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.footer}>
-          <Text variant="bodySmall" style={styles.footerText}>
-            {APP_CONFIG.name} © {new Date().getFullYear()}
-          </Text>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={navigateBack}
+            style={styles.backButton}
+          />
+          <View style={styles.footerContent}>
+            <Text variant="bodySmall" style={styles.footerText}>
+              {APP_CONFIG.name} © {new Date().getFullYear()}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -310,6 +327,13 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 40,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+  },
+  footerContent: {
+    paddingHorizontal: 16,
   },
   footerText: {
     opacity: 0.5,
