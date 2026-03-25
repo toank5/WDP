@@ -29,7 +29,14 @@ import {
   WarningAmber as WarningIcon,
   Inventory2 as InventoryIcon,
 } from '@mui/icons-material'
-import { orderApi, Order, OrderStatus, PreorderStatus, OrderType } from '@/lib/order-api'
+import {
+  orderApi,
+  Order,
+  OrderStatus,
+  PreorderStatus,
+  OrderType,
+  PrescriptionStatus,
+} from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { toast } from 'sonner'
 
@@ -52,9 +59,7 @@ const isPreorderReadyForApproval = (order: Order): boolean => {
     return true
   }
 
-  return preorderItems.every(
-    (item) => item.preorderStatus === PreorderStatus.READY_TO_FULFILL,
-  )
+  return preorderItems.every((item) => item.preorderStatus === PreorderStatus.READY_TO_FULFILL)
 }
 
 const formatPrice = (price: number): string =>
@@ -83,18 +88,22 @@ const formatDateTime = (dateInput?: string | Date): string => {
   })
 }
 
-const FULFILLMENT_COLOR: Record<OrderStatus, 'default' | 'success' | 'info' | 'warning' | 'error'> = {
-  [OrderStatus.PENDING]: 'default',
-  [OrderStatus.PENDING_PAYMENT]: 'warning',
-  [OrderStatus.PAID]: 'info',
-  [OrderStatus.ON_HOLD]: 'warning',
-  [OrderStatus.PROCESSING]: 'info',
-  [OrderStatus.CONFIRMED]: 'info',
-  [OrderStatus.SHIPPED]: 'warning',
-  [OrderStatus.DELIVERED]: 'success',
-  [OrderStatus.RETURNED]: 'error',
-  [OrderStatus.CANCELLED]: 'error',
-}
+const FULFILLMENT_COLOR: Record<OrderStatus, 'default' | 'success' | 'info' | 'warning' | 'error'> =
+  {
+    [OrderStatus.PENDING]: 'default',
+    [OrderStatus.PENDING_PAYMENT]: 'warning',
+    [OrderStatus.PAID]: 'info',
+    [OrderStatus.ON_HOLD]: 'warning',
+    [OrderStatus.PROCESSING]: 'info',
+    [OrderStatus.READY_TO_SHIP]: 'warning',
+    [OrderStatus.CONFIRMED]: 'info',
+    [OrderStatus.SHIPPED]: 'warning',
+    [OrderStatus.DELIVERED]: 'success',
+    [OrderStatus.RETURNED]: 'error',
+    [OrderStatus.CANCELED]: 'error',
+    [OrderStatus.CANCELLED]: 'error',
+    [OrderStatus.REFUNDED]: 'error',
+  }
 
 export default function OrderDetailDrawer({
   open,
@@ -107,6 +116,8 @@ export default function OrderDetailDrawer({
   const [shippingDialogOpen, setShippingDialogOpen] = useState(false)
   const [confirmReceivedOpen, setConfirmReceivedOpen] = useState(false)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false)
+  const [proofImageDialog, setProofImageDialog] = useState({ open: false, url: '' })
   const [submitting, setSubmitting] = useState(false)
 
   const preorderWaitingStock = useMemo(() => {
@@ -130,68 +141,76 @@ export default function OrderDetailDrawer({
     }
 
     // Get all items if order type is PREORDER, or filter by isPreorder flag
-    const relevantItems = order.orderType === OrderType.PREORDER
-      ? order.items
-      : order.items.filter((item) => item.isPreorder)
+    const relevantItems =
+      order.orderType === OrderType.PREORDER
+        ? order.items
+        : order.items.filter((item) => item.isPreorder)
 
     return relevantItems.map((item) => {
-        const reserved = item.reservedQuantity || 0
-        const required = item.quantity
-        const status = item.preorderStatus || PreorderStatus.PENDING_STOCK
-        const isFullyReserved = reserved >= required
-        const isStatusReady = status === PreorderStatus.READY_TO_FULFILL
-        
-        // Debug log
-        console.log('Preorder item check:', {
-          sku: item.variantSku,
-          reserved,
-          required,
-          status,
-          statusType: typeof status,
-          isFullyReserved,
-          isStatusReady,
-          isMissing: !isFullyReserved && !isStatusReady
-        })
-        
-        return {
-          id: item._id,
-          sku: item.variantSku || '--',
-          reserved,
-          required,
-          status,
-          isMissing: !isFullyReserved && !isStatusReady,
-        }
+      const reserved = item.reservedQuantity || 0
+      const required = item.quantity
+      const status = item.preorderStatus || PreorderStatus.PENDING_STOCK
+      const isFullyReserved = reserved >= required
+      const isStatusReady = status === PreorderStatus.READY_TO_FULFILL
+
+      // Debug log
+      console.log('Preorder item check:', {
+        sku: item.variantSku,
+        reserved,
+        required,
+        status,
+        statusType: typeof status,
+        isFullyReserved,
+        isStatusReady,
+        isMissing: !isFullyReserved && !isStatusReady,
       })
+
+      return {
+        id: item._id,
+        sku: item.variantSku || '--',
+        reserved,
+        required,
+        status,
+        isMissing: !isFullyReserved && !isStatusReady,
+      }
+    })
   }, [order])
 
   const missingItemsCount = useMemo(
     () => preorderProgress.filter((item) => item.isMissing).length,
-    [preorderProgress],
+    [preorderProgress]
   )
 
   const canAttemptApprove = Boolean(
-    isSalesMode &&
-      order &&
-      [OrderStatus.PAID, OrderStatus.CONFIRMED].includes(order.orderStatus),
+    isSalesMode && order && [OrderStatus.PAID, OrderStatus.CONFIRMED].includes(order.orderStatus)
   )
 
   const canApproveForOperations = Boolean(canAttemptApprove && !preorderWaitingStock)
 
   const isOperationsPreorderAllocation = Boolean(
     !isSalesMode &&
-      order &&
-      [OrderStatus.PAID, OrderStatus.CONFIRMED].includes(order.orderStatus) &&
-      order.items.some((item) => item.isPreorder),
+    order &&
+    [OrderStatus.PAID, OrderStatus.CONFIRMED].includes(order.orderStatus) &&
+    order.items.some((item) => item.isPreorder)
   )
 
   const canMarkShipped = Boolean(
     !isSalesMode &&
     order &&
-      [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.CONFIRMED].includes(order.orderStatus) &&
-      !preorderWaitingStock,
+    order.orderStatus === OrderStatus.READY_TO_SHIP &&
+    !preorderWaitingStock
   )
 
-  const canConfirmReceived = Boolean(!isSalesMode && order && order.orderStatus === OrderStatus.SHIPPED)
+  const canMarkReadyToShip = Boolean(
+    !isSalesMode &&
+    order &&
+    [OrderStatus.PROCESSING, OrderStatus.CONFIRMED].includes(order.orderStatus) &&
+    !preorderWaitingStock
+  )
+
+  const canConfirmReceived = Boolean(
+    !isSalesMode && order && order.orderStatus === OrderStatus.SHIPPED
+  )
 
   const timeline = useMemo(() => {
     if (!order?.history) {
@@ -199,8 +218,15 @@ export default function OrderDetailDrawer({
     }
 
     return [...order.history].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
+  }, [order])
+
+  const prescriptionItems = useMemo(() => {
+    if (!order) {
+      return []
+    }
+    return order.items.filter((item) => item.isPrescription)
   }, [order])
 
   const handleMarkShipped = async () => {
@@ -210,13 +236,40 @@ export default function OrderDetailDrawer({
 
     try {
       setSubmitting(true)
-      const updated = await orderApi.updateOrderStatus(order._id, OrderStatus.SHIPPED, 'Order marked as shipped')
+      const updated = await orderApi.updateOrderStatus(
+        order._id,
+        OrderStatus.SHIPPED,
+        'Order marked as shipped'
+      )
 
       onOrderUpdated(updated)
       setShippingDialogOpen(false)
       toast.success(`Order ${updated.orderNumber} marked as shipped`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to mark order as shipped'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMarkReadyToShip = async () => {
+    if (!order) {
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const updated = await orderApi.updateOrderStatus(
+        order._id,
+        OrderStatus.READY_TO_SHIP,
+        'Order is packed and ready for shipping handoff'
+      )
+
+      onOrderUpdated(updated)
+      toast.success(`Order ${updated.orderNumber} marked as ready to ship`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to mark order as ready to ship'
       toast.error(message)
     } finally {
       setSubmitting(false)
@@ -264,9 +317,50 @@ export default function OrderDetailDrawer({
     }
   }
 
+  const handleRequestPrescriptionUpdate = async (orderItemId: string) => {
+    if (!order) return
+    try {
+      setSubmitting(true)
+      const result = await orderApi.reviewPrescription(orderItemId, {
+        status: PrescriptionStatus.REJECTED,
+        note: 'Please update your prescription information',
+      })
+      onOrderUpdated(result.order)
+      toast.success('Requested prescription update from customer')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to request update'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleApprovePrescription = async (orderItemId: string) => {
+    if (!order) return
+    try {
+      setSubmitting(true)
+      const result = await orderApi.reviewPrescription(orderItemId, {
+        status: PrescriptionStatus.APPROVED,
+        note: 'Prescription approved',
+      })
+      onOrderUpdated(result.order)
+      toast.success('Prescription approved successfully')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to approve prescription'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <>
-      <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: '100%', md: 560 } } }}>
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={onClose}
+        PaperProps={{ sx: { width: { xs: '100%', md: 560 } } }}
+      >
         {!order ? null : (
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -313,7 +407,8 @@ export default function OrderDetailDrawer({
                     {order.shippingAddress.phone}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {order.shippingAddress.address}, {order.shippingAddress.ward ? `${order.shippingAddress.ward}, ` : ''}
+                    {order.shippingAddress.address},{' '}
+                    {order.shippingAddress.ward ? `${order.shippingAddress.ward}, ` : ''}
                     {order.shippingAddress.district}, {order.shippingAddress.city}
                   </Typography>
                 </Box>
@@ -321,7 +416,12 @@ export default function OrderDetailDrawer({
                 <Divider />
 
                 <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ mb: 1.25 }}
+                  >
                     <Typography variant="subtitle2" fontWeight={700}>
                       Product List
                     </Typography>
@@ -341,66 +441,93 @@ export default function OrderDetailDrawer({
                             borderRadius: 1,
                           }}
                         >
-                            <Box
-                              sx={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: 1,
-                                overflow: 'hidden',
-                                bgcolor: 'grey.100',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {item.productImage ? (
-                                <img
-                                  src={formatImageUrl(item.productImage)}
-                                  alt={item.productName || 'Product image'}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              ) : (
-                                <Typography variant="caption" color="text.secondary">
-                                  N/A
-                                </Typography>
-                              )}
-                            </Box>
-
-                            <Box>
-                              <Stack direction="row" alignItems="center" spacing={0.75}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {item.productName || 'Product'}
-                                </Typography>
-                              </Stack>
+                          <Box
+                            sx={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              bgcolor: 'grey.100',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {item.productImage ? (
+                              <img
+                                src={formatImageUrl(item.productImage)}
+                                alt={item.productName || 'Product image'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
                               <Typography variant="caption" color="text.secondary">
-                                SKU: {item.variantSku || '--'}
+                                N/A
                               </Typography>
-                              <Typography variant="caption" display="block" color="text.secondary">
-                                Qty: {item.quantity}
-                                {item.variantDetails?.size ? ` • Size: ${item.variantDetails.size}` : ''}
-                                {item.variantDetails?.color ? ` • Color: ${item.variantDetails.color}` : ''}
-                              </Typography>
+                            )}
+                          </Box>
 
-                              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
-                                {item.isPreorder && item.preorderStatus ? (
-                                  <Chip
-                                    size="small"
-                                    color={PREORDER_WAITING_STATUSES.has(item.preorderStatus) ? 'warning' : 'success'}
-                                    label={`Pre-order: ${item.preorderStatus}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                ) : null}
-                              </Stack>
-                            </Box>
-
-                            <Stack spacing={0.5} alignItems="flex-end">
+                          <Box>
+                            <Stack direction="row" alignItems="center" spacing={0.75}>
                               <Typography variant="body2" fontWeight={600}>
-                                {formatPrice(item.priceAtOrder * item.quantity)}
+                                {item.productName || 'Product'}
                               </Typography>
                             </Stack>
+                            <Typography variant="caption" color="text.secondary">
+                              SKU: {item.variantSku || '--'}
+                            </Typography>
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              Qty: {item.quantity}
+                              {item.variantDetails?.size
+                                ? ` • Size: ${item.variantDetails.size}`
+                                : ''}
+                              {item.variantDetails?.color
+                                ? ` • Color: ${item.variantDetails.color}`
+                                : ''}
+                            </Typography>
+
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              sx={{ mt: 0.5 }}
+                              flexWrap="wrap"
+                              useFlexGap
+                            >
+                              {item.isPreorder && item.preorderStatus ? (
+                                <Chip
+                                  size="small"
+                                  color={
+                                    PREORDER_WAITING_STATUSES.has(item.preorderStatus)
+                                      ? 'warning'
+                                      : 'success'
+                                  }
+                                  label={`Pre-order: ${item.preorderStatus}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : null}
+                              {item.isPrescription ? (
+                                <Chip
+                                  size="small"
+                                  color="info"
+                                  variant="outlined"
+                                  label={`Rx: ${item.prescriptionStatus || 'PENDING_REVIEW'}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPrescriptionOpen(true)
+                                  }}
+                                  sx={{ cursor: 'pointer' }}
+                                />
+                              ) : null}
+                            </Stack>
                           </Box>
+
+                          <Stack spacing={0.5} alignItems="flex-end">
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatPrice(item.priceAtOrder * item.quantity)}
+                            </Typography>
+                          </Stack>
                         </Box>
-                      ))}
+                      </Box>
+                    ))}
                   </Stack>
                 </Box>
 
@@ -492,15 +619,22 @@ export default function OrderDetailDrawer({
 
             <Box sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
               {/* Debug info - remove after testing */}
-              {!isSalesMode && order && (order.orderType === 'PREORDER' || order.items.some(i => i.isPreorder)) ? (
+              {!isSalesMode &&
+              order &&
+              (order.orderType === 'PREORDER' || order.items.some((i) => i.isPreorder)) ? (
                 <Alert severity="info" sx={{ mb: 1.5, fontSize: '0.75rem' }}>
                   <Typography variant="caption" sx={{ display: 'block' }}>
-                    DEBUG: isSalesMode={String(isSalesMode)} | preorderProgress.length={preorderProgress.length} | missingCount={missingItemsCount}
+                    DEBUG: isSalesMode={String(isSalesMode)} | preorderProgress.length=
+                    {preorderProgress.length} | missingCount={missingItemsCount}
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block' }}>
-                    Items: {preorderProgress.map(p => 
-                      `${p.sku}[${p.reserved}/${p.required}][${p.status}][missing:${p.isMissing}]`
-                    ).join(', ')}
+                    Items:{' '}
+                    {preorderProgress
+                      .map(
+                        (p) =>
+                          `${p.sku}[${p.reserved}/${p.required}][${p.status}][missing:${p.isMissing}]`
+                      )
+                      .join(', ')}
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
                     Check browser console for detailed logs
@@ -510,7 +644,8 @@ export default function OrderDetailDrawer({
 
               {preorderWaitingStock && isSalesMode ? (
                 <Alert severity="warning" sx={{ mb: 1.5 }}>
-                  Waiting for stock allocation. Sales approval is blocked until all preorder items are READY_TO_FULFILL.
+                  Waiting for stock allocation. Sales approval is blocked until all preorder items
+                  are READY_TO_FULFILL.
                 </Alert>
               ) : null}
 
@@ -527,7 +662,11 @@ export default function OrderDetailDrawer({
 
               {preorderProgress.length > 0 ? (
                 <Box sx={{ mb: 1.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mb: 0.5 }}
+                  >
                     Pre-order allocation progress
                   </Typography>
                   <Stack spacing={0.75}>
@@ -542,7 +681,10 @@ export default function OrderDetailDrawer({
                         sx={{
                           p: 1,
                           borderRadius: 1,
-                          backgroundColor: line.isMissing && !isSalesMode ? 'rgba(244, 67, 54, 0.08)' : 'transparent',
+                          backgroundColor:
+                            line.isMissing && !isSalesMode
+                              ? 'rgba(244, 67, 54, 0.08)'
+                              : 'transparent',
                         }}
                       >
                         <Chip size="small" label={line.sku} variant="outlined" />
@@ -570,6 +712,27 @@ export default function OrderDetailDrawer({
               ) : null}
 
               <Stack direction="row" spacing={1.25} justifyContent="flex-end">
+                {prescriptionItems.length > 0 && (
+                  <>
+                    <Button
+                      variant="outlined"
+                      color="info"
+                      startIcon={<WarningIcon />}
+                      onClick={() => setPrescriptionOpen(true)}
+                    >
+                      Prescription ({prescriptionItems.length})
+                    </Button>
+                    {!isSalesMode && (
+                      <Button
+                        variant="outlined"
+                        onClick={() => navigate('/dashboard/lab-jobs')}
+                      >
+                        View Lab Jobs
+                      </Button>
+                    )}
+                  </>
+                )}
+
                 {isOperationsPreorderAllocation ? (
                   <Button
                     variant="contained"
@@ -593,6 +756,18 @@ export default function OrderDetailDrawer({
                   </Button>
                 ) : null}
 
+                {canMarkReadyToShip ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<InventoryIcon />}
+                    onClick={handleMarkReadyToShip}
+                    disabled={submitting}
+                  >
+                    Mark Ready to Ship
+                  </Button>
+                ) : null}
+
                 {canAttemptApprove ? (
                   <Button
                     variant="contained"
@@ -601,7 +776,9 @@ export default function OrderDetailDrawer({
                     onClick={() => setApproveDialogOpen(true)}
                     disabled={submitting || !canApproveForOperations}
                   >
-                    {canApproveForOperations ? 'Approve for Operations' : 'Awaiting Stock Allocation'}
+                    {canApproveForOperations
+                      ? 'Approve for Operations'
+                      : 'Awaiting Stock Allocation'}
                   </Button>
                 ) : null}
 
@@ -622,7 +799,12 @@ export default function OrderDetailDrawer({
         )}
       </Drawer>
 
-      <Dialog open={shippingDialogOpen} onClose={() => setShippingDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={shippingDialogOpen}
+        onClose={() => setShippingDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Mark Order as Shipped</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
@@ -633,13 +815,23 @@ export default function OrderDetailDrawer({
           <Button onClick={() => setShippingDialogOpen(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleMarkShipped} variant="contained" color="info" disabled={submitting}>
+          <Button
+            onClick={handleMarkShipped}
+            variant="contained"
+            color="info"
+            disabled={submitting}
+          >
             Confirm
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={approveDialogOpen}
+        onClose={() => setApproveDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Approve Order for Operations</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
@@ -656,7 +848,12 @@ export default function OrderDetailDrawer({
         </DialogActions>
       </Dialog>
 
-      <Dialog open={confirmReceivedOpen} onClose={() => setConfirmReceivedOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={confirmReceivedOpen}
+        onClose={() => setConfirmReceivedOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <WarningIcon color="warning" />
           Confirm Received
@@ -670,34 +867,40 @@ export default function OrderDetailDrawer({
           <Button onClick={() => setConfirmReceivedOpen(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleConfirmReceived} color="warning" variant="contained" disabled={submitting}>
+          <Button
+            onClick={handleConfirmReceived}
+            color="warning"
+            variant="contained"
+            disabled={submitting}
+          >
             Proceed
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={prescriptionOpen} onClose={() => setPrescriptionOpen(false)} fullWidth maxWidth="md" style={{ display: 'none' }}>
+      <Dialog
+        open={prescriptionOpen}
+        onClose={() => setPrescriptionOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Prescription Details</DialogTitle>
         <DialogContent>
-          {/* Debug info */}
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="caption" sx={{ display: 'block' }}>
-              DEBUG: isSalesMode={String(isSalesMode)} | Items={prescriptionItems.length}
-            </Typography>
-            {prescriptionItems.map((item, i) => (
-              <Typography key={i} variant="caption" sx={{ display: 'block' }}>
-                Item {i+1}: status={item.prescriptionStatus || 'null'} | isPrescription={String(item.isPrescription)}
-              </Typography>
-            ))}
-          </Alert>
-
           {prescriptionItems.length === 0 ? (
             <Alert severity="info">No prescription items in this order</Alert>
           ) : (
             <Stack spacing={2}>
               {prescriptionItems.map((item, idx) => (
-                <Box key={`${item._id}-${idx}`} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                <Box
+                  key={`${item._id}-${idx}`}
+                  sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                >
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    gap={1}
+                  >
                     <Box>
                       <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                         {item.productName || 'Prescription Item'}
@@ -706,10 +909,9 @@ export default function OrderDetailDrawer({
                         size="small"
                         label={item.prescriptionStatus || 'Unknown'}
                         color={
-                          item.prescriptionStatus === PrescriptionStatus.APPROVED ||
-                          item.prescriptionStatus === PrescriptionStatus.READY_TO_SHIP
+                          item.prescriptionStatus === PrescriptionStatus.APPROVED
                             ? 'success'
-                            : item.prescriptionStatus === PrescriptionStatus.NEEDS_UPDATE
+                            : item.prescriptionStatus === PrescriptionStatus.REJECTED
                               ? 'error'
                               : 'warning'
                         }
@@ -717,53 +919,67 @@ export default function OrderDetailDrawer({
                     </Box>
 
                     {/* Action buttons for pending prescriptions */}
-                    {isSalesMode && (!item.prescriptionStatus || item.prescriptionStatus === PrescriptionStatus.PENDING_REVIEW) && (
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          onClick={() => handleRequestPrescriptionUpdate(item._id)}
-                          disabled={submitting}
-                        >
-                          Request Update
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="success"
-                          onClick={() => handleApprovePrescription(item._id)}
-                          disabled={submitting}
-                        >
-                          Approve
-                        </Button>
-                      </Stack>
-                    )}
+                    {isSalesMode &&
+                      (!item.prescriptionStatus ||
+                        item.prescriptionStatus === PrescriptionStatus.PENDING_REVIEW) && (
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => handleRequestPrescriptionUpdate(item._id)}
+                            disabled={submitting}
+                          >
+                            Request Update
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            onClick={() => handleApprovePrescription(item._id)}
+                            disabled={submitting}
+                          >
+                            Approve
+                          </Button>
+                        </Stack>
+                      )}
                   </Stack>
 
                   {item.prescriptionData ? (
                     <Stack spacing={1.5} sx={{ mt: 1.5 }}>
                       <Box>
-                        <Typography variant="caption" color="text.secondary">PD (Pupillary Distance)</Typography>
-                        <Typography variant="body2" fontWeight={600}>{item.prescriptionData.pd} mm</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          PD (Pupillary Distance)
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {item.prescriptionData.pd} mm
+                        </Typography>
                       </Box>
                       <Stack direction="row" spacing={2}>
                         <Box flex={1}>
-                          <Typography variant="caption" color="text.secondary">OD (Right Eye)</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            SPH: {item.prescriptionData.sph.right} | CYL: {item.prescriptionData.cyl.right}
+                          <Typography variant="caption" color="text.secondary">
+                            OD (Right Eye)
                           </Typography>
                           <Typography variant="body2" fontWeight={600}>
-                            AXIS: {item.prescriptionData.axis.right}° | ADD: {item.prescriptionData.add.right}
+                            SPH: {item.prescriptionData.sph.right} | CYL:{' '}
+                            {item.prescriptionData.cyl.right}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            AXIS: {item.prescriptionData.axis.right}° | ADD:{' '}
+                            {item.prescriptionData.add.right}
                           </Typography>
                         </Box>
                         <Box flex={1}>
-                          <Typography variant="caption" color="text.secondary">OS (Left Eye)</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            SPH: {item.prescriptionData.sph.left} | CYL: {item.prescriptionData.cyl.left}
+                          <Typography variant="caption" color="text.secondary">
+                            OS (Left Eye)
                           </Typography>
                           <Typography variant="body2" fontWeight={600}>
-                            AXIS: {item.prescriptionData.axis.left}° | ADD: {item.prescriptionData.add.left}
+                            SPH: {item.prescriptionData.sph.left} | CYL:{' '}
+                            {item.prescriptionData.cyl.left}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            AXIS: {item.prescriptionData.axis.left}° | ADD:{' '}
+                            {item.prescriptionData.add.left}
                           </Typography>
                         </Box>
                       </Stack>
@@ -774,13 +990,23 @@ export default function OrderDetailDrawer({
 
                   {item.prescriptionUrl && (
                     <Box sx={{ mt: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        sx={{ mb: 0.5 }}
+                      >
                         Uploaded Prescription Image
                       </Typography>
                       <img
                         src={item.prescriptionUrl}
                         alt="Prescription"
-                        style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{
+                          maxWidth: '100%',
+                          height: 'auto',
+                          borderRadius: '4px',
+                          border: '1px solid #ddd',
+                        }}
                       />
                     </Box>
                   )}
@@ -795,13 +1021,7 @@ export default function OrderDetailDrawer({
       </Dialog>
 
       {/* Manufacturing Proof Image Dialog */}
-      <Dialog
-        open={false}
-        onClose={() => {}}
-        maxWidth="md"
-        fullWidth
-        style={{ display: 'none' }}
-      >
+      <Dialog open={false} onClose={() => {}} maxWidth="md" fullWidth style={{ display: 'none' }}>
         <DialogTitle>Manufacturing Proof</DialogTitle>
         <DialogContent>
           <img

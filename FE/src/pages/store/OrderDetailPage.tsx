@@ -472,6 +472,42 @@ const OrderDetailPage: React.FC = () => {
                         {item.variantDetails?.color && `Color: ${item.variantDetails.color}`}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">Qty: {item.quantity}</p>
+
+                      {item.requiresPrescription && item.typedPrescription && (
+                        <div className="mt-2 p-2 bg-sky-50 border border-sky-100 rounded">
+                          <p className="text-xs font-semibold text-sky-800 mb-1">Prescription</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-700">
+                            <p>
+                              <span className="font-semibold">Right:</span>{' '}
+                              SPH {item.typedPrescription.rightEye.sph}, CYL {item.typedPrescription.rightEye.cyl}, AXIS {item.typedPrescription.rightEye.axis}, ADD {item.typedPrescription.rightEye.add}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Left:</span>{' '}
+                              SPH {item.typedPrescription.leftEye.sph}, CYL {item.typedPrescription.leftEye.cyl}, AXIS {item.typedPrescription.leftEye.axis}, ADD {item.typedPrescription.leftEye.add}
+                            </p>
+                            {item.typedPrescription.pd !== undefined && (
+                              <p>
+                                <span className="font-semibold">PD:</span> {item.typedPrescription.pd}
+                              </p>
+                            )}
+                            {item.typedPrescription.pdRight !== undefined && item.typedPrescription.pdLeft !== undefined && (
+                              <p>
+                                <span className="font-semibold">Monocular PD:</span> R {item.typedPrescription.pdRight} / L {item.typedPrescription.pdLeft}
+                              </p>
+                            )}
+                            {item.prescriptionReviewStatus && (
+                              <p>
+                                <span className="font-semibold">Review:</span> {item.prescriptionReviewStatus}
+                              </p>
+                            )}
+                          </div>
+                          {item.typedPrescription.notesFromCustomer && (
+                            <p className="text-xs text-slate-600 mt-1">
+                              <span className="font-semibold">Note:</span> {item.typedPrescription.notesFromCustomer}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       
                       {/* Review Actions Per Item */}
                       <div className="mt-2">

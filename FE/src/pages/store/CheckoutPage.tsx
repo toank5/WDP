@@ -20,6 +20,7 @@ import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } f
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
 import { getPrescriptionLensFee, getShippingPolicyPricing } from '@/lib/policy-api'
+import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -774,6 +775,9 @@ const CheckoutPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Shipping Policy Section */}
+                  <ShippingPolicySection />
 
                   <div className="border-2 border-blue-500 bg-blue-50 rounded-lg p-4">
                     <div className="flex items-center gap-3">

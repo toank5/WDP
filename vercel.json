@@ -1,6 +1,11 @@
 {
-  "name": "eyewear-frontend",
   "buildCommand": "cd packages/shared && npm install && npm run build && cd ../../FE && npm run build",
   "outputDirectory": "FE/dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

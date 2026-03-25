@@ -254,15 +254,33 @@ export class VNPayHelpers {
   }
 
   /**
-   * Format date for VNPay (yyyyMMddHHmmss)
+   * Format date for VNPay (yyyyMMddHHmmss) in Vietnam timezone (ICT/GMT+7)
+   * VNPay expects all timestamps in Vietnam timezone
    */
   static formatDate(date: Date = new Date()): string {
-    const yyyy = date.getFullYear();
-    const MM = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    const HH = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
+    // Use formatToParts with explicit timezone to avoid host-local timezone shifts.
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: Intl.DateTimeFormatPartTypes): string =>
+      parts.find((part) => part.type === type)?.value || '';
+
+    const yyyy = getPart('year');
+    const MM = getPart('month');
+    const dd = getPart('day');
+    const HH = getPart('hour');
+    const mm = getPart('minute');
+    const ss = getPart('second');
+
     return `${yyyy}${MM}${dd}${HH}${mm}${ss}`;
   }
 
@@ -278,6 +296,7 @@ export class VNPayHelpers {
       '05': 'Giao dịch đang xử lý',
       '06': 'Giao dịch chưa tìm thấy',
       '07': 'Giao dịch bị từ chối',
+      '15': 'Giao dịch đã quá thời gian chờ thanh toán',
       '09': 'Giao dịch không hợp lệ',
       '97': 'Giao dịch bị lỗi',
       '99': 'Lỗi không xác định',

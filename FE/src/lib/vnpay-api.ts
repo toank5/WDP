@@ -11,6 +11,7 @@ export const VNPAY_RESPONSE_CODES = {
   DUPLICATE_TRANSACTION: '05',
   TRANSACTION_NOT_FOUND: '06',
   INSUFFICIENT_BALANCE: '07',
+  TRANSACTION_TIMEOUT: '15',
   INVALID_CARD: '09',
   TRANSACTION_FAILED: '97',
   INVALID_REQUEST: '99',
@@ -118,6 +119,7 @@ export class VNPayHelpers {
       '06': 'Giao dịch chưa tìm thấy',
       '07': 'Giao dịch bị từ chối - số dư không đủ',
       '09': 'Giao dịch không hợp lệ',
+      '15': 'Giao dịch đã quá thời gian chờ thanh toán. Quý khách vui lòng thực hiện lại giao dịch',
       '97': 'Giao dịch bị lỗi',
       '99': 'Lỗi hệ thống',
     }

@@ -65,7 +65,10 @@ import {
   OrderHistory,
   OrderHistorySchema,
 } from './commons/schemas/order-history.schema';
-import { WorkOrder, WorkOrderSchema } from './commons/schemas/work-order.schema';
+import {
+  WorkOrder,
+  WorkOrderSchema,
+} from './commons/schemas/work-order.schema';
 import { VNPayService } from './services/vnpay.service';
 import {
   ProductVariant,
@@ -102,6 +105,7 @@ import {
 import { FavoriteController } from './controllers/favorite.controller';
 import { FavoriteService } from './services/favorite.service';
 import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -173,6 +177,7 @@ import { Favorite, FavoriteSchema } from './commons/schemas/favorite.schema';
       { name: Favorite.name, schema: FavoriteSchema },
     ]),
     PreorderModule,
+    HealthModule,
   ],
   controllers: [
     AppController,

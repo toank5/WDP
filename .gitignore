@@ -106,3 +106,7 @@ coverage/
 *.sw?
 
 .vercel
+
+.env.*
+.vercel
+.env*.local

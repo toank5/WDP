@@ -1,0 +1,25 @@
+<h2 style="margin: 0 0 16px; color: #0f172a;">Order Confirmation</h2>
+
+<p style="margin: 0 0 12px;">Hi {{name}},</p>
+<p style="margin: 0 0 16px;">
+  We received your order <strong>{{orderNumber}}</strong> and are preparing it now.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin: 0 0 16px; border-collapse: collapse;">
+  <tr>
+    <td style="padding: 8px 0; color: #475569; width: 140px;">Order Number</td>
+    <td style="padding: 8px 0;"><strong>{{orderNumber}}</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; color: #475569;">Total Amount</td>
+    <td style="padding: 8px 0;"><strong>{{orderDetails.totalAmount}}</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; color: #475569;">Shipping Address</td>
+    <td style="padding: 8px 0;">{{orderDetails.shippingAddress}}</td>
+  </tr>
+</table>
+
+<p style="margin: 0; color: #475569;">
+  We will notify you again once your order is shipped.
+</p>

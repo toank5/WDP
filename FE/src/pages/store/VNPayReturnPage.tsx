@@ -46,6 +46,7 @@ const VNPayReturnPage: React.FC = () => {
       '11': 'Thẻ/Tài khoản đã hết hạn',
       '12': 'Thẻ/Tài khoản bị khóa',
       '13': 'Bạn đã nhập sai mật khẩu quá số lần quy định',
+      '15': 'Giao dịch đã quá thời gian chờ thanh toán. Quý khách vui lòng thực hiện lại giao dịch',
       '24': 'Giao dịch bị hủy',
       '51': 'Tài khoản không đủ số dư để thanh toán',
       '65': 'Tài khoản đã vượt quá hạn mức giao dịch trong ngày',
