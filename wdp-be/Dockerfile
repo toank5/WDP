@@ -19,9 +19,12 @@ RUN cd packages/shared && npm install && npm run build
 WORKDIR /app
 RUN npm install --legacy-peer-deps
 
-# Build backend
+# Build backend using tsc directly (avoids nest build webpack issues)
 WORKDIR /app/wdp-be
-RUN npx tsc -p tsconfig.build.json || npm run build
+RUN npx tsc -p tsconfig.build.json
+
+# Verify dist was created
+RUN ls -la dist/ && test -f dist/main.js
 
 # Production image
 FROM node:20-alpine AS production
@@ -43,6 +46,9 @@ COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_mod
 
 # Copy built application
 COPY --from=builder /app/wdp-be/dist ./dist
+
+# Verify dist was copied
+RUN ls -la dist/ && test -f dist/main.js
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
