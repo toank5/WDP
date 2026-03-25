@@ -44,10 +44,10 @@ import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Public } from 'src/auth/public.decorator';
 
 @ApiTags('Products')
 @Controller('products')
-@UseGuards(JwtAuthGuard, RbacGuard)
 export class ProductController {
   constructor(
     private readonly productService: ProductService,
@@ -60,7 +60,8 @@ export class ProductController {
    * Delegates all business logic to service
    */
   @Post()
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('images', 20, new FileUploadService().getMulterOptions()),
   )
@@ -210,6 +211,7 @@ export class ProductController {
    * Get all active products (public)
    */
   @Get()
+  @Public()
   @ApiOperation({
     summary: 'List all active products',
     description: 'Retrieves all active products for public viewing.',
@@ -241,7 +243,7 @@ export class ProductController {
    * GET /products/catalog
    */
   @Get('catalog')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @Roles(UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'List products with filters (catalog view)',
@@ -363,6 +365,7 @@ export class ProductController {
    * Get product by ID (public)
    */
   @Get(':id')
+  @Public()
   @ApiOperation({
     summary: 'Get product by ID',
     description: 'Retrieves detailed information about a specific product.',
@@ -395,7 +398,8 @@ export class ProductController {
    * Update product (manager/admin only)
    */
   @Put(':id')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('images', 20, new FileUploadService().getMulterOptions()),
   )
@@ -483,7 +487,8 @@ export class ProductController {
    * Delete product (manager/admin only)
    */
   @Delete(':id')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete a product',
     description: 'Soft deletes a product. Requires manager or admin role.',
@@ -518,7 +523,8 @@ export class ProductController {
    * Restore soft-deleted product (manager/admin only)
    */
   @Patch(':id/restore')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Restore a deleted product',
     description:
@@ -559,7 +565,8 @@ export class ProductController {
    * POST /products/:id/variants
    */
   @Post(':id/variants')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Add variant to product',
     description:
@@ -608,7 +615,8 @@ export class ProductController {
    * PATCH /products/:id/variants/:variantId
    */
   @Patch(':id/variants/:variantId')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Update product variant',
     description:
@@ -656,7 +664,8 @@ export class ProductController {
    * DELETE /products/:id/variants/:variantId
    */
   @Delete(':id/variants/:variantId')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete product variant',
     description:
@@ -696,7 +705,8 @@ export class ProductController {
    * GET /manager/products
    */
   @Get('manager/list')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
     summary: 'List products with filters (manager/admin)',
     description:
