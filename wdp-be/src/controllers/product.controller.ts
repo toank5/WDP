@@ -44,6 +44,7 @@ import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { PRODUCT_CATEGORIES } from '@eyewear/shared';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Public } from '../commons/decorators/public.decorator';
 
 @ApiTags('Products')
 @Controller('products')
@@ -209,6 +210,7 @@ export class ProductController {
   /**
    * Get all active products (public)
    */
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'List all active products',
@@ -362,6 +364,7 @@ export class ProductController {
   /**
    * Get product by ID (public)
    */
+  @Public()
   @Get(':id')
   @ApiOperation({
     summary: 'Get product by ID',

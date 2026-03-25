@@ -7,6 +7,7 @@ import {
   ImageBackground,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import {
   Text,
@@ -16,6 +17,7 @@ import {
   Button,
   Surface,
   ActivityIndicator,
+  Portal,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
@@ -23,6 +25,8 @@ import type { MainTabParamList } from '../../types'
 import { getAllProducts, type Product } from '../../services/product-api'
 import { CustomButton } from '../../components/Button'
 import { Loading, ProductCardSkeleton } from '../../components/Loading'
+import { useAuthStore } from '../../store/auth-store'
+import { useCartStore, addToCart } from '../../store/cart-store'
 
 type Props = BottomTabScreenProps<MainTabParamList, 'HomeTab'>
 
@@ -54,10 +58,14 @@ const features = [
 interface ProductCardProps {
   product: Product
   onPress: () => void
+  onAddToCart?: () => void
 }
 
-function ProductCard({ product, onPress }: ProductCardProps) {
+function ProductCard({ product, onPress, onAddToCart }: ProductCardProps) {
   const theme = useTheme()
+
+  // Lấy variant đầu tiên có sẵn (nếu có)
+  const firstVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null
 
   return (
     <Card style={styles.productCard} onPress={onPress}>
@@ -78,12 +86,52 @@ function ProductCard({ product, onPress }: ProductCardProps) {
             {product.category}
           </Chip>
         )}
+        {firstVariant && firstVariant.isActive !== false && (
+          <View style={styles.variantInfo}>
+            {firstVariant.size && (
+              <Chip
+                style={styles.variantChip}
+                icon="ruler"
+                textStyle={styles.variantText}
+              >
+                {firstVariant.size}
+              </Chip>
+            )}
+            {firstVariant.color && (
+              <Chip
+                style={styles.variantChip}
+                icon="palette"
+                textStyle={styles.variantText}
+              >
+                {firstVariant.color}
+              </Chip>
+            )}
+          </View>
+        )}
       </View>
       <Card.Content style={styles.productContent}>
         <Text style={styles.productName} numberOfLines={2}>
           {product.name}
         </Text>
         <Text style={styles.productPrice}>{formatPrice(product.basePrice)}</Text>
+        {/* Hiển thị số lượng biến thể nếu có */}
+        {product.variants && product.variants.length > 0 && (
+          <Text style={styles.variantCount}>
+            {product.variants.length} biến thể
+          </Text>
+        )}
+        {/* Nút thêm vào giỏ hàng */}
+        {onAddToCart && (
+          <Button
+            mode="contained"
+            onPress={onAddToCart}
+            style={styles.addToCartButton}
+            icon="cart-plus"
+            iconColor="white"
+          >
+            Thêm vào giỏ
+          </Button>
+        )}
       </Card.Content>
     </Card>
   )
@@ -124,6 +172,8 @@ export function HomeScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false)
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
 
+  const { isAuthenticated, user } = useAuthStore()
+
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true)
@@ -135,7 +185,9 @@ export function HomeScreen({ navigation }: Props) {
       setFeaturedProducts(activeProducts.slice(0, 6))
     } catch (error) {
       console.error('Failed to load products:', error)
-      setError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.')
+      const errorMessage = error instanceof Error ? error.message : 'Không thể tải danh sách sản phẩm. Vui lòng thử lại.'
+      setError(errorMessage)
+      Alert.alert('Lỗi', errorMessage)
     } finally {
       setLoading(false)
     }
@@ -160,6 +212,52 @@ export function HomeScreen({ navigation }: Props) {
       slug: product.slug,
       productId: product._id,
     })
+  }
+
+  // Xử lý thêm vào giỏ hàng
+  const handleAddToCart = (product: Product) => {
+    try {
+      const variant = product.variants && product.variants.length > 0 ? product.variants[0] : null
+
+      if (!isAuthenticated) {
+        // Chưa đăng nhập - hiển thị thông báo
+        Alert.alert(
+          'Cần đăng nhập',
+          'Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.',
+          [
+            { text: 'Đăng nhập', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) },
+            { text: 'Đăng ký', onPress: () => navigation.navigate('Auth', { screen: 'Register' }) },
+            { text: 'Bỏ qua', style: 'cancel' },
+          ]
+        )
+        return
+      }
+
+      // Đã đăng nhập - thêm vào giỏ hàng
+      addToCart({
+        productId: product._id,
+        sku: variant ? variant.sku : undefined,
+        productName: product.name,
+        productImage: product.images2D[0],
+        price: variant ? variant.price : product.basePrice,
+        quantity: 1,
+        variantDetails: variant ? {
+          size: variant.size,
+          color: variant.color,
+        } : undefined,
+      })
+
+      Alert.alert(
+        'Thành công',
+        `${product.name} đã được thêm vào giỏ hàng!`
+      )
+    } catch (error) {
+      console.error('Failed to add to cart:', error)
+      Alert.alert(
+        'Lỗi',
+        'Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.'
+      )
+    }
   }
 
   return (
@@ -223,9 +321,7 @@ export function HomeScreen({ navigation }: Props) {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🛍</Text>
             <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
-            <Text style={styles.emptyText}>
-              Không thể tải sản phẩm nổi bật
-            </Text>
+            <Text style={styles.emptyText}>{error}</Text>
             <Button
               mode="outlined"
               onPress={() => loadProducts()}
@@ -264,6 +360,7 @@ export function HomeScreen({ navigation }: Props) {
                 key={product._id}
                 product={product}
                 onPress={() => handleProductPress(product)}
+                onAddToCart={() => handleAddToCart(product)}
               />
             ))}
           </ScrollView>
@@ -279,9 +376,7 @@ export function HomeScreen({ navigation }: Props) {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🛍</Text>
             <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
-            <Text style={styles.emptyText}>
-              Không thể tải danh sách sản phẩm
-            </Text>
+            <Text style={styles.emptyText}>{error}</Text>
             <Button
               mode="contained"
               onPress={() => loadProducts()}
@@ -306,21 +401,66 @@ export function HomeScreen({ navigation }: Props) {
             </Text>
             <Button
               mode="contained"
-              onPress={() => loadProducts()}
+              onPress={() => navigation.navigate('Main', { screen: 'Search' })}
               style={styles.emptyButton}
-              icon="refresh"
+              icon="magnify"
             >
-              Làm mới
+              Tìm sản phẩm
             </Button>
           </View>
         ) : (
           <View style={styles.productsGrid}>
             {products.map((product) => (
-              <ProductCard key={product._id} product={product} onPress={() => handleProductPress(product)} />
+              <ProductCard
+                key={product._id}
+                product={product}
+                onPress={() => handleProductPress(product)}
+                onAddToCart={() => handleAddToCart(product)}
+              />
             ))}
           </View>
         )}
       </View>
+
+      {/* Auth Buttons - Đăng nhập / Đăng ký */}
+      {!isAuthenticated && (
+        <View style={styles.authButtonsContainer}>
+          <Button
+            mode="outlined"
+            onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
+            style={styles.authButton}
+            icon="login"
+          >
+            Đăng nhập
+          </Button>
+          <Button
+            mode="contained"
+            onPress={() => navigation.navigate('Auth', { screen: 'Register' })}
+            style={[styles.authButton, { backgroundColor: theme.colors.primary }]}
+            icon="account-plus"
+            iconColor="white"
+          >
+            Đăng ký
+          </Button>
+        </View>
+      )}
+
+      {/* User Info - hiển thị khi đã đăng nhập */}
+      {isAuthenticated && user && (
+        <View style={styles.userInfoContainer}>
+          <View style={styles.userInfo}>
+            <Text style={styles.welcomeText}>Xin chào, {user.fullName}</Text>
+          </View>
+          <Button
+            mode="outlined"
+            onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
+            style={styles.logoutButton}
+            icon="logout"
+          >
+            Đăng xuất
+          </Button>
+        </View>
+      )}
     </ScrollView>
   )
 }
@@ -466,6 +606,7 @@ const styles = StyleSheet.create({
   },
   productContent: {
     padding: 12,
+    gap: 8,
   },
   productName: {
     fontSize: 14,
@@ -477,6 +618,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#3b82f6',
+  },
+  variantInfo: {
+    position: 'absolute',
+    top: 36,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  variantChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  variantText: {
+    fontSize: 10,
+    color: '#333',
+  },
+  variantCount: {
+    fontSize: 11,
+    color: '#757575',
+    marginTop: 4,
+  },
+  addToCartButton: {
+    marginTop: 8,
+  },
+  authButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    backgroundColor: 'white',
+  },
+  authButton: {
+    flex: 1,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#e0f2fe',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: '#1e293b',
+  },
+  logoutButton: {
+    borderColor: '#ef4444',
   },
   errorContainer: {
     flex: 1,
