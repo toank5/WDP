@@ -727,7 +727,8 @@ export class CheckoutService {
   ): Promise<CheckoutCalculation> {
     const prescriptionLensFeeTotal = items.reduce(
       (sum, item) =>
-        sum + (item.requiresPrescription ? prescriptionLensFee * item.quantity : 0),
+        sum +
+        (item.requiresPrescription ? prescriptionLensFee * item.quantity : 0),
       0,
     );
 

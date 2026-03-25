@@ -48,7 +48,7 @@ import {
   VNPayCallbackParamsDto,
   VNPayVerificationResultDto,
 } from '../dtos/vnpay.dto';
-import { sendEmail, sendOrderShippedEmail } from '../mail/email.service';
+import { EmailService } from '../mail/email.service';
 
 type OrderStatusPredicate =
   | ORDER_STATUS
@@ -79,6 +79,7 @@ export class OrderService {
     private readonly inventoryService: InventoryService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly promotionService: PromotionService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -753,7 +754,8 @@ export class OrderService {
   async getPrescriptionQueue(
     query: PrescriptionQueueQueryDto,
   ): Promise<OrderResponseDto[]> {
-    const filterStatus = query.status || PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW;
+    const filterStatus =
+      query.status || PRESCRIPTION_REVIEW_STATUS.PENDING_REVIEW;
     const orders = await this.orderModel
       .find({
         items: {
@@ -774,7 +776,8 @@ export class OrderService {
       ...order,
       items: order.items.filter(
         (item) =>
-          item.requiresPrescription && item.prescriptionReviewStatus === filterStatus,
+          item.requiresPrescription &&
+          item.prescriptionReviewStatus === filterStatus,
       ),
     }));
   }
@@ -783,7 +786,9 @@ export class OrderService {
     order: OrderResponseDto;
     item: OrderResponseDto['items'][number];
   }> {
-    const order = await this.orderModel.findOne({ 'items.itemId': orderItemId });
+    const order = await this.orderModel.findOne({
+      'items.itemId': orderItemId,
+    });
     if (!order) {
       throw new NotFoundException('Prescription item not found');
     }
@@ -802,7 +807,10 @@ export class OrderService {
     dto: ReviewPrescriptionDto,
     reviewedBy?: string,
   ): Promise<{ order: OrderResponseDto; workOrder?: LabJobResponseDto }> {
-    if (dto.status === PRESCRIPTION_REVIEW_STATUS.REJECTED && !dto.note?.trim()) {
+    if (
+      dto.status === PRESCRIPTION_REVIEW_STATUS.REJECTED &&
+      !dto.note?.trim()
+    ) {
       throw new BadRequestException('Rejection note is required');
     }
 
@@ -813,7 +821,9 @@ export class OrderService {
       throw new BadRequestException('Only APPROVED or REJECTED are allowed');
     }
 
-    const order = await this.orderModel.findOne({ 'items.itemId': orderItemId });
+    const order = await this.orderModel.findOne({
+      'items.itemId': orderItemId,
+    });
     if (!order) {
       throw new NotFoundException('Prescription item not found');
     }
@@ -885,7 +895,9 @@ export class OrderService {
     }
 
     if (dto.status === LAB_JOB_STATUS.ISSUE && !dto.note?.trim()) {
-      throw new BadRequestException('Issue note is required when setting status to ISSUE');
+      throw new BadRequestException(
+        'Issue note is required when setting status to ISSUE',
+      );
     }
 
     workOrder.status = dto.status;
@@ -932,10 +944,14 @@ export class OrderService {
     item: OrderItem,
   ): Promise<LabJobResponseDto> {
     if (!item.typedPrescription || !item.itemId) {
-      throw new BadRequestException('Prescription snapshot is missing for work order');
+      throw new BadRequestException(
+        'Prescription snapshot is missing for work order',
+      );
     }
 
-    let existing = await this.workOrderModel.findOne({ orderItemId: item.itemId });
+    let existing = await this.workOrderModel.findOne({
+      orderItemId: item.itemId,
+    });
     if (!existing) {
       existing = await this.workOrderModel.create({
         orderId: order._id,
@@ -957,7 +973,10 @@ export class OrderService {
     const order = await this.orderModel.findById(workOrder.orderId);
     const item = order?.items.find((it) => it.itemId === workOrder.orderItemId);
     const customer = order
-      ? await this.userModel.findById(order.customerId).select('fullName').exec()
+      ? await this.userModel
+          .findById(order.customerId)
+          .select('fullName')
+          .exec()
       : null;
     const product = item
       ? await this.productModel.findById(item.productId).select('name').exec()
@@ -982,14 +1001,19 @@ export class OrderService {
     };
   }
 
-  private async notifyPrescriptionRejected(order: Order, item: OrderItem): Promise<void> {
-    const user = await this.userModel.findById(order.customerId).select('email fullName');
+  private async notifyPrescriptionRejected(
+    order: Order,
+    item: OrderItem,
+  ): Promise<void> {
+    const user = await this.userModel
+      .findById(order.customerId)
+      .select('email fullName');
     if (!user?.email) {
       return;
     }
 
     try {
-      await sendEmail({
+      await this.emailService.sendEmail({
         to: user.email,
         subject: `Prescription update required for order ${order.orderNumber}`,
         html: `<p>Hi ${user.fullName || 'Customer'},</p><p>Your prescription for item ${item.itemId} in order <strong>${order.orderNumber}</strong> needs correction.</p><p>Note from our sales staff: ${item.prescriptionReviewNote || 'Please contact support.'}</p>`,
@@ -999,19 +1023,24 @@ export class OrderService {
     }
   }
 
-  private async notifyLabIssue(workOrder: WorkOrder, note?: string): Promise<void> {
+  private async notifyLabIssue(
+    workOrder: WorkOrder,
+    note?: string,
+  ): Promise<void> {
     const order = await this.orderModel.findById(workOrder.orderId);
     if (!order) {
       return;
     }
 
-    const user = await this.userModel.findById(order.customerId).select('email fullName');
+    const user = await this.userModel
+      .findById(order.customerId)
+      .select('email fullName');
     if (!user?.email) {
       return;
     }
 
     try {
-      await sendEmail({
+      await this.emailService.sendEmail({
         to: user.email,
         subject: `Lab issue update for order ${order.orderNumber}`,
         html: `<p>Hi ${user.fullName || 'Customer'},</p><p>Our lab reported an issue while processing your prescription order ${order.orderNumber}.</p><p>${note || 'Our support team will contact you shortly.'}</p>`,
@@ -1266,7 +1295,10 @@ export class OrderService {
 
     const previousStatus = order.orderStatus;
 
-    if (updateDto.status === ORDER_STATUS.PROCESSING && !this.areAllPrescriptionItemsApproved(order)) {
+    if (
+      updateDto.status === ORDER_STATUS.PROCESSING &&
+      !this.areAllPrescriptionItemsApproved(order)
+    ) {
       throw new BadRequestException(
         'Prescription items must be approved before moving order to PROCESSING',
       );
@@ -1324,15 +1356,23 @@ export class OrderService {
     return this.getOrderWithDetails(orderId);
   }
 
-  private async ensurePrescriptionWorkOrdersCompleted(order: Order): Promise<void> {
-    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+  private async ensurePrescriptionWorkOrdersCompleted(
+    order: Order,
+  ): Promise<void> {
+    const prescribedItems = order.items.filter(
+      (item) => item.requiresPrescription,
+    );
     if (prescribedItems.length === 0) {
       return;
     }
 
-    const itemIds = prescribedItems.map((item) => item.itemId).filter(Boolean) as string[];
+    const itemIds = prescribedItems
+      .map((item) => item.itemId)
+      .filter(Boolean) as string[];
     if (itemIds.length !== prescribedItems.length) {
-      throw new BadRequestException('Prescription items are missing identifiers');
+      throw new BadRequestException(
+        'Prescription items are missing identifiers',
+      );
     }
 
     const jobs = await this.workOrderModel
@@ -1342,7 +1382,8 @@ export class OrderService {
 
     const allCompleted = itemIds.every((itemId) =>
       jobs.some(
-        (job) => job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED,
+        (job) =>
+          job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED,
       ),
     );
 
@@ -1354,23 +1395,33 @@ export class OrderService {
   }
 
   private areAllPrescriptionItemsApproved(order: Order): boolean {
-    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+    const prescribedItems = order.items.filter(
+      (item) => item.requiresPrescription,
+    );
     if (prescribedItems.length === 0) {
       return true;
     }
 
     return prescribedItems.every(
-      (item) => item.prescriptionReviewStatus === PRESCRIPTION_REVIEW_STATUS.APPROVED,
+      (item) =>
+        item.prescriptionReviewStatus === PRESCRIPTION_REVIEW_STATUS.APPROVED,
     );
   }
 
-  private async areAllOrderWorkOrdersCompleted(orderId: string): Promise<boolean> {
-    const order = await this.orderModel.findById(orderId).select('items').exec();
+  private async areAllOrderWorkOrdersCompleted(
+    orderId: string,
+  ): Promise<boolean> {
+    const order = await this.orderModel
+      .findById(orderId)
+      .select('items')
+      .exec();
     if (!order) {
       return false;
     }
 
-    const prescribedItems = order.items.filter((item) => item.requiresPrescription);
+    const prescribedItems = order.items.filter(
+      (item) => item.requiresPrescription,
+    );
     if (prescribedItems.length === 0) {
       return true;
     }
@@ -1384,23 +1435,31 @@ export class OrderService {
     }
 
     const jobs = await this.workOrderModel
-      .find({ orderId: new Types.ObjectId(orderId), orderItemId: { $in: requiredItemIds } })
+      .find({
+        orderId: new Types.ObjectId(orderId),
+        orderItemId: { $in: requiredItemIds },
+      })
       .select('orderItemId status')
       .exec();
 
     return requiredItemIds.every((itemId) =>
-      jobs.some((job) => job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED),
+      jobs.some(
+        (job) =>
+          job.orderItemId === itemId && job.status === LAB_JOB_STATUS.COMPLETED,
+      ),
     );
   }
 
   private async notifyOrderShipped(order: Order): Promise<void> {
-    const user = await this.userModel.findById(order.customerId).select('email fullName');
+    const user = await this.userModel
+      .findById(order.customerId)
+      .select('email fullName');
     if (!user?.email || !order.tracking?.trackingNumber) {
       return;
     }
 
     try {
-      await sendOrderShippedEmail(
+      await this.emailService.sendOrderShippedEmail(
         user.email,
         user.fullName || 'Customer',
         order.orderNumber,
@@ -1449,7 +1508,10 @@ export class OrderService {
         ORDER_STATUS.CANCELED,
         ORDER_STATUS.CANCELLED,
       ],
-      [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.READY_TO_SHIP],
+      [ORDER_STATUS.CONFIRMED]: [
+        ORDER_STATUS.PROCESSING,
+        ORDER_STATUS.READY_TO_SHIP,
+      ],
       [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
       [ORDER_STATUS.DELIVERED]: [],
       [ORDER_STATUS.RETURNED]: [],

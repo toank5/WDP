@@ -651,10 +651,7 @@ export class ReturnService {
 
     const updateData: ReturnStatusUpdatePayload = {
       status: dto.status,
-      statusHistory: [
-        ...(returnRequest.statusHistory || []),
-        historyEntry,
-      ],
+      statusHistory: [...(returnRequest.statusHistory || []), historyEntry],
     };
 
     if (dto.rejectionReason) {
@@ -1052,9 +1049,7 @@ export class ReturnService {
     // Average processing time (from creation to completion)
     const processingTimes = completedReturns
       .filter(
-        (r) =>
-          r.refundDetails?.completedAt ||
-          r.exchangeDetails?.processedAt,
+        (r) => r.refundDetails?.completedAt || r.exchangeDetails?.processedAt,
       )
       .map((r) => {
         const created = r.createdAt

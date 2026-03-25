@@ -240,10 +240,17 @@ export class OrderItemResponseDto {
 }
 
 export class ReviewPrescriptionDto {
-  @ApiProperty({ enum: [PRESCRIPTION_REVIEW_STATUS.APPROVED, PRESCRIPTION_REVIEW_STATUS.REJECTED] })
+  @ApiProperty({
+    enum: [
+      PRESCRIPTION_REVIEW_STATUS.APPROVED,
+      PRESCRIPTION_REVIEW_STATUS.REJECTED,
+    ],
+  })
   @IsString()
   @IsEnum(PRESCRIPTION_REVIEW_STATUS)
-  status: PRESCRIPTION_REVIEW_STATUS.APPROVED | PRESCRIPTION_REVIEW_STATUS.REJECTED;
+  status:
+    | PRESCRIPTION_REVIEW_STATUS.APPROVED
+    | PRESCRIPTION_REVIEW_STATUS.REJECTED;
 
   @ApiProperty({ required: false })
   @IsOptional()

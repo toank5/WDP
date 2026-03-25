@@ -651,7 +651,6 @@ export class StaffOrderController {
     // This is necessary for business operations
     return this.orderService.getOrderById(orderId);
   }
-
 }
 
 @ApiTags('Staff - Prescription & Lab Jobs')
@@ -692,7 +691,9 @@ export class StaffPrescriptionController {
   @Get('lab-jobs')
   @Roles(UserRole.OPERATION, UserRole.MANAGER, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  async getLabJobs(@Query() query: LabJobQueryDto): Promise<LabJobResponseDto[]> {
+  async getLabJobs(
+    @Query() query: LabJobQueryDto,
+  ): Promise<LabJobResponseDto[]> {
     return this.orderService.getLabJobs(query);
   }
 
