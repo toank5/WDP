@@ -20,7 +20,22 @@
       "Bash(findstr :8386)",
       "Bash(npm install:*)",
       "Bash(curl -s http://localhost:3001/manager/revenue/overview)",
-      "Read(//d/Code/Project/WP/FE/**)"
+      "Read(//d/Code/Project/WP/FE/**)",
+      "Bash(npm run:*)",
+      "Bash(taskkill /F /PID 19468)",
+      "Bash(taskkill //F //PID 19468)",
+      "Bash(ipconfig)",
+      "Bash(findstr /i \"IPv4\")",
+      "Bash(curl -s http://localhost:8386/products/catalog)",
+      "Bash(curl -s http://localhost:8386/products)",
+      "Bash(curl -s \"http://localhost:8386/products/69a559ddb06eb721c00c68d2\")",
+      "Bash(curl -s http://10.0.2.2:8386/products/69a559ddb06eb721c00c68d2)",
+      "Bash(curl -s http://localhost:8386/products/69a559ddb06eb721c00c68d2)",
+      "Bash(curl -s http://localhost:8386/products -v)",
+      "Bash(pkill -f \"node.*wdp-be\")",
+      "Bash(curl -s http://10.0.2.2:8386/products)",
+      "Bash(npx expo:*)",
+      "Bash(curl -v http://localhost:8386/products)"
     ],
     "additionalDirectories": [
       "d:\\Code\\Project\\WDP\\packages\\shared\\src",

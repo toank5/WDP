@@ -13,6 +13,7 @@ import {
   Text,
   HelperText,
   Checkbox,
+  IconButton,
   useTheme,
 } from 'react-native-paper'
 import { useAuthStore } from '../../store/auth-store'
@@ -150,8 +151,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
     }
   }
 
-  const navigateToLogin = () => {
+  const navigateBack = () => {
     navigation.goBack()
+  }
+
+  const navigateToLogin = () => {
+    navigation.navigate('Login')
   }
 
   const navigateToTerms = () => {
@@ -331,9 +336,17 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         </View>
 
         <View style={styles.footer}>
-          <Text variant="bodySmall" style={styles.footerText}>
-            {APP_CONFIG.name} © {new Date().getFullYear()}
-          </Text>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={navigateBack}
+            style={styles.backButton}
+          />
+          <View style={styles.footerContent}>
+            <Text variant="bodySmall" style={styles.footerText}>
+              {APP_CONFIG.name} © {new Date().getFullYear()}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -401,6 +414,13 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 40,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+  },
+  footerContent: {
+    paddingHorizontal: 16,
   },
   footerText: {
     opacity: 0.5,

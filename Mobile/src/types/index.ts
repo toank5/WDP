@@ -186,6 +186,7 @@ export type RootStackParamList = {
 }
 
 export type MainTabParamList = {
+  HomeTab: undefined
   Store: undefined
   Search: undefined
   Cart: undefined
