@@ -1,12 +1,11 @@
+version: '3'
 services:
   backend:
-    image: lthung0412/wdp-be:latest
-    pull_policy: always
-    container_name: wdp-backend
-    restart: unless-stopped
-    ports:
-      - "8386:8386"
-    env_file:
-      - .env.production
+    image: backend-image
     environment:
-      - MONGODB_URI_LOCAL=mongodb+srv://lamtienhung0412:GzobfYkp4hXUyqb2@cluster0.j93px.mongodb.net/wdp?retryWrites=true&w=majority&appName=Cluster0
+      - MONGODB_URI_LOCAL=
+      - OTHER_ENV_VARIABLE=value
+  frontend:
+    image: frontend-image
+    ports:
+      - "80:80"
