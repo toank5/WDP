@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Resend } from 'resend';
+import * as fs from 'fs';
+import * as path from 'path';
+import { compile } from 'handlebars';
 
 interface SendTemplateEmailOptions {
   to: string;
@@ -23,14 +26,48 @@ interface SendEmailOptions {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly resend: Resend;
   private readonly frontendUrl: string;
+  private readonly fromEmail: string;
 
   constructor(
-    private readonly mailerService: MailerService,
+    @Inject('RESEND_CLIENT') resend: Resend,
     private readonly configService: ConfigService,
   ) {
+    this.resend = resend;
     this.frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+    this.fromEmail =
+      this.configService.get<string>('RESEND_FROM_EMAIL') ||
+      'onboarding@resend.dev';
+  }
+
+  /**
+   * Compile Handlebars template
+   */
+  private compileTemplate(
+    templateName: string,
+    context: Record<string, unknown>,
+  ): string {
+    const templatePath = path.join(
+      __dirname,
+      'templates',
+      `${templateName}.hbs`,
+    );
+
+    if (!fs.existsSync(templatePath)) {
+      this.logger.error(`Template not found: ${templatePath}`);
+      throw new Error(`Template not found: ${templateName}`);
+    }
+
+    const templateContent = fs.readFileSync(templatePath, 'utf-8');
+    const template = compile(templateContent);
+
+    return template({
+      ...context,
+      frontendUrl: this.frontendUrl,
+      year: new Date().getFullYear(),
+    });
   }
 
   /**
@@ -38,17 +75,18 @@ export class EmailService {
    */
   async sendTemplateEmail(options: SendTemplateEmailOptions): Promise<void> {
     try {
-      await this.mailerService.sendMail({
+      const html = this.compileTemplate(options.template, {
+        ...options.context,
+        to: options.to,
+      });
+
+      await this.resend.emails.send({
+        from: this.fromEmail,
         to: options.to,
         subject: options.subject,
-        template: options.template,
-        context: {
-          ...options.context,
-          frontendUrl: this.frontendUrl,
-          to: options.to,
-          year: new Date().getFullYear(),
-        },
+        html,
       });
+
       this.logger.log(
         `Template email sent to ${options.to}: ${options.subject}`,
       );
@@ -66,12 +104,21 @@ export class EmailService {
    */
   async sendEmail(options: SendEmailOptions): Promise<void> {
     try {
-      await this.mailerService.sendMail({
+      const emailData: any = {
+        from: this.fromEmail,
         to: options.to,
         subject: options.subject,
-        text: options.text,
-        html: options.html,
-      });
+      };
+
+      // Only include html or text if defined (Resend requires at least one)
+      if (options.html) {
+        emailData.html = options.html;
+      } else if (options.text) {
+        emailData.text = options.text;
+      }
+
+      await this.resend.emails.send(emailData);
+
       this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
     } catch (error) {
       this.logger.error(`Failed to send email to ${options.to}:`, error);
