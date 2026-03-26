@@ -1,14 +1,15 @@
-import { useRef, useEffect, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Html, useGLTF } from '@react-three/drei';
+import { useRef, useEffect, useMemo, useState, Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import type { FaceTrackingData } from '@/types/virtual-tryon.types';
 
 interface Glasses3DOverlayProps {
   faceData: FaceTrackingData | null;
   modelUrl?: string;
   frameColor?: string;
-  mirrorMode?: boolean;
+  interactiveMode?: boolean;
 }
 
 // Demo 3D glasses model (procedural generation)
@@ -103,6 +104,9 @@ function LoadedGlassesModel({ url, frameColor }: { url: string; frameColor?: str
   const { scene } = useGLTF(url);
 
   useEffect(() => {
+    if (!scene) return;
+
+    // Apply frame color
     if (frameColor) {
       scene.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -112,9 +116,73 @@ function LoadedGlassesModel({ url, frameColor }: { url: string; frameColor?: str
         }
       });
     }
+
+    // Center and scale the model
+    const box = new THREE.Box3().setFromObject(scene);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Center the model
+    scene.position.set(-center.x, -center.y, -center.z);
+
+    // Scale to fit (glasses should be smaller for virtual try-on)
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 0.3 / maxDim;
+    scene.scale.set(scale, scale, scale);
   }, [scene, frameColor]);
 
-  return <primitive object={scene} scale={0.1} />;
+  return <primitive object={scene} />;
+}
+
+// Loaded OBJ model component
+function LoadedGlassesModelOBJ({ url, frameColor }: { url: string; frameColor?: string }) {
+  const [scene, setScene] = useState<THREE.Group | null>(null);
+
+  useEffect(() => {
+    const loader = new OBJLoader();
+    loader.load(
+      url,
+      (loadedScene) => {
+        // Apply default material with frame color
+        const defaultMaterial = new THREE.MeshStandardMaterial({
+          color: frameColor || '#333333',
+          metalness: 0.8,
+          roughness: 0.2,
+          side: THREE.DoubleSide,
+        });
+
+        loadedScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.material = defaultMaterial.clone();
+          }
+        });
+
+        // Center and scale
+        const box = new THREE.Box3().setFromObject(loadedScene);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Create container
+        const container = new THREE.Group();
+        container.add(loadedScene);
+
+        // Scale and position
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 0.3 / maxDim;
+        loadedScene.scale.set(scale, scale, scale);
+        loadedScene.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+
+        setScene(container);
+      },
+      undefined,
+      (error) => {
+        console.error('[VirtualTryOn] Error loading OBJ:', error);
+      }
+    );
+  }, [url, frameColor]);
+
+  if (!scene) return null;
+  return <primitive object={scene} />;
 }
 
 // Main scene with glasses positioned on face
@@ -122,12 +190,15 @@ function GlassesScene({
   faceData,
   modelUrl,
   frameColor,
+  interactiveMode,
 }: {
   faceData: FaceTrackingData | null;
   modelUrl?: string;
   frameColor?: string;
+  interactiveMode?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const isObj = modelUrl?.toLowerCase().endsWith('.obj');
 
   // Position glasses on face based on landmarks
   useEffect(() => {
@@ -142,16 +213,14 @@ function GlassesScene({
     const y = -(noseBridge.y - 0.5) * 2; // Flip Y
     const z = noseBridge.z * 0.5; // Scale Z for depth
 
-    groupRef.current.position.set(x, y, z);
+    // Add offset for 3D mode (negative to move left)
+    const xOffset = -0.3;
+    const finalOffset = xOffset;
 
-    // Add subtle idle animation
+    console.log('[Glasses3D] Position:', { x, y, z, xOffset, finalOffset, finalX: x + finalOffset });
+
+    groupRef.current.position.set(x + finalOffset, y, z);
   }, [faceData]);
-
-  // Subtle floating animation
-  useFrame((state) => {
-    if (!groupRef.current || !faceData) return;
-    groupRef.current.position.y += Math.sin(state.clock.elapsedTime * 0.5) * 0.0005;
-  });
 
   if (!faceData) return null;
 
@@ -163,11 +232,28 @@ function GlassesScene({
 
       <group ref={groupRef}>
         {modelUrl ? (
-          <LoadedGlassesModel url={modelUrl} frameColor={frameColor} />
+          isObj ? (
+            <Suspense fallback={null}>
+              <LoadedGlassesModelOBJ url={modelUrl} frameColor={frameColor} />
+            </Suspense>
+          ) : (
+            <LoadedGlassesModel url={modelUrl} frameColor={frameColor} />
+          )
         ) : (
           <DemoGlassesModel frameColor={frameColor} />
         )}
       </group>
+
+      {/* Enable user interaction with 3D model - only in interactive mode */}
+      <OrbitControls
+        enabled={!!interactiveMode}
+        enableDamping
+        dampingFactor={0.05}
+        rotateSpeed={0.5}
+        enableZoom={true}
+        minDistance={0.5}
+        maxDistance={3}
+      />
     </>
   );
 }
@@ -176,7 +262,7 @@ export function Glasses3DOverlay({
   faceData,
   modelUrl,
   frameColor = '#333333',
-  mirrorMode = false,
+  interactiveMode = false,
 }: Glasses3DOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -190,7 +276,7 @@ export function Glasses3DOverlay({
         left: 0,
         width: '100%',
         height: '100%',
-        pointerEvents: 'none',
+        pointerEvents: interactiveMode ? 'auto' : 'none',
         zIndex: 10,
       }}
     >
@@ -202,11 +288,8 @@ export function Glasses3DOverlay({
           antialias: true,
           powerPreference: 'high-performance',
         }}
-        style={{
-          transform: mirrorMode ? 'scaleX(-1)' : 'scaleX(1)',
-        }}
       >
-        <GlassesScene faceData={faceData} modelUrl={modelUrl} frameColor={frameColor} />
+        <GlassesScene faceData={faceData} modelUrl={modelUrl} frameColor={frameColor} interactiveMode={interactiveMode} />
       </Canvas>
     </div>
   );
@@ -216,11 +299,9 @@ export function Glasses3DOverlay({
 export function SimpleGlassesOverlay({
   faceData,
   frameColor = '#333333',
-  mirrorMode = false,
 }: {
   faceData: FaceTrackingData | null;
   frameColor?: string;
-  mirrorMode?: boolean;
 }) {
   if (!faceData) return null;
 
@@ -236,6 +317,10 @@ export function SimpleGlassesOverlay({
   const eyeDistance = Math.abs(rightEye.x - leftEye.x) * 100;
   const scale = eyeDistance * 1.8; // Scale based on eye distance
 
+  // Add horizontal offset (negative to move left)
+  const xOffset = -15;
+  const adjustedCenterX = centerX + xOffset;
+
   return (
     <svg
       style={{
@@ -246,14 +331,13 @@ export function SimpleGlassesOverlay({
         height: '100%',
         pointerEvents: 'none',
         zIndex: 10,
-        transform: mirrorMode ? 'scaleX(-1)' : 'scaleX(1)',
         transformOrigin: 'center',
       }}
       viewBox="0 0 100 100"
     >
       {/* Left lens */}
       <ellipse
-        cx={centerX - scale * 0.22}
+        cx={adjustedCenterX - scale * 0.22}
         cy={centerY}
         rx={scale * 0.15}
         ry={scale * 0.12}
@@ -265,7 +349,7 @@ export function SimpleGlassesOverlay({
 
       {/* Right lens */}
       <ellipse
-        cx={centerX + scale * 0.22}
+        cx={adjustedCenterX + scale * 0.22}
         cy={centerY}
         rx={scale * 0.15}
         ry={scale * 0.12}
@@ -277,9 +361,9 @@ export function SimpleGlassesOverlay({
 
       {/* Bridge */}
       <line
-        x1={centerX - scale * 0.07}
+        x1={adjustedCenterX - scale * 0.07}
         y1={centerY}
-        x2={centerX + scale * 0.07}
+        x2={adjustedCenterX + scale * 0.07}
         y2={centerY}
         stroke={frameColor}
         strokeWidth="0.4"
@@ -287,9 +371,9 @@ export function SimpleGlassesOverlay({
 
       {/* Left temple */}
       <line
-        x1={centerX - scale * 0.37}
+        x1={adjustedCenterX - scale * 0.37}
         y1={centerY - scale * 0.03}
-        x2={centerX - scale * 0.55}
+        x2={adjustedCenterX - scale * 0.55}
         y2={centerY - scale * 0.06}
         stroke={frameColor}
         strokeWidth="0.35"
@@ -297,9 +381,9 @@ export function SimpleGlassesOverlay({
 
       {/* Right temple */}
       <line
-        x1={centerX + scale * 0.37}
+        x1={adjustedCenterX + scale * 0.37}
         y1={centerY - scale * 0.03}
-        x2={centerX + scale * 0.55}
+        x2={adjustedCenterX + scale * 0.55}
         y2={centerY - scale * 0.06}
         stroke={frameColor}
         strokeWidth="0.35"
