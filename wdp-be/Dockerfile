@@ -19,15 +19,11 @@ RUN cd packages/shared && npm install && npm run build
 WORKDIR /app
 RUN npm install --legacy-peer-deps
 
-# Create a Docker-specific tsconfig without paths mapping
-WORKDIR /app/wdp-be
-RUN echo '{"extends":"./tsconfig.json","exclude":["node_modules","test","dist","**/*spec.ts"],"compilerOptions":{"paths":{},"outDir":"./dist"}}' > tsconfig.docker.json
-
-# Build backend using Docker-specific tsconfig (no workspace paths)
-RUN npx tsc -p tsconfig.docker.json
+# Build backend using nest CLI from root (where all dependencies are available)
+RUN cd wdp-be && npx nest build
 
 # Verify dist was created
-RUN ls -la dist/ && test -f dist/main.js
+RUN ls -la wdp-be/dist/ && test -f wdp-be/dist/main.js
 
 # Production image
 FROM node:20-alpine AS production
