@@ -1,0 +1,13 @@
+/**
+ * Policy Types Enumeration
+ */
+export enum POLICY_TYPES {
+  RETURN = 'return',
+  REFUND = 'refund',
+  WARRANTY = 'warranty',
+  SHIPPING = 'shipping',
+  PRESCRIPTION = 'prescription',
+  CANCELLATION = 'cancellation',
+  PRIVACY = 'privacy',
+  TERMS = 'terms',
+}

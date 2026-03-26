@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   FiShoppingCart,
@@ -16,6 +16,16 @@ import type { CartItem } from '@/lib/cart-api'
 import { normalizeCartItemPrice } from '@/lib/cart-api'
 import { getPrescriptionLensFee } from '@/lib/policy-api'
 import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // VND Price formatter
 const formatPrice = (price: number): string => {
@@ -47,6 +57,7 @@ const CartPage: React.FC = () => {
   const [notification, setNotification] = React.useState<string>('')
   const [updating, setUpdating] = React.useState<Set<string>>(new Set())
   const [prescriptionLensFee, setPrescriptionLensFee] = React.useState(0)
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
   const navigate = useNavigate()
 
@@ -115,9 +126,16 @@ const CartPage: React.FC = () => {
   }
 
   const handleRemove = async (itemId: string) => {
-    setUpdating((prev) => new Set(prev).add(itemId))
+    // Show confirmation dialog instead of immediately removing
+    setItemToDelete(itemId)
+  }
+
+  const confirmRemove = async () => {
+    if (!itemToDelete) return
+
+    setUpdating((prev) => new Set(prev).add(itemToDelete))
     try {
-      await removeItem(itemId)
+      await removeItem(itemToDelete)
       setNotification('Item removed from cart')
       setTimeout(() => setNotification(''), 3000)
     } catch (err) {
@@ -126,10 +144,15 @@ const CartPage: React.FC = () => {
     } finally {
       setUpdating((prev) => {
         const next = new Set(prev)
-        next.delete(itemId)
+        next.delete(itemToDelete!)
         return next
       })
+      setItemToDelete(null)
     }
+  }
+
+  const cancelRemove = () => {
+    setItemToDelete(null)
   }
 
   if (loading) {
@@ -422,6 +445,27 @@ const CartPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Remove Item Confirmation Dialog */}
+      <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Item from Cart?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this item from your cart? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelRemove}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemove}
+              className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-600"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

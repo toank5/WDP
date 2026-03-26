@@ -7,7 +7,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../../shared';
 
 export class CreateUserDto {
   @ApiProperty({

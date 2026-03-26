@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { CartItem, CartResponse } from '@/lib/cart-api'
 import { cartApi } from '@/lib/cart-api'
+import { useAuthStore } from '@/store/auth-store'
+import { UserRole } from '@/lib/enums'
 
 /**
  * Guest cart item stored in localStorage
@@ -81,7 +83,7 @@ export interface AppliedPromotion {
   value: number
   description?: string
   minOrderValue: number
-  discountAmount: number  // Stored from API validation for backend reference
+  discountAmount: number // Stored from API validation for backend reference
 }
 
 /**
@@ -196,16 +198,11 @@ export const useCartStore = create<CartState>()(
        * - If authenticated but not customer: use empty cart (non-customer roles don't have carts)
        */
       loadCart: async () => {
-        const { isAuthenticated, accessToken, user } = await import('@/store/auth-store').then(
-          (m) => m.useAuthStore.getState()
-        )
+        const { isAuthenticated, accessToken, user } = useAuthStore.getState()
 
         set({ loading: true, error: null })
 
         try {
-          // Import UserRole enum
-          const { UserRole } = await import('@/lib/enums')
-
           // Debug logging for role detection
           console.log('[CartStore] loadCart: Checking user role:', {
             isAuthenticated,
@@ -263,9 +260,7 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: save to localStorage
        */
       addItem: async (item) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
-          m.useAuthStore.getState()
-        )
+        const { isAuthenticated, accessToken } = useAuthStore.getState()
         const { items } = get()
 
         set({ loading: true, error: null })
@@ -347,9 +342,7 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: update in localStorage
        */
       updateQuantity: async (itemId, quantity) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
-          m.useAuthStore.getState()
-        )
+        const { isAuthenticated, accessToken } = useAuthStore.getState()
 
         set({ loading: true, error: null })
 
@@ -399,9 +392,7 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: remove from localStorage
        */
       removeItem: async (itemId) => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
-          m.useAuthStore.getState()
-        )
+        const { isAuthenticated, accessToken } = useAuthStore.getState()
 
         set({ loading: true, error: null })
 
@@ -443,9 +434,7 @@ export const useCartStore = create<CartState>()(
        * - If not authenticated: clear from localStorage
        */
       clearCart: async () => {
-        const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
-          m.useAuthStore.getState()
-        )
+        const { isAuthenticated, accessToken } = useAuthStore.getState()
 
         set({ loading: true, error: null })
 
@@ -526,9 +515,7 @@ export async function migrateGuestCartToUserCart(): Promise<void> {
     return
   }
 
-  const { isAuthenticated, accessToken } = await import('@/store/auth-store').then((m) =>
-    m.useAuthStore.getState()
-  )
+  const { isAuthenticated, accessToken } = useAuthStore.getState()
 
   if (!isAuthenticated || !accessToken) {
     return

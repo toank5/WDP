@@ -17,30 +17,28 @@ import {
   Switch,
   FormControlLabel,
   Grid,
+  Tooltip,
+  Fade,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   ShoppingCart as CartIcon,
   Settings as SettingsIcon,
   ViewInAr as ThreeDIcon,
+  TouchApp as TouchAppIcon,
+  ThreeDRotation as ThreeDRotationIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
 
 import { useVirtualTryOnStore } from '@/store/virtual-tryon.store';
 import { useCameraPermission } from '@/hooks/useCameraPermission';
 import { useFaceTracking } from '@/hooks/useFaceTracking';
-import { useSnapshotCapture } from '@/hooks/useSnapshotCapture';
-import { cartApi } from '@/lib/cart-api';
+import { getProductById } from '@/lib/product-api';
 import tryOnAnalytics from '@/lib/virtual-tryon-analytics';
 
 import { PermissionDialog } from './PermissionDialog';
 import { FaceGuide } from './FaceGuide';
-import { VariantCarousel } from './VariantCarousel';
-import { CaptureButton } from './CaptureButton';
-import { MirrorToggle } from './MirrorToggle';
-import { FaceShapeResult } from './FaceShapeResult';
-import { SnapshotCard } from './SnapshotCard';
-import { ShareDialog } from './ShareDialog';
 import { SimpleGlassesOverlay } from './Glasses3DOverlay';
 
 import type { ProductVariant3D, FaceTrackingData, FaceShape } from '@/types/virtual-tryon.types';
@@ -51,14 +49,14 @@ const Glasses3DOverlay = lazy(() =>
 );
 
 // Demo mode glasses overlay (simplified 2D representation)
-function DemoGlassesOverlay({ mirrorMode }: { mirrorMode: boolean }) {
+function DemoGlassesOverlay() {
   return (
     <Box
       sx={{
         position: 'absolute',
         top: '50%',
         left: '50%',
-        transform: `translate(-50%, -50%) scaleX(${mirrorMode ? -1 : 1})`,
+        transform: 'translate(-50%, -50%)',
         width: 200,
         height: 80,
         pointerEvents: 'none',
@@ -97,34 +95,20 @@ export function VirtualTryOnView() {
     currentVariantId,
     cameraPermission,
     faceDetectionState,
-    faceShape,
-    faceShapeAnalyzed,
-    faceShapeShown,
-    snapshots,
-    selectedSnapshotId,
-    mirrorMode,
-    compareMode,
     startSession,
     endSession,
     setCameraPermission,
     setIsCameraActive,
     setFaceDetectionState,
-    setFaceShape,
-    setFaceShapeShown,
-    addSnapshot,
-    removeSnapshot,
-    selectSnapshot,
-    toggleMirror,
   } = useVirtualTryOnStore();
 
   // Local state
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [selectedSnapshotForShare, setSelectedSnapshotForShare] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
   const [use3D, setUse3D] = useState(false);
   const [faceData, setFaceData] = useState<FaceTrackingData | null>(null);
+  const [product3DModel, setProduct3DModel] = useState<string | null>(null);
+  const [interactiveMode, setInteractiveMode] = useState(false);
 
   // Camera permission
   const {
@@ -153,27 +137,19 @@ export function VirtualTryOnView() {
       setFaceDetectionState('lost');
       setFaceData(null);
     }, [setFaceDetectionState]),
-    onFaceShapeDetected: useCallback((shape: FaceShape) => {
-      setFaceShape(shape);
-      tryOnAnalytics.trackFaceShapeDetected(shape, 0.9);
-    }, [setFaceShape]),
   });
 
-  // Snapshot capture
-  const { captureSnapshot } = useSnapshotCapture({
-    productId,
-    variantId: currentVariantId || variantId,
-    faceShape: faceShape || undefined,
-    mirrorMode,
-  });
-
-  // Demo variants
-  const demoVariants: ProductVariant3D[] = [
-    { id: 'v1', productId: 'p1', name: 'Silver', color: 'Silver', colorCode: '#C0C0C0', price: 189, inStock: true, thumbnail: '/images/silver-glasses.jpg' },
-    { id: 'v2', productId: 'p1', name: 'Gold', color: 'Gold', colorCode: '#FFD700', price: 189, inStock: true, thumbnail: '/images/gold-glasses.jpg' },
-    { id: 'v3', productId: 'p1', name: 'Rose Gold', color: 'Rose Gold', colorCode: '#B76E79', price: 189, inStock: true, thumbnail: '/images/rosegold-glasses.jpg' },
-    { id: 'v4', productId: 'p1', name: 'Black', color: 'Black', colorCode: '#1a1a1a', price: 189, inStock: true, thumbnail: '/images/black-glasses.jpg' },
-  ];
+  // Default variant for frame color
+  const defaultVariant: ProductVariant3D = {
+    id: 'default',
+    productId: productId || 'p1',
+    name: 'Default',
+    color: 'Black',
+    colorCode: '#333333',
+    price: 0,
+    inStock: true,
+    thumbnail: '',
+  };
 
   // Initialize session with analytics
   useEffect(() => {
@@ -190,10 +166,50 @@ export function VirtualTryOnView() {
     };
   }, [productId, variantId, startSession, endSession, stopStream, stopTracking]);
 
+  // Fetch product data and get 3D model URL
+  useEffect(() => {
+    const fetchProduct3DModel = async () => {
+      if (!productId) return;
+
+      try {
+        const product = await getProductById(productId);
+        console.log('[VirtualTryOn] Product loaded:', product);
+        console.log('[VirtualTryOn] Product images3D:', product.images3D);
+        console.log('[VirtualTryOn] Looking for variant SKU:', variantId);
+
+        // First check product-level 3D models
+        if (product.images3D && product.images3D.length > 0) {
+          console.log('[VirtualTryOn] Using product-level 3D model:', product.images3D[0]);
+          setProduct3DModel(product.images3D[0]);
+          return;
+        }
+
+        // Find the variant with matching SKU (variantId)
+        const variant = product.variants?.find((v) => v.sku === variantId);
+        console.log('[VirtualTryOn] Found variant:', variant);
+
+        if (variant?.images3D && variant.images3D.length > 0) {
+          // Use the first 3D model
+          console.log('[VirtualTryOn] Using variant 3D models:', variant.images3D[0]);
+          setProduct3DModel(variant.images3D[0]);
+        } else {
+          console.log('[VirtualTryOn] No 3D models found');
+        }
+      } catch (error) {
+        console.error('[VirtualTryOn] Failed to fetch product:', error);
+      }
+    };
+
+    fetchProduct3DModel();
+  }, [productId, variantId]);
+
   // Set up camera stream
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((err) => {
+        console.error('[VirtualTryOn] Video play failed:', err);
+      });
       setIsCameraActive(true);
 
       videoRef.current.onloadedmetadata = () => {
@@ -210,6 +226,31 @@ export function VirtualTryOnView() {
       setShowPermissionDialog(true);
     }
   }, [cameraStatus, cameraSupported]);
+
+  // Auto-request camera permission on mount when in prompt state
+  useEffect(() => {
+    if (cameraStatus === 'prompt' && !demoMode) {
+      requestPermission();
+    }
+  }, [cameraStatus, demoMode, requestPermission]);
+
+  // Esc key listener to toggle interactive mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setInteractiveMode((prev) => {
+          const newMode = !prev;
+          toast.info(newMode ? 'Interactive mode: Use mouse to rotate/zoom the 3D model. Press Esc to exit.' : 'Normal mode: Buttons enabled. Press Esc to enable 3D interaction.', {
+            duration: 3000,
+          });
+          return newMode;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Handle permission request
   const handleRequestPermission = async () => {
@@ -233,78 +274,6 @@ export function VirtualTryOnView() {
     tryOnAnalytics.trackDemoMode();
   };
 
-  // Handle variant change
-  const handleVariantChange = (newVariantId: string) => {
-    const variant = demoVariants.find((v) => v.id === newVariantId);
-    if (variant) {
-      tryOnAnalytics.trackVariantSwitch(variant);
-    }
-  };
-
-  // Handle snapshot capture
-  const handleCapture = async () => {
-    if (!videoRef.current || isCapturing) return;
-
-    setIsCapturing(true);
-
-    try {
-      const snapshot = await captureSnapshot(videoRef.current);
-      if (snapshot) {
-        addSnapshot(snapshot);
-        tryOnAnalytics.trackCapture(snapshot);
-        toast.success('Snapshot captured!', {
-          description: 'View in your gallery',
-          duration: 3000,
-        });
-      }
-    } catch (error) {
-      console.error('Capture failed:', error);
-      toast.error('Failed to capture snapshot');
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
-  // Handle add to cart
-  const handleAddToCart = async (snapshotId?: string) => {
-    const selected = snapshotId || selectedSnapshotId;
-    if (!selected) {
-      toast.error('Please select a snapshot first');
-      return;
-    }
-
-    const snapshot = snapshots.find((s) => s.id === selected);
-    if (!snapshot) return;
-
-    try {
-      await cartApi.addItem({
-        productId: snapshot.productId,
-        variantSku: snapshot.variantId,
-        quantity: 1,
-      });
-
-      tryOnAnalytics.trackAddToCart(snapshot.productId, snapshot.variantId, snapshot.id);
-
-      toast.success('Added to cart!', {
-        description: 'Continue shopping or proceed to checkout',
-        duration: 4000,
-        action: {
-          label: 'View Cart',
-          onClick: () => navigate('/cart'),
-        },
-      });
-    } catch (error) {
-      console.error('Add to cart failed:', error);
-      toast.error('Failed to add to cart');
-    }
-  };
-
-  // Handle mirror toggle with analytics
-  const handleMirrorToggle = () => {
-    toggleMirror();
-    tryOnAnalytics.trackMirrorToggle(!mirrorMode);
-  };
-
   // Handle close
   const handleClose = () => {
     stopStream();
@@ -312,19 +281,6 @@ export function VirtualTryOnView() {
     tryOnAnalytics.endSession();
     navigate(-1);
   };
-
-  // Handle share
-  const handleShare = (platform: string) => {
-    tryOnAnalytics.trackShare(platform);
-  };
-
-  // Handle view recommended styles
-  const handleViewRecommended = () => {
-    navigate(`/store?faceShape=${faceShape}`);
-  };
-
-  const currentVariant = demoVariants.find((v) => v.id === currentVariantId) || demoVariants[0];
-  const hasSnapshots = snapshots.length > 0;
 
   return (
     <Box
@@ -347,18 +303,6 @@ export function VirtualTryOnView() {
         onClose={handleClose}
       />
 
-      {/* Share Dialog */}
-      <ShareDialog
-        open={showShareDialog}
-        onClose={() => {
-          setShowShareDialog(false);
-          setSelectedSnapshotForShare(null);
-        }}
-        snapshotUrl={selectedSnapshotForShare ? snapshots.find((s) => s.id === selectedSnapshotForShare)?.imageUrl || '' : ''}
-        productName="Eyeglasses"
-        productUrl={productId ? `${window.location.origin}/product/${productId}` : undefined}
-      />
-
       {/* Top Bar */}
       <Box
         sx={{
@@ -370,7 +314,7 @@ export function VirtualTryOnView() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          zIndex: 10,
+          zIndex: 25,
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
         }}
       >
@@ -395,23 +339,54 @@ export function VirtualTryOnView() {
             </Box>}
             sx={{ ml: 1 }}
           />
-
-          {hasSnapshots && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<CartIcon />}
-              onClick={() => navigate('/cart')}
-              sx={{
-                bgcolor: 'rgba(37, 99, 235, 0.9)',
-                '&:hover': { bgcolor: 'rgba(29, 78, 216, 0.9)' },
-              }}
-            >
-              Cart
-            </Button>
-          )}
         </Box>
       </Box>
+
+      {/* Interactive Mode Indicator */}
+      <Fade in={use3D}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 70,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        >
+          <Fade in={interactiveMode}>
+            <Box
+              sx={{
+                bgcolor: interactiveMode ? 'rgba(16, 185, 129, 0.9)' : 'rgba(59, 130, 246, 0.8)',
+                color: 'white',
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}
+            >
+              {interactiveMode ? (
+                <>
+                  <ThreeDRotationIcon fontSize="small" />
+                  <Typography variant="caption" fontWeight="bold">
+                    Interactive Mode - Press Esc to exit
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <TouchAppIcon fontSize="small" />
+                  <Typography variant="caption">
+                    Press Esc to interact with 3D model
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Fade>
+        </Box>
+      </Fade>
 
       {/* Main Content */}
       <Box
@@ -465,7 +440,8 @@ export function VirtualTryOnView() {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                transform: mirrorMode ? 'scaleX(-1)' : 'scaleX(1)',
+                position: 'relative',
+                zIndex: 1,
               }}
             />
           </>
@@ -480,26 +456,18 @@ export function VirtualTryOnView() {
             {use3D && faceData ? (
               <Glasses3DOverlay
                 faceData={faceData}
-                frameColor={currentVariant.colorCode}
-                mirrorMode={mirrorMode}
+                modelUrl={product3DModel || undefined}
+                frameColor={defaultVariant.colorCode}
+                interactiveMode={interactiveMode}
               />
             ) : (
               <SimpleGlassesOverlay
                 faceData={faceData}
-                frameColor={currentVariant.colorCode}
-                mirrorMode={mirrorMode}
+                frameColor={defaultVariant.colorCode}
               />
             )}
           </Suspense>
         )}
-
-        {/* Face Shape Result */}
-        <FaceShapeResult
-          faceShape={faceShape}
-          open={faceShapeAnalyzed && !faceShapeShown}
-          onDismiss={() => setFaceShapeShown(true)}
-          onViewRecommended={handleViewRecommended}
-        />
 
         {/* Loading State */}
         {cameraStatus === 'prompt' && !demoMode && (
@@ -530,80 +498,42 @@ export function VirtualTryOnView() {
           pb: 4,
           pt: 8,
           px: 2,
+          zIndex: 20,
+          pointerEvents: interactiveMode ? 'none' : 'auto',
         }}
-      >
-        {/* Variant Carousel */}
-        <VariantCarousel
-          variants={demoVariants}
-          currentVariant={currentVariantId || variantId}
-          onChange={handleVariantChange}
-        />
+      />
 
-        {/* Capture Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <CaptureButton
-            onCapture={handleCapture}
-            disabled={isCapturing}
-            isTracking={demoMode || isTracking}
-          />
-        </Box>
-
-        {/* Mirror Toggle */}
-        <MirrorToggle enabled={mirrorMode} onChange={handleMirrorToggle} />
-
-        {/* Snapshots Gallery */}
-        {hasSnapshots && (
-          <Box
+      {/* Interactive Mode Toggle - always clickable, separate from controls */}
+      {use3D && (
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+          }}
+        >
+          <Button
+            variant={interactiveMode ? 'contained' : 'outlined'}
+            onClick={() => setInteractiveMode(!interactiveMode)}
+            startIcon={interactiveMode ? <TouchAppIcon /> : <ThreeDRotationIcon />}
             sx={{
-              mt: 3,
-              maxWidth: 600,
-              mx: 'auto',
+              bgcolor: interactiveMode ? 'rgba(16, 185, 129, 0.9)' : 'transparent',
+              borderColor: 'rgba(255, 255, 255, 0.5)',
+              color: 'white',
+              px: 3,
+              pointerEvents: 'auto',
+              '&:hover': {
+                bgcolor: interactiveMode ? 'rgba(5, 150, 105, 0.9)' : 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'white',
+              },
             }}
           >
-            <Typography variant="subtitle2" color="white" sx={{ mb: 1, textAlign: 'center' }}>
-              Your Snapshots ({snapshots.length})
-            </Typography>
-            <Grid container spacing={1}>
-              {snapshots.slice(0, 4).map((snapshot) => (
-                <Grid size={{ xs: 3 }} key={snapshot.id}>
-                  <SnapshotCard
-                    snapshot={snapshot}
-                    variantName={currentVariant.name}
-                    selected={selectedSnapshotId === snapshot.id}
-                    onSelect={() => selectSnapshot(snapshot.id)}
-                    onView={() => setSelectedSnapshotForShare(snapshot.id)}
-                    showActions={false}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-
-            {selectedSnapshotId && (
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 1 }}>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => handleAddToCart()}
-                  sx={{ bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
-                >
-                  Add Selected to Cart
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => {
-                    setSelectedSnapshotForShare(selectedSnapshotId);
-                    setShowShareDialog(true);
-                  }}
-                  sx={{ color: 'white', borderColor: 'white' }}
-                >
-                  Share
-                </Button>
-              </Box>
-            )}
-          </Box>
-        )}
-      </Box>
+            {interactiveMode ? 'Exit Interactive (Esc)' : 'Interactive Mode (Esc)'}
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }

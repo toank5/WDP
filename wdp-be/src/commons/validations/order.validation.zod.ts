@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ORDER_TYPES, ORDER_STATUS } from '@eyewear/shared';
-import { ADDRESS_TYPES } from '@eyewear/shared';
+import { ORDER_TYPES, ORDER_STATUS } from '../../shared';
+import { ADDRESS_TYPES } from '../../shared';
 
 /**
  * Payment method enum for strict validation

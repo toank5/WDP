@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
 import { Order } from '../commons/schemas/order.schema';
-import { ORDER_STATUS } from '@eyewear/shared';
+import { ORDER_STATUS } from '../shared';
 import { ReturnRequest, ReturnStatus } from '../commons/schemas/return.schema';
 
 type RevenueOrderLike = Pick<Order, 'createdAt' | 'payment'>;

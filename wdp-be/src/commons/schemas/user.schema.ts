@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../../shared';
 import { Address, AddressSchema } from './address.schema';
 import { userValidation } from 'src/commons/validations/user.validation';
 

@@ -7,7 +7,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../../shared';
 
 interface RequestWithUser {
   user?: {
@@ -70,7 +70,7 @@ export class RbacGuard implements CanActivate {
 export const Roles = (...roles: ROLES[]) => SetMetadata('roles', roles);
 
 // Re-export ROLES as UserRole for backward compatibility
-export { ROLES as UserRole } from '@eyewear/shared';
+export { ROLES as UserRole } from '../../shared';
 
 // Manager and Admin only
 export const MANAGER_OR_ADMIN = [ROLES.MANAGER, ROLES.ADMIN];

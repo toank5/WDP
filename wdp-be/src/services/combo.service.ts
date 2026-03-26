@@ -13,7 +13,7 @@ import {
   UpdateComboDto,
   ListCombosQueryDto,
 } from '../commons/dtos/combo.dto';
-import { PRODUCT_CATEGORIES } from '@eyewear/shared';
+import { PRODUCT_CATEGORIES } from '../shared';
 
 type ComboListItem = Record<string, unknown> & {
   frameName?: string;

@@ -21,7 +21,7 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@eyewear/shared": ["../packages/shared/src"]
+      "src/*": ["./src/*"]
     }
   }
 }

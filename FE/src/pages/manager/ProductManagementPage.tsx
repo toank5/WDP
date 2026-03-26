@@ -1910,7 +1910,7 @@ export function ProductManagementPage() {
                           hidden
                           type="file"
                           multiple
-                          accept=".glb,.gltf,.usdz"
+                          accept=".glb,.gltf,.obj,.usdz"
                           onChange={(e) => handleSelect3DFiles(e.target.files)}
                           disabled={isUploadingMedia || isSubmitting}
                         />
@@ -1921,7 +1921,7 @@ export function ProductManagementPage() {
                             disabled={isUploadingMedia || isSubmitting}
                             fullWidth
                           >
-                            Select 3D Models (GLB, GLTF, USDZ)
+                            Select 3D Models (GLB, OBJ, USDZ)
                           </Button>
                         </label>
                       </Box>

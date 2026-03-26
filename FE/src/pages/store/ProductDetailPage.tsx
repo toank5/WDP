@@ -7,6 +7,7 @@ import { cartApi } from '@/lib/cart-api'
 
 import { wishlistApi } from '@/lib/wishlist-api'
 import { TryOnButton } from '@/components/virtual-tryon/TryOnButton'
+import { Product3DViewer } from '@/components/product'
 import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
 import { reviewApi, type Review, type ReviewStats } from '@/lib/review-api'
 import { getActiveCombos, type Combo } from '@/lib/combo-api'
@@ -390,20 +391,10 @@ function MediaGallery({
               left: 0,
               width: '100%',
               height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
             }}
           >
-            <ThreeDIcon sx={{ fontSize: 80, color: 'white', mb: 2, animation: 'pulse 2s infinite' }} />
-            <Typography variant="h5" color="white" fontWeight={700}>
-              3D View
-            </Typography>
-            <Typography variant="body2" color="white" sx={{ opacity: 0.9, mt: 1 }}>
-              Drag to rotate • Scroll to zoom
-            </Typography>
+            <Product3DViewer modelUrl={activeMedia.url} />
           </Box>
         ) : (
           <Box

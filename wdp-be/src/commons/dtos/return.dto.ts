@@ -19,7 +19,7 @@ import {
   RETURN_TYPE as ReturnType,
   RETURN_REASON as ReturnReason,
   RETURN_ITEM_CONDITION as ReturnItemCondition,
-} from '@eyewear/shared';
+} from '../../shared';
 
 /**
  * Return Line Item DTO

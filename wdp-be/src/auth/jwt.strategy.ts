@@ -6,7 +6,7 @@ import { Model } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from 'src/commons/schemas/user.schema';
 import { JwtPayload } from 'src/commons/types/express.types';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../shared';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {

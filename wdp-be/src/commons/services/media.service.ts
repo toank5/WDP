@@ -28,8 +28,11 @@ export class MediaService {
 
   /**
    * Allowed file extensions for 3D models
+   * Note: GLB is recommended because it's a single self-contained file
+   * OBJ files are supported but may require separate MTL/material files for proper rendering
    */
-  private readonly ALLOWED_3D_EXTENSIONS = ['.glb', '.gltf', '.usdz'];
+  private readonly ALLOWED_3D_EXTENSIONS = ['.glb', '.gltf', '.obj', '.usdz'];
+  private readonly RECOMMENDED_3D_FORMAT = '.glb';
 
   /**
    * Maximum file size for 2D images (default: 10MB)
@@ -108,7 +111,18 @@ export class MediaService {
       const ext = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
       if (!this.ALLOWED_3D_EXTENSIONS.includes(ext)) {
         throw new BadRequestException(
-          `Invalid file type for "${file.originalname}". Allowed types: GLB, GLTF, USDZ`,
+          `Invalid file type for "${file.originalname}". Allowed types: GLB (recommended), GLTF, OBJ, USDZ`,
+        );
+      }
+
+      // Warn about formats that may have issues
+      if (ext === '.gltf') {
+        console.warn(
+          `⚠️ GLTF format detected for "${file.originalname}". GLTF files may not work properly because they reference external files (.bin, textures) that cannot be loaded from Cloudinary. Please use GLB format instead (single self-contained file).`,
+        );
+      } else if (ext === '.obj') {
+        console.warn(
+          `ℹ️ OBJ format detected for "${file.originalname}". OBJ files may load without materials/textures. For best results with materials, use GLB format.`,
         );
       }
 

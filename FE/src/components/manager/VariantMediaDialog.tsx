@@ -343,7 +343,7 @@ export function VariantMediaDialog({
                 <input
                   type="file"
                   hidden
-                  accept=".glb,.gltf,.usdz"
+                  accept=".glb,.gltf,.obj,.usdz"
                   multiple
                   onChange={handleAdd3DModels}
                 />

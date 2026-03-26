@@ -7,7 +7,7 @@ import {
   IsObject,
   IsEnum,
 } from 'class-validator';
-import { SHIPPING_METHOD } from '@eyewear/shared';
+import { SHIPPING_METHOD } from '../shared';
 
 /**
  * Shipping address for checkout

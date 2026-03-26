@@ -43,7 +43,7 @@ import {
   ReturnStatus,
 } from '../commons/schemas/return.schema';
 import type { ReturnPolicyConfig } from '../commons/types/policy.types';
-import { ORDER_STATUS } from '@eyewear/shared';
+import { ORDER_STATUS } from '../shared';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
 
 /**

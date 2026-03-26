@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ROLES } from '@eyewear/shared';
-import { ADDRESS_TYPES } from '@eyewear/shared';
+import { ROLES } from '../../shared';
+import { ADDRESS_TYPES } from '../../shared';
 
 const FullNameField = z
   .string()
