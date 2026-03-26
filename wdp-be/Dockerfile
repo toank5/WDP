@@ -19,9 +19,19 @@ RUN cd packages/shared && npm install && npm run build
 WORKDIR /app
 RUN npm install --legacy-peer-deps
 
-# Build backend using tsc with explicit outDir
+# Create a Docker-specific tsconfig without paths mapping
 WORKDIR /app/wdp-be
-RUN npx tsc -p tsconfig.build.json --outDir ./dist
+RUN echo '{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"],
+  "compilerOptions": {
+    "paths": {},
+    "outDir": "./dist"
+  }
+}' > tsconfig.docker.json
+
+# Build backend using Docker-specific tsconfig (no workspace paths)
+RUN npx tsc -p tsconfig.docker.json
 
 # Verify dist was created
 RUN ls -la dist/ && test -f dist/main.js
