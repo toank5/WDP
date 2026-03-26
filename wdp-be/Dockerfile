@@ -1,62 +1,39 @@
-# Simple build for NestJS backend
+# Build for NestJS backend
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies for native modules (bcrypt)
 RUN apk add --no-cache python3 make g++ tzdata
-ENV TZ=Asia/Ho_Chi_Minh
+ENV TZ=Asia_Ho_Chi_Minh
 
-# Copy shared package first (needed for file: dependency)
-COPY packages/shared ./packages/shared
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/shared/src ./packages/shared/src
-
-# Build shared package
-RUN cd packages/shared && npm install && npm run build
-
-# Copy backend source and configs
+# Copy backend source
 COPY wdp-be/package*.json ./
 COPY wdp-be/tsconfig*.json ./
 COPY wdp-be/src ./src
 
-# Install backend dependencies
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Override tsconfig.build.json with correct paths for Docker
-RUN echo '{"extends":"./tsconfig.json","exclude":["node_modules","test","dist","**/*spec.ts"],"compilerOptions":{"paths":{"@eyewear/shared":["./packages/shared/dist/types"],"src/*":["./src/*"]},"outDir":"./dist","baseUrl":"./"}}' > tsconfig.build.json
-
-# Build using tsc
-RUN npx tsc -p tsconfig.build.json
-
-# Check where main.js is
-RUN find dist -name "main.js"
+# Build with Nest CLI (standard tsc build)
+RUN npx nest build
 
 # Production image
 FROM node:20-alpine
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache python3 make g++ tzdata
-ENV TZ=Asia/Ho_Chi_Minh
+# Install runtime dependencies for native modules
+RUN apk add --no-cache tzdata
+ENV TZ=Asia_Ho_Chi_Minh
 
-# Copy package files and tsconfig
+# Copy package files
 COPY wdp-be/package*.json ./
-COPY wdp-be/tsconfig.json ./
 
 # Install production dependencies
 RUN npm install --production --legacy-peer-deps
 
-# Copy shared package
-COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
-
 # Copy built backend
 COPY --from=builder /app/dist ./dist
-
-# Install tsconfig-paths for runtime
-RUN npm install tsconfig-paths
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -67,4 +44,5 @@ USER nestjs
 # Expose port
 EXPOSE 8386
 
-CMD ["node", "-r", "tsconfig-paths/register", "dist/main.js"]
+# Run the application
+CMD ["node", "dist/main.js"]

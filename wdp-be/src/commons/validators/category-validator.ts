@@ -5,7 +5,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { PRODUCT_CATEGORIES } from '@eyewear/shared';
+import { PRODUCT_CATEGORIES } from '../../shared';
 
 interface CreateProductDtoShape {
   category?: PRODUCT_CATEGORIES;

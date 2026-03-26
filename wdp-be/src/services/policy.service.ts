@@ -7,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Policy, PolicyDocument } from '../commons/schemas/policy.schema';
-import { POLICY_TYPES, PolicyType } from '@eyewear/shared';
+import { POLICY_TYPES, PolicyType } from '../shared';
 import { PolicyConfig } from '../commons/types/policy.types';
 import {
   validateConfigForType,

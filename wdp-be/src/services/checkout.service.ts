@@ -19,7 +19,7 @@ import {
   PRESCRIPTION_REVIEW_STATUS,
   POLICY_TYPES,
   SHIPPING_METHOD,
-} from '@eyewear/shared';
+} from '../shared';
 import {
   CreateCheckoutDto,
   CheckoutCalculation,

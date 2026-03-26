@@ -33,8 +33,8 @@ import { PolicyService } from './policy.service';
 import { Policy } from '../commons/schemas/policy.schema';
 import { Order } from '../commons/schemas/order.schema';
 import { User } from '../commons/schemas/user.schema';
-import { ORDER_STATUS, ORDER_TYPES, ROLES } from '@eyewear/shared';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { ORDER_STATUS, ORDER_TYPES, ROLES } from '../shared';
+import { POLICY_TYPES } from '../shared';
 import {
   InventoryMovement,
   MovementType,

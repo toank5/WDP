@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { ORDER_STATUS } from '@eyewear/shared';
+import { ORDER_STATUS } from '../../shared';
 
 @Schema({ _id: false })
 export class OrderHistory {

@@ -21,5 +21,8 @@
     "vercel:deploy:fe:prod": "npx vercel --prod --yes",
     "vercel:deploy:fe:exact": "npx vercel --prod --yes",
     "deploy:all": "npm run docker:deploy:be && npm run vercel:deploy:fe:prod"
+  },
+  "dependencies": {
+    "rxjs": "^7.8.2"
   }
 }

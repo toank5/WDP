@@ -51,7 +51,7 @@ import {
   VNPayCallbackParamsDto,
   VNPayVerificationResultDto,
 } from '../dtos/vnpay.dto';
-import { ORDER_STATUS } from '@eyewear/shared';
+import { ORDER_STATUS } from '../shared';
 import type { AuthenticatedRequest } from '../commons/types/express.types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';

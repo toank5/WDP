@@ -1,6 +1,6 @@
 import { IsEnum, IsObject, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { POLICY_TYPES } from '../../shared';
 import type { PolicyConfig } from '../types/policy.types';
 
 export class CreatePolicyDto {

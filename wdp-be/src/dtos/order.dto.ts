@@ -17,7 +17,7 @@ import {
   ORDER_STATUS,
   PRESCRIPTION_REVIEW_STATUS,
   LAB_JOB_STATUS,
-} from '@eyewear/shared';
+} from '../shared';
 
 /**
  * Shipping address DTO

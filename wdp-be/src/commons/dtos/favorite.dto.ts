@@ -7,7 +7,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PRODUCT_CATEGORIES } from '@eyewear/shared';
+import { PRODUCT_CATEGORIES } from '../../shared';
 
 /**
  * Request to add item to favorites

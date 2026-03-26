@@ -17,7 +17,7 @@ import {
 import { InventoryService } from './inventory.service';
 import { ComboService } from './combo.service';
 import { PolicyService } from './policy.service';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { POLICY_TYPES } from '../shared';
 
 // Type for cart document with Mongoose methods
 type CartDocument = HydratedDocument<Cart>;

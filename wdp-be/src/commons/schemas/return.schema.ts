@@ -8,7 +8,7 @@ import {
   RETURN_ITEM_CONDITION as ReturnItemCondition,
   RETURN_REASON as ReturnReason,
   RETURN_TYPE as ReturnType,
-} from '@eyewear/shared';
+} from '../../shared';
 
 // Re-export enums for backward compatibility
 export {

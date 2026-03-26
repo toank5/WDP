@@ -10,12 +10,12 @@ import { Inventory } from '../commons/schemas/inventory.schema';
 import { Product } from '../commons/schemas/product.schema';
 import { Supplier } from '../commons/schemas/supplier.schema';
 import { Order } from '../commons/schemas/order.schema';
-import { ORDER_STATUS, PRODUCT_CATEGORIES } from '@eyewear/shared';
+import { ORDER_STATUS, PRODUCT_CATEGORIES } from '../shared';
 import {
   InventoryMovement,
   MovementType,
 } from '../commons/schemas/inventory-movement.schema';
-import { PREORDER_STATUS } from '@eyewear/shared';
+import { PREORDER_STATUS } from '../shared';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,

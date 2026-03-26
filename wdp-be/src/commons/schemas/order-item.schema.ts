@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { PREORDER_STATUS, PRESCRIPTION_REVIEW_STATUS } from '@eyewear/shared';
+import { PREORDER_STATUS, PRESCRIPTION_REVIEW_STATUS } from '../../shared';
 import { TypedPrescription, TypedPrescriptionSchema } from './cart-item.schema';
 
 @Schema({ _id: false })

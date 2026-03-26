@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
-import { LAB_JOB_STATUS } from '@eyewear/shared';
+import { LAB_JOB_STATUS } from '../../shared';
 import { EyePrescription, EyePrescriptionSchema } from './cart-item.schema';
 
 @Schema({ timestamps: true })

@@ -13,7 +13,7 @@ import {
   ReviewStatsDto,
   AddReviewResponseDto,
 } from '../dtos/review.dto';
-import { ORDER_STATUS } from '@eyewear/shared';
+import { ORDER_STATUS } from '../shared';
 import { Order } from '../commons/schemas/order.schema';
 
 type ReviewQuery = {
