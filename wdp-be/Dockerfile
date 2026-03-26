@@ -19,9 +19,9 @@ RUN cd packages/shared && npm install && npm run build
 WORKDIR /app
 RUN npm install --legacy-peer-deps
 
-# Build backend using tsc directly (avoids nest build webpack issues)
+# Build backend using tsc with explicit outDir
 WORKDIR /app/wdp-be
-RUN npx tsc -p tsconfig.build.json
+RUN npx tsc -p tsconfig.build.json --outDir ./dist
 
 # Verify dist was created
 RUN ls -la dist/ && test -f dist/main.js
