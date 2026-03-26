@@ -1,53 +1,54 @@
-# Multi-stage build for NestJS backend
+# Simple build for NestJS backend
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build dependencies for bcrypt
+# Install build dependencies
 RUN apk add --no-cache python3 make g++ tzdata
 ENV TZ=Asia/Ho_Chi_Minh
 
-# Copy all source code
-COPY packages/shared ./packages/shared
-COPY wdp-be ./wdp-be
-COPY package*.json ./
+# Copy backend source
+COPY wdp-be/package*.json ./
+COPY wdp-be/tsconfig*.json ./
+COPY wdp-be/src ./src
 
-# Build shared package first
+# Copy shared package (for file: dependency)
+COPY packages/shared ./packages/shared
+COPY packages/shared/package*.json ./packages/shared/
+
+# Install shared dependencies and build
 RUN cd packages/shared && npm install && npm run build
 
-# Install backend dependencies from root (workspaces will handle linking)
-WORKDIR /app
+# Install backend dependencies
 RUN npm install --legacy-peer-deps
 
-# Build backend using nest CLI from root node_modules
-RUN ./node_modules/.bin/nest build --project ./wdp-be
-
-# Verify dist was created
-RUN ls -la wdp-be/dist/ && test -f wdp-be/dist/main.js
+# Build using tsc with tsconfig-paths to handle src/ imports
+RUN npx -y tsc -p tsconfig.build.json
 
 # Production image
-FROM node:20-alpine AS production
+FROM node:20-alpine
 WORKDIR /app
 
-# Install bcrypt runtime dependencies
+# Install runtime dependencies
 RUN apk add --no-cache python3 make g++ tzdata
 ENV TZ=Asia/Ho_Chi_Minh
 
-# Copy only backend package.json (no workspace complexity)
+# Copy package files
 COPY wdp-be/package*.json ./
 
-# Install all dependencies
-RUN npm install --legacy-peer-deps
+# Install production dependencies
+RUN npm ci --production --legacy-peer-deps
 
-# Copy built shared package and its dependencies
+# Copy shared package
 COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
 
-# Copy built application
-COPY --from=builder /app/wdp-be/dist ./dist
+# Copy built backend
+COPY --from=builder /app/dist ./dist
 
-# Verify dist was copied
-RUN ls -la dist/ && test -f dist/main.js
+# Install tsconfig-paths for runtime path resolution
+RUN npm install tsconfig-paths
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -58,8 +59,5 @@ USER nestjs
 # Expose port
 EXPOSE 8386
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8386/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-CMD ["node", "dist/main"]
+# Use node -r to register tsconfig-paths for src/ imports
+CMD ["node", "-r", "tsconfig-paths/register", "dist/main"]
