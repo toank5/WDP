@@ -7,23 +7,30 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ tzdata
 ENV TZ=Asia/Ho_Chi_Minh
 
-# Copy backend source
+# Copy shared package first (needed for file: dependency)
+COPY packages/shared ./packages/shared
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/shared/src ./packages/shared/src
+
+# Build shared package
+RUN cd packages/shared && npm install && npm run build
+
+# Copy backend source and configs
 COPY wdp-be/package*.json ./
 COPY wdp-be/tsconfig*.json ./
 COPY wdp-be/src ./src
 
-# Copy shared package (for file: dependency)
-COPY packages/shared ./packages/shared
-COPY packages/shared/package*.json ./packages/shared/
-
-# Install shared dependencies and build
-RUN cd packages/shared && npm install && npm run build
-
 # Install backend dependencies
 RUN npm install --legacy-peer-deps
 
-# Build using tsc with tsconfig-paths to handle src/ imports
-RUN npx -y tsc -p tsconfig.build.json
+# Override tsconfig.build.json with correct paths for Docker
+RUN echo '{"extends":"./tsconfig.json","exclude":["node_modules","test","dist","**/*spec.ts"],"compilerOptions":{"paths":{"@eyewear/shared":["./packages/shared/dist/types"],"src/*":["./src/*"]},"outDir":"./dist","baseUrl":"./"}}' > tsconfig.build.json
+
+# Build using tsc
+RUN npx tsc -p tsconfig.build.json
+
+# Check where main.js is
+RUN find dist -name "main.js"
 
 # Production image
 FROM node:20-alpine
@@ -33,11 +40,12 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ tzdata
 ENV TZ=Asia/Ho_Chi_Minh
 
-# Copy package files
+# Copy package files and tsconfig
 COPY wdp-be/package*.json ./
+COPY wdp-be/tsconfig.json ./
 
 # Install production dependencies
-RUN npm ci --production --legacy-peer-deps
+RUN npm install --production --legacy-peer-deps
 
 # Copy shared package
 COPY --from=builder /app/packages/shared ./packages/shared
@@ -47,7 +55,7 @@ COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_mod
 # Copy built backend
 COPY --from=builder /app/dist ./dist
 
-# Install tsconfig-paths for runtime path resolution
+# Install tsconfig-paths for runtime
 RUN npm install tsconfig-paths
 
 # Create non-root user
@@ -59,5 +67,4 @@ USER nestjs
 # Expose port
 EXPOSE 8386
 
-# Use node -r to register tsconfig-paths for src/ imports
-CMD ["node", "-r", "tsconfig-paths/register", "dist/main"]
+CMD ["node", "-r", "tsconfig-paths/register", "dist/main.js"]
