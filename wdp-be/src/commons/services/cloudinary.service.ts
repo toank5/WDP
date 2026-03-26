@@ -17,21 +17,38 @@ export class CloudinaryService {
     folder: string = 'products',
   ): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Determine resource type based on file extension
+      const ext = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
+      const is3DModel = ['.glb', '.gltf', '.obj', '.usdz'].includes(ext);
+
+      // Get filename without extension for public_id
+      const fileNameWithoutExt = file.originalname.replace(/\.[^/.]+$/, '');
+      // Generate unique public_id with timestamp to avoid conflicts
+      const timestamp = Date.now();
+      const publicId = is3DModel
+        ? `${fileNameWithoutExt}-${timestamp}`
+        : undefined;
+
+      // Build upload options
+      // Note: 3D models (GLB/GLTF/OBJ/USDZ) use 'raw' resource type in Cloudinary
+      const uploadOptions: Record<string, unknown> = {
+        folder,
+        resource_type: is3DModel ? 'raw' : 'auto', // 3D models use 'raw' resource type
+        chunk_size: 6000000, // 6MB chunks for large files
+        // For 3D models: use filename as public_id to preserve extension in URL
+        public_id: publicId,
+        // For 3D models: use original filename to get extension in URL
+        use_filename: is3DModel,
+        filename_override: is3DModel ? file.originalname : undefined,
+      };
+
+      // Only apply allowed_formats for 2D images (not for 3D models)
+      if (!is3DModel) {
+        uploadOptions.allowed_formats = ['jpg', 'jpeg', 'png', 'webp'];
+      }
+
       const stream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          resource_type: 'auto',
-          chunk_size: 6000000, // 6MB chunks for large files
-          allowed_formats: [
-            'jpg',
-            'jpeg',
-            'png',
-            'webp',
-            'glb',
-            'gltf',
-            'usdz',
-          ],
-        },
+        uploadOptions,
         (error, result) => {
           if (error) {
             reject(new Error(error.message || 'Upload failed'));

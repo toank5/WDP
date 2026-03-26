@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { FaceTrackingData } from '@/types/virtual-tryon.types';
@@ -13,20 +13,17 @@ interface Glasses3DOverlayProps {
 
 // Demo 3D glasses model (procedural generation)
 function DemoGlassesModel({ frameColor = '#333333' }: { frameColor?: string }) {
-  const meshRef = useRef<THREE.Group>(null);
+  const glassesGroup = useMemo(() => {
+    const group = new THREE.Group();
 
-  // Materials
-  const frameMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({
+    // Materials
+    const frameMaterial = new THREE.MeshStandardMaterial({
       color: frameColor,
       metalness: 0.8,
       roughness: 0.2,
-    }),
-    [frameColor]
-  );
+    });
 
-  const lensMaterial = useMemo(
-    () => new THREE.MeshPhysicalMaterial({
+    const lensMaterial = new THREE.MeshPhysicalMaterial({
       color: 0x87ceeb,
       metalness: 0,
       roughness: 0,
@@ -34,48 +31,71 @@ function DemoGlassesModel({ frameColor = '#333333' }: { frameColor?: string }) {
       thickness: 0.5,
       transparent: true,
       opacity: 0.6,
-    }),
-    []
-  );
+    });
 
-  return (
-    <group ref={meshRef}>
-      {/* Left Frame */}
-      <mesh position={[-0.06, 0, 0]} material={frameMaterial}>
-        <torusGeometry args={[0.04, 0.003, 16, 32]} />
-      </mesh>
+    // Left Frame
+    const leftFrame = new THREE.Mesh(
+      new THREE.TorusGeometry(0.04, 0.003, 16, 32),
+      frameMaterial
+    );
+    leftFrame.position.set(-0.06, 0, 0);
+    group.add(leftFrame);
 
-      {/* Left Lens */}
-      <mesh position={[-0.06, 0, 0.002]} rotation={[0, 0, 0]} material={lensMaterial}>
-        <circleGeometry args={[0.038, 32]} />
-      </mesh>
+    // Left Lens
+    const leftLens = new THREE.Mesh(
+      new THREE.CircleGeometry(0.038, 32),
+      lensMaterial
+    );
+    leftLens.position.set(-0.06, 0, 0.002);
+    group.add(leftLens);
 
-      {/* Right Frame */}
-      <mesh position={[0.06, 0, 0]} material={frameMaterial}>
-        <torusGeometry args={[0.04, 0.003, 16, 32]} />
-      </mesh>
+    // Right Frame
+    const rightFrame = new THREE.Mesh(
+      new THREE.TorusGeometry(0.04, 0.003, 16, 32),
+      frameMaterial
+    );
+    rightFrame.position.set(0.06, 0, 0);
+    group.add(rightFrame);
 
-      {/* Right Lens */}
-      <mesh position={[0.06, 0, 0.002]} rotation={[0, 0, 0]} material={lensMaterial}>
-        <circleGeometry args={[0.038, 32]} />
-      </mesh>
+    // Right Lens
+    const rightLens = new THREE.Mesh(
+      new THREE.CircleGeometry(0.038, 32),
+      lensMaterial
+    );
+    rightLens.position.set(0.06, 0, 0.002);
+    group.add(rightLens);
 
-      {/* Bridge */}
-      <mesh position={[0, 0.02, 0]} rotation={[0, 0, Math.PI / 2]} material={frameMaterial}>
-        <capsuleGeometry args={[0.003, 0.02, 8, 16]} />
-      </mesh>
+    // Bridge
+    const bridge = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.003, 0.02, 8, 16),
+      frameMaterial
+    );
+    bridge.position.set(0, 0.02, 0);
+    bridge.rotation.z = Math.PI / 2;
+    group.add(bridge);
 
-      {/* Left Temple */}
-      <mesh position={[-0.1, 0, 0]} rotation={[0, 0, Math.PI / 6]} material={frameMaterial}>
-        <capsuleGeometry args={[0.003, 0.08, 8, 16]} />
-      </mesh>
+    // Left Temple
+    const leftTemple = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.003, 0.08, 8, 16),
+      frameMaterial
+    );
+    leftTemple.position.set(-0.1, 0, 0);
+    leftTemple.rotation.z = Math.PI / 6;
+    group.add(leftTemple);
 
-      {/* Right Temple */}
-      <mesh position={[0.1, 0, 0]} rotation={[0, 0, -Math.PI / 6]} material={frameMaterial}>
-        <capsuleGeometry args={[0.003, 0.08, 8, 16]} />
-      </mesh>
-    </group>
-  );
+    // Right Temple
+    const rightTemple = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.003, 0.08, 8, 16),
+      frameMaterial
+    );
+    rightTemple.position.set(0.1, 0, 0);
+    rightTemple.rotation.z = -Math.PI / 6;
+    group.add(rightTemple);
+
+    return group;
+  }, [frameColor]);
+
+  return <primitive object={glassesGroup} />;
 }
 
 // Loaded GLB model component

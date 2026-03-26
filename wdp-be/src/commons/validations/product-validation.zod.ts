@@ -124,6 +124,7 @@ export const createProductSchema = z.discriminatedUnion('category', [
  */
 export const updateProductSchema = z
   .object({
+    category: z.nativeEnum(PRODUCT_CATEGORIES).optional(),
     name: z
       .string()
       .min(3, 'Product name must be at least 3 characters')

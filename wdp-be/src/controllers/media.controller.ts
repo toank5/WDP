@@ -132,17 +132,25 @@ export class MediaController {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const ext = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
-        const allowedExt = ['.glb', '.gltf', '.usdz'];
+        const allowedExt = ['.glb', '.gltf', '.obj', '.usdz'];
 
         // Check file extension for 3D models
         if (!allowedExt.includes(ext)) {
           return cb(
             new BadRequestException(
-              'Only 3D model files are allowed (.glb, .gltf, .usdz)',
+              'Only 3D model files are allowed (.glb recommended, .gltf, .obj, .usdz)',
             ),
             false,
           );
         }
+
+        // Warn if using GLTF (not self-contained)
+        if (ext === '.gltf') {
+          console.warn(`[Media Controller] GLTF file detected: ${file.originalname}. GLTF format may not work properly - please use GLB format instead.`);
+        } else if (ext === '.obj') {
+          console.log(`[Media Controller] OBJ file detected: ${file.originalname}. Note: Materials/textures may not load without MTL files.`);
+        }
+
         cb(null, true);
       },
       limits: {
@@ -154,11 +162,11 @@ export class MediaController {
   @ApiOperation({
     summary: 'Upload 3D product models',
     description:
-      'Upload up to 5 3D model files (.glb, .gltf, .usdz) and get their Cloudinary URLs.',
+      'Upload up to 5 3D model files (.glb recommended, .obj, .gltf, .usdz) and get their Cloudinary URLs. Note: GLB format is strongly recommended as it is a single self-contained file with materials and textures. OBJ files are supported but may load without materials/textures. GLTF files may not render properly because they reference external resources (.bin, textures) that cannot be loaded from Cloudinary.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'Up to 5 3D model files (.glb, .gltf, .usdz, max 10MB each)',
+    description: 'Up to 5 3D model files (.glb recommended, .obj supported, max 10MB each)',
     schema: {
       type: 'object',
       properties: {

@@ -126,6 +126,13 @@ export function InventoryDetailPage() {
     setSnackbar({ open: true, message, severity })
   }, [])
 
+  // Helper to determine if movement is outgoing (should show negative)
+  // Outgoing movements: confirmed (sales), STOCK_OUT, SCRAP, RESERVATION
+  const isOutgoingMovement = useCallback((movement: InventoryMovement) => {
+    const outgoingTypes = ['confirmed', 'STOCK_OUT', 'SCRAP', 'RESERVATION']
+    return outgoingTypes.includes(movement.movementType)
+  }, [])
+
   // Load inventory
   const loadInventory = useCallback(async () => {
     if (!sku) return
@@ -748,9 +755,9 @@ export function InventoryDetailPage() {
                                 label={movement.movementType.toUpperCase()}
                                 size="small"
                                 color={
-                                  movement.quantity > 0
-                                    ? 'success'
-                                    : 'error'
+                                  isOutgoingMovement(movement)
+                                    ? 'error'
+                                    : 'default'
                                 }
                                 variant="outlined"
                               />
@@ -759,9 +766,9 @@ export function InventoryDetailPage() {
                               <Typography
                                 variant="body2"
                                 fontWeight={600}
-                                color={movement.quantity > 0 ? 'success.main' : 'error.main'}
+                                color={isOutgoingMovement(movement) ? 'error.main' : 'success.main'}
                               >
-                                {movement.quantity > 0 ? '+' : ''}{movement.quantity}
+                                {isOutgoingMovement(movement) ? '-' : '+'}{movement.quantity}
                               </Typography>
                             </TableCell>
                             <TableCell align="right">

@@ -828,6 +828,15 @@ export class UpdateProductDto {
   name?: string;
 
   @ApiPropertyOptional({
+    description: 'Product category',
+    enum: PRODUCT_CATEGORIES,
+    example: PRODUCT_CATEGORIES.FRAMES,
+  })
+  @IsOptional()
+  @IsEnum(PRODUCT_CATEGORIES)
+  category?: PRODUCT_CATEGORIES;
+
+  @ApiPropertyOptional({
     description: 'Product description',
     example: 'Updated product description',
     maxLength: 2000,
