@@ -251,7 +251,7 @@ export class PolicyController {
     @Body(new ZodValidationPipe(CreatePolicySchema)) payload: CreatePolicyInput,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.policyService.create(payload, req.user!.id);
+    return this.policyService.create(payload, req.user.id);
   }
 
   @Patch(':id')

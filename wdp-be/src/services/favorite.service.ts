@@ -25,7 +25,15 @@ type FavoriteVariantSummary = Pick<
 
 type PopulatedFavoriteProduct = Pick<
   Product,
-  '_id' | 'name' | 'category' | 'slug' | 'basePrice' | 'images2D' | 'images3D' | 'isActive' | 'variants'
+  | '_id'
+  | 'name'
+  | 'category'
+  | 'slug'
+  | 'basePrice'
+  | 'images2D'
+  | 'images3D'
+  | 'isActive'
+  | 'variants'
 >;
 
 type PopulatedFavoriteVariant = Pick<
@@ -58,13 +66,13 @@ export class FavoriteService {
    * Get all favorites for a user with populated product details
    */
   async getUserFavorites(userId: string): Promise<FavoritesListResponseDto> {
-    const favorites = await this.favoriteModel
+    const favorites = (await this.favoriteModel
       .find({ userId: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
       .populate('productId')
       .populate('variantId')
       .lean()
-      .exec() as FavoriteLeanDocument[];
+      .exec()) as FavoriteLeanDocument[];
 
     const items: FavoriteItemDto[] = [];
     let activeCount = 0;
@@ -135,11 +143,11 @@ export class FavoriteService {
     await favorite.save();
 
     // Fetch the created favorite with populated data
-    const created = await this.favoriteModel
+    const created = (await this.favoriteModel
       .findById(favorite._id)
       .populate('productId')
       .populate('variantId')
-      .lean() as FavoriteLeanDocument | null;
+      .lean()) as FavoriteLeanDocument | null;
 
     if (!created) {
       return {
@@ -355,7 +363,11 @@ export class FavoriteService {
   private asPopulatedProduct(
     product: FavoriteLeanDocument['productId'],
   ): PopulatedFavoriteProduct | null {
-    if (!product || product instanceof Types.ObjectId || typeof product === 'string') {
+    if (
+      !product ||
+      product instanceof Types.ObjectId ||
+      typeof product === 'string'
+    ) {
       return null;
     }
 
@@ -365,7 +377,11 @@ export class FavoriteService {
   private asPopulatedVariant(
     variant: FavoriteLeanDocument['variantId'],
   ): PopulatedFavoriteVariant | undefined {
-    if (!variant || variant instanceof Types.ObjectId || typeof variant === 'string') {
+    if (
+      !variant ||
+      variant instanceof Types.ObjectId ||
+      typeof variant === 'string'
+    ) {
       return undefined;
     }
 
