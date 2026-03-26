@@ -19,8 +19,8 @@ RUN cd packages/shared && npm install && npm run build
 WORKDIR /app
 RUN npm install --legacy-peer-deps
 
-# Build backend using nest CLI from root (where all dependencies are available)
-RUN cd wdp-be && npx nest build
+# Build backend using nest CLI from root node_modules
+RUN ./node_modules/.bin/nest build --project ./wdp-be
 
 # Verify dist was created
 RUN ls -la wdp-be/dist/ && test -f wdp-be/dist/main.js
