@@ -1,0 +1,72 @@
+@startuml RegisterSequence
+title User Registration - Sequence Diagram
+
+actor ":User" as user
+participant ":AuthController" as controller
+participant ":AuthService" as authService
+participant ":UserService" as userService
+participant ":EmailService" as emailService
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+user -> controller: POST /auth/register\n(RegisterUserDto)
+activate controller
+
+controller -> authService: register(registerDto)
+activate authService
+
+authService -> userRepo: findByEmail(email)
+activate userRepo
+userRepo -> db: SELECT user\nWHERE email = email
+db --> userRepo: null / User
+userRepo --> authService: result
+deactivate userRepo
+
+alt [Email already exists]
+    authService --> controller: 409 CONFLICT\n(Email already registered)
+else [Email available]
+    authService -> authService: validatePasswordStrength(password)
+    authService -> authService: hashPassword(password)
+
+    authService -> db: TRANSACTION START
+    activate db
+
+    authService -> userRepo: create(userData)
+    activate userRepo
+    userRepo -> db: INSERT user\nSET email, passwordHash,\nstatus = 'UNVERIFIED',\nrole = 'CUSTOMER'
+    db --> userRepo: User
+    userRepo --> authService: User
+    deactivate userRepo
+
+    authService -> authService: generateVerificationToken()
+    authService -> userRepo: save(user)
+    activate userRepo
+    userRepo -> db: UPDATE user\nSET verificationToken = token,\nverificationExpires = NOW() + 24h
+    db --> userRepo: Updated
+    userRepo --> authService: Updated
+    deactivate userRepo
+
+    authService -> db: COMMIT
+    deactivate db
+
+    authService -> emailService: sendVerificationEmail(user)
+    activate emailService
+    emailService -> emailService: Build verification email\nwith token link
+    emailService -> emailService: Send via SMTP
+    emailService --> authService: Sent
+    deactivate emailService
+
+    authService --> controller: 201 CREATED\n{message: 'Verification email sent'}
+end
+
+controller --> user: 201 CREATED\nPlease check your email\nto verify your account
+deactivate controller
+
+note right of user
+  Verification link valid for 24 hours
+  Resend option available
+  Login restricted until verified
+  Role: CUSTOMER (default)
+end note
+
+@enduml

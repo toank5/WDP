@@ -1,0 +1,121 @@
+@startuml OrderCheckoutSequence
+title Order Checkout - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":OrderController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":CheckoutService" as checkoutService
+participant ":CartService" as cartService
+participant ":InventoryService" as inventoryService
+participant ":VNPayService" as vnpayService
+participant ":OrderRepository" as orderRepo
+database ":Database" as db
+
+customer -> controller: POST /orders/checkout\n(CheckoutRequestDto)
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> checkoutService: checkout(userId, checkoutDto)
+activate checkoutService
+
+checkoutService -> cartService: getCart(userId)
+activate cartService
+cartService -> db: SELECT cart with items
+db --> cartService: Cart with items
+cartService --> checkoutService: Cart
+deactivate cartService
+
+alt [Cart is empty]
+    checkoutService --> controller: 400 BAD REQUEST\n(Cart is empty)
+else [Cart has items]
+    checkoutService -> inventoryService: reserveItems(cartItems)
+    activate inventoryService
+
+    inventoryService -> db: SELECT inventory levels
+    db --> inventoryService: Stock data
+    inventoryService -> inventoryService: Check availability
+
+    alt [Insufficient stock]
+        inventoryService --> checkoutService: Insufficient stock error
+        checkoutService --> controller: 400 BAD REQUEST\n(Insufficient stock)
+    else [Stock available]
+        inventoryService -> db: UPDATE inventory\n(reserve quantities)
+        inventoryService -> db: INSERT inventory movements
+        db --> inventoryService: Reserved
+        inventoryService --> checkoutService: Reservation confirmed
+    end
+    deactivate inventoryService
+
+    alt [Reservation failed]
+        checkoutService --> controller: 409 CONFLICT\n(Reservation failed)
+    else [Reservation successful]
+        checkoutService -> checkoutService: calculateTotal(cartItems)
+
+        alt [Preorder items]
+            checkoutService -> checkoutService: setOrderType(PREORDER)
+            checkoutService -> checkoutService: calculatePreorderDeliveryDate()
+        else [Ready stock + Exchange]
+            checkoutService -> checkoutService: setOrderType(READY/EXCHANGE)
+        end
+
+        checkoutService -> db: TRANSACTION START
+        activate db
+
+        checkoutService -> orderRepo: createOrder(orderData)
+        activate orderRepo
+        orderRepo -> db: INSERT order
+        db --> orderRepo: Order
+        orderRepo --> checkoutService: Order
+        deactivate orderRepo
+
+        checkoutService -> orderRepo: createOrderItems(orderId, items)
+        activate orderRepo
+        orderRepo -> db: INSERT order_items
+        db --> orderRepo: OrderItems
+        orderRepo --> checkoutService: OrderItems
+        deactivate orderRepo
+
+        checkoutService -> db: COMMIT
+        deactivate db
+
+        checkoutService -> vnpayService: createPaymentUrl(order)
+        activate vnpayService
+        vnpayService -> vnpayService: Generate VNPAY params
+        vnpayService -> vnpayService: Build payment URL
+        vnpayService --> checkoutService: Payment URL
+        deactivate vnpayService
+
+        checkoutService -> checkoutService: updateOrderPaymentUrl(order, paymentUrl)
+        checkoutService -> orderRepo: save(order)
+        activate orderRepo
+        orderRepo -> db: UPDATE order
+        db --> orderRepo: Order
+        orderRepo --> checkoutService: Order
+        deactivate orderRepo
+
+        checkoutService -> cartService: clearCart(userId)
+        activate cartService
+        cartService -> db: DELETE cart_items
+        db --> cartService: Cleared
+        cartService --> checkoutService: Cleared
+        deactivate cartService
+
+        checkoutService --> controller: 201 CREATED\n{orderNumber, paymentUrl}
+    end
+end
+
+controller --> customer: 201 CREATED\n{orderNumber, paymentUrl}
+deactivate controller
+
+note right of customer
+  Customer redirected to VNPAY
+  After payment: callback handled
+  by /orders/:id/vnpay-callback
+end note
+
+@enduml

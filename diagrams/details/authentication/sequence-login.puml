@@ -1,0 +1,87 @@
+@startuml LoginSequence
+title User Login - Sequence Diagram
+
+actor ":User" as user
+participant ":AuthController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":AuthService" as authService
+participant ":UserService" as userService
+participant ":JwtService" as jwtService
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+user -> controller: POST /auth/login\n(LoginRequestDto)
+activate controller
+
+controller -> authService: login(email, password)
+activate authService
+
+authService -> userRepo: findByEmail(email)
+activate userRepo
+userRepo -> db: SELECT user\nWHERE email = email
+db --> userRepo: User (hashedPassword)
+userRepo --> authService: User
+deactivate userRepo
+
+alt [User not found]
+    authService --> controller: 401 UNAUTHORIZED\n(Invalid credentials)
+else [Invalid password]
+    authService -> authService: bcryptCompare(password, hash)
+    authService -> authService: incrementFailedAttempts(user)
+    authService -> userRepo: save(user)
+    activate userRepo
+    userRepo -> db: UPDATE user\nSET failedAttempts++
+    db --> userRepo: Updated
+    userRepo --> authService: Updated
+    deactivate userRepo
+
+    alt [Too many failed attempts]
+        authService -> authService: lockAccount(user)
+        authService -> userRepo: save(user)
+        activate userRepo
+        userRepo -> db: UPDATE user\nSET status = 'LOCKED'
+        db --> userRepo: Updated
+        userRepo --> authService: Updated
+        deactivate userRepo
+    end
+
+    authService --> controller: 401 UNAUTHORIZED\n(Invalid credentials)
+else [Valid credentials]
+    authService -> authService: resetFailedAttempts(user)
+    authService -> authService: verifyAccountStatus(user)
+
+    alt [Account not verified]
+        authService --> controller: 403 FORBIDDEN\n(Email not verified)
+    else [Account locked]
+        authService --> controller: 403 FORBIDDEN\n(Account locked)
+    else [Account suspended]
+        authService --> controller: 403 FORBIDDEN\n(Account suspended)
+    else [Account active]
+        authService -> jwtService: signAsync(payload)
+        activate jwtService
+        jwtService -> jwtService: Generate JWT\n{userId, email, role}
+        jwtService --> authService: accessToken
+        deactivate jwtService
+
+        authService -> authService: generateRefreshToken(user)
+        authService -> userRepo: updateLastLogin(user)
+        activate userRepo
+        userRepo -> db: UPDATE user\nSET lastLoginAt = NOW()
+        db --> userRepo: Updated
+        userRepo --> authService: Updated
+        deactivate userRepo
+
+        authService --> controller: 200 OK\n{accessToken, refreshToken, user}
+    end
+end
+
+controller --> user: 200 OK\nLogin successful\nJWT tokens returned
+deactivate controller
+
+note right of user
+  Access token: 15 min expiry
+  Refresh token: 7 days expiry
+  Tokens stored in localStorage/cookie
+end note
+
+@enduml

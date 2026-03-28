@@ -1,0 +1,166 @@
+@startuml ReturnRefundSequence
+title Return Refund Processing - Sequence Diagram
+
+actor ":Sales Staff" as sales
+participant ":ReturnController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":ReturnService" as returnService
+participant ":OrderService" as orderService
+participant ":VNPayService" as vnpayService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":ReturnRepository" as returnRepo
+database ":Database" as db
+
+sales -> controller: PATCH /returns/:id/process-refund\n{decision: 'APPROVE', refundAmount}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(SALES)
+rbacGuard --> controller: true (Sales authorized)
+deactivate rbacGuard
+
+controller -> returnService: processRefund(returnId, decisionDto, salesId)
+activate returnService
+
+returnService -> returnRepo: findOne(returnId)
+activate returnRepo
+returnRepo -> db: SELECT return WITH items
+db --> returnRepo: Return
+returnRepo --> returnService: Return
+deactivate returnRepo
+
+alt [Return not found]
+    returnService --> controller: 404 NOT FOUND\n(Return not found)
+else [Return not in review]
+    returnService -> returnService: validateStatus(IN_REVIEW)
+    alt [Not IN_REVIEW]
+        returnService --> controller: 400 BAD REQUEST\n(Return not ready for refund)
+    end
+else [Ready for decision]
+    returnService -> db: TRANSACTION START
+    activate db
+
+    alt [APPROVE refund]
+        returnService -> returnService: calculateFinalRefundAmount(return, decisionDto.refundAmount)
+
+        returnService -> returnRepo: updateStatus(returnId, APPROVED)
+        activate returnRepo
+        returnRepo -> db: UPDATE return_request\nSET status = 'APPROVED',\napprovedBy = salesId,\napprovedAt = NOW(),\napprovedRefundAmount = amount
+        db --> returnRepo: Updated Return
+        returnRepo --> returnService: Updated Return
+        deactivate returnRepo
+
+        alt [Return type: REFUND]
+            returnService -> orderService: getOriginalOrder(return.orderId)
+            activate orderService
+            orderService --> returnService: Original order with payment info
+            deactivate orderService
+
+            returnService -> vnpayService: initiateRefund(order, refundAmount)
+            activate vnpayService
+            vnpayService -> vnpayService: Build refund request
+            vnpayService -> vnpayService: Call VNPAY refund API
+            vnpayService --> returnService: Refund transaction ID
+            deactivate vnpayService
+
+            returnService -> returnRepo: updateRefundTransaction(returnId, refundTxnId)
+            activate returnRepo
+            returnRepo -> db: UPDATE return_request\nSET refundTxnId = txnId,\nrefundStatus = 'PROCESSING'
+            db --> returnRepo: Updated
+            returnRepo --> returnService: Updated
+            deactivate returnRepo
+
+            returnService -> inventoryService: processReturnedInventory(return.items, 'RETURNED')
+            activate inventoryService
+            inventoryService -> db: UPDATE inventory\n(returned items → available stock)
+            db --> inventoryService: Updated
+            inventoryService --> returnService: Inventory updated
+            deactivate inventoryService
+
+        else [Return type: EXCHANGE]
+            returnService -> orderService: createExchangeOrder(return)
+            activate orderService
+            orderService -> orderService: buildExchangeOrder(return)
+            orderService -> db: INSERT order (EXCHANGE type)
+            db --> orderService: New exchange order
+            orderService --> returnService: Exchange order created
+            deactivate orderService
+
+            returnService -> returnRepo: updateExchangeOrder(returnId, exchangeOrderId)
+            activate returnRepo
+            returnRepo -> db: UPDATE return_request\nSET exchangeOrderId = newOrderId
+            db --> returnRepo: Updated
+            returnRepo --> returnService: Updated
+            deactivate returnRepo
+        end
+
+        returnService -> returnRepo: updateStatus(returnId, COMPLETED)
+        activate returnRepo
+        returnRepo -> db: UPDATE return_request\nSET status = 'COMPLETED',\ncompletedAt = NOW()
+        db --> returnRepo: Updated Return
+        returnRepo --> returnService: Updated Return
+        deactivate returnRepo
+
+    else [REJECT refund]
+        returnService -> returnRepo: updateStatus(returnId, REJECTED)
+        activate returnRepo
+        returnRepo -> db: UPDATE return_request\nSET status = 'REJECTED',\nrejectedBy = salesId,\nrejectedAt = NOW(),\nrejectionReason = decisionDto.reason
+        db --> returnRepo: Updated Return
+        returnRepo --> returnService: Updated Return
+        deactivate returnRepo
+
+        returnService -> inventoryService: returnItemsToCustomer(return.items)
+        activate inventoryService
+        inventoryService -> db: UPDATE inventory\n(create return shipment to customer)
+        db --> inventoryService: Return shipment created
+        inventoryService --> returnService: Items will be returned to customer
+        deactivate inventoryService
+    end
+
+    returnService -> db: COMMIT
+    deactivate db
+
+    alt [APPROVED]
+        returnService -> emailService: sendRefundApprovedEmail(return)
+        activate emailService
+        emailService -> emailService: Build approval email with refund details
+        emailService -> emailService: Send to customer
+        emailService --> returnService: Sent
+        deactivate emailService
+    else [REJECTED]
+        returnService -> emailService: sendRefundRejectedEmail(return)
+        activate emailService
+        emailService -> emailService: Build rejection email with reason
+        emailService -> emailService: Send to customer
+        emailService --> returnService: Sent
+        deactivate emailService
+    end
+
+    returnService --> controller: 200 OK\n{returnNumber, status, refundTxnId / exchangeOrderId}
+end
+
+controller --> sales: 200 OK\nRefund processed successfully
+deactivate controller
+
+note right of sales
+  APPROVED: IN_REVIEW → COMPLETED
+  - Refund initiated via VNPAY
+  - Or exchange order created
+  - Inventory updated
+  - Customer notified
+
+  REJECTED: IN_REVIEW → REJECTED
+  - Items returned to customer
+  - Reason provided
+  - Customer notified
+end note
+
+@enduml

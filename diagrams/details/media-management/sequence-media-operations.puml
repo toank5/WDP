@@ -1,0 +1,93 @@
+@startuml MediaOperationsSequence
+title Media Management (2D/3D Upload) - Sequence Diagram
+
+actor ":Manager/Admin" as staff
+participant ":MediaController" as controller
+participant ":MediaService" as service
+participant ":CloudinaryService" as cloudinary
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: Upload 2D Images
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /media/upload/2d\n(@Files() files: File[])
+activate controller
+
+controller -> service: uploadImages2D(files)
+activate service
+
+service -> service: validateFiles(files, ['jpg', 'png', 'webp'])
+service -> service: validateFileSize(files, 5MB)
+
+service -> cloudinary: uploadImages(files, folder: 'products/2d')
+activate cloudinary
+cloudinary -> cloudinary: Compress images
+cloudinary -> cloudinary: Generate thumbnails
+cloudinary -> cloudinary: Upload to CDN
+cloudinary --> service: Uploaded URLs[]
+deactivate cloudinary
+
+service -> db: INSERT media_records\nFOR each image
+service --> controller: 201 CREATED\n{urls: [], thumbnails: []}
+deactivate service
+
+controller --> staff: 201 CREATED\nImages uploaded
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: Upload 3D Models
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /media/upload/3d\n(@Files() files: File[])
+activate controller
+
+controller -> service: uploadModels3D(files)
+activate service
+
+service -> service: validateFiles(files, ['glb', 'obj'])
+service -> service: validateFileSize(files, 20MB)
+
+service -> cloudinary: uploadModels3D(files, folder: 'products/3d')
+activate cloudinary
+cloudinary -> cloudinary: Validate 3D format
+cloudinary -> cloudinary: Center model at origin
+cloudinary -> cloudinary: Normalize scale
+cloudinary -> cloudinary: Generate preview
+cloudinary -> cloudinary: Upload to CDN
+cloudinary --> service: Model URLs[]
+deactivate cloudinary
+
+service -> service: extractModelMetadata(files)
+service -> db: INSERT media_records\nFOR each model
+service --> controller: 201 CREATED\n{urls: [], previews: [], metadata: []}
+deactivate service
+
+controller --> staff: 201 CREATED\n3D models uploaded
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: Delete Media
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: DELETE /media/:publicId
+activate controller
+
+controller -> service: deleteMedia(publicId)
+activate service
+
+service -> cloudinary: deleteResource(publicId)
+activate cloudinary
+cloudinary -> cloudinary: Delete from CDN
+cloudinary -> cloudinary: Invalidate cache
+cloudinary --> service: Deleted
+deactivate cloudinary
+
+service -> db: DELETE media_record\nWHERE publicId = publicId
+service --> controller: 200 OK\n{message: 'Media deleted'}
+deactivate service
+
+controller --> staff: 200 OK\nMedia deleted
+deactivate controller
+
+@enduml

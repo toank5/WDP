@@ -1,0 +1,111 @@
+@startuml OrderViewSequence
+title Order Viewing - Sequence Diagram
+
+actor ":User" as user
+participant ":OrderController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":OrderService" as orderService
+participant ":OrderRepository" as orderRepo
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: List All Orders (Customer)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+user -> controller: GET /orders?page=1&limit=10
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> orderService: findAll(userId, pagination)
+activate orderService
+
+orderService -> orderRepo: findCustomerOrders(userId, pagination)
+activate orderRepo
+orderRepo -> db: SELECT orders\nWHERE customerId = userId\nORDER BY createdAt DESC\nLIMIT 10 OFFSET 0
+db --> orderRepo: Order[]
+orderRepo --> orderService: Order[]
+deactivate orderRepo
+
+orderService -> orderService: mapToResponseDto(orders)
+orderService --> controller: 200 OK\n{data: orders[], total, page, limit}
+deactivate orderService
+
+controller --> user: 200 OK\nOrders list
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: View Single Order (Customer)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+user -> controller: GET /orders/:id
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> orderService: findOne(orderId, userId)
+activate orderService
+
+orderService -> orderRepo: findOne(orderId)
+activate orderRepo
+orderRepo -> db: SELECT order WITH items\nWITH payments\nWITH shippingAddress
+db --> orderRepo: Order
+orderRepo --> orderService: Order
+deactivate orderRepo
+
+alt [Order not found]
+    orderService --> controller: 404 NOT FOUND\n(Order not found)
+else [Customer not owner]
+    orderService -> orderService: validateOwnership(order.customerId === userId)
+    orderService --> controller: 403 FORBIDDEN\n(Not your order)
+else [Valid access]
+    orderService -> orderService: mapToDetailResponseDto(order)
+    orderService --> controller: 200 OK\nOrder details
+end
+
+controller --> user: 200 OK\nOrder details with items
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: List All Orders (Staff)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+user -> controller: GET /orders?status=PENDING&page=1
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(STAFF)
+rbacGuard --> controller: true (Staff authorized)
+deactivate rbacGuard
+
+controller -> orderService: findAllStaff(filters, pagination)
+activate orderService
+
+orderService -> orderRepo: findWithFilters(filters, pagination)
+activate orderRepo
+orderRepo -> db: SELECT orders\nWHERE status = 'PENDING'\nORDER BY createdAt DESC\nLIMIT 10 OFFSET 0
+db --> orderRepo: Order[]
+orderRepo --> orderService: Order[]
+deactivate orderRepo
+
+orderService -> orderService: mapToResponseDto(orders)
+orderService --> controller: 200 OK\n{data: orders[], total, page, limit}
+deactivate orderService
+
+controller --> user: 200 OK\nFiltered orders list
+deactivate controller
+
+@enduml

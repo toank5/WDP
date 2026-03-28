@@ -1,0 +1,66 @@
+@startuml PromotionOperationsSequence
+title Promotion Management - Sequence Diagram
+
+actor ":Manager/Admin" as staff
+participant ":PromotionController" as controller
+participant ":PromotionService" as service
+participant ":PromotionRepository" as promoRepo
+database ":Database" as db
+
+staff -> controller: POST /promotions\n(CreatePromotionDto)
+activate controller
+controller -> service: create(createDto, userId)
+activate service
+service -> promoRepo: findByCode(createDto.code)
+activate promoRepo
+promoRepo -> db: SELECT promotion WHERE code = :code
+db --> promoRepo: Promotion
+promoRepo --> service: result
+deactivate promoRepo
+
+alt [Code exists]
+    service --> controller: 409 CONFLICT (Code already exists)
+else [Code available]
+    service -> promoRepo: create(createDto)
+    activate promoRepo
+    promoRepo -> db: INSERT promotion\nSET createdBy = userId
+    db --> promoRepo: Promotion
+    promoRepo --> service: Promotion
+    deactivate promoRepo
+    service --> controller: 201 CREATED
+end
+deactivate service
+controller --> staff: Response
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' Validate Promotion at Checkout
+' ════════════════════════════════════════════════════════════════════════════════════
+
+actor ":CheckoutService" as checkout
+checkout -> controller: POST /promotions/validate\n{code, orderTotal}
+activate controller
+controller -> service: validateCode(code, orderTotal)
+activate service
+service -> promoRepo: findActiveByCode(code)
+activate promoRepo
+promoRepo -> db: SELECT promotion\nWHERE code = :code\nAND isActive = true\nAND NOW() BETWEEN startDate AND endDate
+db --> promoRepo: Promotion
+promoRepo --> service: Promotion
+deactivate promoRepo
+
+alt [Not found or expired]
+    service --> controller: 404 NOT FOUND (Invalid code)
+else [Usage limit reached]
+    service --> controller: 400 BAD REQUEST (Usage limit exceeded)
+else [Minimum order not met]
+    service --> controller: 400 BAD REQUEST (Minimum order: X)
+else [Valid promotion]
+    service -> service: calculateDiscount(orderTotal, promotion)
+    service --> controller: 200 OK\n{discountAmount, finalTotal}
+end
+deactivate service
+controller --> checkout: Response
+deactivate controller
+
+@enduml

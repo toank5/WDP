@@ -1,0 +1,111 @@
+@startuml FavoriteOperationsSequence
+title Favorite Management - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":FavoriteController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":FavoriteService" as service
+participant ":FavoriteRepository" as favoriteRepo
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: Toggle Favorite (Add/Remove)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+customer -> controller: POST /favorites/toggle\n{productId}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> service: toggleFavorite(userId, productId)
+activate service
+
+service -> favoriteRepo: findByUserAndProduct(userId, productId)
+activate favoriteRepo
+favoriteRepo -> db: SELECT favorite\nWHERE userId = userId AND productId = productId
+db --> favoriteRepo: Favorite or null
+favoriteRepo --> service: result
+deactivate favoriteRepo
+
+alt [Favorite exists]
+    service -> favoriteRepo: remove(favoriteId)
+    activate favoriteRepo
+    favoriteRepo -> db: DELETE favorite WHERE id = favoriteId
+    db --> favoriteRepo: Deleted
+    favoriteRepo --> service: Removed
+    deactivate favoriteRepo
+    service --> controller: 200 OK\n{favorited: false}
+else [Not favorited]
+    service -> favoriteRepo: create(userId, productId)
+    activate favoriteRepo
+    favoriteRepo -> db: INSERT favorite\nSET userId, productId
+    db --> favoriteRepo: Favorite
+    favoriteRepo --> service: Created
+    deactivate favoriteRepo
+    service --> controller: 201 CREATED\n{favorited: true}
+end
+
+deactivate service
+controller --> customer: Response
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: Get User's Favorites
+' ════════════════════════════════════════════════════════════════════════════════════
+
+customer -> controller: GET /favorites
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> service: getUserFavorites(userId)
+activate service
+
+service -> favoriteRepo: findByUser(userId)
+activate favoriteRepo
+favoriteRepo -> db: SELECT favorite WITH product\nWHERE userId = userId\nORDER BY createdAt DESC
+db --> favoriteRepo: Favorite[]
+favoriteRepo --> service: Favorites with products
+deactivate favoriteRepo
+
+service --> controller: 200 OK\n{favorites: [{product, isFavorited, createdAt}]}
+deactivate service
+
+controller --> customer: 200 OK\nFavorites list
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: Check if Product is Favorited
+' ════════════════════════════════════════════════════════════════════════════════════
+
+customer -> controller: GET /favorites/check/:productId
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> service: isFavorited(userId, productId)
+activate service
+
+service -> favoriteRepo: findByUserAndProduct(userId, productId)
+activate favoriteRepo
+favoriteRepo -> db: SELECT favorite\nWHERE userId = userId AND productId = productId
+db --> favoriteRepo: Favorite or null
+favoriteRepo --> service: result
+deactivate favoriteRepo
+
+service --> controller: 200 OK\n{isFavorited: boolean}
+deactivate service
+
+controller --> customer: 200 OK\nFavorite status
+deactivate controller
+
+@enduml

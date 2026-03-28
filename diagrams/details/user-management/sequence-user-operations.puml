@@ -1,0 +1,119 @@
+@startuml UserOperationsSequence
+title User Management - Sequence Diagram
+
+actor ":Admin/Manager" as staff
+participant ":UserController" as controller
+participant ":UserService" as service
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: Update User Profile
+' ════════════════════════════════════════════════════════════════════════════════════
+
+actor ":Customer" as customer
+customer -> controller: PATCH /users/profile\n(UpdateProfileDto)
+activate controller
+
+controller -> service: updateProfile(userId, updateDto)
+activate service
+
+service -> userRepo: findOne(userId)
+activate userRepo
+userRepo -> db: SELECT user WHERE id = userId
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+service -> userRepo: update(userId, updateDto)
+activate userRepo
+userRepo -> db: UPDATE user\nSET fullName, phone, avatar
+db --> userRepo: Updated User
+userRepo --> service: Updated User
+deactivate userRepo
+
+service --> controller: 200 OK\n{user}
+deactivate service
+
+controller --> customer: 200 OK\nProfile updated
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: Manage Addresses
+' ════════════════════════════════════════════════════════════════════════════════════
+
+customer -> controller: POST /users/addresses\n(CreateAddressDto)
+activate controller
+
+controller -> service: addAddress(userId, addressDto)
+activate service
+
+service -> userRepo: findOne(userId)
+activate userRepo
+userRepo -> db: SELECT user WITH addresses
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+alt [Setting as default]
+    service -> service: clearDefaultAddresses(userId)
+    service -> userRepo: updateAddresses(userId, addresses)
+    activate userRepo
+    userRepo -> db: UPDATE addresses\nSET isDefault = false
+    db --> userRepo: Updated
+    userRepo --> service: Done
+    deactivate userRepo
+end
+
+service -> userRepo: addAddress(userId, addressDto)
+activate userRepo
+userRepo -> db: INSERT address\nSET userId, address, isDefault
+db --> userRepo: Address
+userRepo --> service: Address
+deactivate userRepo
+
+service --> controller: 201 CREATED\n{address}
+deactivate service
+
+controller --> customer: 201 CREATED\nAddress added
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: Admin Updates User Role/Status
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: PATCH /users/:id\n(UpdateUserDto)
+activate controller
+
+controller -> service: updateUser(id, updateDto)
+activate service
+
+service -> userRepo: findOne(id)
+activate userRepo
+userRepo -> db: SELECT user
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+alt [Updating role]
+    service -> service: validateRoleChange(user, updateDto.role)
+end
+
+alt [Updating status to SUSPENDED]
+    service -> service: invalidateUserSessions(id)
+end
+
+service -> userRepo: update(id, updateDto)
+activate userRepo
+userRepo -> db: UPDATE user\nSET role, status
+db --> userRepo: Updated User
+userRepo --> service: Updated User
+deactivate userRepo
+
+service --> controller: 200 OK\n{user}
+deactivate service
+
+controller --> staff: 200 OK\nUser updated
+deactivate controller
+
+@enduml

@@ -1,0 +1,273 @@
+@startuml ReturnManagementClassDiagram
+title Return Management - Class Diagram
+!theme plain
+skinparam classBackgroundColor #FFF3E0
+skinparam classBorderColor #F57C00
+skinparam arrowColor #333
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' CONTROLLER LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class ReturnController {
+    -returnService: ReturnService
+    --
+    +create(@Body() dto: CreateReturnDto): Promise<Response>
+    +findAll(@Query() pagination: PaginationDto): Promise<Response>
+    +findOne(@Param('id') id: string): Promise<ReturnResponseDto>
+    +staffVerify(@Param('id') id: string, @Body() dto: VerifyDto): Promise<Response>
+    +processRefund(@Param('id') id: string, @Body() dto: ProcessRefundDto): Promise<Response>
+    +cancel(@Param('id') id: string): Promise<Response>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SERVICE LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class ReturnService {
+    -returnRepository: ReturnRepository
+    -orderService: OrderService
+    -policyService: PolicyService
+    -inventoryService: InventoryService
+    -vnpayService: VNPayService
+    -emailService: EmailService
+    --
+    +create(userId: string, dto: CreateReturnDto): Promise<ReturnResponseDto>
+    +findAll(userId: string, options: FindOptions): Promise<ReturnResponseDto[]>
+    +findOne(id: string): Promise<ReturnRequest>
+    +staffVerify(returnId: string, dto: VerifyDto, staffId: string): Promise<void>
+    +processRefund(returnId: string, dto: ProcessRefundDto, staffId: string): Promise<void>
+    +cancel(returnId: string, userId: string): Promise<void>
+    -validateOrderForReturn(orderId: string): Promise<void>
+    -validateReturnItems(items: CreateReturnItemDto[], orderItems: OrderItem[]): void
+    -calculateRefundAmount(items: CreateReturnItemDto[]): number
+    -generateReturnNumber(): string
+    -generateShippingLabel(return: ReturnRequest): string
+}
+
+class OrderService {
+    -orderRepository: OrderRepository
+    --
+    +validateOrderForReturn(orderId: string): Promise<Order>
+    +createExchangeOrder(returnRequest: ReturnRequest): Promise<Order>
+}
+
+class PolicyService {
+    -policyRepository: PolicyRepository
+    --
+    +getReturnPolicy(): Promise<Policy>
+    +validateReturnEligibility(order: Order): boolean
+    +calculateRefundEligibility(items: OrderItem[]): number
+}
+
+class InventoryService {
+    -inventoryRepository: InventoryRepository
+    --
+    +receiveReturnedItems(items: ReturnItem[]): Promise<void>
+    +quarantineItems(items: ReturnItem[]): Promise<void>
+    +processReturnedInventory(items: ReturnItem[], status: string): Promise<void>
+    +returnItemsToCustomer(items: ReturnItem[]): Promise<void>
+}
+
+class EmailService {
+    -mailer: MailerService
+    --
+    +sendReturnConfirmation(return: ReturnRequest): Promise<void>
+    +sendReturnApprovedEmail(return: ReturnRequest): Promise<void>
+    +sendReturnRejectedEmail(return: ReturnRequest): Promise<void>
+    +notifySalesTeamForReview(return: ReturnRequest): Promise<void>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' REPOSITORY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class ReturnRepository {
+    --
+    +findOne(id: string): Promise<ReturnRequest>
+    +findByUserId(userId: string, options: FindOptions): Promise<ReturnRequest[]>
+    +findByOrderId(orderId: string): Promise<ReturnRequest[]>
+    +findWithFilters(filters: ReturnFilters, options: FindOptions): Promise<ReturnRequest[]>
+    +create(returnData: CreateReturnDto): Promise<ReturnRequest>
+    +updateStatus(id: string, status: ReturnStatus): Promise<ReturnRequest>
+    +update(id: string, data: UpdateReturnDto): Promise<ReturnRequest>
+}
+
+class PolicyRepository {
+    --
+    +findByType(type: PolicyType): Promise<Policy>
+    +findActiveByType(type: PolicyType): Promise<Policy>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' ENTITY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class ReturnRequest {
+    -id: string
+    -returnNumber: string
+    -orderId: string
+    -userId: string
+    -status: ReturnStatus
+    -returnType: ReturnType
+    -items: ReturnItem[]
+    -requestedRefundAmount: number
+    -approvedRefundAmount: number
+    -reason: string
+    -itemCondition: ItemCondition
+    -warehouseNotes: string
+    -salesNotes: string
+    -shippingLabel: string
+    -refundTxnId: string
+    -exchangeOrderId: string
+    -submittedAt: Date
+    -verifiedAt: Date
+    -approvedAt: Date
+    -completedAt: Date
+}
+
+class ReturnItem {
+    -id: string
+    -returnId: string
+    -orderItemId: string
+    -productVariantId: string
+    -productName: string
+    -quantity: number
+    -reason: string
+    -condition: string
+    -photos: string[]
+    -isReceived: boolean
+}
+
+class Policy {
+    -id: string
+    -type: PolicyType
+    -title: string
+    -summary: string
+    -bodyPlainText: string
+    -config: PolicyConfig
+    -version: number
+    -isActive: boolean
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' DTOs
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class CreateReturnDto {
+    +orderId: string
+    +returnType: ReturnType
+    +items: CreateReturnItemDto[]
+    +reason: string
+    +photos?: string[]
+}
+
+class CreateReturnItemDto {
+    +orderItemId: string
+    +quantity: number
+    +reason: string
+    +photos?: string[]
+}
+
+class VerifyDto {
+    +itemsReceived: boolean
+    +conditionNotes?: string
+    +photos?: string[]
+}
+
+class ProcessRefundDto {
+    +decision: 'APPROVE' | 'REJECT'
+    +refundAmount?: number
+    +reason?: string
+}
+
+class ReturnResponseDto {
+    +id: string
+    +returnNumber: string
+    +status: ReturnStatus
+    +returnType: ReturnType
+    +requestedRefundAmount: number
+    +shippingLabel: string
+    +submittedAt: Date
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' ENUMS
+' ════════════════════════════════════════════════════════════════════════════════════
+
+enum ReturnStatus {
+    SUBMITTED
+    AWAITING_ITEMS
+    IN_REVIEW
+    APPROVED
+    COMPLETED
+    REJECTED
+    CANCELED
+}
+
+enum ReturnType {
+    REFUND
+    EXCHANGE
+}
+
+enum ItemCondition {
+    NEW_WITH_TAGS
+    LIKE_NEW
+    GOOD
+    FAIR
+    DAMAGED
+    USED
+}
+
+enum PolicyType {
+    RETURN
+    REFUND
+    WARRANTY
+    SHIPPING
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SECURITY
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class JwtAuthGuard {
+    -jwtService: JwtService
+    --
+    +canActivate(context): Promise<boolean>
+}
+
+class RbacGuard {
+    -reflector: Reflector
+    --
+    +canActivate(context): Promise<boolean>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' RELATIONSHIPS
+' ════════════════════════════════════════════════════════════════════════════════════
+
+ReturnController --> ReturnService: delegates
+ReturnController --> JwtAuthGuard: validates
+ReturnController --> RbacGuard: authorizes
+
+ReturnService --> ReturnRepository: persists
+ReturnService --> OrderService: validates
+ReturnService --> PolicyService: checks
+ReturnService --> InventoryService: updates
+ReturnService --> VNPayService: refunds
+ReturnService --> EmailService: notifies
+
+OrderService --> OrderRepository: persists
+PolicyService --> PolicyRepository: persists
+
+ReturnRepository --> ReturnRequest: maps
+PolicyRepository --> Policy: maps
+
+ReturnRequest "1" *-- "many" ReturnItem: contains
+
+CreateReturnDto ..> ReturnRequest: maps to
+VerifyDto ..> ReturnRequest: updates
+ProcessRefundDto ..> ReturnRequest: updates
+ReturnResponseDto ..> ReturnRequest: maps from
+
+@enduml

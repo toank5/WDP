@@ -1,0 +1,225 @@
+@startuml InventoryOperationsSequence
+title Inventory Operations - Sequence Diagram
+
+actor ":Staff/Manager" as staff
+participant ":InventoryController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":InventoryService" as inventoryService
+participant ":MovementService" as movementService
+participant ":InventoryRepository" as inventoryRepo
+participant ":MovementRepository" as movementRepo
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: Stock Adjustment
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /inventory/adjust\n{variantId, quantity, reason}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard --> controller: true (Staff authorized)
+deactivate rbacGuard
+
+controller -> inventoryService: adjustStock(variantId, quantity, reason, staffId)
+activate inventoryService
+
+inventoryService -> inventoryRepo: findByVariantId(variantId)
+activate inventoryRepo
+inventoryRepo -> db: SELECT inventory\nWHERE variantId = variantId
+db --> inventoryRepo: Inventory
+inventoryRepo --> inventoryService: Inventory
+deactivate inventoryRepo
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+alt [Quantity > 0 - Stock Increase]
+    inventoryService -> inventoryRepo: increaseAvailable(variantId, quantity)
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity + quantity
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordMovement(variantId, quantity, 'STOCK_IN', reason)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement\nSET type = 'STOCK_IN', quantity, reason
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+
+else [Quantity < 0 - Stock Decrease]
+    inventoryService -> inventoryService: validateSufficientStock(inventory, abs(quantity))
+    inventoryService -> inventoryRepo: decreaseAvailable(variantId, abs(quantity))
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity - abs(quantity)
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordMovement(variantId, abs(quantity), 'STOCK_OUT', reason)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement\nSET type = 'STOCK_OUT', quantity, reason
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> controller: 200 OK\n{availableQuantity, movementId}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nStock adjusted successfully
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: Stock Reservation (for Orders)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /inventory/reserve\n{orderId, items}
+activate controller
+
+controller -> inventoryService: reserveStock(orderId, items)
+activate inventoryService
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+loop for each item
+    inventoryService -> inventoryRepo: findByVariantId(item.variantId)
+    activate inventoryRepo
+    inventoryRepo -> db: SELECT inventory\nWHERE variantId = item.variantId\nFOR UPDATE
+    db --> inventoryRepo: Inventory
+    inventoryRepo --> inventoryService: Inventory
+    deactivate inventoryRepo
+
+    alt [Insufficient stock]
+        inventoryService -> db: ROLLBACK
+        deactivate db
+        inventoryService --> controller: 409 CONFLICT\n(Insufficient stock)
+        stop
+    else [Stock available]
+        inventoryService -> inventoryRepo: reserveQuantity(item.variantId, item.quantity)
+        activate inventoryRepo
+        inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity - item.quantity,\nreservedQuantity = reservedQuantity + item.quantity
+        db --> inventoryRepo: Updated
+        inventoryRepo --> inventoryService: Updated
+        deactivate inventoryRepo
+
+        inventoryService -> movementService: recordMovement(item.variantId, item.quantity, 'RESERVATION', orderId)
+        activate movementService
+        movementService -> movementRepo: create(movementData)
+        activate movementRepo
+        movementRepo -> db: INSERT inventory_movement
+        db --> movementRepo: Movement
+        movementRepo --> movementService: Movement
+        deactivate movementRepo
+        movementService --> inventoryService: Recorded
+        deactivate movementService
+    end
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> controller: 200 OK\n{message: 'Stock reserved'}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nStock reserved successfully
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: Stock Release (Order Cancellation)
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /inventory/release\n{orderId}
+activate controller
+
+controller -> inventoryService: releaseReservation(orderId)
+activate inventoryService
+
+inventoryService -> movementService: getMovementsByOrder(orderId, 'RESERVATION')
+activate movementService
+movementService -> movementRepo: findByOrder(orderId)
+activate movementRepo
+movementRepo -> db: SELECT inventory_movement\nWHERE referenceId = orderId\nAND type = 'RESERVATION'
+db --> movementRepo: Movement[]
+movementRepo --> movementService: Movements
+deactivate movementRepo
+movementService --> inventoryService: Movements
+deactivate movementService
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+loop for each movement
+    inventoryService -> inventoryRepo: releaseQuantity(movement.variantId, movement.quantity)
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity + movement.quantity,\nreservedQuantity = reservedQuantity - movement.quantity
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordRelease(movement.variantId, movement.quantity, 'RELEASE', orderId)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> controller: 200 OK\n{message: 'Reservation released'}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nStock released successfully
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 4: Low Stock Alert
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: GET /inventory/low-stock?threshold=10
+activate controller
+
+controller -> inventoryService: getLowStockItems(threshold)
+activate inventoryService
+
+inventoryService -> inventoryRepo: findLowStock(threshold)
+activate inventoryRepo
+inventoryRepo -> db: SELECT i WITH variant\nWHERE availableQuantity <= threshold\nORDER BY availableQuantity ASC
+db --> inventoryRepo: Inventory[]
+inventoryRepo --> inventoryService: Low stock items
+deactivate inventoryRepo
+
+inventoryService --> controller: 200 OK\n{items: [{variantId, availableQuantity, threshold}]}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nLow stock report
+deactivate controller
+
+@enduml

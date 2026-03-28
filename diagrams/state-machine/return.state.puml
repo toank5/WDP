@@ -1,0 +1,63 @@
+@startuml Return State Machine
+title Return Request State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#FFF3E0
+    BorderColor#F57C00
+    ArrowColor#424242
+}
+
+[*] --> SUBMITTED : Customer submits return request
+
+SUBMITTED --> AWAITING_ITEMS : Request validated\n(reference order found)
+SUBMITTED --> CANCELED : Customer cancels request
+
+AWAITING_ITEMS --> IN_REVIEW : Warehouse receives items\n(staff marks received)
+AWAITING_ITEMS --> CANCELED : Customer cancels\n(within allowed window)
+
+IN_REVIEW --> APPROVED : Sales approves\n(item condition good)
+IN_REVIEW --> REJECTED : Sales rejects\n(item damaged/not eligible)
+
+APPROVED --> COMPLETED : Refund processed\n(VNPAY/Original payment)
+APPROVED --> COMPLETED : Exchange order created
+
+REJECTED --> [*] : Customer notified\n(items returned to customer)
+COMPLETED --> [*] : Return completed
+CANCELED --> [*] : Request cancelled
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' NOTES
+' ════════════════════════════════════════════════════════════════════════════════════
+
+note right of SUBMITTED
+  Return # generated
+  Customer selects items
+  Reason & photos provided
+end note
+
+note right of AWAITING_ITEMS
+  Shipping label generated
+  Customer notified of address
+  7-day return window
+end note
+
+note right of IN_REVIEW
+  Warehouse verifies items
+  Sales inspect condition
+  Photos documented
+end note
+
+note right of APPROVED
+  Refund amount calculated
+  Payment method determined
+  Processing initiated
+end note
+
+note right of REJECTED
+  Rejection reason provided
+  Evidence photos shared
+  Appeal option available
+end note
+
+@enduml

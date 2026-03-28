@@ -1,0 +1,65 @@
+@startuml ComboOperationsSequence
+title Combo (Frame + Lens) Management - Sequence Diagram
+
+actor ":Manager/Admin" as staff
+participant ":ComboController" as controller
+participant ":ComboService" as service
+participant ":ProductService" as productService
+participant ":ComboRepository" as comboRepo
+database ":Database" as db
+
+staff -> controller: POST /combos\n(CreateComboDto)
+activate controller
+
+controller -> service: create(createDto, userId)
+activate service
+
+service -> productService: validateProducts(createDto.frameId, createDto.lensId)
+activate productService
+productService -> productService: checkFrameExists(createDto.frameId)
+productService -> productService: checkLensExists(createDto.lensId)
+productService --> service: Both products valid
+deactivate productService
+
+service -> service: calculateComboPrice(framePrice, lensPrice, discount)
+service -> service: validateDiscountReason(discount, reason)
+
+service -> comboRepo: create(comboData)
+activate comboRepo
+comboRepo -> db: INSERT combo\nSET frameId, lensId, discount,\nstatus = 'ACTIVE', createdBy = userId
+db --> comboRepo: Combo
+comboRepo --> service: Combo
+deactivate comboRepo
+
+service --> controller: 201 CREATED\n{combo}
+deactivate service
+
+controller --> staff: 201 CREATED\nCombo created
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' Get Available Combos for Product
+' ════════════════════════════════════════════════════════════════════════════════════
+
+actor ":Customer" as customer
+customer -> controller: GET /combos/for-product/:productId
+activate controller
+
+controller -> service: getCombosForProduct(productId)
+activate service
+
+service -> comboRepo: findByFrameOrLens(productId)
+activate comboRepo
+comboRepo -> db: SELECT combo WITH frame, lens\nWHERE (frameId = productId OR lensId = productId)\nAND status = 'ACTIVE'
+db --> comboRepo: Combo[]
+comboRepo --> service: Combos with products
+deactivate comboRepo
+
+service -> service: calculateFinalPrices(combos)
+service --> controller: 200 OK\n{combos: [{frame, lens, originalPrice, comboPrice, savings}]}
+deactivate service
+
+controller --> customer: 200 OK\nAvailable combos
+deactivate controller
+
+@enduml

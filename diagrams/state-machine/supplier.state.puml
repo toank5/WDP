@@ -1,0 +1,39 @@
+@startuml Supplier State Machine
+title Supplier Lifecycle - State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#E8EAF6
+    BorderColor#3F51B5
+    ArrowColor#424242
+}
+
+[*] --> PENDING : Manager creates supplier
+
+PENDING --> ACTIVE : Manager approves
+PENDING --> REJECTED : Manager rejects
+
+ACTIVE --> INACTIVE : Manager deactivates
+ACTIVE --> SUSPENDED : Policy violation
+
+INACTIVE --> ACTIVE : Manager reactivates
+INACTIVE --> SUSPENDED : Policy violation
+
+SUSPENDED --> ACTIVE : Manager reinstates
+SUSPENDED --> REJECTED : Manager rejects
+
+REJECTED --> [*]
+
+note right of ACTIVE
+  Can supply products
+  Inventory replenishment
+  Orders can be placed
+end note
+
+note right of SUSPENDED
+  No new orders
+  Existing orders paused
+  Requires review
+end note
+
+@enduml
