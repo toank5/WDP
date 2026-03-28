@@ -1,0 +1,60 @@
+@startuml UserAuthentication State Machine
+title User Authentication - State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#E8F5E9
+    BorderColor#388E3C
+    ArrowColor#424242
+}
+
+[*] --> UNREGISTERED : New user
+
+UNREGISTERED --> REGISTERED : Submit registration\n(email required)
+
+REGISTERED --> UNVERIFIED : Account created\n(email sent)
+
+UNVERIFIED --> VERIFIED : Email link clicked\n(verification token)
+UNVERIFIED --> REGISTERED : Registration expired\n(resubmit)
+UNVERIFIED --> LOCKED : Too many failed attempts
+
+VERIFIED --> ACTIVE : First login successful\nor Admin approval
+
+ACTIVE --> SUSPENDED : Admin action\n(policy violation)
+ACTIVE --> LOCKED : Too many failed logins
+ACTIVE --> ACTIVE : Normal login/logout
+ACTIVE --> PASSWORD_RESET : Password reset requested
+
+PASSWORD_RESET --> ACTIVE : Password changed\nvia reset link
+
+SUSPENDED --> ACTIVE : Admin unsuspends
+SUSPENDED --> LOCKED : Admin locks account
+
+LOCKED --> ACTIVE : Admin unlocks
+
+LOCKED --> [*] : Account deleted\n(permanent deletion)
+ACTIVE --> [*] : Account deleted\n(by user or admin)
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' NOTES
+' ════════════════════════════════════════════════════════════════════════════════════
+
+note right of UNVERIFIED
+  Verification token valid for 24h
+  Resend option available
+  Login restricted until verified
+end note
+
+note right of LOCKED
+  Requires admin intervention
+  All sessions terminated
+  Password reset required on unlock
+end note
+
+note right of PASSWORD_RESET
+  Reset link sent to email
+  Single-use token (1 hour validity)
+  Old password invalidated
+end note
+
+@enduml

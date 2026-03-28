@@ -1,0 +1,59 @@
+@startuml FavoriteManagementClassDiagram
+title Favorite Management - Class Diagram
+!theme plain
+skinparam classBackgroundColor #FFF3E0
+skinparam classBorderColor #FF9800
+skinparam arrowColor #333
+
+class FavoriteController {
+    -favoriteService: FavoriteService
+    --
+    +toggleFavorite(@Body() dto: ToggleFavoriteDto): Promise<Response>
+    +getFavorites(@Headers() authorization): Promise<Response>
+    +isFavorited(@Param('productId') productId: string): Promise<Response>
+    +removeFavorite(@Param('id') id: string): Promise<Response>
+}
+
+class FavoriteService {
+    -favoriteRepository: FavoriteRepository
+    --
+    +toggleFavorite(userId: string, productId: string): Promise<FavoriteResult>
+    +getUserFavorites(userId: string): Promise<FavoriteItemDto[]>
+    +isFavorited(userId: string, productId: string): Promise<boolean>
+    +removeFavorite(userId: string, favoriteId: string): Promise<void>
+}
+
+class FavoriteRepository {
+    --
+    +findByUserAndProduct(userId: string, productId: string): Promise<Favorite>
+    +findByUser(userId: string): Promise<Favorite[]>
+    +create(userId: string, productId: string): Promise<Favorite>
+    +remove(id: string): Promise<void>
+    +countByUser(userId: string): Promise<number>
+}
+
+class Favorite {
+    -id: string
+    -userId: string
+    -productId: string
+    -createdAt: Date
+}
+
+class FavoriteItemDto {
+    +id: string
+    +product: ProductInfo
+    +isFavorited: boolean
+    +createdAt: Date
+}
+
+class ToggleFavoriteDto {
+    +productId: string
+}
+
+FavoriteController --> FavoriteService: delegates
+FavoriteService --> FavoriteRepository: persists
+FavoriteRepository --> Favorite: maps
+ToggleFavoriteDto ..> FavoriteService: input to
+FavoriteItemDto ..> Favorite: maps from
+
+@enduml

@@ -1,0 +1,54 @@
+@startuml Order State Machine
+title Order State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#E3F2FD
+    BorderColor#1976D2
+    ArrowColor#424242
+}
+
+[*] --> PENDING : Customer creates order
+
+PENDING --> PAID : Payment successful (VNPAY)
+PENDING --> CANCELLED : Payment failed/timeout
+PENDING --> CANCELLED : Customer cancels
+
+PAID --> PROCESSING : Staff confirms order
+PAID --> CANCELLED : Customer cancels (before processing)
+
+PROCESSING --> SHIPPED : Package handed to courier
+PROCESSING --> CANCELLED : Staff cancels (out of stock)
+
+SHIPPED --> DELIVERED : Customer confirms receipt
+SHIPPED --> REFUNDED : Return request approved
+
+DELIVERED --> [*] : Order completed
+REFUNDED --> [*] : Refund processed
+CANCELLED --> [*] : Order terminated
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' NOTES
+' ════════════════════════════════════════════════════════════════════════════════════
+
+note right of PAID
+  Payment gateway callback
+  Inventory reserved
+end note
+
+note right of PROCESSING
+  Order being prepared
+  Prescription review (if applicable)
+end note
+
+note right of SHIPPED
+  Tracking number generated
+  Customer notified
+end note
+
+note right of DELIVERED
+  Feedback requested
+  Return window opens
+end note
+
+@enduml

@@ -1,0 +1,72 @@
+@startuml VerifyEmailSequence
+title Email Verification - Sequence Diagram
+
+actor ":User" as user
+participant ":AuthController" as controller
+participant ":AuthService" as authService
+participant ":JwtService" as jwtService
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+user -> controller: POST /auth/verify-email\n{token}
+activate controller
+
+controller -> authService: verifyEmail(token)
+activate authService
+
+authService -> userRepo: findByVerificationToken(token)
+activate userRepo
+userRepo -> db: SELECT user\nWHERE verificationToken = token
+db --> userRepo: User
+userRepo --> authService: User
+deactivate userRepo
+
+alt [Token not found / Invalid]
+    authService --> controller: 400 BAD REQUEST\n(Invalid verification token)
+else [Token found]
+    authService -> authService: verifyTokenExpiry(user.verificationExpires)
+
+    alt [Token expired]
+        authService -> authService: generateNewVerificationToken()
+        authService -> userRepo: save(user)
+        activate userRepo
+        userRepo -> db: UPDATE user\nSET verificationToken = newToken,\nverificationExpires = NOW() + 24h
+        db --> userRepo: Updated
+        userRepo --> authService: Updated
+        deactivate userRepo
+
+        authService --> controller: 400 BAD REQUEST\n(Token expired, new email sent)
+    else [Token valid]
+        authService -> db: TRANSACTION START
+        activate db
+
+        authService -> userRepo: updateStatus(user.id, VERIFIED)
+        activate userRepo
+        userRepo -> db: UPDATE user\nSET status = 'VERIFIED',\nverifiedAt = NOW(),\nverificationToken = null
+        db --> userRepo: Updated
+        userRepo --> authService: Updated
+        deactivate userRepo
+
+        authService -> db: COMMIT
+        deactivate db
+
+        authService -> jwtService: signAsync(payload)
+        activate jwtService
+        jwtService -> jwtService: Generate JWT\n{userId, email, role}
+        jwtService --> authService: accessToken
+        deactivate jwtService
+
+        authService --> controller: 200 OK\n{accessToken, refreshToken, message}
+    end
+end
+
+controller --> user: 200 OK\nEmail verified successfully\nAccount now active
+deactivate controller
+
+note right of user
+  Status: UNVERIFIED → VERIFIED
+  Can now login and access features
+  Auto-login after verification
+end note
+
+@enduml

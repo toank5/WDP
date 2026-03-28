@@ -1,0 +1,253 @@
+@startuml AuthenticationClassDiagram
+title Authentication - Class Diagram
+!theme plain
+skinparam classBackgroundColor #E8F5E9
+skinparam classBorderColor #388E3C
+skinparam arrowColor #333
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' CONTROLLER LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class AuthController {
+    -authService: AuthService
+    --
+    +login(@Body() dto: LoginRequestDto): Promise<Response>
+    +register(@Body() dto: RegisterUserDto): Promise<Response>
+    +verifyEmail(@Body() dto: VerifyEmailDto): Promise<Response>
+    +forgotPassword(@Body() dto: ForgotPasswordDto): Promise<Response>
+    +resetPassword(@Body() dto: ResetPasswordDto): Promise<Response>
+    +resendVerification(@Body() dto: ResendVerificationDto): Promise<Response>
+    +refreshToken(@Body() dto: RefreshTokenDto): Promise<Response>
+    +logout(@Headers() authorization): Promise<Response>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SERVICE LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class AuthService {
+    -userService: UserService
+    -jwtService: JwtService
+    -emailService: EmailService
+    -configService: ConfigService
+    --
+    +login(email: string, password: string): Promise<LoginResponse>
+    +register(registerDto: RegisterUserDto): Promise<void>
+    +verifyEmail(token: string): Promise<VerifyResponse>
+    +forgotPassword(email: string): Promise<void>
+    +resetPassword(token: string, newPassword: string): Promise<void>
+    +refreshToken(refreshToken: string): Promise<TokenResponse>
+    +logout(userId: string): Promise<void>
+    -validatePasswordStrength(password: string): boolean
+    -hashPassword(password: string): Promise<string>
+    -comparePassword(password: string, hash: string): Promise<boolean>
+    -generateVerificationToken(): string
+    -generateResetToken(): string
+    -generateTokens(user: User): Promise<TokenPair>
+}
+
+class UserService {
+    -userRepository: UserRepository
+    --
+    +findByEmail(email: string): Promise<User>
+    +findById(id: string): Promise<User>
+    +create(userData: CreateUserDto): Promise<User>
+    +update(id: string, data: UpdateUserDto): Promise<User>
+    +updateLastLogin(userId: string): Promise<void>
+    +incrementFailedAttempts(user: User): Promise<void>
+    +resetFailedAttempts(user: User): Promise<void>
+    +lockAccount(user: User): Promise<void>
+    +unlockAccount(user: User): Promise<void>
+}
+
+class EmailService {
+    -mailer: MailerService
+    --
+    +sendVerificationEmail(user: User, token?: string): Promise<void>
+    +sendPasswordResetEmail(user: User, token: string): Promise<void>
+    +sendWelcomeEmail(user: User): Promise<void>
+    -buildEmailTemplate(template: string, data: any): string
+}
+
+class JwtService {
+    -config: JwtConfig
+    --
+    +signAsync(payload: any): Promise<string>
+    +verifyAsync(token: string): Promise<Payload>
+    -generateAccessToken(user: User): string
+    -generateRefreshToken(user: User): string
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' REPOSITORY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class UserRepository {
+    --
+    +findById(id: string): Promise<User>
+    +findByEmail(email: string): Promise<User>
+    +findByVerificationToken(token: string): Promise<User>
+    +findByResetToken(token: string): Promise<User>
+    +create(userData: CreateUserDto): Promise<User>
+    +update(id: string, data: UpdateUserDto): Promise<User>
+    +updateStatus(id: string, status: UserStatus): Promise<User>
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' ENTITY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class User {
+    -id: string
+    -email: string
+    -passwordHash: string
+    -fullName: string
+    -phone: string
+    -avatar: string
+    -role: UserRole
+    -status: UserStatus
+    -addresses: Address[]
+    -preferences: UserPreferences
+    -verificationToken: string
+    -verificationExpires: Date
+    -verifiedAt: Date
+    -resetToken: string
+    -resetExpires: Date
+    -passwordChangedAt: Date
+    -failedAttempts: number
+    -lastLoginAt: Date
+    -lockedAt: Date
+    -createdAt: Date
+    -updatedAt: Date
+    --
+    +isVerified(): boolean
+    +isLocked(): boolean
+    +isActive(): boolean
+}
+
+class Address {
+    -id: string
+    -userId: string
+    -fullName: string
+    -phone: string
+    -address: string
+    -city: string
+    -district: string
+    -ward: string
+    -isDefault: boolean
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' DTOs
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class LoginRequestDto {
+    +email: string
+    +password: string
+}
+
+class RegisterUserDto {
+    +email: string
+    +password: string
+    +fullName: string
+    +phone?: string
+}
+
+class VerifyEmailDto {
+    +token: string
+}
+
+class ForgotPasswordDto {
+    +email: string
+}
+
+class ResetPasswordDto {
+    +token: string
+    +newPassword: string
+}
+
+class LoginResponseDto {
+    +accessToken: string
+    +refreshToken: string
+    +user: UserResponseDto
+}
+
+class UserResponseDto {
+    +id: string
+    +email: string
+    +fullName: string
+    +avatar: string
+    +role: UserRole
+    +status: UserStatus
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' ENUMS
+' ════════════════════════════════════════════════════════════════════════════════════
+
+enum UserRole {
+    ADMIN
+    MANAGER
+    OPERATION
+    SALE
+    CUSTOMER
+}
+
+enum UserStatus {
+    REGISTERED
+    UNVERIFIED
+    VERIFIED
+    ACTIVE
+    SUSPENDED
+    LOCKED
+    PASSWORD_RESET
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SECURITY
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class JwtStrategy {
+    -jwtService: JwtService
+    --
+    +validate(payload: JwtPayload): Promise<User>
+}
+
+class RbacGuard {
+    -reflector: Reflector
+    --
+    +canActivate(context): Promise<boolean>
+    -checkRole(user: User, requiredRole: UserRole): boolean
+}
+
+class Public {
+    --Decorator--
+    +use(target, propertyKey, descriptor): void
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' RELATIONSHIPS
+' ════════════════════════════════════════════════════════════════════════════════════
+
+AuthController --> AuthService: delegates
+AuthController --> Public: marks public endpoints
+
+AuthService --> UserService: user operations
+AuthService --> JwtService: token generation
+AuthService --> EmailService: sends emails
+
+UserService --> UserRepository: persists
+EmailService --> User: sends to
+JwtService --> User: creates tokens for
+
+UserRepository --> User: maps
+User "1" *-- "many" Address: has
+
+LoginRequestDto ..> AuthService: input to
+RegisterUserDto ..> AuthService: input to
+VerifyEmailDto ..> AuthService: input to
+ResetPasswordDto ..> AuthService: input to
+LoginResponseDto ..> AuthService: output from
+
+@enduml

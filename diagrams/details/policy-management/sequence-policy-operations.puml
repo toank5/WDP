@@ -1,0 +1,115 @@
+@startuml PolicyOperationsSequence
+title Policy Management - Sequence Diagram
+
+actor ":Manager/Admin" as staff
+participant ":PolicyController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":PolicyService" as policyService
+participant ":PolicyRepository" as policyRepo
+database ":Database" as db
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 1: Create Policy
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: POST /policies\n(CreatePolicyDto)
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard --> controller: true (Manager/Admin)
+deactivate rbacGuard
+
+controller -> policyService: create(createDto, userId)
+activate policyService
+
+policyService -> policyRepo: findActiveByType(createDto.type)
+activate policyRepo
+policyRepo -> db: SELECT policy\nWHERE type = :type AND isActive = true
+db --> policyRepo: Existing Policy
+policyRepo --> policyService: Existing Policy
+deactivate policyRepo
+
+alt [Active policy exists]
+    policyService -> policyRepo: deactivate(oldPolicyId)
+    activate policyRepo
+    policyRepo -> db: UPDATE policy\nSET isActive = false
+    db --> policyRepo: Deactivated
+    policyRepo --> policyService: Done
+    deactivate policyRepo
+end
+
+policyService -> policyRepo: create(createDto)
+activate policyRepo
+policyRepo -> db: INSERT policy\nSET version = 1, isActive = true, createdBy = userId
+db --> policyRepo: Policy
+policyRepo --> policyService: Policy
+deactivate policyRepo
+
+policyService --> controller: 201 CREATED\n{policy}
+deactivate policyService
+
+controller --> staff: 201 CREATED\nPolicy created
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 2: Get Public Policy
+' ════════════════════════════════════════════════════════════════════════════════════
+
+actor ":Customer/Guest" as user
+user -> controller: GET /policies/:type
+activate controller
+
+controller -> policyService: getActivePolicy(type)
+activate policyService
+
+policyService -> policyRepo: findActiveByType(type)
+activate policyRepo
+policyRepo -> db: SELECT policy\nWHERE type = :type AND isActive = true
+db --> policyRepo: Policy
+policyRepo --> policyService: Policy
+deactivate policyRepo
+
+policyService --> controller: 200 OK\n{title, summary, bodyPlainText}
+deactivate policyService
+
+controller --> user: 200 OK\nPolicy content
+deactivate controller
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SCENARIO 3: Update Policy
+' ════════════════════════════════════════════════════════════════════════════════════
+
+staff -> controller: PATCH /policies/:id\n(UpdatePolicyDto)
+activate controller
+
+controller -> policyService: update(id, updateDto, userId)
+activate policyService
+
+policyService -> policyRepo: findOne(id)
+activate policyRepo
+policyRepo -> db: SELECT policy
+db --> policyRepo: Policy
+policyRepo --> policyService: Policy
+deactivate policyRepo
+
+policyService -> policyRepo: update(id, updateDto, userId)
+activate policyRepo
+policyRepo -> db: UPDATE policy\nSET fields = updateDto,\nversion = version + 1,\nupdatedBy = userId
+db --> policyRepo: Updated Policy
+policyRepo --> policyService: Updated Policy
+deactivate policyRepo
+
+policyService --> controller: 200 OK\n{policy}
+deactivate policyService
+
+controller --> staff: 200 OK\nPolicy updated\nNew version created
+deactivate controller
+
+@enduml

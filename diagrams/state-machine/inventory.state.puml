@@ -1,0 +1,63 @@
+@startuml Inventory State Machine
+title Inventory Item - State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#E0F7FA
+    BorderColor#00838F
+    ArrowColor#424242
+}
+
+[*] --> AVAILABLE : Product created\nwith stock
+
+AVAILABLE --> RESERVED : Order placed\n(stock reserved)
+AVAILABLE --> QUARANTINE : Quality issue flagged
+AVAILABLE --> SOLD : Direct sale\n(no reservation)
+AVAILABLE --> DISCONTINUED : Product discontinued
+
+RESERVED --> SOLD : Order paid\n(reservation confirmed)
+RESERVED --> AVAILABLE : Order cancelled\n(reservation released)
+RESERVED --> QUARANTINE : Damaged during fulfillment
+
+SOLD --> RETURNED : Item returned\n(good condition)
+SOLD --> QUARANTINE : Item returned\n(needs inspection)
+
+QUARANTINE --> AVAILABLE : Quality approved\n(restocked)
+QUARANTINE --> DAMAGED : Quality failed\n(mark as damaged)
+QUARANTINE --> RETURNED : Customer return approved
+
+RETURNED --> AVAILABLE : Processed return\n(restocked)
+RETURNED --> SOLD : Relisted as new
+
+DAMAGED --> [*] : Written off\n(discarded/recycled)
+DISCONTINUED --> [*] : Removed from system
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' NOTES
+' ════════════════════════════════════════════════════════════════════════════════════
+
+note right of AVAILABLE
+  Available for purchase
+  Visible in catalog
+  Stock count accurate
+end note
+
+note right of RESERVED
+  Held for pending order
+  Not available for others
+  Reserved for 30 minutes
+end note
+
+note right of QUARANTINE
+  Under inspection
+  Not available for sale
+  Awaiting quality decision
+end note
+
+note right of RETURNED
+  Customer return
+  Quality verified
+  Can be restocked
+end note
+
+@enduml

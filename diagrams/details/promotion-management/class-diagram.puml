@@ -1,0 +1,95 @@
+@startuml PromotionManagementClassDiagram
+title Promotion Management - Class Diagram
+!theme plain
+skinparam classBackgroundColor #FCE4EC
+skinparam classBorderColor #C2185B
+skinparam arrowColor #333
+
+class PromotionController {
+    -promotionService: PromotionService
+    --
+    +create(@Body() dto: CreatePromotionDto): Promise<Response>
+    +findAll(@Query() filters: PromotionFiltersDto): Promise<Response>
+    +findOne(@Param('id') id: string): Promise<Response>
+    +update(@Param('id') id: string, @Body() dto: UpdatePromotionDto): Promise<Response>
+    +remove(@Param('id') id: string): Promise<Response>
+    +validateCode(@Body() dto: ValidateCodeDto): Promise<Response>
+    +getStatistics(@Param('id') id: string): Promise<Response>
+}
+
+class PromotionService {
+    -promotionRepository: PromotionRepository
+    --
+    +create(createDto: CreatePromotionDto, userId: string): Promise<Promotion>
+    +validateCode(code: string, orderTotal: number): Promise<ValidationResult>
+    +usePromotion(promotionId: string, orderId: string): Promise<void>
+    +getStatistics(promotionId: string): Promise<PromotionStats>
+    -calculateDiscount(orderTotal: number, promotion: Promotion): number
+    -checkUsageLimit(promotion: Promotion): boolean
+}
+
+class PromotionRepository {
+    --
+    +findOne(id: string): Promise<Promotion>
+    +findByCode(code: string): Promise<Promotion>
+    +findActiveByCode(code: string): Promise<Promotion>
+    +create(promotionData: CreatePromotionDto): Promise<Promotion>
+    +update(id: string, data: UpdatePromotionDto): Promise<Promotion>
+    -incrementUsage(promotionId: string): Promise<void>
+}
+
+class Promotion {
+    -id: string
+    -code: string
+    -type: PromotionType
+    -value: number
+    -minOrderAmount: number
+    -maxDiscountAmount: number
+    -usageLimit: number
+    -usageCount: number
+    -userLimit: number
+    -startDate: Date
+    -endDate: Date
+    -status: PromotionStatus
+    -applicableProducts: string[]
+    -applicableCategories: ProductCategory[]
+}
+
+enum PromotionType {
+    PERCENTAGE
+    FIXED_AMOUNT
+    FREE_SHIPPING
+    BUY_X_GET_Y
+}
+
+enum PromotionStatus {
+    DRAFT
+    ACTIVE
+    PAUSED
+    EXPIRED
+    CANCELLED
+}
+
+class CreatePromotionDto {
+    +code: string
+    +type: PromotionType
+    +value: number
+    +minOrderAmount: number
+    +usageLimit: number
+    +startDate: Date
+    +endDate: Date
+}
+
+class ValidateCodeDto {
+    +code: string
+    +orderTotal: number
+    +userId: string
+}
+
+PromotionController --> PromotionService: delegates
+PromotionService --> PromotionRepository: persists
+PromotionRepository --> Promotion: maps
+CreatePromotionDto ..> Promotion: maps to
+ValidateCodeDto ..> PromotionService: input to
+
+@enduml

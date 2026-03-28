@@ -1,0 +1,96 @@
+@startuml OrderApproveSequence
+title Order Approval - Sequence Diagram
+
+actor ":Staff (Sale/Operation)" as staff
+participant ":OrderController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":OrderService" as orderService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":OrderRepository" as orderRepo
+database ":Database" as db
+
+staff -> controller: POST /orders/:id/approve
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(STAFF)\ncheckPermission('approve:order')
+rbacGuard --> controller: true (Authorized)
+deactivate rbacGuard
+
+controller -> orderService: approveOrder(orderId)
+activate orderService
+
+orderService -> orderRepo: findOne(orderId)
+activate orderRepo
+orderRepo -> db: SELECT order WITH items
+db --> orderRepo: Order
+orderRepo --> orderService: Order
+deactivate orderRepo
+
+alt [Order not found]
+    orderService --> controller: 404 NOT FOUND\n(Order not found)
+else [Order already paid/approved]
+    orderService --> controller: 400 BAD REQUEST\n(Order already processed)
+else [Order in valid state for approval]
+    orderService -> orderService: validateOrderStatus(PENDING)
+
+    orderService -> db: TRANSACTION START
+    activate db
+
+    alt [Prescription review required]
+        orderService -> orderService: verifyPrescription(order)
+    end
+
+    orderService -> orderRepo: updateStatus(orderId, PAID)
+    activate orderRepo
+    orderRepo -> db: UPDATE order\nSET status = 'PAID',\napprovedBy = staffId
+    db --> orderRepo: Updated Order
+    orderRepo --> orderService: Updated Order
+    deactivate orderRepo
+
+    orderService -> inventoryService: confirmReservation(orderId)
+    activate inventoryService
+    inventoryService -> db: UPDATE inventory\n(reserved -> sold)
+    db --> inventoryService: Confirmed
+    inventoryService --> orderService: Confirmed
+    deactivate inventoryService
+
+    orderService -> db: COMMIT
+    deactivate db
+
+    orderService -> emailService: sendOrderConfirmation(order)
+    activate emailService
+    emailService -> emailService: Build confirmation email
+    emailService -> emailService: Send via SMTP
+    emailService --> orderService: Sent
+    deactivate emailService
+
+    alt [Order has preorder items]
+        orderService -> emailService: sendPreorderNotification(order)
+        activate emailService
+        emailService --> orderService: Sent
+        deactivate emailService
+    end
+
+    orderService --> controller: 200 OK\n{orderNumber, status: PAID}
+end
+
+controller --> staff: 200 OK\nOrder approved successfully
+deactivate controller
+
+note right of staff
+  Status changed: PENDING → PAID
+  Customer receives email
+  Inventory permanently reserved
+  Processing phase begins
+end note
+
+@enduml

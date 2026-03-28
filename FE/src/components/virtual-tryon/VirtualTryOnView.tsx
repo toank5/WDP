@@ -448,7 +448,11 @@ export function VirtualTryOnView() {
         )}
 
         {/* Face Guide */}
-        {!demoMode && <FaceGuide aligned={faceDetectionState === 'aligned'} />}
+        {!demoMode && (
+          <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+            <FaceGuide aligned={faceDetectionState === 'aligned'} />
+          </Box>
+        )}
 
         {/* Glasses Overlay - 3D or 2D based on mode */}
         {(demoMode || faceDetectionState === 'aligned') && (
