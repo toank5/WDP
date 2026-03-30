@@ -1,0 +1,22 @@
+@startuml EYEWEAR-Backend-Package-Diagram
+title EYEWEAR - Backend Package Diagram
+
+left to right direction
+
+package "Controllers" {
+}
+
+package "Services" {
+}
+
+package "Models" {
+}
+
+package "Common" {
+}
+
+Controllers ..> Services
+Services ..> Models
+Controllers ..> Common
+
+@enduml

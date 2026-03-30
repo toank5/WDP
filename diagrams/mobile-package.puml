@@ -1,0 +1,26 @@
+@startuml EYEWEAR-Mobile-Package-Diagram
+title EYEWEAR - Mobile Package Diagram
+
+left to right direction
+
+package "Screens" {
+}
+
+package "Components" {
+}
+
+package "Services" {
+}
+
+package "Navigation" {
+}
+
+package "Utils" {
+}
+
+Screens ..> Components
+Screens ..> Services
+Screens ..> Navigation
+Services ..> Utils
+
+@enduml
