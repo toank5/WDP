@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { AuthUser, AuthPayload } from '../types'
 import { STORAGE_KEYS } from '../constants'
 import { migrateGuestCartToUserCart, saveUserCartToGuestCart } from './cart-store'
-import { login as loginApi } from '../services/auth-api'
+import { login as loginApi, register as registerApi } from '../services/auth-api'
 
 interface AuthState {
   user: AuthUser | null
@@ -15,6 +15,7 @@ interface AuthState {
   setAuth: (payload: AuthPayload) => void
   logout: () => void
   login: (credentials: { email: string; password: string; rememberMe?: boolean }) => Promise<void>
+  register: (data: { fullName: string; email: string; password: string }) => Promise<void>
 }
 
 // Storage keys
@@ -70,7 +71,8 @@ async function saveAuthToStorage(user: AuthUser | null, accessToken: string | nu
  */
 async function clearAuthFromStorage(): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, USER_DATA_KEY])
+    await AsyncStorage.removeItem(AUTH_TOKEN_KEY)
+    await AsyncStorage.removeItem(USER_DATA_KEY)
   } catch (error) {
     console.error('Failed to clear auth from storage:', error)
   }
@@ -118,6 +120,27 @@ export const useAuthStore = create<AuthState>(
           // Store session token in memory only (not persistent)
           // You can also use a session storage approach
         }
+
+        // Update auth state
+        await get().setAuth(response)
+
+        set({ isLoading: false })
+      } catch (error) {
+        set({ isLoading: false })
+        throw error
+      }
+    },
+
+    register: async (data) => {
+      set({ isLoading: true })
+
+      try {
+        // Call register API
+        const response = await registerApi({
+          fullName: data.fullName,
+          email: data.email,
+          password: data.password,
+        })
 
         // Update auth state
         await get().setAuth(response)

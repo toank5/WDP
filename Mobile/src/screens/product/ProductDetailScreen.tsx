@@ -26,6 +26,7 @@ import type { Product, ProductVariant } from '../../types'
 import { getProductById } from '../../services/product-api'
 import { addToCart } from '../../services/cart-api'
 import { Loading } from '../../components/Loading'
+import { useAuthStore } from '../../store/auth-store'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>
 
@@ -241,6 +242,7 @@ export function ProductDetailScreen() {
   const route = useRoute()
   const navigation = useNavigation<Props['navigation']>()
   const { productId } = route.params as { productId: string; slug?: string }
+  const { isAuthenticated } = useAuthStore()
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -299,8 +301,33 @@ export function ProductDetailScreen() {
   }
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Thông báo',
+        'Bạn cần đăng nhập để thực hiện mua hàng',
+        [
+          {
+            text: 'Đăng nhập',
+            onPress: () => {
+              const rootNav = navigation.getParent() as any
+              if (rootNav) {
+                rootNav.reset({
+                  index: 0,
+                  routes: [{ name: 'Auth' as never }],
+                })
+              }
+            },
+          },
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+        ]
+      )
+      return
+    }
+
     await handleAddToCart()
-    // Navigate to checkout after adding to cart
     navigation.navigate('Checkout')
   }
 

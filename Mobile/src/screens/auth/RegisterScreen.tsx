@@ -41,7 +41,7 @@ interface RegisterErrors {
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const theme = useTheme()
-  const { isLoading } = useAuthStore()
+  const { register, isLoading } = useAuthStore()
 
   const [formData, setFormData] = useState<RegisterFormData>({
     fullName: '',
@@ -54,7 +54,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const [errors, setErrors] = useState<RegisterErrors>({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -105,26 +104,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       return
     }
 
-    setIsSubmitting(true)
-    setErrors({})
-
     try {
-      // TODO: Call register API when implemented in auth-store
-      // const { register } = useAuthStore.getState()
-      // await register({
-      //   fullName: formData.fullName,
-      //   email: formData.email,
-      //   password: formData.password,
-      // })
+      await register({
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+      })
 
-      // For now, just show success message
       Alert.alert(
         'Đăng ký thành công',
-        'Tài khoản của bạn đã được tạo. Vui lòng kiểm tra email để xác nhận tài khoản.',
+        'Tài khoản của bạn đã được tạo. Vui lòng đăng nhập để tiếp tục.',
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Login'),
+            onPress: () => navigation.navigate('Login' as never),
           },
         ]
       )
@@ -146,13 +139,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
           'Đã có lỗi xảy ra. Vui lòng thử lại sau.'
         )
       }
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
   const navigateBack = () => {
-    navigation.goBack()
+    // Get root navigation (which has access to Main screen)
+    const rootNav = navigation.getParent() as any
+    if (rootNav) {
+      rootNav.reset({
+        index: 0,
+        routes: [{ name: 'Main' as never }],
+      })
+    } else {
+      navigation.goBack()
+    }
   }
 
   const navigateToLogin = () => {
@@ -200,7 +200,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
             mode="outlined"
             error={!!errors.fullName}
             left={<TextInput.Icon icon="account" />}
-            disabled={isSubmitting}
+            disabled={isLoading}
           />
           {errors.fullName && (
             <HelperText type="error" visible={!!errors.fullName}>
@@ -221,7 +221,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
             mode="outlined"
             error={!!errors.email}
             left={<TextInput.Icon icon="email" />}
-            disabled={isSubmitting}
+            disabled={isLoading}
           />
           {errors.email && (
             <HelperText type="error" visible={!!errors.email}>
@@ -246,7 +246,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 onPress={() => setShowPassword(!showPassword)}
               />
             }
-            disabled={isSubmitting}
+            disabled={isLoading}
           />
           {errors.password && (
             <HelperText type="error" visible={!!errors.password}>
@@ -271,7 +271,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               />
             }
-            disabled={isSubmitting}
+            disabled={isLoading}
           />
           {errors.confirmPassword && (
             <HelperText type="error" visible={!!errors.confirmPassword}>
@@ -286,7 +286,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 onPress={() =>
                   setFormData({ ...formData, agreeTerms: !formData.agreeTerms })
                 }
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
               <Text variant="bodyMedium" style={styles.termsText}>
                 Tôi đồng ý với{' '}
@@ -315,12 +315,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
           <Button
             mode="contained"
             onPress={handleRegister}
-            loading={isSubmitting}
-            disabled={isSubmitting}
+            loading={isLoading}
+            disabled={isLoading}
             style={styles.registerButton}
             contentStyle={styles.registerButtonContent}
           >
-            {isSubmitting ? 'Đang đăng ký...' : 'Đăng ký'}
+            {isLoading ? 'Đang đăng ký...' : 'Đăng ký'}
           </Button>
 
           <View style={styles.loginContainer}>

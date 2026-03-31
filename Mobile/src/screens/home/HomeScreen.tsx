@@ -174,6 +174,9 @@ export function HomeScreen({ navigation }: Props) {
 
   const { isAuthenticated, user } = useAuthStore()
 
+  // Get root navigation for auth navigation
+  const rootNavigation = navigation.getParent()
+
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true)
@@ -446,10 +449,10 @@ export function HomeScreen({ navigation }: Props) {
           <Button
             mode="outlined"
             onPress={() => {
-              // Navigate to login via root navigator
-              // Since we're inside MainNavigator, we can't directly access Auth
-              // For now, just show a message to log out and log in
-              Alert.alert('Thông báo', 'Vui lòng thoát ứng dụng và đăng nhập lại')
+              rootNavigation?.reset({
+                index: 0,
+                routes: [{ name: 'Auth' as never }],
+              })
             }}
             style={styles.authButton}
             icon="login"
@@ -459,8 +462,10 @@ export function HomeScreen({ navigation }: Props) {
           <Button
             mode="contained"
             onPress={() => {
-              // Navigate to register via root navigator
-              Alert.alert('Thông báo', 'Vui lòng thoát ứng dụng và đăng ký tài khoản mới')
+              rootNavigation?.reset({
+                index: 0,
+                routes: [{ name: 'Auth' as never }],
+              })
             }}
             style={[styles.authButton, { backgroundColor: theme.colors.primary }]}
             icon="account-plus"

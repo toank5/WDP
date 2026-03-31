@@ -70,6 +70,11 @@ export const AddressScreen = () => {
       ])
     } catch (error) {
       console.error('Error loading addresses:', error)
+      Alert.alert(
+        'Lỗi',
+        'Không thể tải danh sách địa chỉ. Vui lòng thử lại sau.',
+        [{ text: 'OK' }]
+      )
     } finally {
       setLoading(false)
     }
@@ -119,8 +124,14 @@ export const AddressScreen = () => {
 
       setShowForm(false)
       setSelectedAddress(null)
+      Alert.alert('Thành công', 'Đã lưu địa chỉ')
     } catch (error) {
       console.error('Error saving address:', error)
+      Alert.alert(
+        'Lỗi',
+        'Không thể lưu địa chỉ. Vui lòng thử lại sau.',
+        [{ text: 'OK' }]
+      )
     } finally {
       setSubmitting(false)
     }

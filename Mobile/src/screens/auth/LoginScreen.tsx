@@ -118,19 +118,29 @@ const theme = useTheme()
   }
 
   const navigateToHome = () => {
-    navigation.navigate('Main', { screen: 'Home' })
+    // After login, RootNavigator will auto-redirect to Main based on auth state
+    navigation.goBack()
   }
 
   const navigateToRegister = () => {
-    navigation.navigate('Auth', { screen: 'Register' })
+    navigation.navigate('Register' as never)
   }
 
   const navigateToForgotPassword = () => {
-    navigation.navigate('Auth', { screen: 'ForgotPassword' })
+    navigation.navigate('ForgotPassword' as never)
   }
 
   const navigateBack = () => {
-    navigation.goBack()
+    // Get root navigation (which has access to Main screen)
+    const rootNav = navigation.getParent() as any
+    if (rootNav) {
+      rootNav.reset({
+        index: 0,
+        routes: [{ name: 'Main' as never }],
+      })
+    } else {
+      navigation.goBack()
+    }
   }
 
   return (
