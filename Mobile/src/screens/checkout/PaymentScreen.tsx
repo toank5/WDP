@@ -10,9 +10,10 @@ import {
   Divider,
   RadioButton,
 } from 'react-native-paper'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useCartStore } from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 export type PaymentMethod = 'cod' | 'vnpay' | 'bank_transfer' | 'momo'
 
@@ -354,7 +355,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,

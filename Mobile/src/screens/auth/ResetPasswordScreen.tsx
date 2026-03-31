@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   passwordRequirements: {
     marginTop: 8,
     padding: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
     borderRadius: 8,
   },
   requirementsTitle: {

@@ -372,7 +372,7 @@ export function FavoritesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   header: {
     flexDirection: 'row',
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   productImageContainer: {
     position: 'relative',
     height: 180,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ecfdf5',
   },
   productImage: {
     width: '100%',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   placeholderImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#d1fae5',
   },
   placeholderText: {
     fontSize: 48,
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     right: 8,
     height: 20,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#6366f1',
   },
   threeDChipText: {
     color: 'white',
@@ -464,13 +464,13 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   productPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6366f1',
     marginBottom: 8,
   },
   variantInfo: {

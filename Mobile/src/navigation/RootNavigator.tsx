@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useAuthStore, initializeAuthStore } from '../store/auth-store'
 import { AuthNavigator } from './AuthNavigator'
 import { MainTabNavigator } from './MainTabNavigator'
+import { CheckoutStackNavigator } from './CheckoutStackNavigator'
 
 const Stack = createNativeStackNavigator()
 
@@ -63,6 +64,21 @@ export const RootNavigator = () => {
           component={MainTabNavigator}
           options={{ headerShown: false }}
         />
+
+        {/* Checkout Stack - Accessible from Cart */}
+        <Stack.Group
+          screenOptions={{
+            presentation: 'containedModal',
+            animationEnabled: true,
+            animation: 'slide_from_bottom',
+          }}
+        >
+          <Stack.Screen
+            name="Checkout"
+            component={CheckoutStackNavigator}
+            options={{ headerShown: false }}
+          />
+        </Stack.Group>
 
         {/* Auth Navigator - shown only when needed */}
         {isAuthenticated ? null : (

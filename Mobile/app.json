@@ -25,6 +25,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiBaseUrl": "https://wdp-be-production.up.railway.app"
     }
   }
 }

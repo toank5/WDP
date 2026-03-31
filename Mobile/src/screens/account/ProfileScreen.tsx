@@ -195,7 +195,7 @@ export function ProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   scrollContent: {
     padding: 16,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   avatar: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#6366f1',
     marginBottom: 16,
   },
   avatarLabel: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
   },
   saveButton: {
     borderRadius: 12,

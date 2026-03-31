@@ -2,6 +2,7 @@ import React from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { PaperProvider } from 'react-native-paper'
 import { RootNavigator } from './src/navigation/RootNavigator'
+import { useAppTheme } from './src/components/Theme'
 
 /**
  * App - Main entry point
@@ -16,9 +17,11 @@ import { RootNavigator } from './src/navigation/RootNavigator'
  * - If not authenticated → Show AuthNavigator (Login, Register, Forgot, Reset)
  */
 export default function App() {
+  const { theme } = useAppTheme()
+
   return (
     <>
-      <PaperProvider>
+      <PaperProvider theme={theme}>
         <RootNavigator />
       </PaperProvider>
       <StatusBar style="auto" />

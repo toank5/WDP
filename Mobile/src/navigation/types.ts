@@ -29,6 +29,7 @@ export type CheckoutStackParamList = {
 export type RootStackParamList = {
   Auth: undefined
   Main: undefined
+  Home: undefined
   ProductDetail: { slug: string; productId: string }
   ProductList: { category?: string }
   Cart: undefined

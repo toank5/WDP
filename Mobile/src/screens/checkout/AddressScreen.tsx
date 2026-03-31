@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import {
   Text,
   Button,
@@ -9,10 +9,10 @@ import {
   Card,
   Divider,
 } from 'react-native-paper'
-import { useCartStore } from '../../store/cart-store'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useAuthStore } from '../../store/auth-store'
 import { AddressForm, type Address } from '../../components/checkout/AddressForm'
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 /**
  * AddressScreen - Chọn hoặc nhập địa chỉ giao hàng
@@ -29,7 +29,6 @@ export const AddressScreen = () => {
   const theme = useTheme()
   const navigation = useNavigation() as NativeStackNavigationProp<any>
   const { isAuthenticated } = useAuthStore()
-  const { guestAddress } = useCartStore()
 
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
@@ -41,14 +40,6 @@ export const AddressScreen = () => {
   React.useEffect(() => {
     loadAddresses()
   }, [])
-
-  // If logged in, use saved addresses
-  // If guest, use guest address from cart
-  React.useEffect(() => {
-    if (!isAuthenticated && guestAddress && !showForm) {
-      setShowForm(true)
-    }
-  }, [isAuthenticated, guestAddress, showForm])
 
   const loadAddresses = async () => {
     try {
@@ -136,14 +127,15 @@ export const AddressScreen = () => {
   }, [selectedAddress])
 
   const handleContinue = useCallback(() => {
-    if (!selectedAddress && !guestAddress) {
+    if (!selectedAddress) {
       // Show error - need to select or add address
+      Alert.alert('Thông báo', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng')
       return
     }
 
     // Navigate to payment screen
-    navigation.navigate('CheckoutPayment' as never)
-  }, [selectedAddress, guestAddress, navigation])
+    navigation.navigate('CheckoutPayment' as any)
+  }, [selectedAddress, navigation])
 
   const handleBack = useCallback(() => {
     navigation.goBack()
@@ -285,7 +277,7 @@ export const AddressScreen = () => {
           <Button
             mode="contained"
             onPress={handleContinue}
-            disabled={!selectedAddress && !guestAddress}
+            disabled={!selectedAddress}
             style={styles.continueButton}
             contentStyle={styles.continueButtonContent}
           >
@@ -300,7 +292,7 @@ export const AddressScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -402,7 +394,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#fff',
+    backgroundColor: '#d1fae5',
   },
   continueButton: {
     borderRadius: 8,

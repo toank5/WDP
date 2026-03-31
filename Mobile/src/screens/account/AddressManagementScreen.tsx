@@ -49,7 +49,7 @@ const DEFAULT_FORM_DATA: AddressFormData = {
 
 // Colors
 const COLORS = {
-  primary: '#3b82f6',
+  primary: '#6366f1',
   error: '#ef4444',
   warning: '#f59e0b',
   surface: '#ffffff',
@@ -439,7 +439,7 @@ export function AddressManagementScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   header: {
     flexDirection: 'row',

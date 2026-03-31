@@ -1,24 +1,24 @@
 import { MD3DarkTheme, MD3LightTheme, adaptNavigationTheme } from 'react-native-paper'
 import { useColorScheme } from 'react-native'
 
-// Define custom colors based on WDP FE colors
+// Define custom colors based on WDP FE colors - Blue-purple theme
 export const COLORS = {
-  primary: '#1976d2',
-  primaryDark: '#115293',
-  primaryLight: '#63a4ff',
-  secondary: '#9c27b0',
-  secondaryDark: '#6a0080',
-  secondaryLight: '#d05ce3',
-  success: '#4caf50',
-  error: '#f44336',
-  warning: '#ff9800',
-  info: '#2196f3',
+  primary: '#6366f1', // Indigo blue-purple
+  primaryDark: '#4f46e5',
+  primaryLight: '#818cf8',
+  secondary: '#8b5cf6', // Violet purple
+  secondaryDark: '#7c3aed',
+  secondaryLight: '#a78bfa',
+  success: '#10b981',
+  error: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
   surface: '#ffffff',
   onSurface: '#000000',
   onSurfaceDisabled: '#9e9e9e',
-  background: '#f5f5f5',
-  border: '#e0e0e0',
-  skeleton: '#e0e0e0',
+  background: '#f8fafc',
+  border: '#e2e8f0',
+  skeleton: '#f1f5f9',
 }
 
 // Light theme

@@ -252,7 +252,7 @@ export const StoreScreen: React.FC<StoreScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   header: {
     padding: 16,

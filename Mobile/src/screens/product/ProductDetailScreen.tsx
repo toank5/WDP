@@ -19,8 +19,10 @@ import {
   SegmentedButtons,
 } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
+import { useRoute, useNavigation } from '@react-navigation/native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import type { RootStackParamList, Product, ProductVariant } from '../../types'
+import type { RootStackParamList } from '../../navigation/types'
+import type { Product, ProductVariant } from '../../types'
 import { getProductById } from '../../services/product-api'
 import { addToCart } from '../../services/cart-api'
 import { Loading } from '../../components/Loading'
@@ -50,6 +52,8 @@ const REASSURANCE_POINTS = [
   { icon: '🚚', text: 'Miễn phí giao hàng' },
   { icon: '🔄', text: 'Đổi trả 30 ngày' },
   { icon: '✅', text: 'Bảo hành 12 tháng' },
+  { icon: '🛡️', text: 'Cam kết chính hãng' },
+  { icon: '💎', text: 'Dịch vụ hậu mãi' },
 ]
 
 interface ImageGalleryProps {
@@ -232,9 +236,11 @@ function SpecItem({ label, value, icon }: SpecItemProps) {
   )
 }
 
-export function ProductDetailScreen({ route, navigation }: Props) {
+export function ProductDetailScreen() {
   const theme = useTheme()
-  const { productId } = route.params
+  const route = useRoute()
+  const navigation = useNavigation<Props['navigation']>()
+  const { productId } = route.params as { productId: string; slug?: string }
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -434,6 +440,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 
           {/* Reassurance Points */}
           <Divider style={styles.divider} />
+          <Text style={styles.sectionTitle}>Chính sách bảo hành</Text>
           <View style={styles.reassuranceContainer}>
             {REASSURANCE_POINTS.map((point, index) => (
               <View key={index} style={styles.reassuranceItem}>
@@ -441,6 +448,42 @@ export function ProductDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.reassuranceText}>{point.text}</Text>
               </View>
             ))}
+          </View>
+
+          {/* Additional Info */}
+          <Divider style={styles.divider} />
+          <Text style={styles.sectionTitle}>Thông tin thêm</Text>
+          <View style={styles.additionalInfoContainer}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>SKU:</Text>
+              <Text style={styles.infoValue}>{product._id || 'N/A'}</Text>
+            </View>
+            {product.createdAt && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Ngày thêm:</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(product.createdAt).toLocaleDateString('vi-VN')}
+                </Text>
+              </View>
+            )}
+            {product.tags && product.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                <Text style={styles.tagsLabel}>Tags:</Text>
+                <View style={styles.tagsRow}>
+                  {product.tags.map((tag, index) => (
+                    <Chip
+                      key={index}
+                      mode="outlined"
+                      compact
+                      style={styles.tagChip}
+                      textStyle={styles.tagChipText}
+                    >
+                      {tag}
+                    </Chip>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -493,19 +536,19 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   scrollView: {
     flex: 1,
   },
   imageGallery: {
-    backgroundColor: 'white',
+    backgroundColor: '#a7f3d0',
   },
   mainImageContainer: {
     position: 'relative',
     width: SCREEN_WIDTH,
     aspectRatio: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ecfdf5',
   },
   mainImage: {
     width: '100%',
@@ -574,17 +617,17 @@ const styles = StyleSheet.create({
   categoryBadge: {
     alignSelf: 'flex-start',
     marginBottom: 12,
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#d1fae5',
   },
   categoryBadgeText: {
-    color: '#1e40af',
+    color: '#4338ca',
     fontSize: 12,
     fontWeight: '600',
   },
   productName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 12,
   },
   priceRow: {
@@ -596,7 +639,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6366f1',
   },
   stockStatus: {
     backgroundColor: 'transparent',
@@ -611,12 +654,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 12,
   },
   description: {
     fontSize: 14,
-    color: '#475569',
+    color: '#1f2937',
     lineHeight: 22,
     marginBottom: 16,
   },
@@ -626,7 +669,7 @@ const styles = StyleSheet.create({
   variantLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
+    color: '#1f2937',
     marginBottom: 8,
   },
   colorOptions: {
@@ -653,7 +696,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ecfdf5',
     borderRadius: 12,
   },
   specIcon: {
@@ -665,13 +708,13 @@ const styles = StyleSheet.create({
   },
   specLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#6b7280',
     marginBottom: 2,
   },
   specValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
   },
   reassuranceContainer: {
     gap: 12,
@@ -680,7 +723,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#a7f3d0',
     borderRadius: 12,
   },
   reassuranceIcon: {
@@ -689,8 +732,9 @@ const styles = StyleSheet.create({
   },
   reassuranceText: {
     fontSize: 14,
-    color: '#166534',
+    color: '#4c1d95',
     flex: 1,
+    fontWeight: '500',
   },
   footer: {
     backgroundColor: 'white',
@@ -709,7 +753,7 @@ const styles = StyleSheet.create({
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#d1fae5',
     borderRadius: 8,
   },
   quantityText: {
@@ -718,6 +762,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minWidth: 40,
     textAlign: 'center',
+    color: '#000000',
   },
   actionButtons: {
     flex: 1,
@@ -731,5 +776,47 @@ const styles = StyleSheet.create({
   },
   buttonContent: {
     paddingVertical: 10,
+  },
+  additionalInfoContainer: {
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '600',
+  },
+  tagsContainer: {
+    marginTop: 12,
+  },
+  tagsLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagChip: {
+    height: 28,
+    backgroundColor: '#d1fae5',
+  },
+  tagChipText: {
+    fontSize: 12,
+    color: '#4338ca',
   },
 })

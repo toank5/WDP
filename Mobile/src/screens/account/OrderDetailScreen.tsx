@@ -455,7 +455,7 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   itemImageContainer: {
     width: 80,
     height: 80,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#d1fae5',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',

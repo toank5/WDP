@@ -10,10 +10,11 @@ import {
   Divider,
   Checkbox,
 } from 'react-native-paper'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useCartStore } from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
 import type { PaymentMethod } from './PaymentScreen'
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
 export interface OrderTotals {
   subtotal: number
@@ -191,19 +192,18 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
   }, [navigation])
 
   const handleEditAddress = useCallback(() => {
-    navigation.navigate('CheckoutAddress' as never, {
-      existingAddress: address,
-      paymentMethod,
-      totals: calculatedTotals,
-    })
-  }, [navigation, address, paymentMethod, calculatedTotals])
+    navigation.goBack()
+    setTimeout(() => {
+      navigation.navigate('CheckoutAddress' as any)
+    }, 300)
+  }, [navigation])
 
   const handleEditPayment = useCallback(() => {
-    navigation.navigate('CheckoutPayment' as never, {
-      address,
-      totals: calculatedTotals,
-    })
-  }, [navigation, address, calculatedTotals])
+    navigation.goBack()
+    setTimeout(() => {
+      navigation.navigate('CheckoutPayment' as any)
+    }, 300)
+  }, [navigation])
 
   if (loading) {
     return (
@@ -243,14 +243,14 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           {shippingAddress ? (
             <>
               <Text variant="titleSmall" style={styles.addressName}>
-                {shippingAddress.name}
+                {shippingAddress.recipientName}
               </Text>
               <Text variant="bodyMedium" style={styles.addressPhone}>
-                {shippingAddress.phone}
+                {shippingAddress.recipientPhone}
               </Text>
               <Text variant="bodyMedium" style={styles.addressDetail}>
                 {shippingAddress.address}, {shippingAddress.ward},{' '}
-                {shippingAddress.district}, {shippingAddress.city}
+                {shippingAddress.district}, {shippingAddress.province}
               </Text>
               {shippingAddress.isDefault && (
                 <Text variant="bodySmall" style={styles.defaultBadge}>
@@ -334,15 +334,24 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
 
           <View style={styles.itemsList}>
             {items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
+              <View key={item._id} style={styles.itemRow}>
                 <View style={styles.itemInfo}>
                   <Text variant="titleSmall" style={styles.itemName}>
-                    {item.name}
+                    {item.productName}
                   </Text>
-                  {item.variantName && (
-                    <Text variant="bodySmall" style={styles.itemVariant}>
-                      {item.variantName}
-                    </Text>
+                  {item.variantDetails && (
+                    <>
+                      {item.variantDetails.size && (
+                        <Text variant="bodySmall" style={styles.itemVariant}>
+                          Size: {item.variantDetails.size}
+                        </Text>
+                      )}
+                      {item.variantDetails.color && (
+                        <Text variant="bodySmall" style={styles.itemVariant}>
+                          Màu: {item.variantDetails.color}
+                        </Text>
+                      )}
+                    </>
                   )}
                   <Text variant="bodySmall" style={styles.itemQuantity}>
                     x{item.quantity}
@@ -456,7 +465,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -616,7 +625,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#fff',
+    backgroundColor: '#d1fae5',
   },
   confirmButton: {
     borderRadius: 8,

@@ -574,7 +574,7 @@ export function SearchScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#1e293b',
+    color: '#000000',
   },
   emptyButton: {
     marginBottom: 8,
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
   productImageContainer: {
     position: 'relative',
     height: 140,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ecfdf5',
   },
   productImage: {
     width: '100%',
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   placeholderImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#d1fae5',
   },
   placeholderText: {
     fontSize: 48,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     right: 8,
     height: 20,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#6366f1',
   },
   threeDChipText: {
     color: 'white',
@@ -693,13 +693,13 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   productPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6366f1',
   },
   filterModal: {
     margin: 16,
@@ -725,13 +725,13 @@ const styles = StyleSheet.create({
   filterSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#d1fae5',
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#1e293b',
+    color: '#000000',
   },
   chipContainer: {
     flexDirection: 'row',

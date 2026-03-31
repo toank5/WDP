@@ -281,7 +281,7 @@ export function AboutScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   heroSection: {
     padding: 32,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   greySection: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ecfdf5',
   },
   sectionHeader: {
     marginBottom: 24,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   teamAvatar: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#6366f1',
     marginBottom: 12,
   },
   teamAvatarLabel: {
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingVertical: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   footerText: {
     fontSize: 12,

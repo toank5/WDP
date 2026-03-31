@@ -3,7 +3,8 @@ import { View, StyleSheet } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'
-import { HomeScreen, SearchScreen, CartScreen, AccountScreen } from '../screens'
+import { SearchScreen, CartScreen, AccountScreen } from '../screens'
+import { HomeStackNavigator } from './HomeStackNavigator'
 import { useCartStore } from '../store/cart-store'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
@@ -34,7 +35,7 @@ export const MainTabNavigator = () => {
     >
       <Tab.Screen
         name="HomeTab"
-        component={HomeScreen}
+        component={HomeStackNavigator}
         options={{
           tabBarLabel: 'Cửa hàng',
           tabBarIcon: ({ color, size }) => (
