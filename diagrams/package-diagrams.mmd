@@ -1,0 +1,111 @@
+# EYEWEAR Package Diagrams (Simplified)
+
+## Backend Package Diagram
+
+```mermaid
+graph TB
+    subgraph Backend["EYEWEAR Backend System"]
+        Controllers["Controllers"]
+        Services["Services"]
+        Models["Models"]
+        Common["Common"]
+    end
+
+    Controllers --> Services
+    Services --> Models
+    Controllers --> Common
+
+    Controllers["Controllers: Auth, User, Product, Order, Return, Inventory, Payment"]
+    Services["Services: Auth, User, Product, Order, Return, Inventory, VNPay"]
+    Models["Models: User, Product, Order, Return, Inventory, Cart"]
+    Common["Common: Guards, DTOs, Utils"]
+```
+
+---
+
+## Frontend Package Diagram
+
+```mermaid
+graph TB
+    subgraph Frontend["EYEWEAR Frontend System"]
+        Pages["Pages"]
+        Components["Components"]
+        Services["Services"]
+        State["State"]
+        Utils["Utils"]
+    end
+
+    Pages --> Components
+    Pages --> Services
+    Pages --> State
+    Services --> Utils
+
+    Pages["Pages: Home, Store, Product Detail, Cart, Checkout, Dashboard"]
+    Components["Components: VirtualTryOn, ProductCard, CartDrawer, CheckoutForm"]
+    Services["Services: authApi, productApi, cartApi, orderApi, paymentApi"]
+    State["State: authStore, cartStore, productStore"]
+    Utils["Utils: validators, formatters, constants"]
+```
+
+---
+
+## Mobile Package Diagram
+
+```mermaid
+graph TB
+    subgraph Mobile["EYEWEAR Mobile System"]
+        Screens["Screens"]
+        Components["Components"]
+        Services["Services"]
+        Navigation["Navigation"]
+        Utils["Utils"]
+    end
+
+    Screens --> Components
+    Screens --> Services
+    Screens --> Navigation
+    Services --> Utils
+
+    Screens["Screens: Login, Home, Product List, TryOn, Cart, Profile"]
+    Components["Components: ProductCard, TryOnView, CameraView"]
+    Services["Services: authService, productService, cartService"]
+    Navigation["Navigation: TabNav, StackNav"]
+    Utils["Utils: storage, validators, helpers"]
+```
+
+---
+
+## Combined Package Diagram
+
+```mermaid
+graph TB
+    subgraph Platform["EYEWEAR Platform"]
+        Frontend["Frontend\nNext.js"]
+        Mobile["Mobile\nReact Native"]
+        Backend["Backend\nNestJS"]
+        Shared["Shared Package"]
+    end
+
+    Frontend --> Backend
+    Mobile --> Backend
+    Frontend --> Shared
+    Mobile --> Shared
+    Backend --> Shared
+```
+
+---
+
+## Quick Summary
+
+| Platform | Main Packages | Description |
+|----------|--------------|-------------|
+| **Backend** | Controllers, Services, Models, Common | NestJS REST API |
+| **Frontend** | Pages, Components, Services, State | Next.js Web App |
+| **Mobile** | Screens, Components, Services, Navigation | React Native App |
+| **Shared** | Types, Enums, Constants | Common TypeScript types |
+
+---
+
+**Rendering:**
+- PlantUML: Open `.puml` files in VSCode (Alt+D)
+- Mermaid: Copy to [Mermaid Live](https://mermaid.live/)

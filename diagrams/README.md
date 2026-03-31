@@ -47,6 +47,30 @@ diagrams/
 
 ## Available Diagrams
 
+### System Context Diagram
+
+| Diagram | Description | File |
+|---------|-------------|------|
+| **System Context** | High-level view of EYEWEAR platform, user roles, and external systems | `system-context.puml` / `system-context.mmd` |
+
+This diagram shows:
+
+- **User Roles**: Customer, Sales Staff, Manager, Admin
+- **Platform Components**: Web App, Mobile App, Admin/Staff/Manager Portals, Backend API, Database
+- **External Systems**: VNPay, Cloudinary, Resend, Courier/Shipping Partner
+- **Data Flows**: All interactions between users, platform, and external systems
+
+### Package Diagrams
+
+| Diagram | Description | File |
+|---------|-------------|------|
+| **Backend Package** | NestJS backend package structure (Controllers, Services, Schemas) | `backend-package.puml` |
+| **Frontend Package** | Next.js frontend package structure (Pages, Components, State) | `frontend-package.puml` |
+| **Mobile Package** | React Native mobile package structure (Screens, Navigation, Modules) | `mobile-package.puml` |
+| **Combined Package** | All three platforms with shared packages and external dependencies | `combined-package.puml` / `package-diagrams.mmd` |
+
+---
+
 ### State Machine Diagrams
 | Diagram | Description | File |
 |---------|-------------|------|

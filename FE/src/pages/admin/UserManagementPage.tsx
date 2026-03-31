@@ -247,7 +247,9 @@ export function UserManagementPage() {
                   <FormControl fullWidth required size="small">
                     <Select
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value as USER_ROLES })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, role: e.target.value as USER_ROLES })
+                      }
                     >
                       {Object.values(USER_ROLES).map((role) => (
                         <MenuItem key={role} value={role}>
@@ -305,9 +307,8 @@ export function UserManagementPage() {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Personnel Name</TableCell>
-              <TableCell>System Identifier (Email)</TableCell>
-              <TableCell>Access Level</TableCell>
+              <TableCell>Full Name</TableCell>
+              <TableCell>Email</TableCell>
               <TableCell>Registration Date</TableCell>
             </TableRow>
           </TableHead>
@@ -338,20 +339,6 @@ export function UserManagementPage() {
                   </Box>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={roleLabels[user.role] ?? 'Unknown'}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderRadius: 1,
-                      fontWeight: 700,
-                      fontSize: '0.65rem',
-                      textTransform: 'uppercase',
-                      bgcolor: 'grey.50',
-                    }}
-                  />
-                </TableCell>
                 <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
               </TableRow>
             ))}

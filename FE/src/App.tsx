@@ -33,6 +33,7 @@ import VirtualTryOnPage from './pages/store/VirtualTryOnPage'
 import ProfilePage from './pages/account/ProfilePage'
 import AddressesPage from './pages/account/AddressesPage'
 import SecurityPage from './pages/account/SecurityPage'
+import { AccountSettingsPage } from './pages/account/AccountSettingsPage'
 
 // Staff pages
 import StaffOrdersPage from './pages/StaffOrdersPage'
@@ -41,7 +42,6 @@ import StaffPrescriptionsPage from './pages/staff/StaffPrescriptionsPage'
 import LabJobsPage from './pages/staff/LabJobsPage'
 
 // Operations pages
-import OperationsDashboard from './pages/OperationsDashboard'
 import ShippingPage from './pages/ShippingPage'
 
 // Manager pages
@@ -120,6 +120,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/account/settings"
+            element={
+              <ProtectedRoute>
+                <AccountSettingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/virtual-tryon" element={<VirtualTryOnPage />} />
           <Route path="/policies/:type" element={<PolicyDetailPage />} />
 
@@ -161,7 +169,6 @@ function App() {
             <Route path="prescriptions" element={<StaffPrescriptionsPage />} />
             <Route path="lab-jobs" element={<LabJobsPage />} />
             <Route path="returns" element={<ReturnsManagementPage />} />
-            <Route path="operations" element={<OperationsDashboard />} />
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="combos" element={<ComboBuilderPage />} />
@@ -174,6 +181,7 @@ function App() {
             <Route path="preorders" element={<PreorderManagementPage />} />
             <Route path="preorders/:sku" element={<PreorderDetailPage />} />
             <Route path="inventory/:sku" element={<InventoryDetailPage />} />
+            <Route path="settings" element={<AccountSettingsPage />} />
           </Route>
 
           {/* Inventory/Supplier detail routes (outside dashboard layout for standalone access) */}

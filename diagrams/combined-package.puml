@@ -1,0 +1,55 @@
+@startuml EYEWEAR-Combined-Package-Diagram
+title EYEWEAR - Combined Package Diagram
+
+left to right direction
+
+package "Frontend" {
+}
+
+package "Mobile" {
+}
+
+package "Backend" {
+}
+
+package "Shared" {
+}
+
+Frontend ..> Backend
+Mobile ..> Backend
+Frontend ..> Shared
+Mobile ..> Shared
+Backend ..> Shared
+
+note right of Frontend
+  <b>Frontend (Next.js)</b>
+  • Pages
+  • Components
+  • Services
+  • State
+end note
+
+note right of Mobile
+  <b>Mobile (React Native)</b>
+  • Screens
+  • Components
+  • Services
+  • Navigation
+end note
+
+note right of Backend
+  <b>Backend (NestJS)</b>
+  • Controllers
+  • Services
+  • Models
+  • Common
+end note
+
+note right of Shared
+  <b>Shared Package</b>
+  • Types
+  • Enums
+  • Constants
+end note
+
+@enduml

@@ -20,7 +20,8 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { MediaService } from '../commons/services/media.service';
-import { RbacGuard } from '../commons/guards/rbac.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
 // Upload size limits (hardcoded for webpack compatibility)
@@ -43,7 +44,8 @@ export class MediaController {
    * POST /manager/media/images2d
    */
   @Post('images2d')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: memoryStorage(),
@@ -126,7 +128,8 @@ export class MediaController {
    * POST /manager/media/images3d
    */
   @Post('images3d')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('files', 5, {
       storage: memoryStorage(),
