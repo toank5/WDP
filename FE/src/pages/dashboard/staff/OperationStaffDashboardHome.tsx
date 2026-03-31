@@ -591,17 +591,6 @@ export function OperationStaffDashboardHome() {
             Inventory
           </Button>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Button
-            component={Link}
-            to="/dashboard/operations"
-            variant="outlined"
-            fullWidth
-            startIcon={<AssignmentReturn />}
-          >
-            Operations
-          </Button>
-        </Grid>
       </Grid>
     </Box>
   )

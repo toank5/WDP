@@ -135,12 +135,6 @@ export function DashboardLayout() {
           operationOnly: true,
         },
         {
-          title: 'Operations',
-          icon: <Assignment />,
-          url: '/dashboard/operations',
-          operationOnly: true,
-        },
-        {
           title: 'Shipping',
           icon: <LocalShipping />,
           url: '/dashboard/shipping',
