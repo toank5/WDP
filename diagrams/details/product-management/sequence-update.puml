@@ -90,11 +90,5 @@ end
 controller --> admin: 200 OK\nProduct updated successfully
 deactivate controller
 
-note right of admin
-  Product data updated
-  Old images cleaned up
-  Status auto-calculated
-  Audit trail maintained
-end note
 
 @enduml

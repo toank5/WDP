@@ -86,11 +86,5 @@ end
 controller --> staff: 200 OK\nOrder approved successfully
 deactivate controller
 
-note right of staff
-  Status changed: PENDING → PAID
-  Customer receives email
-  Inventory permanently reserved
-  Processing phase begins
-end note
 
 @enduml

@@ -63,10 +63,5 @@ end
 controller --> user: 200 OK\nEmail verified successfully\nAccount now active
 deactivate controller
 
-note right of user
-  Status: UNVERIFIED → VERIFIED
-  Can now login and access features
-  Auto-login after verification
-end note
 
 @enduml

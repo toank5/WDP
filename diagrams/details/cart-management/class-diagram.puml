@@ -1,161 +1,27 @@
 @startuml CartManagementClassDiagram
-title Cart Management - Class Diagram
 !theme plain
-skinparam classBackgroundColor #FFF8E1
-skinparam classBorderColor #F57F17
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
 skinparam arrowColor #333
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' CONTROLLER LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class CartController { }
 
-class CartController {
-    -cartService: CartService
-    --
-    +getCart(@Headers() authorization): Promise<Response>
-    +addItem(@Body() dto: AddCartItemDto): Promise<Response>
-    +updateItem(@Param('id') itemId: string, @Body() dto: UpdateCartItemDto): Promise<Response>
-    +removeItem(@Param('id') itemId: string): Promise<Response>
-    +clearCart(@Headers() authorization): Promise<Response>
-    +mergeGuestCart(@Body() dto: MergeCartDto): Promise<Response>
-}
+class CartService { }
+class ProductService { }
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' SERVICE LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class CartRepository { }
 
-class CartService {
-    -cartRepository: CartRepository
-    -productService: ProductService
-    --
-    +getCart(userId: string): Promise<CartResponseDto>
-    +addItem(userId: string, variantId: string, quantity: number): Promise<CartResponseDto>
-    +updateItem(userId: string, itemId: string, quantity: number): Promise<CartResponseDto>
-    +removeItem(userId: string, itemId: string): Promise<void>
-    +clearCart(userId: string): Promise<void>
-    +mergeGuestCart(userId: string, guestItems: GuestCartItem[]): Promise<CartResponseDto>
-    -calculateTotals(items: CartItem[]): CartTotals
-    -validateItemOwnership(cart: Cart, userId: string): boolean
-}
+class Cart { }
+class CartItem { }
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' REPOSITORY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+CartController -- CartService
+CartService -- CartRepository
+CartService -- ProductService
+CartRepository -- Cart
 
-class CartRepository {
-    --
-    +findCartByUserId(userId: string): Promise<Cart>
-    +findCartItemById(itemId: string): Promise<CartItem>
-    +addItem(cartId: string, variantId: string, quantity: number): Promise<CartItem>
-    +updateItemQuantity(itemId: string, quantity: number): Promise<CartItem>
-    +removeItem(itemId: string): Promise<void>
-    +clearCartItems(cartId: string): Promise<void>
-    +create(userId: string): Promise<Cart>
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENTITY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class Cart {
-    -id: string
-    -userId: string
-    -items: CartItem[]
-    -createdAt: Date
-    -updatedAt: Date
-    --
-    +isEmpty(): boolean
-    +getItemCount(): number
-}
-
-class CartItem {
-    -id: string
-    -cartId: string
-    -productVariantId: string
-    -quantity: number
-    -product: ProductVariantInfo
-    --
-    +getSubtotal(): number
-}
-
-class ProductVariantInfo {
-    +id: string
-    +sku: string
-    +name: string
-    +price: number
-    +compareAtPrice: number
-    +image: string
-    +inStock: boolean
-    +product: ProductInfo
-}
-
-class ProductInfo {
-    +id: string
-    +name: string
-    +slug: string
-    +category: string
-    +images2D: string[]
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' DTOs
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class AddCartItemDto {
-    +variantId: string
-    +quantity: number
-}
-
-class UpdateCartItemDto {
-    +quantity: number
-}
-
-class CartResponseDto {
-    +id: string
-    +items: CartItemResponseDto[]
-    +subtotal: number
-    +itemCount: number
-    +appliedPromo: PromoInfo
-}
-
-class CartItemResponseDto {
-    +id: string
-    +variantId: string
-    +productName: string
-    +variantName: string
-    +quantity: number
-    +unitPrice: number
-    +subtotal: number
-    +image: string
-    +inStock: boolean
-}
-
-class MergeCartDto {
-    +guestItems: GuestCartItem[]
-}
-
-class GuestCartItem {
-    +variantId: string
-    +quantity: number
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' RELATIONSHIPS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-CartController --> CartService: delegates
-CartService --> CartRepository: persists
-CartService --> ProductService: validates
-
-CartRepository --> Cart: maps
-CartRepository --> CartItem: maps
-
-Cart "1" *-- "many" CartItem: contains
-CartItem --> ProductVariantInfo: references
-ProductVariantInfo --> ProductInfo: references
-
-AddCartItemDto ..> CartService: input to
-UpdateCartItemDto ..> CartService: input to
-CartResponseDto ..> Cart: maps from
+Cart "1" *-- "many" CartItem
 
 @enduml

@@ -11,7 +11,8 @@
       "Bash(ls -lh FE/dist/assets/*.js)",
       "Bash(mongod --version)",
       "Bash(npx create-expo-app@latest . --template blank-typescript)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(head -8 */class-diagram.puml)"
     ],
     "additionalDirectories": [
       "D:\\Code\\Project\\WDP\\FE\\src\\components\\virtual-tryon"

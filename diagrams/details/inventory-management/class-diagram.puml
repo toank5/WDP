@@ -1,193 +1,33 @@
 @startuml InventoryManagementClassDiagram
-title Inventory Management - Class Diagram
 !theme plain
-skinparam classBackgroundColor #E0F7FA
-skinparam classBorderColor #00838F
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
 skinparam arrowColor #333
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' CONTROLLER LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class InventoryController { }
 
-class InventoryController {
-    -inventoryService: InventoryService
-    --
-    +adjustStock(@Body() dto: AdjustStockDto): Promise<Response>
-    +reserveStock(@Body() dto: ReserveStockDto): Promise<Response>
-    +releaseReservation(@Param('orderId') orderId: string): Promise<Response>
-    +confirmReservation(@Param('orderId') orderId: string): Promise<Response>
-    +getInventory(@Param('variantId') variantId: string): Promise<Response>
-    +getLowStock(@Query('threshold') threshold: number): Promise<Response>
-    +getMovements(@Query() filters: MovementFiltersDto): Promise<Response>
-}
+class InventoryService { }
+class MovementService { }
+class EmailService { }
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' SERVICE LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class InventoryRepository { }
+class MovementRepository { }
 
-class InventoryService {
-    -inventoryRepository: InventoryRepository
-    -movementService: MovementService
-    -emailService: EmailService
-    --
-    +adjustStock(variantId: string, quantity: number, reason: string, staffId: string): Promise<Inventory>
-    +reserveStock(orderId: string, items: ReserveItem[]): Promise<void>
-    +releaseReservation(orderId: string): Promise<void>
-    +confirmReservation(orderId: string): Promise<void>
-    +getInventory(variantId: string): Promise<Inventory>
-    +getLowStockItems(threshold: number): Promise<Inventory[]>
-    -validateSufficientStock(inventory: Inventory, quantity: number): boolean
-    -checkLowStockAlert(inventory: Inventory): void
-}
+class Inventory { }
+class InventoryMovement { }
 
-class MovementService {
-    -movementRepository: MovementRepository
-    --
-    +recordMovement(variantId: string, quantity: number, type: MovementType, reason: string): Promise<InventoryMovement>
-    +getMovementsByOrder(orderId: string, type?: MovementType): Promise<InventoryMovement[]>
-    +getMovementsByVariant(variantId: string, options: FindOptions): Promise<InventoryMovement[]>
-    -calculateNetMovement(movements: InventoryMovement[]): number
-}
+InventoryController -- InventoryService
+InventoryService -- InventoryRepository
+InventoryService -- MovementService
+InventoryService -- EmailService
+MovementService -- MovementRepository
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' REPOSITORY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+InventoryRepository -- Inventory
+MovementRepository -- InventoryMovement
 
-class InventoryRepository {
-    --
-    +findByVariantId(variantId: string): Promise<Inventory>
-    +findLowStock(threshold: number): Promise<Inventory[]>
-    +findAll(): Promise<Inventory[]>
-    +create(inventoryData: CreateInventoryDto): Promise<Inventory>
-    +updateAvailableQuantity(variantId: string, quantity: number): Promise<void>
-    +updateReservedQuantity(variantId: string, quantity: number): Promise<void>
-    +reserveQuantity(variantId: string, quantity: number): Promise<void>
-    +releaseQuantity(variantId: string, quantity: number): Promise<void>
-}
-
-class MovementRepository {
-    --
-    +create(movementData: CreateMovementDto): Promise<InventoryMovement>
-    +findByOrder(orderId: string): Promise<InventoryMovement[]>
-    +findByVariant(variantId: string, options: FindOptions): Promise<InventoryMovement[]>
-    +findByDateRange(startDate: Date, endDate: Date): Promise<InventoryMovement[]>
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENTITY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class Inventory {
-    -id: string
-    -productVariantId: string
-    -availableQuantity: number
-    -reservedQuantity: number
-    -soldQuantity: number
-    -status: InventoryStatus
-    -location: string
-    -lastStockCheckAt: Date
-    -lowStockThreshold: number
-    --
-    +getTotalQuantity(): number
-    +isLowStock(): boolean
-}
-
-class InventoryMovement {
-    -id: string
-    -inventoryId: string
-    -productVariantId: string
-    -type: MovementType
-    -quantity: number
-    -referenceType: string
-    -referenceId: string
-    -reason: string
-    -performedBy: string
-    -createdAt: Date
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' DTOs
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class AdjustStockDto {
-    +variantId: string
-    +quantity: number
-    +reason: string
-}
-
-class ReserveStockDto {
-    +orderId: string
-    +items: ReserveItemDto[]
-}
-
-class ReserveItemDto {
-    +variantId: string
-    +quantity: number
-}
-
-class InventoryResponseDto {
-    +variantId: string
-    +sku: string
-    +productName: string
-    +availableQuantity: number
-    +reservedQuantity: number
-    +totalQuantity: number
-    +status: InventoryStatus
-}
-
-class MovementResponseDto {
-    +id: string
-    +type: MovementType
-    +quantity: number
-    +reason: string
-    +performedBy: string
-    +createdAt: Date
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENUMS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-enum InventoryStatus {
-    AVAILABLE
-    RESERVED
-    OUT_OF_STOCK
-    QUARANTINE
-    DAMAGED
-    DISCONTINUED
-}
-
-enum MovementType {
-    STOCK_IN
-    STOCK_OUT
-    RESERVATION
-    RELEASE
-    SALE
-    RETURN
-    ADJUSTMENT
-    TRANSFER
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' RELATIONSHIPS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-InventoryController --> InventoryService: delegates
-InventoryController --> RbacGuard: authorizes
-
-InventoryService --> InventoryRepository: persists
-InventoryService --> MovementService: records
-InventoryService --> EmailService: alerts low stock
-
-MovementService --> MovementRepository: persists
-
-InventoryRepository --> Inventory: maps
-MovementRepository --> InventoryMovement: maps
-
-Inventory "1" *-- "many" InventoryMovement: tracks
-
-AdjustStockDto ..> InventoryService: input to
-ReserveStockDto ..> InventoryService: input to
-InventoryResponseDto ..> Inventory: maps from
+Inventory "1" *-- "many" InventoryMovement
 
 @enduml

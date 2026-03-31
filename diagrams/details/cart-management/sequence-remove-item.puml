@@ -1,0 +1,41 @@
+@startuml CartRemoveItemSequence
+title Remove Cart Item - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":CartController" as controller
+participant ":CartService" as cartService
+participant ":CartRepository" as cartRepo
+database ":Database" as db
+
+customer -> controller: DELETE /cart/items/:itemId
+activate controller
+
+controller -> cartService: removeItem(userId, itemId)
+activate cartService
+
+cartService -> cartRepo: findCartItemById(itemId)
+activate cartRepo
+cartRepo -> db: SELECT cart_item\nWITH cart
+db --> cartRepo: CartItem
+cartRepo --> cartService: CartItem
+deactivate cartRepo
+
+alt [Item not found]
+    cartService --> controller: 404 NOT FOUND
+else [Item belongs to different user]
+    cartService --> controller: 403 FORBIDDEN
+else [Valid request]
+    cartService -> cartRepo: removeItem(itemId)
+    activate cartRepo
+    cartRepo -> db: DELETE cart_item\nWHERE id = itemId
+    db --> cartRepo: Deleted
+    cartRepo --> cartService: Done
+    deactivate cartRepo
+
+    cartService --> controller: 200 OK\n{message: 'Item removed'}
+end
+
+controller --> customer: 200 OK\nItem removed from cart
+deactivate controller
+
+@enduml

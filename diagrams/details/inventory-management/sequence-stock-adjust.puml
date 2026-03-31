@@ -1,0 +1,77 @@
+@startuml InventoryAdjustSequence
+title Stock Adjustment - Sequence Diagram
+
+actor ":Staff" as staff
+participant ":InventoryController" as controller
+participant ":InventoryService" as inventoryService
+participant ":MovementService" as movementService
+participant ":InventoryRepository" as inventoryRepo
+participant ":MovementRepository" as movementRepo
+database ":Database" as db
+
+staff -> controller: POST /inventory/adjust\n{variantId, quantity, reason}
+activate controller
+
+controller -> inventoryService: adjustStock(variantId, quantity, reason, staffId)
+activate inventoryService
+
+inventoryService -> inventoryRepo: findByVariantId(variantId)
+activate inventoryRepo
+inventoryRepo -> db: SELECT inventory\nWHERE variantId = variantId
+db --> inventoryRepo: Inventory
+inventoryRepo --> inventoryService: Inventory
+deactivate inventoryRepo
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+alt [Quantity > 0 - Stock Increase]
+    inventoryService -> inventoryRepo: increaseAvailable(variantId, quantity)
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity + quantity
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordMovement(variantId, quantity, 'STOCK_IN', reason)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement\nSET type = 'STOCK_IN', quantity, reason
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+
+else [Quantity < 0 - Stock Decrease]
+    inventoryService -> inventoryService: validateSufficientStock(inventory, abs(quantity))
+    inventoryService -> inventoryRepo: decreaseAvailable(variantId, abs(quantity))
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity - abs(quantity)
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordMovement(variantId, abs(quantity), 'STOCK_OUT', reason)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement\nSET type = 'STOCK_OUT', quantity, reason
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> controller: 200 OK\n{availableQuantity, movementId}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nStock adjusted
+deactivate controller
+
+@enduml

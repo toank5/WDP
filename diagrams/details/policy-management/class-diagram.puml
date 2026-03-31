@@ -1,98 +1,24 @@
 @startuml PolicyManagementClassDiagram
-title Policy Management - Class Diagram
 !theme plain
-skinparam classBackgroundColor #F1F8E9
-skinparam classBorderColor #558B2F
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
 skinparam arrowColor #333
 
-class PolicyController {
-    -policyService: PolicyService
-    --
-    +create(@Body() dto: CreatePolicyDto): Promise<Response>
-    +findAll(@Query() filters: PolicyFiltersDto): Promise<Response>
-    +findOne(@Param('id') id: string): Promise<Response>
-    +update(@Param('id') id: string, @Body() dto: UpdatePolicyDto): Promise<Response>
-    +remove(@Param('id') id: string): Promise<Response>
-    +getPublicPolicy(@Param('type') type: string): Promise<Response>
-}
+class PolicyController { }
 
-class PolicyService {
-    -policyRepository: PolicyRepository
-    --
-    +create(createDto: CreatePolicyDto, userId: string): Promise<Policy>
-    +findAll(filters: PolicyFiltersDto): Promise<Policy[]>
-    +findOne(id: string): Promise<Policy>
-    +update(id: string, updateDto: UpdatePolicyDto, userId: string): Promise<Policy>
-    +remove(id: string): Promise<void>
-    +getActivePolicy(type: PolicyType): Promise<Policy>
-    +deactivateOldPolicies(type: PolicyType): Promise<void>
-}
+class PolicyService { }
 
-class PolicyRepository {
-    --
-    +findOne(id: string): Promise<Policy>
-    +findActiveByType(type: PolicyType): Promise<Policy>
-    +findByType(type: PolicyType): Promise<Policy[]>
-    +create(policyData: CreatePolicyDto): Promise<Policy>
-    +update(id: string, data: UpdatePolicyDto): Promise<Policy>
-    +deactivate(id: string): Promise<void>
-}
+class PolicyRepository { }
 
-class Policy {
-    -id: string
-    -type: PolicyType
-    -title: string
-    -summary: string
-    -bodyPlainText: string
-    -config: PolicyConfig
-    -version: number
-    -isActive: boolean
-    -createdBy: string
-    -updatedBy: string
-    -createdAt: Date
-    -updatedAt: Date
-}
+class Policy { }
+class PolicyConfig { }
 
-class PolicyConfig {
-    +returnDays: number
-    +refundPolicy: string
-    +warrantyMonths: number
-    +shippingInfo: string
-}
-
-class CreatePolicyDto {
-    +type: PolicyType
-    +title: string
-    +summary: string
-    +bodyPlainText: string
-    +config: PolicyConfig
-}
-
-class PolicyResponseDto {
-    +id: string
-    +type: PolicyType
-    +title: string
-    +summary: string
-    +bodyPlainText: string
-    +version: number
-}
-
-enum PolicyType {
-    RETURN
-    REFUND
-    WARRANTY
-    SHIPPING
-    PRESCRIPTION
-    CANCELLATION
-    PRIVACY
-    TERMS
-}
-
-PolicyController --> PolicyService: delegates
-PolicyService --> PolicyRepository: persists
-PolicyRepository --> Policy: maps
-Policy "1" *-- "1" PolicyConfig: has
-CreatePolicyDto ..> Policy: maps to
-PolicyResponseDto ..> Policy: maps from
+PolicyController -- PolicyService
+PolicyService -- PolicyRepository
+PolicyRepository -- Policy
+Policy "1" *-- "1" PolicyConfig
 
 @enduml

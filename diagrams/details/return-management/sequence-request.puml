@@ -90,11 +90,5 @@ end
 controller --> customer: 201 CREATED\nReturn request submitted\nShipping label provided
 deactivate controller
 
-note right of customer
-  Status: SUBMITTED → AWAITING_ITEMS
-  7-day window to ship items
-  Shipping label included
-  Return address: Warehouse
-end note
 
 @enduml

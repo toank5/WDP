@@ -1,0 +1,113 @@
+@startuml ApproveRefundSequence
+title Approve Return Refund - Sequence Diagram
+
+actor ":Sales Staff" as sales
+participant ":ReturnController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":ReturnService" as returnService
+participant ":OrderService" as orderService
+participant ":VNPayService" as vnpayService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":ReturnRepository" as returnRepo
+database ":Database" as db
+
+sales -> controller: PATCH /returns/:id/process-refund\n{decision: 'APPROVE', refundAmount}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(SALES)
+rbacGuard --> controller: true
+deactivate rbacGuard
+
+controller -> returnService: processRefund(returnId, decisionDto, salesId)
+activate returnService
+
+returnService -> returnRepo: findOne(returnId)
+activate returnRepo
+returnRepo -> db: SELECT return WITH items
+db --> returnRepo: Return
+returnRepo --> returnService: Return
+deactivate returnRepo
+
+returnService -> returnService: calculateFinalRefundAmount(return, decisionDto.refundAmount)
+
+returnService -> returnRepo: updateStatus(returnId, APPROVED)
+activate returnRepo
+returnRepo -> db: UPDATE return_request\nSET status = 'APPROVED',\napprovedBy = salesId
+db --> returnRepo: Updated Return
+returnRepo --> returnService: Updated Return
+deactivate returnRepo
+
+alt [Return type: REFUND]
+    returnService -> orderService: getOriginalOrder(return.orderId)
+    activate orderService
+    orderService --> returnService: Order with payment info
+    deactivate orderService
+
+    returnService -> vnpayService: initiateRefund(order, refundAmount)
+    activate vnpayService
+    vnpayService -> vnpayService: Build refund request
+    vnpayService -> vnpayService: Call VNPAY refund API
+    vnpayService --> returnService: Refund transaction ID
+    deactivate vnpayService
+
+    returnService -> returnRepo: updateRefundTransaction(returnId, refundTxnId)
+    activate returnRepo
+    returnRepo -> db: UPDATE return_request\nSET refundTxnId = txnId
+    db --> returnRepo: Updated
+    returnRepo --> returnService: Updated
+    deactivate returnRepo
+
+    returnService -> inventoryService: processReturnedInventory(return.items, 'RETURNED')
+    activate inventoryService
+    inventoryService -> db: UPDATE inventory\n(returned items → available stock)
+    db --> inventoryService: Updated
+    inventoryService --> returnService: Inventory updated
+    deactivate inventoryService
+
+else [Return type: EXCHANGE]
+    returnService -> orderService: createExchangeOrder(return)
+    activate orderService
+    orderService -> orderService: buildExchangeOrder(return)
+    orderService -> db: INSERT order (EXCHANGE type)
+    db --> orderService: New exchange order
+    orderService --> returnService: Exchange order created
+    deactivate orderService
+
+    returnService -> returnRepo: updateExchangeOrder(returnId, exchangeOrderId)
+    activate returnRepo
+    returnRepo -> db: UPDATE return_request\nSET exchangeOrderId = newOrderId
+    db --> returnRepo: Updated
+    returnRepo --> returnService: Updated
+    deactivate returnRepo
+end
+
+returnService -> returnRepo: updateStatus(returnId, COMPLETED)
+activate returnRepo
+returnRepo -> db: UPDATE return_request\nSET status = 'COMPLETED',\ncompletedAt = NOW()
+db --> returnRepo: Updated Return
+returnRepo --> returnService: Updated Return
+deactivate returnRepo
+
+returnService -> emailService: sendRefundApprovedEmail(return)
+activate emailService
+emailService -> emailService: Build approval email
+emailService -> emailService: Send to customer
+emailService --> returnService: Sent
+deactivate emailService
+
+returnService --> controller: 200 OK\n{returnNumber, status, refundTxnId}
+deactivate returnService
+
+controller --> sales: 200 OK\nRefund approved
+deactivate controller
+
+@enduml

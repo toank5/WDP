@@ -62,11 +62,5 @@ end
 controller --> user: 201 CREATED\nPlease check your email\nto verify your account
 deactivate controller
 
-note right of user
-  Verification link valid for 24 hours
-  Resend option available
-  Login restricted until verified
-  Role: CUSTOMER (default)
-end note
 
 @enduml

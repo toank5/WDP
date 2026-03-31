@@ -1,0 +1,33 @@
+@startuml PreorderManagementClassDiagram
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
+skinparam arrowColor #333
+
+class PreorderController { }
+
+class PreorderService { }
+class ProductService { }
+class InventoryService { }
+class EmailService { }
+
+class PreorderRepository { }
+
+class Preorder { }
+class PreorderItem { }
+
+PreorderController -- PreorderService
+
+PreorderService -- PreorderRepository
+PreorderService -- ProductService
+PreorderService -- InventoryService
+PreorderService -- EmailService
+
+PreorderRepository -- Preorder
+
+Preorder "1" *-- "many" PreorderItem
+
+@enduml

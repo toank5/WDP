@@ -1,0 +1,54 @@
+@startuml InventoryReleaseSequence
+title Stock Release - Sequence Diagram
+
+actor ":System" as system
+participant ":InventoryService" as inventoryService
+participant ":MovementService" as movementService
+participant ":MovementRepository" as movementRepo
+participant ":InventoryRepository" as inventoryRepo
+database ":Database" as db
+
+system -> inventoryService: releaseReservation(orderId)
+activate inventoryService
+
+inventoryService -> movementService: getMovementsByOrder(orderId, 'RESERVATION')
+activate movementService
+movementService -> movementRepo: findByOrder(orderId)
+activate movementRepo
+movementRepo -> db: SELECT inventory_movement\nWHERE referenceId = orderId\nAND type = 'RESERVATION'
+db --> movementRepo: Movement[]
+movementRepo --> movementService: Movements
+deactivate movementRepo
+movementService --> inventoryService: Movements
+deactivate movementService
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+loop for each movement
+    inventoryService -> inventoryRepo: releaseQuantity(movement.variantId, movement.quantity)
+    activate inventoryRepo
+    inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity + movement.quantity,\nreservedQuantity = reservedQuantity - movement.quantity
+    db --> inventoryRepo: Updated
+    inventoryRepo --> inventoryService: Updated
+    deactivate inventoryRepo
+
+    inventoryService -> movementService: recordRelease(movement.variantId, movement.quantity, 'RELEASE', orderId)
+    activate movementService
+    movementService -> movementRepo: create(movementData)
+    activate movementRepo
+    movementRepo -> db: INSERT inventory_movement
+    db --> movementRepo: Movement
+    movementRepo --> movementService: Movement
+    deactivate movementRepo
+    movementService --> inventoryService: Recorded
+    deactivate movementService
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> system: 200 OK\n{message: 'Reservation released'}
+deactivate inventoryService
+
+@enduml

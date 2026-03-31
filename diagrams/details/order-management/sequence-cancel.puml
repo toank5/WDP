@@ -101,11 +101,5 @@ end
 controller --> actor: 200 OK\nOrder cancelled successfully
 deactivate controller
 
-note right of actor
-  Status changed: PENDING/PAID → CANCELLED
-  Inventory released back to stock
-  Customer/Staff receives email
-  Refund initiated (if paid)
-end note
 
 @enduml

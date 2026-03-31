@@ -1,0 +1,56 @@
+@startuml InventoryReserveSequence
+title Stock Reservation - Sequence Diagram
+
+actor ":System" as system
+participant ":InventoryService" as inventoryService
+participant ":InventoryRepository" as inventoryRepo
+participant ":MovementService" as movementService
+participant ":MovementRepository" as movementRepo
+database ":Database" as db
+
+system -> inventoryService: reserveStock(orderId, items)
+activate inventoryService
+
+inventoryService -> db: TRANSACTION START
+activate db
+
+loop for each item
+    inventoryService -> inventoryRepo: findByVariantId(item.variantId)
+    activate inventoryRepo
+    inventoryRepo -> db: SELECT inventory\nWHERE variantId = item.variantId\nFOR UPDATE
+    db --> inventoryRepo: Inventory
+    inventoryRepo --> inventoryService: Inventory
+    deactivate inventoryRepo
+
+    alt [Insufficient stock]
+        inventoryService -> db: ROLLBACK
+        deactivate db
+        inventoryService --> system: 409 CONFLICT\n(Insufficient stock)
+    else [Stock available]
+        inventoryService -> inventoryRepo: reserveQuantity(item.variantId, item.quantity)
+        activate inventoryRepo
+        inventoryRepo -> db: UPDATE inventory\nSET availableQuantity = availableQuantity - item.quantity,\nreservedQuantity = reservedQuantity + item.quantity
+        db --> inventoryRepo: Updated
+        inventoryRepo --> inventoryService: Updated
+        deactivate inventoryRepo
+
+        inventoryService -> movementService: recordMovement(item.variantId, item.quantity, 'RESERVATION', orderId)
+        activate movementService
+        movementService -> movementRepo: create(movementData)
+        activate movementRepo
+        movementRepo -> db: INSERT inventory_movement
+        db --> movementRepo: Movement
+        movementRepo --> movementService: Movement
+        deactivate movementRepo
+        movementService --> inventoryService: Recorded
+        deactivate movementService
+    end
+end
+
+inventoryService -> db: COMMIT
+deactivate db
+
+inventoryService --> system: 200 OK\n{message: 'Stock reserved'}
+deactivate inventoryService
+
+@enduml

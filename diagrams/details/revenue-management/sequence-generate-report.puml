@@ -1,0 +1,54 @@
+@startuml GenerateRevenueReportSequence
+title Generate Revenue Report - Sequence Diagram
+
+actor ":Manager/Admin" as admin
+participant ":RevenueController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":RevenueService" as revenueService
+participant ":OrderService" as orderService
+participant ":RevenueRepository" as revenueRepo
+database ":Database" as db
+
+admin -> controller: GET /revenue/report?startDate&endDate
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(MANAGER)
+rbacGuard --> controller: true
+deactivate rbacGuard
+
+controller -> revenueService: generateReport(startDate, endDate)
+activate revenueService
+
+revenueService -> orderService: getCompletedOrders(startDate, endDate)
+activate orderService
+orderService -> db: SELECT order\nWHERE status IN 'DELIVERED'\nAND createdAt BETWEEN startDate AND endDate
+db --> orderService: Order[]
+orderService --> revenueService: Orders
+deactivate orderService
+
+revenueService -> revenueService: calculateTotalRevenue(orders)
+revenueService -> revenueService: calculateRevenueByCategory(orders)
+revenueService -> revenueService: calculateRevenueByProduct(orders)
+
+revenueService -> revenueRepo: saveReport(reportData)
+activate revenueRepo
+revenueRepo -> db: INSERT revenue_report\nWITH daily/monthly breakdown
+db --> revenueRepo: RevenueReport
+revenueRepo --> revenueService: Report
+deactivate revenueRepo
+
+revenueService --> controller: 200 OK\n{totalRevenue, byCategory, byProduct, trends}
+deactivate revenueService
+
+controller --> admin: 200 OK\nRevenue report
+deactivate controller
+
+@enduml

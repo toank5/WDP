@@ -1,0 +1,64 @@
+@startuml ReceiveSupplySequence
+title Receive Supply (Stock In) - Sequence Diagram
+
+actor ":Warehouse Staff" as staff
+participant ":SupplierController" as controller
+participant ":PurchaseOrderService" as purchaseOrderService
+participant ":InventoryService" as inventoryService
+participant ":MovementService" as movementService
+participant ":PurchaseOrderRepository" as purchaseOrderRepo
+database ":Database" as db
+
+staff -> controller: POST /purchase-orders/:id/receive\n{itemsReceived, notes}
+activate controller
+
+controller -> purchaseOrderService: receiveSupply(poId, receiveDto)
+activate purchaseOrderService
+
+purchaseOrderService -> purchaseOrderRepo: findOne(poId)
+activate purchaseOrderRepo
+purchaseOrderRepo -> db: SELECT purchase_order WITH items\nWHERE id = poId
+db --> purchaseOrderRepo: PurchaseOrder
+purchaseOrderRepo --> purchaseOrderService: PurchaseOrder
+deactivate purchaseOrderRepo
+
+alt [PO not found or already received]
+    purchaseOrderService --> controller: 404 NOT FOUND
+else [Valid PO]
+    purchaseOrderService -> db: TRANSACTION START
+    activate db
+
+    loop for each received item
+        purchaseOrderService -> inventoryService: addStock(item.variantId, item.quantityReceived)
+        activate inventoryService
+        inventoryService -> db: UPDATE inventory\nSET availableQuantity = availableQuantity + quantityReceived
+        db --> inventoryService: Updated
+        inventoryService --> purchaseOrderService: Stock updated
+        deactivate inventoryService
+
+        purchaseOrderService -> movementService: recordMovement(item.variantId, item.quantityReceived, 'STOCK_IN', 'PO: ' + poId)
+        activate movementService
+        movementService -> db: INSERT inventory_movement
+        db --> movementService: Recorded
+        movementService --> purchaseOrderService: Recorded
+        deactivate movementService
+    end
+
+    purchaseOrderService -> purchaseOrderRepo: updateStatus(poId, RECEIVED)
+    activate purchaseOrderRepo
+    purchaseOrderRepo -> db: UPDATE purchase_order\nSET status = 'RECEIVED',\nreceivedAt = NOW(),\nreceivingNotes = notes
+    db --> purchaseOrderRepo: Updated
+    purchaseOrderRepo --> purchaseOrderService: Updated
+    deactivate purchaseOrderRepo
+
+    purchaseOrderService -> db: COMMIT
+    deactivate db
+
+    purchaseOrderService --> controller: 200 OK\n{poNumber, status, itemsReceived}
+end
+
+deactivate purchaseOrderService
+controller --> staff: 200 OK\nSupply received
+deactivate controller
+
+@enduml

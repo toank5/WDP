@@ -1,0 +1,115 @@
+@startuml WDPContextDiagram
+title WDP Eyewear Platform - Context Diagram
+
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 100
+skinparam ranksep 100
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Arial
+
+rectangle "WDP Eyewear E-Commerce Platform" #E3F2FD {
+    rectangle "Authentication" #BBDEFB
+    rectangle "Product Catalog" #BBDEFB
+    rectangle "Cart & Checkout" #BBDEFB
+    rectangle "Order Management" #BBDEFB
+    rectangle "Inventory" #BBDEFB
+    rectangle "Returns & Refunds" #BBDEFB
+    rectangle "Supplier Management" #BBDEFB
+    rectangle "Revenue Analytics" #BBDEFB
+    rectangle "User Management" #BBDEFB
+}
+
+actor "Customer" as customer #E8F5E9
+actor "Operation Staff" as operation #FFF3E0
+actor "Sale Staff" as sale #FCE4EC
+actor "Manager" as manager #F3E5F5
+actor "Admin" as admin #FFEBEE
+
+actor "VNPay" as vnpay #E0F2F1
+actor "Email Service" as email #E0F2F1
+actor "Cloudinary" as cloudinary #E0F2F1
+actor "AI Model" as ai #E0F2F1
+
+' Customer interactions
+customer --> "Authentication" : Login, Register, Reset Password
+customer --> "Product Catalog" : Browse, Search, Filter
+customer --> "Cart & Checkout" : Add items, Checkout
+customer --> "Order Management" : View orders, Track status, Cancel
+customer --> "Returns & Refunds" : Create return, Upload photos
+
+' Operation Staff interactions
+operation --> "Authentication" : Login
+operation --> "Inventory" : Adjust stock, View movements
+operation --> "Order Management" : View orders, Process orders
+operation --> "Returns & Refunds" : Verify returns
+
+' Sale Staff interactions
+sale --> "Authentication" : Login
+sale --> "Order Management" : Approve orders
+sale --> "Returns & Refunds" : Approve/Reject refunds
+
+' Manager interactions
+manager --> "Authentication" : Login
+manager --> "Revenue Analytics" : View dashboard, Reports
+manager --> "Product Catalog" : Manage products
+manager --> "Inventory" : Low stock alerts
+manager --> "Order Management" : Monitor orders
+manager --> "Supplier Management" : Create PO
+
+' Admin interactions
+admin --> "Authentication" : Login
+admin --> "User Management" : Manage users, roles
+admin --> "Product Catalog" : CRUD products
+admin --> "Supplier Management" : Manage suppliers
+admin --> "Returns & Refunds" : Monitor returns
+
+' External systems
+"Cart & Checkout" --> vnpay : Payment processing
+"Cart & Checkout" --> vnpay : Refund processing
+"Returns & Refunds" --> vnpay : Refund processing
+
+"Authentication" --> email : Verification emails
+"Authentication" --> email : Password reset
+"Order Management" --> email : Order confirmation
+"Returns & Refunds" --> email : Return notifications
+
+"Product Catalog" --> cloudinary : Image upload
+"Product Catalog" --> cloudinary : 3D model upload
+
+note right of customer
+  **Customer Role**
+  - Browse eyewear (frames, lenses)
+  - Add to cart & checkout
+  - Track orders
+  - Request returns
+end note
+
+note right of operation
+  **Operation Staff**
+  - Manage inventory
+  - Process orders
+  - Verify returns
+end note
+
+note right of sale
+  **Sale Staff**
+  - Approve orders
+  - Process refunds
+end note
+
+note right of manager
+  **Manager**
+  - View revenue
+  - Manage suppliers
+  - Monitor operations
+end note
+
+note right of admin
+  **Admin**
+  - Manage users
+  - Configure system
+  - Full access
+end note
+
+@enduml

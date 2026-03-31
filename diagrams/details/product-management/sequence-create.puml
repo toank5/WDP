@@ -86,11 +86,5 @@ deactivate productService
 controller --> admin: 201 CREATED\nProduct created successfully
 deactivate controller
 
-note right of admin
-  Product created with DRAFT status
-  Images uploaded to CDN
-  Inventory initialized
-  Ready for review and publish
-end note
 
 @enduml
