@@ -6,7 +6,6 @@ import {
   Drawer,
   AppBar,
   Toolbar,
-  List,
   Typography,
   Divider,
   IconButton,
@@ -18,6 +17,8 @@ import {
   Chip,
   ThemeProvider,
   CssBaseline,
+  List,
+  ListSubheader,
 } from '@mui/material'
 import { adminTheme } from '@/admin-theme'
 import {
@@ -61,6 +62,16 @@ type MenuItem = {
   managerOrOperationOnly?: boolean
 }
 
+type MenuSection = {
+  title?: string
+  items: MenuItem[]
+  adminOnly?: boolean
+  managerOnly?: boolean
+  operationOnly?: boolean
+  saleOnly?: boolean
+  staffOnly?: boolean
+}
+
 export function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -78,112 +89,194 @@ export function DashboardLayout() {
 
   if (!user) return null
 
-  const menuItems = [
+  const menuSections: MenuSection[] = [
     {
-      title: 'Dashboard',
-      icon: <Dashboard />,
-      url: '/dashboard',
+      title: 'Overview',
+      items: [
+        {
+          title: 'Dashboard',
+          icon: <Dashboard />,
+          url: '/dashboard',
+        },
+      ],
     },
     {
-      title: 'Orders',
-      icon: <ShoppingCart />,
-      url: '/dashboard/orders',
-      staffOnly: true, // Sale and Operation
-    },
-    {
-      title: 'Prescriptions',
-      icon: <Description />,
-      url: '/dashboard/prescriptions',
+      title: 'Customer Care',
       saleOnly: true,
-    },
-    {
-      title: 'Lab Jobs',
-      icon: <Biotech />,
-      url: '/dashboard/lab-jobs',
-      operationOnly: true,
-    },
-    {
-      title: 'Returns',
-      icon: <AssignmentReturn />,
-      url: '/dashboard/returns',
-      staffOnly: true, // Sale and Operation
-    },
-    {
-      title: 'User Management',
-      icon: <People />,
-      url: '/dashboard/users',
-      adminOnly: true,
-    },
-    {
-      title: 'Policy Management',
-      icon: <Gavel />,
-      url: '/dashboard/policies',
-      managerOnly: true,
-    },
-    {
-      title: 'Products',
-      icon: <Build />,
-      url: '/dashboard/products',
-      managerOnly: true,
-    },
-    {
-      title: 'Inventory',
-      icon: <Warehouse />,
-      url: '/dashboard/inventory',
-      managerOrOperationOnly: true,
-    },
-    {
-      title: 'Suppliers',
-      icon: <Business />,
-      url: '/dashboard/suppliers',
-      managerOnly: true,
+      items: [
+        {
+          title: 'Orders',
+          icon: <ShoppingCart />,
+          url: '/dashboard/orders',
+          saleOnly: true,
+        },
+        {
+          title: 'Prescriptions',
+          icon: <Description />,
+          url: '/dashboard/prescriptions',
+          saleOnly: true,
+        },
+        {
+          title: 'Returns',
+          icon: <AssignmentReturn />,
+          url: '/dashboard/returns',
+          saleOnly: true,
+        },
+      ],
     },
     {
       title: 'Operations',
-      icon: <Assignment />,
-      url: '/dashboard/operations',
       operationOnly: true,
+      items: [
+        {
+          title: 'Lab Jobs',
+          icon: <Biotech />,
+          url: '/dashboard/lab-jobs',
+          operationOnly: true,
+        },
+        {
+          title: 'Operations',
+          icon: <Assignment />,
+          url: '/dashboard/operations',
+          operationOnly: true,
+        },
+        {
+          title: 'Shipping',
+          icon: <LocalShipping />,
+          url: '/dashboard/shipping',
+          operationOnly: true,
+        },
+        {
+          title: 'Inventory',
+          icon: <Warehouse />,
+          url: '/dashboard/inventory',
+          operationOnly: true,
+        },
+        {
+          title: 'Returns',
+          icon: <AssignmentReturn />,
+          url: '/dashboard/returns',
+          operationOnly: true,
+        },
+      ],
     },
     {
-      title: 'Shipping',
-      icon: <LocalShipping />,
-      url: '/dashboard/shipping',
-      operationOnly: true,
-    },
-    {
-      title: 'Promotions',
-      icon: <Campaign />,
-      url: '/dashboard/promotions',
+      title: 'Sales & Revenue',
       managerOnly: true,
+      items: [
+        {
+          title: 'Revenue',
+          icon: <TrendingUp />,
+          url: '/dashboard/revenue',
+          managerOnly: true,
+        },
+        {
+          title: 'Orders',
+          icon: <ShoppingCart />,
+          url: '/dashboard/orders',
+          staffOnly: true,
+        },
+      ],
     },
     {
-      title: 'Combos',
-      icon: <LocalOffer />,
-      url: '/dashboard/combos',
+      title: 'Catalog',
       managerOnly: true,
+      items: [
+        {
+          title: 'Products',
+          icon: <Build />,
+          url: '/dashboard/products',
+          managerOnly: true,
+        },
+        {
+          title: 'Inventory',
+          icon: <Warehouse />,
+          url: '/dashboard/inventory',
+          managerOrOperationOnly: true,
+        },
+        {
+          title: 'Suppliers',
+          icon: <Business />,
+          url: '/dashboard/suppliers',
+          managerOnly: true,
+        },
+        {
+          title: 'Pre-orders',
+          icon: <LocalOffer />,
+          url: '/dashboard/preorders',
+          managerOnly: true,
+        },
+      ],
     },
     {
-      title: 'Pricing',
-      icon: <AttachMoney />,
-      url: '/dashboard/pricing',
+      title: 'Marketing',
       managerOnly: true,
+      items: [
+        {
+          title: 'Promotions',
+          icon: <Campaign />,
+          url: '/dashboard/promotions',
+          managerOnly: true,
+        },
+        {
+          title: 'Combos',
+          icon: <Discount />,
+          url: '/dashboard/combos',
+          managerOnly: true,
+        },
+        {
+          title: 'Pricing',
+          icon: <AttachMoney />,
+          url: '/dashboard/pricing',
+          managerOnly: true,
+        },
+      ],
     },
     {
-      title: 'Revenue',
-      icon: <TrendingUp />,
-      url: '/dashboard/revenue',
+      title: 'Management',
       managerOnly: true,
+      items: [
+        {
+          title: 'Policies',
+          icon: <Gavel />,
+          url: '/dashboard/policies',
+          managerOnly: true,
+        },
+        {
+          title: 'Returns',
+          icon: <AssignmentReturn />,
+          url: '/dashboard/returns',
+          staffOnly: true,
+        },
+      ],
     },
     {
-      title: 'Analytics',
-      icon: <Assessment />,
-      url: '/dashboard/analytics',
-      managerOnly: true,
+      title: 'System',
+      adminOnly: true,
+      items: [
+        {
+          title: 'User Management',
+          icon: <People />,
+          url: '/dashboard/users',
+          adminOnly: true,
+        },
+        {
+          title: 'Analytics',
+          icon: <Assessment />,
+          url: '/dashboard/analytics',
+          managerOnly: true,
+        },
+      ],
     },
     {
-      title: 'Settings',
-      icon: <Settings />,
-      url: '/dashboard/settings',
+      title: 'Account',
+      items: [
+        {
+          title: 'Settings',
+          icon: <Settings />,
+          url: '/dashboard/settings',
+        },
+      ],
     },
   ]
 
@@ -192,6 +285,39 @@ export function DashboardLayout() {
   const isOperation = user.role === OPERATION_ROLE
   const isSale = user.role === SALE_ROLE
   const isStaff = isSale || isOperation || isManager || isAdmin
+
+  const shouldShowMenuItem = (item: MenuItem): boolean => {
+    return (
+      (item.adminOnly && isAdmin) ||
+      (item.managerOnly && isManager) ||
+      (item.operationOnly && isOperation) ||
+      (item.saleOnly && isSale) ||
+      (item.managerOrOperationOnly && (isManager || isOperation)) ||
+      (item.staffOnly && (isSale || isOperation || isManager)) ||
+      (!item.adminOnly &&
+        !item.managerOnly &&
+        !item.saleOnly &&
+        !item.staffOnly &&
+        !item.operationOnly &&
+        !item.managerOrOperationOnly)
+    )
+  }
+
+  const shouldShowSection = (section: MenuSection): boolean => {
+    // Check if section itself is role-restricted
+    if (
+      (section.adminOnly && !isAdmin) ||
+      (section.managerOnly && !isManager) ||
+      (section.operationOnly && !isOperation) ||
+      (section.saleOnly && !isSale) ||
+      (section.staffOnly && !isStaff)
+    ) {
+      return false
+    }
+
+    // Check if section has any visible items
+    return section.items.some(shouldShowMenuItem)
+  }
 
   const drawer = (
     <Box sx={{ height: '100%', borderRight: '1px solid', borderColor: 'divider' }}>
@@ -231,31 +357,64 @@ export function DashboardLayout() {
         </Box>
       </Box>
       <Divider />
-      <List>
-        {menuItems.map((item: MenuItem) => {
-          const shouldShow =
-            (item.adminOnly && isAdmin) ||
-            (item.managerOnly && isManager) ||
-            (item.operationOnly && isOperation) ||
-            (item.saleOnly && isSale) ||
-            (item.managerOrOperationOnly && (isManager || isOperation)) ||
-            (item.staffOnly && (isSale || isOperation || isManager)) ||
-            (!item.adminOnly && !item.managerOnly && !item.saleOnly && !item.staffOnly && !item.operationOnly && !item.managerOrOperationOnly)
+      <Box sx={{ overflowY: 'auto', height: 'calc(100% - 120px)' }}>
+        {menuSections.map(
+          (section, sectionIndex) =>
+            shouldShowSection(section) && (
+              <Box key={sectionIndex}>
+                {section.title && (
+                  <ListSubheader
+                    sx={{
+                      bgcolor: 'transparent',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      letterSpacing: 1,
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      mt: sectionIndex > 0 ? 2 : 1,
+                    }}
+                  >
+                    {section.title}
+                  </ListSubheader>
+                )}
+                {section.items.map((item: MenuItem) => {
+                  const shouldShow = shouldShowMenuItem(item)
 
-          return shouldShow ? (
-            <ListItem key={item.title} disablePadding>
-              <ListItemButton
-                component={Link}
-                to={item.url}
-                selected={location.pathname === item.url}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.title} />
-              </ListItemButton>
-            </ListItem>
-          ) : null
-        })}
-      </List>
+                  return shouldShow ? (
+                    <ListItem key={item.title} disablePadding>
+                      <ListItemButton
+                        component={Link}
+                        to={item.url}
+                        selected={location.pathname === item.url}
+                        sx={{
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            '&:hover': {
+                              bgcolor: 'primary.dark',
+                            },
+                            '& .MuiSvgIcon-root': {
+                              color: 'white',
+                            },
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            color: 'inherit',
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText primary={item.title} />
+                      </ListItemButton>
+                    </ListItem>
+                  ) : null
+                })}
+              </Box>
+            )
+        )}
+      </Box>
       <Divider />
       <List>
         <ListItem disablePadding>
@@ -295,9 +454,17 @@ export function DashboardLayout() {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              WDP Eyewear Dashboard
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Typography variant="h6" noWrap component="div">
+                WDP Eyewear Dashboard
+              </Typography>
+              <Chip
+                label={roleLabels[user.role]}
+                size="small"
+                variant="outlined"
+                sx={{ display: { xs: 'none', sm: 'flex' } }}
+              />
+            </Box>
           </Toolbar>
         </AppBar>
         <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>

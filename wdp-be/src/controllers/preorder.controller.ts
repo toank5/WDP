@@ -21,11 +21,12 @@ import {
   AllocatePreorderStockDto,
   PreorderAllocationResultDto,
 } from '../commons/dtos/preorder.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 
 @ApiTags('Preorders')
 @Controller('preorders')
-@UseGuards(RbacGuard)
+@UseGuards(JwtAuthGuard, RbacGuard)
 @ApiBearerAuth()
 export class PreorderController {
   constructor(private readonly preorderService: PreorderService) {}
