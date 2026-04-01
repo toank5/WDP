@@ -502,7 +502,7 @@ export const PrescriptionDetailScreen: React.FC<PrescriptionDetailScreenProps> =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,

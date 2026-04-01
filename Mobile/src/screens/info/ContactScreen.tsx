@@ -437,7 +437,7 @@ export function ContactScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   scrollContent: {
     paddingBottom: 24,

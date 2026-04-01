@@ -6,6 +6,20 @@ import { useAuthStore } from './auth-store'
 import { STORAGE_KEYS } from '../constants'
 
 /**
+ * Guest customer information stored in AsyncStorage
+ * This is used before the user logs in
+ */
+export interface GuestCustomerInfo {
+  fullName?: string
+  phone?: string
+  email?: string
+  address?: string
+  ward?: string
+  district?: string
+  province?: string
+}
+
+/**
  * Guest cart item stored in AsyncStorage
  * This is used before the user logs in
  */
@@ -96,9 +110,46 @@ interface CartState {
   removeItem: (itemId: string) => Promise<void>
   clearCart: () => Promise<void>
   refreshCart: () => Promise<void>
+  saveCustomerInfo: (info: GuestCustomerInfo) => Promise<void>
+  getCustomerInfo: () => Promise<GuestCustomerInfo | null>
 }
 
 const GUEST_CART_KEY = STORAGE_KEYS.GUEST_CART
+const GUEST_CUSTOMER_KEY = 'guest_customer_info'
+
+/**
+ * Helper: Get guest customer info from AsyncStorage
+ */
+async function getGuestCustomerInfo(): Promise<GuestCustomerInfo | null> {
+  try {
+    const data = await AsyncStorage.getItem(GUEST_CUSTOMER_KEY)
+    return data ? JSON.parse(data) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Helper: Save guest customer info to AsyncStorage
+ */
+async function saveGuestCustomerInfo(info: GuestCustomerInfo): Promise<void> {
+  try {
+    await AsyncStorage.setItem(GUEST_CUSTOMER_KEY, JSON.stringify(info))
+  } catch (error) {
+    console.error('Failed to save guest customer info:', error)
+  }
+}
+
+/**
+ * Helper: Clear guest customer info from AsyncStorage
+ */
+async function clearGuestCustomerInfo(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(GUEST_CUSTOMER_KEY)
+  } catch (error) {
+    console.error('Failed to clear guest customer info:', error)
+  }
+}
 
 /**
  * Helper: Get guest cart from AsyncStorage
@@ -145,6 +196,24 @@ function calculateTotals(items: CartItem[]) {
   const total = subtotal + tax + shipping
 
   return { totalItems, subtotal, tax, shipping, total }
+}
+
+/**
+ * Get guest cart for checkout
+ * Returns both cart items and customer information
+ */
+export async function getGuestCartForCheckout(): Promise<{
+  items: GuestCartItem[]
+  customerInfo: GuestCustomerInfo | null
+}> {
+  try {
+    const items = await getGuestCart()
+    const customerInfo = await getGuestCustomerInfo()
+    return { items, customerInfo }
+  } catch (error) {
+    console.error('Failed to get guest cart for checkout:', error)
+    return { items: [], customerInfo: null }
+  }
 }
 
 export const useCartStore = create<CartState>(
@@ -235,11 +304,12 @@ export const useCartStore = create<CartState>(
             quantity: item.quantity,
           })
 
-          if (result.success) {
+          // Check if result has cart items (success)
+          if (result.items && result.items.length >= 0) {
             // Reload cart to get updated state
             await get().loadCart()
           } else {
-            set({ error: result.message, loading: false })
+            set({ error: result.message || 'Thêm vào giỏ hàng thất bại', loading: false })
           }
           return result
         } else {
@@ -415,6 +485,7 @@ export const useCartStore = create<CartState>(
         } else {
           // Guest user: clear from AsyncStorage
           await clearGuestCart()
+          await clearGuestCustomerInfo()
         }
 
         set({
@@ -441,6 +512,29 @@ export const useCartStore = create<CartState>(
      */
     refreshCart: async () => {
       await get().loadCart()
+    },
+
+    /**
+     * Save customer information (for guest checkout)
+     */
+    saveCustomerInfo: async (info: GuestCustomerInfo) => {
+      try {
+        await saveGuestCustomerInfo(info)
+      } catch (error) {
+        console.error('Failed to save customer info:', error)
+      }
+    },
+
+    /**
+     * Get customer information (for guest checkout)
+     */
+    getCustomerInfo: async () => {
+      try {
+        return await getGuestCustomerInfo()
+      } catch (error) {
+        console.error('Failed to get customer info:', error)
+        return null
+      }
     },
   })
 )

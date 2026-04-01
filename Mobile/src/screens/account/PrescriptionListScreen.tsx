@@ -570,7 +570,7 @@ export const PrescriptionListScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   },
   notesContainer: {
     padding: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#d1fae5',
     borderRadius: 4,
     marginBottom: 8,
   },

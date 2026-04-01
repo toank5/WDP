@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import React, { useState, useCallback, useEffect } from 'react'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import {
   Text,
   Button,
@@ -9,10 +9,12 @@ import {
   Card,
   Divider,
   RadioButton,
+  TextInput,
 } from 'react-native-paper'
-import { useCartStore } from '../../store/cart-store'
-import type { Address } from '../../components/checkout/AddressForm'
+import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { useCartStore, getGuestCartForCheckout, type GuestCustomerInfo } from '../../store/cart-store'
+import type { Address } from '../../components/checkout/AddressForm'
 
 export type PaymentMethod = 'cod' | 'vnpay' | 'bank_transfer' | 'momo'
 
@@ -47,7 +49,7 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     icon: 'credit-card',
     description: 'Thanh toán qua ví VNPay',
     available: true,
-    fee: 0, // VNPay thường không phí
+    fee: 0,
   },
   {
     id: 'momo',
@@ -55,7 +57,7 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     icon: 'wallet',
     description: 'Thanh toán qua ví MoMo',
     available: true,
-    fee: 0, // MoMo thường không phí
+    fee: 0,
   },
   {
     id: 'bank_transfer',
@@ -67,16 +69,6 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
   },
 ]
 
-/**
- * PaymentScreen - Chọn phương thức thanh toán
- *
- * Features:
- * - Display available payment methods
- * - Select payment method
- * - Show payment fee (nếu có)
- * - Payment method descriptions
- * - Continue to review screen
- */
 export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const theme = useTheme()
   const navigation = useNavigation() as NativeStackNavigationProp<any>
@@ -85,14 +77,29 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('cod')
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [customerInfo, setCustomerInfo] = useState<GuestCustomerInfo | null>(null)
+  const [showCustomerForm, setShowCustomerForm] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Partial<GuestCustomerInfo>>({})
 
   const selectedAddress = route.params?.address
 
-  // Calculate totals
+  useEffect(() => {
+    loadCustomerInfo()
+  }, [])
+
+  const loadCustomerInfo = async () => {
+    try {
+      const data = await getGuestCartForCheckout()
+      setCustomerInfo(data.customerInfo)
+    } catch (error) {
+      console.error('Failed to load customer info:', error)
+    }
+  }
+
   const totals = React.useMemo(() => {
     const subtotalValue = subtotal
-    const taxValue = subtotalValue * 0.1 // 10% VAT
-    const shippingValue = items.length > 0 ? 30000 : 0 // 30k shipping
+    const taxValue = subtotalValue * 0.1
+    const shippingValue = items.length > 0 ? 30000 : 0
     const paymentOption = PAYMENT_OPTIONS.find((opt) => opt.id === selectedPayment)
     const paymentFee = paymentOption?.fee || 0
     const totalValue = subtotalValue + taxValue + shippingValue + paymentFee
@@ -113,23 +120,107 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
     }).format(price)
   }, [])
 
+  const validateEmail = useCallback((email?: string): boolean => {
+    if (!email) return false
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }, [])
+
+  const validatePhone = useCallback((phone?: string): boolean => {
+    if (!phone) return false
+    const phoneRegex = /^(0|\+84)[1-9]\d{8,9}$/
+    return phoneRegex.test(phone.replace(/\s/g, ''))
+  }, [])
+
   const handlePaymentSelect = useCallback((method: PaymentMethod) => {
     setSelectedPayment(method)
   }, [])
 
-  const handleContinue = useCallback(() => {
-    if (!selectedAddress) {
-      // Should not happen as address is selected in previous step
+  const handleSaveCustomerInfo = useCallback(async () => {
+    if (editingCustomer.email && !validateEmail(editingCustomer.email)) {
+      Alert.alert('Lỗi', 'Email không hợp lệ')
       return
     }
 
-    // Navigate to review screen
+    if (editingCustomer.phone && !validatePhone(editingCustomer.phone)) {
+      Alert.alert('Lỗi', 'Số điện thoại không hợp lệ')
+      return
+    }
+
+    try {
+      const updatedInfo: GuestCustomerInfo = {
+        ...customerInfo,
+        ...editingCustomer,
+      }
+
+      const { saveCustomerInfo } = useCartStore.getState()
+      await saveCustomerInfo(updatedInfo)
+
+      setCustomerInfo(updatedInfo)
+      setEditingCustomer({})
+      setShowCustomerForm(false)
+
+      Alert.alert('Thành công', 'Đã lưu thông tin khách hàng')
+    } catch (error) {
+      console.error('Failed to save customer info:', error)
+      Alert.alert('Lỗi', 'Không thể lưu thông tin khách hàng')
+    }
+  }, [customerInfo, editingCustomer, validateEmail, validatePhone])
+
+  const handleContinue = useCallback(() => {
+    if (!selectedAddress) {
+      return
+    }
+
+    if (!customerInfo?.phone) {
+      Alert.alert(
+        'Thông báo',
+        'Vui lòng cung cấp số điện thoại để chúng tôi có thể liên hệ.',
+        [
+          {
+            text: 'Thêm',
+            onPress: () => {
+              setEditingCustomer({ phone: '', ...customerInfo })
+              setShowCustomerForm(true)
+            },
+          },
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+        ]
+      )
+      return
+    }
+
+    if (!validatePhone(customerInfo.phone)) {
+      Alert.alert(
+        'Lỗi',
+        'Số điện thoại không hợp lệ. Vui lòng cập nhật.',
+        [
+          {
+            text: 'Cập nhật',
+            onPress: () => {
+              setEditingCustomer({ ...customerInfo })
+              setShowCustomerForm(true)
+            },
+          },
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+        ]
+      )
+      return
+    }
+
     navigation.navigate('CheckoutReview' as never, {
       address: selectedAddress,
       paymentMethod: selectedPayment,
       totals,
+      customerInfo,
     })
-  }, [selectedAddress, selectedPayment, totals, navigation])
+  }, [selectedAddress, selectedPayment, totals, customerInfo, validatePhone, navigation])
 
   const handleBack = useCallback(() => {
     navigation.goBack()
@@ -139,17 +230,24 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
     try {
       setProcessing(true)
 
-      // TODO: Call VNPay API to get payment URL
-      // For now, mock the flow
       console.log('Initiating VNPay payment...')
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      // TODO: Open VNPay payment page in WebView or external browser
       console.log('VNPay payment initiated')
+
+      Alert.alert(
+        'Thông báo',
+        'Chức năng thanh toán VNPay đang được phát triển. Vui lòng chọn phương thức thanh toán khác.',
+        [{ text: 'OK' }]
+      )
     } catch (error) {
       console.error('VNPay error:', error)
+      Alert.alert(
+        'Lỗi',
+        'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại sau.',
+        [{ text: 'OK' }]
+      )
     } finally {
       setProcessing(false)
     }
@@ -167,7 +265,6 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Surface style={styles.header} elevation={2}>
         <View style={styles.headerRow}>
           <IconButton icon="arrow-left" size={24} onPress={handleBack} />
@@ -179,7 +276,154 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
       </Surface>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        {/* Order Summary */}
+        <Surface style={styles.summaryCard} elevation={1}>
+          <View style={styles.cardHeader}>
+            <Text variant="titleMedium" style={styles.summaryTitle}>
+              Thông tin khách hàng
+            </Text>
+            <Button
+              mode="text"
+              onPress={() => {
+                setEditingCustomer({
+                  fullName: customerInfo?.fullName || '',
+                  phone: customerInfo?.phone || '',
+                  email: customerInfo?.email || '',
+                  address: customerInfo?.address || '',
+                  ward: customerInfo?.ward || '',
+                  district: customerInfo?.district || '',
+                  province: customerInfo?.province || '',
+                })
+                setShowCustomerForm(true)
+              }}
+              icon="pencil"
+              compact
+            >
+              {customerInfo ? 'Sửa' : 'Thêm'}
+            </Button>
+          </View>
+
+          {showCustomerForm ? (
+            <View>
+              <TextInput
+                label="Họ tên"
+                value={editingCustomer.fullName}
+                onChangeText={(text) => setEditingCustomer({ ...editingCustomer, fullName: text })}
+                mode="outlined"
+                style={styles.formInput}
+              />
+              <TextInput
+                label="Số điện thoại"
+                value={editingCustomer.phone}
+                onChangeText={(text) => setEditingCustomer({ ...editingCustomer, phone: text })}
+                mode="outlined"
+                keyboardType="phone-pad"
+                style={styles.formInput}
+                error={editingCustomer.phone && !validatePhone(editingCustomer.phone)}
+              />
+              <TextInput
+                label="Email"
+                value={editingCustomer.email}
+                onChangeText={(text) => setEditingCustomer({ ...editingCustomer, email: text })}
+                mode="outlined"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={styles.formInput}
+                error={editingCustomer.email && !validateEmail(editingCustomer.email)}
+              />
+              <TextInput
+                label="Địa chỉ"
+                value={editingCustomer.address}
+                onChangeText={(text) => setEditingCustomer({ ...editingCustomer, address: text })}
+                mode="outlined"
+                style={styles.formInput}
+              />
+              <View style={styles.addressDetailRow}>
+                <TextInput
+                  label="Phường/Xã"
+                  value={editingCustomer.ward}
+                  onChangeText={(text) => setEditingCustomer({ ...editingCustomer, ward: text })}
+                  mode="outlined"
+                  style={[styles.formInput, styles.flex1]}
+                />
+                <TextInput
+                  label="Quận/Huyện"
+                  value={editingCustomer.district}
+                  onChangeText={(text) => setEditingCustomer({ ...editingCustomer, district: text })}
+                  mode="outlined"
+                  style={[styles.formInput, styles.flex1]}
+                />
+              </View>
+              <TextInput
+                label="Tỉnh/Thành phố"
+                value={editingCustomer.province}
+                onChangeText={(text) => setEditingCustomer({ ...editingCustomer, province: text })}
+                mode="outlined"
+                style={styles.formInput}
+              />
+              <View style={styles.formActions}>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    setEditingCustomer({})
+                    setShowCustomerForm(false)
+                  }}
+                  style={styles.formButton}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleSaveCustomerInfo}
+                  style={styles.formButton}
+                >
+                  Lưu
+                </Button>
+              </View>
+            </View>
+          ) : customerInfo ? (
+            <View style={styles.customerInfo}>
+              {customerInfo.fullName && (
+                <View style={styles.customerInfoRow}>
+                  <Text variant="bodyMedium" style={styles.infoLabel}>
+                    Họ tên:
+                  </Text>
+                  <Text variant="bodyMedium">{customerInfo.fullName}</Text>
+                </View>
+              )}
+              {customerInfo.phone && (
+                <View style={styles.customerInfoRow}>
+                  <Text variant="bodyMedium" style={styles.infoLabel}>
+                    Số điện thoại:
+                  </Text>
+                  <Text variant="bodyMedium">{customerInfo.phone}</Text>
+                </View>
+              )}
+              {customerInfo.email && (
+                <View style={styles.customerInfoRow}>
+                  <Text variant="bodyMedium" style={styles.infoLabel}>
+                    Email:
+                  </Text>
+                  <Text variant="bodyMedium">{customerInfo.email}</Text>
+                </View>
+              )}
+              {customerInfo.address && (
+                <View style={styles.customerInfoRow}>
+                  <Text variant="bodyMedium" style={styles.infoLabel}>
+                    Địa chỉ:
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.flex1}>
+                    {customerInfo.address}, {customerInfo.ward}, {customerInfo.district}, {customerInfo.province}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              Chưa có thông tin khách hàng. Vui lòng thêm thông tin để tiếp tục.
+            </Text>
+          )}
+        </Surface>
+
         <Surface style={styles.summaryCard} elevation={1}>
           <Text variant="titleMedium" style={styles.summaryTitle}>
             Tóm tắt đơn hàng
@@ -219,7 +463,6 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           </View>
         </Surface>
 
-        {/* Payment Methods */}
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Chọn phương thức thanh toán
         </Text>
@@ -263,10 +506,9 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           ))}
         </View>
 
-        {/* Payment Method Info */}
         {selectedPaymentOption && (
           <Surface style={styles.infoCard} elevation={1}>
-            <View style={styles.infoRow}>
+            <View style={styles.paymentInfoRow}>
               <IconButton
                 icon="information"
                 size={20}
@@ -319,7 +561,6 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           </Surface>
         )}
 
-        {/* VNPay Button (when VNPay selected) */}
         {selectedPayment === 'vnpay' && (
           <Button
             mode="contained"
@@ -335,7 +576,6 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
         )}
       </ScrollView>
 
-      {/* Continue Button */}
       <Surface style={styles.footer} elevation={3}>
         <Button
           mode="contained"
@@ -354,7 +594,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -392,6 +632,46 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  customerInfo: {
+    paddingTop: 8,
+  },
+  customerInfoRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  formInput: {
+    marginBottom: 12,
+  },
+  addressDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  flex1: {
+    flex: 1,
+  },
+  formActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  formButton: {
+    flex: 1,
+  },
+  infoLabel: {
+    minWidth: 100,
+    opacity: 0.7,
+  },
+  emptyText: {
+    opacity: 0.6,
+    fontStyle: 'italic',
+    paddingVertical: 8,
+  },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -414,10 +694,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   paymentList: {
-    gap: 12,
+    marginBottom: 16,
   },
   paymentCard: {
     borderRadius: 8,
+    marginBottom: 12,
   },
   selectedCard: {
     borderWidth: 2,
@@ -429,16 +710,20 @@ const styles = StyleSheet.create({
   paymentInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+  },
+  paymentInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingTop: 4,
   },
   paymentDetails: {
     flex: 1,
+    marginLeft: 12,
   },
   paymentNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
-    gap: 8,
   },
   paymentName: {
     fontWeight: 'bold',
@@ -453,11 +738,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     marginTop: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
   },
   infoContent: {
     flex: 1,

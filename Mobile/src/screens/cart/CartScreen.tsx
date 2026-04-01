@@ -235,7 +235,19 @@ export function CartScreen({ navigation }: Props) {
 
   const handleCheckout = () => {
     if (!cart || cart.items.length === 0) return
-    navigation.navigate('Checkout' as any)
+    // Navigate to Checkout (root level navigation)
+    // Try both root and nested navigation approaches
+    try {
+      navigation.navigate('Checkout' as any)
+    } catch (e) {
+      // If root navigation fails, try via root navigator
+      const rootNav = navigation.getParent?.()?.getParent?.()
+      if (rootNav) {
+        rootNav.navigate('Checkout' as any)
+      } else {
+        Alert.alert('Lỗi', 'Không thể chuyển tới thanh toán')
+      }
+    }
   }
 
   if (loading) {
@@ -395,7 +407,7 @@ export function CartScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,
@@ -408,13 +420,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: '#d1fae5',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#c7d2fe',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#000000',
   },
   headerSubtitle: {
     fontSize: 14,
@@ -449,7 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   placeholderImage: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#ecfdf5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -463,7 +476,7 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   variantText: {
@@ -481,12 +494,12 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6366f1',
   },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#d1fae5',
     borderRadius: 8,
     gap: 8,
     paddingVertical: 4,
@@ -498,6 +511,7 @@ const styles = StyleSheet.create({
   quantityText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#000000',
     paddingHorizontal: 8,
     minWidth: 24,
     textAlign: 'center',
@@ -515,14 +529,14 @@ const styles = StyleSheet.create({
   },
   freeShippingInfo: {
     padding: 12,
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#ede9fe',
     alignItems: 'center',
     borderRadius: 8,
     marginBottom: 12,
   },
   freeShippingText: {
     fontSize: 12,
-    color: '#1e40af',
+    color: '#6366f1',
     textAlign: 'center',
   },
   summary: {
@@ -540,7 +554,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
   },
   summaryDivider: {
     marginVertical: 12,
@@ -548,12 +562,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
   },
   totalValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6366f1',
   },
   shippingText: {
     color: '#10b981',
@@ -585,7 +599,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 8,
   },
   emptyText: {
@@ -611,7 +625,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#ef4444',
+    color: '#000000',
   },
   errorMessage: {
     fontSize: 16,

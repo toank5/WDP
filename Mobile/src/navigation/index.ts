@@ -4,6 +4,7 @@ export { AuthNavigator } from './AuthNavigator'
 export { AppStackNavigator } from './AppStackNavigator'
 export { MainTabNavigator } from './MainTabNavigator'
 export { CheckoutStackNavigator } from './CheckoutStackNavigator'
+export { HomeStackNavigator } from './HomeStackNavigator'
 
 // Navigation types
 export type {

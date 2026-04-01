@@ -18,6 +18,7 @@ import {
 } from 'react-native-paper'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { useCartStore } from '../../store/cart-store'
+import { useAuthStore } from '../../store/auth-store'
 import { APP_CONFIG } from '../../config'
 import type { Product } from '../../types/product'
 import { VariantSelector } from '../../components/product/VariantSelector'
@@ -45,7 +46,8 @@ export const ProductDetailScreen = () => {
   const navigation = useNavigation()
   const { productId } = route.params as RouteParams
 
-  const { addToCart, isInCart } = useCartStore()
+  const { addToCart } = useCartStore()
+  const { isAuthenticated } = useAuthStore()
 
   // State
   const [loading, setLoading] = useState(true)
@@ -122,6 +124,32 @@ export const ProductDetailScreen = () => {
   const handleAddToCart = useCallback(() => {
     if (!product || !selectedVariant) return
 
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Thông báo',
+        'Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng',
+        [
+          {
+            text: 'Đăng nhập',
+            onPress: () => {
+              const rootNav = navigation.getParent() as any
+              if (rootNav) {
+                rootNav.reset({
+                  index: 0,
+                  routes: [{ name: 'Auth' as never }],
+                })
+              }
+            },
+          },
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+        ]
+      )
+      return
+    }
+
     addToCart({
       productId: product.id,
       productVariantId: selectedVariant.id,
@@ -130,7 +158,7 @@ export const ProductDetailScreen = () => {
 
     // Show feedback
     navigation.goBack()
-  }, [product, selectedVariant, quantity, addToCart, navigation])
+  }, [product, selectedVariant, quantity, addToCart, navigation, isAuthenticated])
 
   // Handle favorite toggle
   const handleFavoriteToggle = useCallback(() => {
@@ -403,7 +431,7 @@ export const ProductDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#d1fae5',
   },
   loadingContainer: {
     flex: 1,

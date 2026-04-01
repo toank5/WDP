@@ -62,13 +62,6 @@ const MENU_ITEMS: MenuItem[] = [
     showChevron: true,
   },
   {
-    icon: 'bell',
-    title: 'Thông báo',
-    subtitle: 'Quản lý thông báo của bạn',
-    onPress: (nav) => nav.navigate('Notifications'),
-    showChevron: true,
-  },
-  {
     icon: 'shield-lock',
     title: 'Bảo mật',
     subtitle: 'Thay đổi mật khẩu và cài đặt bảo mật',
@@ -229,7 +222,7 @@ export function AccountScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   scrollContent: {
     padding: 16,
@@ -243,10 +236,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#d1fae5',
   },
   avatar: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#6366f1',
   },
   profileInfo: {
     flex: 1,
@@ -255,7 +248,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 2,
   },
   userEmail: {
