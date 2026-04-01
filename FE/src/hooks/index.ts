@@ -24,6 +24,19 @@ export type { UseFaceTrackingRealOptions, UseFaceTrackingRealReturn } from './us
 export { useSnapshotCapture } from './useSnapshotCapture'
 export type { UseSnapshotCaptureOptions, UseSnapshotCaptureReturn } from './useSnapshotCapture'
 
+// Dashboard hooks
+export {
+  useManagerDashboard,
+  useSaleStaffDashboard,
+  useOperationStaffDashboard,
+  formatRevenue,
+} from './useDashboardData'
+export type {
+  ManagerKPIs,
+  SaleStaffKPIs,
+  OperationStaffKPIs,
+} from './useDashboardData'
+
 // Return policy hook
 export {
   useReturnPolicy,

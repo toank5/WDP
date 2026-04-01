@@ -1,0 +1,93 @@
+@startuml AuthenticationClassDiagram
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
+skinparam arrowColor #333
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' CONTROLLER LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class AuthController {
+
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SERVICE LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class AuthService {
+
+}
+
+class UserService {
+
+}
+
+class EmailService {
+
+}
+
+class JwtService {
+
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' REPOSITORY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class UserRepository {
+
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' ENTITY LAYER
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class User {
+
+}
+
+class Address {
+
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' SECURITY
+' ════════════════════════════════════════════════════════════════════════════════════
+
+class JwtStrategy {
+
+}
+
+class RbacGuard {
+
+}
+
+class Public {
+
+}
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' RELATIONSHIPS
+' ════════════════════════════════════════════════════════════════════════════════════
+
+AuthController -- AuthService
+AuthController -- Public
+
+AuthService -- UserService
+AuthService -- JwtService
+AuthService -- EmailService
+
+UserService -- UserRepository
+UserRepository -- User
+
+User "1" *-- "many" Address
+
+JwtService -- JwtStrategy
+AuthService -- RbacGuard
+
+@enduml

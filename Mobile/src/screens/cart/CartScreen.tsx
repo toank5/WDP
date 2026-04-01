@@ -14,17 +14,14 @@ import {
   Button,
   Divider,
   ActivityIndicator,
+  TextInput,
 } from 'react-native-paper'
 import { CartItemSkeleton } from '../../components/Loading'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
 import type { MainTabParamList, RootStackParamList } from '../../types'
-import {
-  getCart,
-  updateCartItem,
-  removeFromCart,
-  clearCart,
-} from '../../services/cart-api'
+import { useCartStore, useCart } from '../../store/cart-store'
+import { validatePromotion } from '../../services/promotion-api'
 
 type Props = {
   navigation: NavigationProp<MainTabParamList & RootStackParamList>
@@ -48,7 +45,8 @@ interface CartItemCardProps {
 
 function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardProps) {
   const theme = useTheme()
-  const isUpdating = updating.has(item._id)
+  const itemId = item._id || item.id || `${item.productId || 'item'}-${item.variantSku || 'default'}`
+  const isUpdating = updating.has(itemId)
 
   return (
     <Card style={styles.itemCard}>
@@ -91,16 +89,16 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
               <IconButton
                 icon="minus"
                 size={18}
-                onPress={() => onUpdateQty(item._id, item.quantity - 1)}
-                disabled={isUpdating || item.quantity <= 1}
+                onPress={() => onUpdateQty(itemId, item.quantity - 1)}
+                disabled={!itemId || isUpdating || item.quantity <= 1}
                 style={styles.qtyButton}
               />
               <Text style={styles.quantityText}>{isUpdating ? '...' : item.quantity}</Text>
               <IconButton
                 icon="plus"
                 size={18}
-                onPress={() => onUpdateQty(item._id, item.quantity + 1)}
-                disabled={isUpdating}
+                onPress={() => onUpdateQty(itemId, item.quantity + 1)}
+                disabled={!itemId || isUpdating}
                 style={styles.qtyButton}
               />
             </View>
@@ -111,8 +109,8 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
         <IconButton
           icon="delete-outline"
           size={20}
-          onPress={() => onRemove(item._id)}
-          disabled={isUpdating}
+          onPress={() => onRemove(itemId)}
+          disabled={!itemId || isUpdating}
           iconColor={theme.colors.error}
         />
       </View>
@@ -122,26 +120,24 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
 
 export function CartScreen({ navigation }: Props) {
   const theme = useTheme()
+  const {
+    items,
+    subtotal,
+    loading,
+    error,
+    loadCart,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    setPromotionCode,
+    clearPromotionCode,
+  } = useCartStore()
+  const { discountAmount, totalAfterDiscount, appliedPromotion } = useCart()
 
-  const [cart, setCart] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
-
-  const loadCart = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await getCart()
-      setCart(data)
-    } catch (error: any) {
-      console.error('Failed to load cart:', error)
-      setError('Không thể tải giỏ hàng. Vui lòng thử lại.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [promoCode, setPromoCode] = useState('')
+  const [validatingPromo, setValidatingPromo] = useState(false)
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -164,8 +160,7 @@ export function CartScreen({ navigation }: Props) {
 
     setUpdating((prev) => new Set(prev).add(itemId))
     try {
-      await updateCartItem(itemId, { quantity: newQty })
-      await loadCart()
+      await updateQuantity(itemId, newQty)
     } catch (error: any) {
       console.error('Failed to update quantity:', error)
       Alert.alert('Lỗi', 'Không thể cập nhật số lượng')
@@ -191,8 +186,7 @@ export function CartScreen({ navigation }: Props) {
           onPress: async () => {
             setUpdating((prev) => new Set(prev).add(itemId))
             try {
-              await removeFromCart(itemId)
-              await loadCart()
+              await removeItem(itemId)
             } catch (error: any) {
               console.error('Failed to remove item:', error)
               Alert.alert('Lỗi', 'Không thể xóa sản phẩm')
@@ -233,8 +227,50 @@ export function CartScreen({ navigation }: Props) {
     )
   }
 
+  const handleApplyPromoCode = async () => {
+    if (!promoCode.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập mã khuyến mãi')
+      return
+    }
+
+    try {
+      setValidatingPromo(true)
+      const result = await validatePromotion({
+        code: promoCode.trim().toUpperCase(),
+        cartTotal: subtotal,
+        productIds: items.map((item) => item.productId),
+      })
+
+      if (result.isValid && result.promotion) {
+        setPromotionCode({
+          code: result.promotion.code,
+          name: result.promotion.name,
+          type: result.promotion.type,
+          value: result.promotion.value,
+          description: result.promotion.description,
+          minOrderValue: result.promotion.minOrderValue,
+          discountAmount: result.discountAmount || 0,
+        })
+        setPromoCode(result.promotion.code)
+        Alert.alert('Thành công', `Đã áp dụng mã ${result.promotion.code}`)
+      } else {
+        Alert.alert('Mã không hợp lệ', result.message || 'Không thể áp dụng mã giảm giá')
+      }
+    } catch (error: any) {
+      console.error('Validate promotion error:', error)
+      Alert.alert('Lỗi', error?.message || 'Không thể kiểm tra mã giảm giá')
+    } finally {
+      setValidatingPromo(false)
+    }
+  }
+
+  const handleClearPromoCode = () => {
+    clearPromotionCode()
+    setPromoCode('')
+  }
+
   const handleCheckout = () => {
-    if (!cart || cart.items.length === 0) return
+    if (items.length === 0) return
     // Navigate to Checkout (root level navigation)
     // Try both root and nested navigation approaches
     try {
@@ -291,10 +327,9 @@ export function CartScreen({ navigation }: Props) {
     )
   }
 
-  const hasItems = cart && cart.items.length > 0
-  const subtotal = cart?.subtotal || 0
-  const shipping = cart?.shipping || 0
-  const total = cart?.total || (subtotal + shipping)
+  const hasItems = items.length > 0
+  const shipping = hasItems && totalAfterDiscount < 2000000 ? 30000 : 0
+  const total = totalAfterDiscount + shipping
 
   return (
     <View style={styles.container}>
@@ -323,9 +358,9 @@ export function CartScreen({ navigation }: Props) {
               />
             }
           >
-            {cart!.items.map((item: any) => (
+            {items.map((item: any) => (
               <CartItemCard
-                key={item._id}
+                key={item._id || item.id || `${item.productId || 'item'}-${item.variantSku || 'default'}`}
                 item={item}
                 onUpdateQty={handleUpdateQty}
                 onRemove={handleRemove}
@@ -338,11 +373,37 @@ export function CartScreen({ navigation }: Props) {
           <View style={styles.footer}>
             <Divider />
 
+            <View style={styles.promoSection}>
+              <TextInput
+                mode="outlined"
+                label="Mã khuyến mãi"
+                value={promoCode}
+                onChangeText={setPromoCode}
+                autoCapitalize="characters"
+                style={styles.promoInput}
+                disabled={!!appliedPromotion}
+              />
+              {!appliedPromotion ? (
+                <Button
+                  mode="contained"
+                  onPress={handleApplyPromoCode}
+                  loading={validatingPromo}
+                  disabled={validatingPromo || !promoCode.trim()}
+                >
+                  Áp dụng
+                </Button>
+              ) : (
+                <Button mode="outlined" onPress={handleClearPromoCode}>
+                  Bỏ mã
+                </Button>
+              )}
+            </View>
+
             {/* Free shipping info */}
-            {subtotal < 2000000 && (
+            {totalAfterDiscount < 2000000 && (
               <View style={styles.freeShippingInfo}>
                 <Text style={styles.freeShippingText}>
-                  Mua thêm {formatPrice(2000000 - subtotal)} để được miễn phí giao hàng
+                  Mua thêm {formatPrice(2000000 - totalAfterDiscount)} để được miễn phí giao hàng
                 </Text>
               </View>
             )}
@@ -353,6 +414,13 @@ export function CartScreen({ navigation }: Props) {
                 <Text style={styles.summaryLabel}>Tạm tính</Text>
                 <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
               </View>
+
+              {appliedPromotion && discountAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Giảm giá ({appliedPromotion.code})</Text>
+                  <Text style={[styles.summaryValue, { color: '#2e7d32' }]}>-{formatPrice(discountAmount)}</Text>
+                </View>
+              )}
 
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Phí vận chuyển</Text>
@@ -522,6 +590,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     minWidth: 24,
     textAlign: 'center',
+  },
+  promoSection: {
+    marginTop: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  promoInput: {
+    backgroundColor: '#fff',
   },
   footer: {
     backgroundColor: 'white',

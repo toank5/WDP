@@ -5,6 +5,16 @@ import { addToCart, updateCartItem, removeFromCart, clearCart as clearCartApi, g
 import { useAuthStore } from './auth-store'
 import { STORAGE_KEYS } from '../constants'
 
+export interface AppliedPromotion {
+  code: string
+  name: string
+  type: 'percentage' | 'fixed_amount'
+  value: number
+  description?: string
+  minOrderValue: number
+  discountAmount: number
+}
+
 /**
  * Guest customer information stored in AsyncStorage
  * This is used before the user logs in
@@ -87,6 +97,7 @@ interface CartState {
   total: number
   loading: boolean
   error: string | null
+  appliedPromotion: AppliedPromotion | null
 
   // Internal state
   _hydrated: boolean
@@ -112,6 +123,8 @@ interface CartState {
   refreshCart: () => Promise<void>
   saveCustomerInfo: (info: GuestCustomerInfo) => Promise<void>
   getCustomerInfo: () => Promise<GuestCustomerInfo | null>
+  setPromotionCode: (promotion: AppliedPromotion | null) => void
+  clearPromotionCode: () => void
 }
 
 const GUEST_CART_KEY = STORAGE_KEYS.GUEST_CART
@@ -227,6 +240,7 @@ export const useCartStore = create<CartState>(
     total: 0,
     loading: false,
     error: null,
+    appliedPromotion: null,
     _hydrated: false,
 
     setHydrated: () => {
@@ -495,6 +509,7 @@ export const useCartStore = create<CartState>(
           tax: 0,
           shipping: 0,
           total: 0,
+          appliedPromotion: null,
           loading: false,
         })
       } catch (error) {
@@ -535,6 +550,14 @@ export const useCartStore = create<CartState>(
         console.error('Failed to get customer info:', error)
         return null
       }
+    },
+
+    setPromotionCode: (promotion) => {
+      set({ appliedPromotion: promotion })
+    },
+
+    clearPromotionCode: () => {
+      set({ appliedPromotion: null })
     },
   })
 )
@@ -606,6 +629,17 @@ export async function saveUserCartToGuestCart(): Promise<void> {
 export function useCart() {
   const store = useCartStore()
 
+  let discountAmount = 0
+  if (store.appliedPromotion) {
+    if (store.appliedPromotion.type === 'percentage') {
+      discountAmount = Math.round((store.subtotal * store.appliedPromotion.value) / 100)
+    } else {
+      discountAmount = Math.min(store.appliedPromotion.value, store.subtotal)
+    }
+  }
+
+  const totalAfterDiscount = Math.max(0, store.subtotal - discountAmount)
+
   return {
     ...store,
     /**
@@ -631,6 +665,13 @@ export function useCart() {
       currency: 'VND',
       maximumFractionDigits: 0,
     }).format(store.tax),
+    discountAmount,
+    totalAfterDiscount,
+    formattedDiscount: new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(discountAmount),
     formattedShipping: new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',

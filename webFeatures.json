@@ -1,0 +1,389 @@
+{
+  "webFeatures": [
+    {
+      "id": "home",
+      "path": "/",
+      "type": "page",
+      "category": "public",
+      "description": "Landing page with featured products, promotions, and categories"
+    },
+    {
+      "id": "login",
+      "path": "/login",
+      "type": "page",
+      "category": "auth",
+      "description": "User authentication with email/password and remember me"
+    },
+    {
+      "id": "register",
+      "path": "/register",
+      "type": "page",
+      "category": "auth",
+      "description": "New user registration with form validation"
+    },
+    {
+      "id": "verify-email",
+      "path": "/verify-email",
+      "type": "page",
+      "category": "auth",
+      "description": "Email verification after registration"
+    },
+    {
+      "id": "forgot-password",
+      "path": "inline",
+      "type": "flow",
+      "category": "auth",
+      "description": "Password reset initiation flow"
+    },
+    {
+      "id": "reset-password",
+      "path": "inline",
+      "type": "flow",
+      "category": "auth",
+      "description": "Password reset with token"
+    },
+    {
+      "id": "store",
+      "path": "/store, /store/:category",
+      "type": "page",
+      "category": "storefront",
+      "description": "Product catalog with category filtering, search, sorting"
+    },
+    {
+      "id": "product-detail",
+      "path": "/product/:slug",
+      "type": "page",
+      "category": "storefront",
+      "description": "Individual product page with variants, 3D viewer, reviews"
+    },
+    {
+      "id": "cart",
+      "path": "/cart",
+      "type": "page",
+      "category": "storefront",
+      "description": "Shopping cart with quantity updates and checkout"
+    },
+    {
+      "id": "checkout",
+      "path": "/checkout",
+      "type": "page",
+      "category": "storefront",
+      "description": "Multi-step checkout (address, payment, order summary)"
+    },
+    {
+      "id": "checkout-vnpay",
+      "path": "/checkout/vnpay-return",
+      "type": "page",
+      "category": "storefront",
+      "description": "VNPay payment gateway return handling"
+    },
+    {
+      "id": "order-success",
+      "path": "/order/success",
+      "type": "page",
+      "category": "storefront",
+      "description": "Order confirmation page"
+    },
+    {
+      "id": "order-failed",
+      "path": "/order/failed",
+      "type": "page",
+      "category": "storefront",
+      "description": "Failed order handling page"
+    },
+    {
+      "id": "orders",
+      "path": "/orders, /account/orders",
+      "type": "page",
+      "category": "storefront",
+      "description": "Order history and tracking"
+    },
+    {
+      "id": "order-detail",
+      "path": "/orders/:id",
+      "type": "page",
+      "category": "storefront",
+      "description": "Individual order details with status tracking"
+    },
+    {
+      "id": "favorites",
+      "path": "/favorites",
+      "type": "page",
+      "category": "storefront",
+      "description": "User wishlist/favorites page"
+    },
+    {
+      "id": "virtual-tryon",
+      "path": "/virtual-tryon",
+      "type": "page",
+      "category": "storefront",
+      "description": "Virtual try-on experience with camera integration"
+    },
+    {
+      "id": "account",
+      "path": "/account",
+      "type": "page",
+      "category": "account",
+      "description": "Account dashboard with overview and quick links"
+    },
+    {
+      "id": "profile",
+      "path": "/account/profile",
+      "type": "page",
+      "category": "account",
+      "description": "Personal information editing"
+    },
+    {
+      "id": "addresses",
+      "path": "/account/addresses",
+      "type": "page",
+      "category": "account",
+      "description": "Address book management"
+    },
+    {
+      "id": "security",
+      "path": "/account/security",
+      "type": "page",
+      "category": "account",
+      "description": "Password and security settings"
+    },
+    {
+      "id": "settings",
+      "path": "/account/settings",
+      "type": "page",
+      "category": "account",
+      "description": "Account preferences and notifications"
+    },
+    {
+      "id": "prescription-list",
+      "path": "inline",
+      "type": "flow",
+      "category": "prescription",
+      "description": "User's saved prescriptions list"
+    },
+    {
+      "id": "prescription-entry",
+      "path": "inline",
+      "type": "flow",
+      "category": "prescription",
+      "description": "Typed prescription entry during checkout"
+    },
+    {
+      "id": "returns",
+      "path": "inline",
+      "type": "flow",
+      "category": "support",
+      "description": "Return/exchange request flow"
+    },
+    {
+      "id": "about",
+      "path": "/about",
+      "type": "page",
+      "category": "public",
+      "description": "Company information page"
+    },
+    {
+      "id": "contact",
+      "path": "/contact",
+      "type": "page",
+      "category": "public",
+      "description": "Contact form and information"
+    },
+    {
+      "id": "policy-detail",
+      "path": "/policies/:type",
+      "type": "page",
+      "category": "public",
+      "description": "Policy pages (shipping, returns, etc.)"
+    },
+    {
+      "id": "dashboard",
+      "path": "/dashboard",
+      "type": "page",
+      "category": "admin",
+      "description": "Role-based dashboard overview"
+    },
+    {
+      "id": "dashboard-users",
+      "path": "/dashboard/users",
+      "type": "page",
+      "category": "admin",
+      "description": "User management (admin only)"
+    },
+    {
+      "id": "dashboard-products",
+      "path": "/dashboard/products",
+      "type": "page",
+      "category": "admin",
+      "description": "Product management"
+    },
+    {
+      "id": "dashboard-product-detail",
+      "path": "/dashboard/products-catalog/:id",
+      "type": "page",
+      "category": "admin",
+      "description": "Admin product detail page"
+    },
+    {
+      "id": "dashboard-orders",
+      "path": "/dashboard/orders",
+      "type": "page",
+      "category": "admin",
+      "description": "Order management staff view"
+    },
+    {
+      "id": "dashboard-prescriptions",
+      "path": "/dashboard/prescriptions",
+      "type": "page",
+      "category": "admin",
+      "description": "Staff prescription queue"
+    },
+    {
+      "id": "dashboard-lab-jobs",
+      "path": "/dashboard/lab-jobs",
+      "type": "page",
+      "category": "admin",
+      "description": "Lab job queue"
+    },
+    {
+      "id": "dashboard-returns",
+      "path": "/dashboard/returns",
+      "type": "page",
+      "category": "admin",
+      "description": "Return requests management"
+    },
+    {
+      "id": "dashboard-shipping",
+      "path": "/dashboard/shipping",
+      "type": "page",
+      "category": "admin",
+      "description": "Shipping queue and status"
+    },
+    {
+      "id": "dashboard-promotions",
+      "path": "/dashboard/promotions",
+      "type": "page",
+      "category": "admin",
+      "description": "Promotion management"
+    },
+    {
+      "id": "dashboard-combos",
+      "path": "/dashboard/combos",
+      "type": "page",
+      "category": "admin",
+      "description": "Product combo builder"
+    },
+    {
+      "id": "dashboard-pricing",
+      "path": "/dashboard/pricing",
+      "type": "page",
+      "category": "admin",
+      "description": "Price management"
+    },
+    {
+      "id": "dashboard-revenue",
+      "path": "/dashboard/revenue",
+      "type": "page",
+      "category": "admin",
+      "description": "Revenue analytics"
+    },
+    {
+      "id": "dashboard-inventory",
+      "path": "/dashboard/inventory",
+      "type": "page",
+      "category": "admin",
+      "description": "Inventory management"
+    },
+    {
+      "id": "dashboard-inventory-detail",
+      "path": "/dashboard/inventory/:sku",
+      "type": "page",
+      "category": "admin",
+      "description": "Inventory detail for specific SKU"
+    },
+    {
+      "id": "dashboard-suppliers",
+      "path": "/dashboard/suppliers",
+      "type": "page",
+      "category": "admin",
+      "description": "Supplier management"
+    },
+    {
+      "id": "dashboard-suppliers-new",
+      "path": "/dashboard/suppliers/new",
+      "type": "page",
+      "category": "admin",
+      "description": "Create new supplier"
+    },
+    {
+      "id": "dashboard-suppliers-edit",
+      "path": "/dashboard/suppliers/:id/edit",
+      "type": "page",
+      "category": "admin",
+      "description": "Edit supplier"
+    },
+    {
+      "id": "dashboard-preorders",
+      "path": "/dashboard/preorders",
+      "type": "page",
+      "category": "admin",
+      "description": "Pre-order management"
+    },
+    {
+      "id": "dashboard-preorder-detail",
+      "path": "/dashboard/preorders/:sku",
+      "type": "page",
+      "category": "admin",
+      "description": "Pre-order detail"
+    },
+    {
+      "id": "dashboard-policies",
+      "path": "/dashboard/policies",
+      "type": "page",
+      "category": "admin",
+      "description": "Policy management list"
+    },
+    {
+      "id": "dashboard-policies-new",
+      "path": "/dashboard/policies/new",
+      "type": "page",
+      "category": "admin",
+      "description": "Create new policy"
+    },
+    {
+      "id": "dashboard-policies-edit",
+      "path": "/dashboard/policies/:id/edit",
+      "type": "page",
+      "category": "admin",
+      "description": "Edit existing policy"
+    },
+    {
+      "id": "manager-inventory",
+      "path": "/manager/inventory/:sku",
+      "type": "page",
+      "category": "admin",
+      "description": "Standalone inventory detail view"
+    },
+    {
+      "id": "reviews",
+      "path": "inline",
+      "type": "flow",
+      "category": "storefront",
+      "description": "Product review submission and display"
+    },
+    {
+      "id": "search-advanced",
+      "path": "inline",
+      "type": "flow",
+      "category": "storefront",
+      "description": "Advanced filters by color, size, price, stock status"
+    },
+    {
+      "id": "product-3d-viewer",
+      "path": "inline",
+      "type": "flow",
+      "category": "storefront",
+      "description": "3D product viewer on product detail page"
+    }
+  ]
+}

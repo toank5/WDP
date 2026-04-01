@@ -574,7 +574,9 @@ export function sxWhen(condition: unknown, sx: SxProps<Theme>): SxProps<Theme> {
  * )} />
  * ```
  */
-export function sxSwitch(...cases: Array<[unknown] | [unknown, SxProps<Theme]>): SxProps<Theme> {
+type SwitchCase = [unknown] | [unknown, SxProps<Theme>];
+
+export function sxSwitch(...cases: SwitchCase[]): SxProps<Theme> {
   for (const item of cases) {
     if (Array.isArray(item) && item.length > 1) {
       if (item[0]) return item[1]

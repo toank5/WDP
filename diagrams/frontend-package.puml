@@ -1,0 +1,26 @@
+@startuml EYEWEAR-Frontend-Package-Diagram
+title EYEWEAR - Frontend Package Diagram
+
+left to right direction
+
+package "Pages" {
+}
+
+package "Components" {
+}
+
+package "Services" {
+}
+
+package "State" {
+}
+
+package "Utils" {
+}
+
+Pages ..> Components
+Pages ..> Services
+Pages ..> State
+Services ..> Utils
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml CheckFavoriteSequence
+title Check if Product is Favorited - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":FavoriteController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":FavoriteService" as service
+participant ":FavoriteRepository" as favoriteRepo
+database ":Database" as db
+
+customer -> controller: GET /favorites/check/:productId
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> service: isFavorited(userId, productId)
+activate service
+
+service -> favoriteRepo: findByUserAndProduct(userId, productId)
+activate favoriteRepo
+favoriteRepo -> db: SELECT favorite\nWHERE userId = userId AND productId = productId
+db --> favoriteRepo: Favorite or null
+favoriteRepo --> service: result
+deactivate favoriteRepo
+
+service --> controller: 200 OK\n{isFavorited: boolean}
+deactivate service
+
+controller --> customer: 200 OK\nFavorite status
+deactivate controller
+
+@enduml

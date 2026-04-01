@@ -1,0 +1,22 @@
+@startuml PromotionManagementClassDiagram
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
+skinparam arrowColor #333
+
+class PromotionController { }
+
+class PromotionService { }
+
+class PromotionRepository { }
+
+class Promotion { }
+
+PromotionController -- PromotionService
+PromotionService -- PromotionRepository
+PromotionRepository -- Promotion
+
+@enduml

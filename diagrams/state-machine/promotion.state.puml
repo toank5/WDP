@@ -1,0 +1,40 @@
+@startuml Promotion State Machine
+title Promotion Lifecycle - State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#FCE4EC
+    BorderColor#C2185B
+    ArrowColor#424242
+}
+
+[*] --> DRAFT : Manager creates promotion
+
+DRAFT --> ACTIVE : Schedule/Publish\n(startDate reached)
+DRAFT --> CANCELLED : Manager cancels
+
+ACTIVE --> EXPIRED : End date reached\nOR usage limit met
+ACTIVE --> PAUSED : Manager pauses
+ACTIVE --> CANCELLED : Manager cancels
+
+PAUSED --> ACTIVE : Manager resumes\n(within date range)
+PAUSED --> CANCELLED : Manager cancels
+PAUSED --> EXPIRED : End date reached
+
+CANCELLED --> [*]
+EXPIRED --> [*]
+
+note right of ACTIVE
+  Available for use
+  Valid code required
+  Usage tracked
+  Discount applied
+end note
+
+note right of EXPIRED
+  No longer usable
+  History preserved
+  Can duplicate
+end note
+
+@enduml

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native'
 import {
   Text,
   Button,
@@ -12,13 +12,15 @@ import {
 } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { useCartStore } from '../../store/cart-store'
+import { useCart } from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
-import type { PaymentMethod } from './PaymentScreen'
+import type { PaymentMethod, ShippingMethod } from './PaymentScreen'
+import { createCheckoutPayment } from '../../services/order-api'
 
 export interface OrderTotals {
   subtotal: number
-  tax: number
+  discount?: number
+  discountedSubtotal?: number
   shipping: number
   paymentFee: number
   total: number
@@ -30,28 +32,11 @@ interface ReviewScreenProps {
       address?: Address
       shippingAddress?: Address
       paymentMethod?: PaymentMethod
+      shippingMethod?: ShippingMethod
       totals?: OrderTotals
     }
   }
 }
-
-const ORDER_TYPES = [
-  {
-    id: 'in_stock',
-    name: 'Cửa hàng có sẵn',
-    description: 'Sản phẩm có sẵn, giao ngay',
-  },
-  {
-    id: 'preorder',
-    name: 'Đặt trước',
-    description: 'Sản phẩm sẽ có trong thời gian tới',
-  },
-  {
-    id: 'prescription',
-    name: 'Làm kính theo đơn kính',
-    description: 'Làm tròng theo số đo của bạn',
-  },
-]
 
 /**
  * ReviewScreen - Xem lại đơn hàng trước khi đặt
@@ -61,23 +46,22 @@ const ORDER_TYPES = [
  * - Display payment method
  * - Display order items list
  * - Display order totals
- * - Select order type
  * - Confirm order
  */
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
   const theme = useTheme()
   const navigation = useNavigation() as NativeStackNavigationProp<any>
-  const { items, clearCart } = useCartStore()
+  const { items, subtotal, discountAmount, totalAfterDiscount, appliedPromotion } = useCart()
 
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const [selectedOrderType, setSelectedOrderType] = useState('in_stock')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePolicy, setAgreePolicy] = useState(false)
 
   const address = route.params?.address
   const shippingAddress = route.params?.shippingAddress || address
   const paymentMethod = route.params?.paymentMethod
+  const shippingMethod = route.params?.shippingMethod || 'standard'
   const totals = route.params?.totals
 
   // Calculate totals if not provided
@@ -87,22 +71,21 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
     }
 
     // Calculate based on cart items (mock for now)
-    const subtotalValue = items.reduce((sum, item) => {
-      return sum + (item.price * item.quantity)
-    }, 0)
-    const taxValue = subtotalValue * 0.1 // 10% VAT
-    const shippingValue = items.length > 0 ? 30000 : 0 // 30k shipping
+    const subtotalValue = subtotal || items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const discountedSubtotal = totalAfterDiscount
+    const shippingValue = items.length > 0 && discountedSubtotal >= 2000000 ? 0 : items.length > 0 ? 30000 : 0
     const paymentFee = 0 // No fee for now
-    const totalValue = subtotalValue + taxValue + shippingValue + paymentFee
+    const totalValue = discountedSubtotal + shippingValue + paymentFee
 
     return {
       subtotal: subtotalValue,
-      tax: taxValue,
+      discount: discountAmount,
+      discountedSubtotal,
       shipping: shippingValue,
       paymentFee,
       total: totalValue,
     }
-  }, [totals, items])
+  }, [totals, items, subtotal, discountAmount, totalAfterDiscount])
 
   const formatPrice = React.useCallback((price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -121,8 +104,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
     return paymentNames[method] || method
   }, [])
 
-  const handleOrderTypeSelect = useCallback((type: string) => {
-    setSelectedOrderType(type)
+  const getShippingMethodName = React.useCallback((method: ShippingMethod) => {
+    return method === 'express' ? 'Giao hàng nhanh (1-2 ngày)' : 'Giao hàng tiêu chuẩn (3-5 ngày)'
   }, [])
 
   const handleConfirmOrder = useCallback(async () => {
@@ -138,40 +121,64 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
     try {
       setProcessing(true)
 
-      // TODO: Call checkout API to create order
-      // For now, mock the order creation
-      console.log('Creating order with:', {
-        shippingAddress,
-        paymentMethod,
-        orderType: selectedOrderType,
-        items,
-        totals: calculatedTotals,
+      if (!shippingAddress || !paymentMethod) {
+        Alert.alert('Lỗi', 'Thiếu thông tin địa chỉ hoặc phương thức thanh toán')
+        return
+      }
+
+      if (paymentMethod !== 'vnpay') {
+        Alert.alert('Thông báo', 'Hiện tại ứng dụng chỉ hỗ trợ thanh toán VNPay.')
+        return
+      }
+
+      const checkout = await createCheckoutPayment({
+        shippingAddress: {
+          fullName: shippingAddress.recipientName,
+          phone: shippingAddress.recipientPhone,
+          address: shippingAddress.address,
+          city: shippingAddress.province,
+          district: shippingAddress.district,
+          ward: shippingAddress.ward,
+          zipCode: undefined,
+        },
+        shippingMethod: shippingMethod === 'express' ? 'EXPRESS' : 'STANDARD',
+        promotionCode: appliedPromotion?.code,
       })
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      if (checkout.paymentUrl) {
+        const canOpen = await Linking.canOpenURL(checkout.paymentUrl)
 
-      // Clear cart after successful order
-      clearCart()
+        if (!canOpen) {
+          throw new Error('Không thể mở liên kết thanh toán VNPay')
+        }
 
-      // Navigate to success screen (will be implemented later)
-      // For now, navigate back to Store
-      navigation.navigate('HomeTab' as never)
+        await Linking.openURL(checkout.paymentUrl)
+      }
 
-      Alert.alert(
-        'Đặt hàng thành công!',
-        'Đơn hàng của bạn đã được đặt thành công. Chúng tôi sẽ liên hệ sớm nhất.',
-        [
-          { text: 'OK', onPress: () => navigation.navigate('StoreScreen' as never) }
-        ]
-      )
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: 'Main' as never },
+          {
+            name: 'Checkout' as never,
+            params: {
+              screen: 'CheckoutSuccess',
+              params: {
+                orderId: checkout.orderId,
+                orderNumber: checkout.orderNumber,
+                total: checkout.amount,
+              },
+            } as never,
+          },
+        ],
+      })
     } catch (error) {
       console.error('Create order error:', error)
-      Alert.alert(
-        'Lỗi',
-        'Không thể đặt hàng. Vui lòng thử lại sau.',
-        [{ text: 'OK', style: 'default' }]
-      )
+      navigation.navigate('CheckoutFailed' as never, {
+        errorCode: 'ORDER_CREATE_FAILED',
+        errorMessage: error instanceof Error ? error.message : 'Không thể đặt hàng. Vui lòng thử lại sau.',
+        cartItemCount: items.length,
+      } as never)
     } finally {
       setProcessing(false)
     }
@@ -180,10 +187,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
     agreePolicy,
     shippingAddress,
     paymentMethod,
-    selectedOrderType,
-    items,
-    calculatedTotals,
-    clearCart,
+    shippingMethod,
+    appliedPromotion,
+    items.length,
     navigation,
   ])
 
@@ -265,6 +271,18 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           )}
         </Surface>
 
+        {/* Shipping Method */}
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleMedium" style={styles.cardTitle}>
+            Phương thức giao hàng
+          </Text>
+          <View style={styles.paymentMethodInfo}>
+            <Text variant="bodyLarge" style={styles.paymentMethodName}>
+              {getShippingMethodName(shippingMethod)}
+            </Text>
+          </View>
+        </Surface>
+
         {/* Payment Method */}
         <Surface style={styles.card} elevation={1}>
           <View style={styles.cardHeader}>
@@ -289,41 +307,6 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
               Chưa chọn phương thức thanh toán
             </Text>
           )}
-        </Surface>
-
-        {/* Order Type */}
-        <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Loại đơn hàng
-          </Text>
-
-          <View style={styles.orderTypeList}>
-            {ORDER_TYPES.map((type) => (
-              <Card
-                key={type.id}
-                style={[
-                  styles.orderTypeCard,
-                  selectedOrderType === type.id && styles.selectedOrderType,
-                ]}
-                onPress={() => handleOrderTypeSelect(type.id)}
-              >
-                <View style={styles.orderTypeContent}>
-                  <Checkbox.Android
-                    status={selectedOrderType === type.id ? 'checked' : 'unchecked'}
-                    onPress={() => handleOrderTypeSelect(type.id)}
-                  />
-                  <View style={styles.orderTypeInfo}>
-                    <Text variant="titleMedium" style={styles.orderTypeName}>
-                      {type.name}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.orderTypeDesc}>
-                      {type.description}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-            ))}
-          </View>
         </Surface>
 
         {/* Order Items */}
@@ -378,17 +361,19 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
             </Text>
           </View>
 
+          {appliedPromotion && (calculatedTotals.discount || 0) > 0 && (
+            <View style={styles.totalsRow}>
+              <Text variant="bodyMedium">Giảm giá ({appliedPromotion.code}):</Text>
+              <Text variant="bodyMedium" style={{ color: '#2e7d32' }}>
+                -{formatPrice(calculatedTotals.discount || 0)}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.totalsRow}>
             <Text variant="bodyMedium">Phí vận chuyển:</Text>
             <Text variant="bodyMedium">
-              {formatPrice(calculatedTotals.shipping)}
-            </Text>
-          </View>
-
-          <View style={styles.totalsRow}>
-            <Text variant="bodyMedium">Thuế VAT (10%):</Text>
-            <Text variant="bodyMedium">
-              {formatPrice(calculatedTotals.tax)}
+              {calculatedTotals.shipping === 0 ? 'Miễn phí' : formatPrice(calculatedTotals.shipping)}
             </Text>
           </View>
 
@@ -422,7 +407,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
             />
             <Text variant="bodyMedium" style={styles.checkboxLabel}>
               Tôi đồng ý với{' '}
-              <Text style={styles.link}>Điều khoản dịch vụ</Text>
+              <Text style={styles.link} onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'terms' } as never)}>
+                Điều khoản dịch vụ
+              </Text>
             </Text>
           </View>
 
@@ -433,9 +420,20 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
             />
             <Text variant="bodyMedium" style={styles.checkboxLabel}>
               Tôi đồng ý với{' '}
-              <Text style={styles.link}>Chính sách bảo mật</Text>
+              <Text style={styles.link} onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'privacy' } as never)}>
+                Chính sách bảo mật
+              </Text>
             </Text>
           </View>
+
+          <Button
+            mode="text"
+            icon="truck-delivery-outline"
+            onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'shipping' } as never)}
+            contentStyle={{ justifyContent: 'flex-start' }}
+          >
+            Xem chính sách vận chuyển
+          </Button>
         </Surface>
       </ScrollView>
 
@@ -533,32 +531,6 @@ const styles = StyleSheet.create({
   },
   paymentMethodName: {
     fontWeight: 'bold',
-  },
-  orderTypeList: {
-    gap: 12,
-  },
-  orderTypeCard: {
-    borderRadius: 8,
-  },
-  selectedOrderType: {
-    borderWidth: 2,
-    borderColor: '#1e88e5',
-  },
-  orderTypeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 8,
-  },
-  orderTypeInfo: {
-    flex: 1,
-  },
-  orderTypeName: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  orderTypeDesc: {
-    opacity: 0.7,
   },
   itemsList: {
     gap: 12,

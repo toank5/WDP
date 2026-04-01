@@ -1,0 +1,25 @@
+@startuml UserManagementClassDiagram
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
+skinparam arrowColor #333
+
+class UserController { }
+
+class UserService { }
+
+class UserRepository { }
+
+class User { }
+class Address { }
+
+UserController -- UserService
+UserService -- UserRepository
+UserRepository -- User
+
+User "1" *-- "many" Address
+
+@enduml

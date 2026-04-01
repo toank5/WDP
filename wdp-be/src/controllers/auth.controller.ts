@@ -16,7 +16,7 @@ import {
 import { ZodValidationPipe } from 'src/commons/pipes/zod-validation.pipe';
 import { LoginResponseDto } from 'src/commons/dtos/auth.dto';
 import { ErrorResponseDto } from 'src/commons/dtos/error-response.dto';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../shared';
 import {
   VerifyEmailResponseDto,
   ForgotPasswordResponseDto,

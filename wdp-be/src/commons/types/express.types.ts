@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { ROLES } from '@eyewear/shared';
+import { ROLES } from '../../shared';
 
 /**
  * JWT Payload - structure of the decoded JWT token

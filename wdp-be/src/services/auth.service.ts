@@ -21,11 +21,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import {
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-} from '../mail/email.service';
-import { ROLES } from '@eyewear/shared';
+import { EmailService } from '../mail/email.service';
+import { ROLES } from '../shared';
 
 /**
  * Transform user object for API response
@@ -92,6 +89,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    private readonly emailService: EmailService,
   ) {}
 
   async login(
@@ -160,7 +158,11 @@ export class AuthService {
     const verifyUrl = `${frontendUrl}/verify-email?token=${emailVerifyToken}`;
 
     try {
-      await sendVerificationEmail(newUser.email, newUser.fullName, verifyUrl);
+      await this.emailService.sendVerificationEmail(
+        newUser.email,
+        newUser.fullName,
+        verifyUrl,
+      );
     } catch (error) {
       console.error('Failed to send verification email:', error);
       // Continue with registration even if email fails
@@ -237,7 +239,11 @@ export class AuthService {
     const resetUrl = `${frontendUrl}/reset-password?token=${resetPasswordToken}`;
 
     try {
-      await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        user.fullName,
+        resetUrl,
+      );
     } catch (error) {
       console.error('Failed to send password reset email:', error);
     }
@@ -300,7 +306,11 @@ export class AuthService {
     const verifyUrl = `${frontendUrl}/verify-email?token=${emailVerifyToken}`;
 
     try {
-      await sendVerificationEmail(user.email, user.fullName, verifyUrl);
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        user.fullName,
+        verifyUrl,
+      );
     } catch (error) {
       console.error('Failed to send verification email:', error);
     }

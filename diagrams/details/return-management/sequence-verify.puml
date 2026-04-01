@@ -1,0 +1,108 @@
+@startuml ReturnVerifySequence
+title Return Verification (Warehouse) - Sequence Diagram
+
+actor ":Warehouse Staff" as warehouse
+participant ":ReturnController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":ReturnService" as returnService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":ReturnRepository" as returnRepo
+database ":Database" as db
+
+warehouse -> controller: PATCH /returns/:id/staff-verify\n{itemsReceived: true, conditionNotes}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(WAREHOUSE)
+rbacGuard --> controller: true (Warehouse authorized)
+deactivate rbacGuard
+
+controller -> returnService: staffVerify(returnId, verifyDto, staffId)
+activate returnService
+
+returnService -> returnRepo: findOne(returnId)
+activate returnRepo
+returnRepo -> db: SELECT return WITH items
+db --> returnRepo: Return
+returnRepo --> returnService: Return
+deactivate returnRepo
+
+alt [Return not found]
+    returnService --> controller: 404 NOT FOUND\n(Return not found)
+else [Return in wrong state]
+    returnService -> returnService: validateStatus(AWAITING_ITEMS)
+    alt [Not AWAITING_ITEMS]
+        returnService --> controller: 400 BAD REQUEST\n(Return not ready for verification)
+    end
+else [Ready for verification]
+    returnService -> returnService: verifyAllItemsReceived(verifyDto.itemsReceived)
+
+    returnService -> db: TRANSACTION START
+    activate db
+
+    returnService -> returnRepo: updateStatus(returnId, IN_REVIEW)
+    activate returnRepo
+    returnRepo -> db: UPDATE return_request\nSET status = 'IN_REVIEW',\nverifiedBy = staffId,\nverifiedAt = NOW(),\nwarehouseNotes = notes
+    db --> returnRepo: Updated Return
+    returnRepo --> returnService: Updated Return
+    deactivate returnRepo
+
+    alt [Items in good condition]
+        returnService -> returnRepo: updateCondition(returnId, 'GOOD')
+        activate returnRepo
+        returnRepo -> db: UPDATE return_request\nSET itemCondition = 'GOOD'
+        db --> returnRepo: Updated
+        returnRepo --> returnService: Updated
+        deactivate returnRepo
+
+        returnService -> inventoryService: receiveReturnedItems(return.items)
+        activate inventoryService
+        inventoryService -> db: UPDATE inventory\n(add to returned stock)
+        db --> inventoryService: Added
+        inventoryService --> returnService: Items received to inventory
+        deactivate inventoryService
+
+    else [Items damaged/used]
+        returnService -> returnRepo: updateCondition(returnId, 'DAMAGED')
+        activate returnRepo
+        returnRepo -> db: UPDATE return_request\nSET itemCondition = 'DAMAGED',\ndamageReason = verifyDto.notes
+        db --> returnRepo: Updated
+        returnRepo --> returnService: Updated
+        deactivate returnRepo
+
+        returnService -> returnService: attachDamagePhotos(verifyDto.photos)
+
+        returnService -> inventoryService: quarantineItems(return.items)
+        activate inventoryService
+        inventoryService -> db: UPDATE inventory\n(set status = 'QUARANTINE')
+        db --> inventoryService: Quarantined
+        inventoryService --> returnService: Items quarantined
+        deactivate inventoryService
+    end
+
+    returnService -> db: COMMIT
+    deactivate db
+
+    returnService -> emailService: notifySalesTeamForReview(return)
+    activate emailService
+    emailService -> emailService: Build review notification email
+    emailService -> emailService: Send to sales team
+    emailService --> returnService: Sent
+    deactivate emailService
+
+    returnService --> controller: 200 OK\n{returnNumber, status: IN_REVIEW}
+end
+
+controller --> warehouse: 200 OK\nReturn verified\nSent to sales for review
+deactivate controller
+
+
+@enduml

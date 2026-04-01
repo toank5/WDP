@@ -9,7 +9,7 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '@eyewear/shared';
+} from '../../shared';
 import { ProductVariant, ProductVariantSchema } from './product-variant.schema';
 
 export type ProductDocument = HydratedDocument<Product>;

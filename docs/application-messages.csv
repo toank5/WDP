@@ -1,0 +1,121 @@
+#;Message Code;Message Type;Context;Content
+1;MSG.001;Toast Error;Invalid login credentials;Không tìm thấy tài khoản
+2;MSG.002;Toast Error;Incorrect password;Mật khẩu không chính xác
+3;MSG.003;Toast Error;Unauthorized access;Không có quyền truy cập
+4;MSG.004;Toast Success;Email verified successfully;Xác minh email thành công
+5;MSG.005;Toast Success;Phone verified successfully;Xác minh số điện thoại thành công
+6;MSG.006;Toast Error;Invalid verification code;Mã xác minh không hợp lệ
+7;MSG.007;Toast Success;Registration successful;Đăng ký thành công
+8;MSG.008;Toast Error;User already exists;Người dùng đã tồn tại
+9;MSG.009;Toast Error;Email already exists;Email đã tồn tại
+10;MSG.010;Toast Error;Phone already exists;Số điện thoại đã tồn tại
+11;MSG.011;Toast Success;Profile updated successfully;Cập nhật hồ sơ thành công
+12;MSG.012;Toast Error;User not found;Không tìm thấy người dùng
+13;MSG.013;Toast Success;Password reset email sent;Đã gửi email đặt lại mật khẩu
+14;MSG.014;Toast Error;Password reset token expired;Token đặt lại mật khẩu đã hết hạn
+15;MSG.015;Toast Error;Passwords do not match;Mật khẩu không khớp
+16;MSG.100;Toast Success;Product created successfully;Tạo sản phẩm thành công
+17;MSG.101;Toast Success;Product updated successfully;Cập nhật sản phẩm thành công
+18;MSG.102;Toast Success;Product deleted successfully;Xóa sản phẩm thành công
+19;MSG.103;Toast Success;Product restored successfully;Khôi phục sản phẩm thành công
+20;MSG.104;Toast Error;Product not found;Không tìm thấy sản phẩm
+21;MSG.105;Toast Error;SKU already exists;Mã SKU đã tồn tại
+22;MSG.106;Toast Error;Invalid product category;Danh mục sản phẩm không hợp lệ
+23;MSG.107;Toast Error;At least one variant required;Cần ít nhất một biến thể sản phẩm
+24;MSG.108;Toast Error;Invalid image format;Định dạng hình ảnh không hợp lệ. Định dạng cho phép: jpeg, jpg, png, webp
+25;MSG.109;Toast Error;Invalid 3D model format;Định dạng 3D không hợp lệ. Định dạng cho phép: glb, gltf, obj
+26;MSG.110;Toast Error;Image upload failed;Không thể tải lên hình ảnh
+27;MSG.111;Toast Error;3D model upload failed;Không thể tải lên mô hình 3D
+28;MSG.200;Toast Success;Item added to cart;Đã thêm vào giỏ hàng
+29;MSG.201;Toast Success;Cart updated successfully;Cập nhật giỏ hàng thành công
+30;MSG.202;Toast Success;Item removed from cart;Đã xóa khỏi giỏ hàng
+31;MSG.203;Toast Success;Cart cleared;Đã xóa giỏ hàng
+32;MSG.204;Toast Error;Product out of stock;Sản phẩm đã hết hàng
+33;MSG.205;Toast Error;Insufficient stock;Số lượng trong kho không đủ
+34;MSG.206;Toast Error;Invalid quantity;Số lượng không hợp lệ
+35;MSG.207;Toast Error;Cart not found;Không tìm thấy giỏ hàng
+36;MSG.208;Toast Error;Cart item not found;Không tìm thấy sản phẩm trong giỏ
+37;MSG.209;Toast Error;Prescription required;Cần thông tin kính thuốc
+38;MSG.210;Toast Error;Invalid prescription data;Dữ liệu kính thuốc không hợp lệ
+39;MSG.211;Toast Error;Invalid sphere value;Giá trị cầu không hợp lệ (-20.00 đến +20.00)
+40;MSG.212;Toast Error;Invalid cylinder value;Giá trị trụ không hợp lệ (-10.00 đến +10.00)
+41;MSG.213;Toast Error;Invalid axis value;Giá trị trục không hợp lệ (0 đến 180)
+42;MSG.214;Toast Error;Invalid PD value;Khoảng cách đồng tử không hợp lệ (50-80mm)
+43;MSG.300;Toast Success;Order placed successfully;Đặt hàng thành công
+44;MSG.301;Toast Success;Order approved;Đã duyệt đơn hàng
+45;MSG.302;Toast Success;Order cancelled;Đã hủy đơn hàng
+46;MSG.303;Toast Error;Order not found;Không tìm thấy đơn hàng
+47;MSG.304;Toast Error;Invalid order status;Trạng thái đơn hàng không hợp lệ
+48;MSG.305;Toast Error;Order cannot be cancelled;Không thể hủy đơn hàng
+49;MSG.306;Toast Error;Order already paid;Đơn hàng đã thanh toán
+50;MSG.307;Toast Error;Order not paid yet;Đơn hàng chưa thanh toán
+51;MSG.308;Toast Success;Tracking updated;Cập nhật trạng thái giao hàng thành công
+52;MSG.309;Toast Info;Order confirmed;Đơn hàng đã được xác nhận
+53;MSG.310;Toast Info;Order processing;Đơn hàng đang được xử lý
+54;MSG.311;Toast Info;Order shipped;Đơn hàng đang được giao
+55;MSG.312;Toast Info;Order delivered;Đơn hàng đã giao thành công
+56;MSG.400;Toast Success;Payment initiated;Đang chuyển đến cổng thanh toán
+57;MSG.401;Toast Success;Payment successful;Thanh toán thành công
+58;MSG.402;Toast Error;Payment failed;Thanh toán thất bại
+59;MSG.403;Toast Info;Payment cancelled;Thanh toán bị hủy
+60;MSG.404;Toast Error;Payment timeout;Thanh toán hết hạn
+61;MSG.405;Toast Error;Invalid payment amount;Số tiền thanh toán không hợp lệ
+62;MSG.406;Toast Error;Payment callback failed;Xác thực thanh toán thất bại
+63;MSG.407;Toast Success;Refund initiated;Đã khởi tạo hoàn tiền
+64;MSG.408;Toast Success;Refund completed;Hoàn tiền thành công
+65;MSG.409;Toast Error;Refund failed;Hoàn tiền thất bại
+66;MSG.500;Toast Success;Return request submitted;Gửi yêu cầu trả hàng thành công
+67;MSG.501;Toast Success;Return approved;Đã duyệt trả hàng
+68;MSG.502;Toast Success;Return rejected;Đã từ chối trả hàng
+69;MSG.503;Toast Success;Return completed;Trả hàng hoàn tất
+70;MSG.504;Toast Error;Return request not found;Không tìm thấy yêu cầu trả hàng
+71;MSG.505;Toast Error;Invalid return status;Trạng thái trả hàng không hợp lệ
+72;MSG.506;Toast Error;Return period expired;Đã hết hạn trả hàng
+73;MSG.507;Toast Error;Item not eligible for return;Sản phẩm không đủ điều kiện trả
+74;MSG.508;Toast Error;Photos required;Cần tải lên hình ảnh khiếu nại
+75;MSG.509;Toast Error;Return reason required;Vui lòng chọn lý do trả hàng
+76;MSG.510;Toast Info;Return item received;Đã nhận hàng trả
+77;MSG.511;Toast Info;Return inspected;Đã kiểm tra hàng trả
+78;MSG.600;Toast Success;Inventory updated;Cập nhật kho thành công
+79;MSG.602;Toast Warning;Low stock alert;Sản phẩm sắp hết hàng: {product_name}
+80;MSG.603;Toast Error;Invalid inventory movement;Loại hình kho không hợp lệ
+81;MSG.604;Toast Error;Inventory reservation failed;Không thể giữ hàng
+82;MSG.605;Toast Error;Inventory release failed;Không thể giải phóng hàng
+83;MSG.606;Toast Error;Stock adjustment failed;Không thể điều chỉnh tồn kho
+84;MSG.700;Toast Success;Promotion applied;Áp dụng mã giảm giá thành công
+85;MSG.701;Toast Error;Invalid promotion code;Mã giảm giá không hợp lệ
+86;MSG.702;Toast Error;Promotion expired;Mã giảm giá đã hết hạn
+87;MSG.703;Toast Error;Promotion usage limit reached;Đã hết lượt sử dụng mã giảm giá
+88;MSG.704;Toast Error;Promotion not applicable;Mã giảm giá không áp dụng cho sản phẩm này
+89;MSG.705;Toast Error;Minimum order amount not met;Chưa đạt số tiền tối thiểu
+90;MSG.706;Toast Success;Combo created;Tạo combo thành công
+91;MSG.707;Toast Error;Combo not found;Không tìm thấy combo
+92;MSG.800;Toast Success;Review submitted;Gửi đánh giá thành công
+93;MSG.801;Toast Error;Already reviewed;Bạn đã đánh giá sản phẩm này
+94;MSG.802;Toast Error;Review not found;Không tìm thấy đánh giá
+95;MSG.803;Toast Success;Added to favorites;Đã thêm vào yêu thích
+96;MSG.804;Toast Success;Removed from favorites;Đã xóa khỏi yêu thích
+97;MSG.805;Toast Error;Favorite not found;Không tìm thấy yêu thích
+98;MSG.900;Inline Error;Required field;Trường này là bắt buộc
+99;MSG.901;Inline Error;Invalid email format;Định dạng email không hợp lệ
+100;MSG.902;Inline Error;Exceeds maximum length;Vượt quá độ dài tối đa {max_length}
+101;MSG.903;Inline Error;Email required;Email là bắt buộc
+102;MSG.904;Inline Error;Full name required;Họ tên là bắt buộc
+103;MSG.905;Inline Error;Password required;Mật khẩu là bắt buộc
+104;MSG.906;Inline Error;Invalid password format;Mật khẩu phải có 8-20 ký tự, bao gồm chữ hoa, chữ thường và số
+105;MSG.907;Inline Error;Phone required;Số điện thoại là bắt buộc
+106;MSG.908;Inline Error;Invalid phone format;Định dạng số điện thoại không hợp lệ
+107;MSG.909;Inline Error;Address required;Địa chỉ là bắt buộc
+108;MSG.910;Inline Error;City/Province required;Tỉnh/Thành phố là bắt buộc
+109;MSG.911;Inline Error;District required;Quận/Huyện là bắt buộc
+110;MSG.912;Inline Error;Invalid URL format;Định dạng URL không hợp lệ
+111;MSG.950;Toast Success;Operation successful;Thao tác thành công
+112;MSG.951;Toast Error;Operation failed;Thao tác thất bại
+113;MSG.952;Toast Error;Server error;Lỗi máy chủ
+114;MSG.953;Toast Error;Invalid request;Yêu cầu không hợp lệ
+115;MSG.954;Toast Error;Network error;Lỗi kết nối mạng
+116;MSG.955;Toast Error;File not found;Không tìm thấy tệp tin
+117;MSG.956;Toast Error;Folder not found;Không tìm thấy thư mục
+118;MSG.957;Toast Info;No results found;Không có kết quả tìm kiếm
+119;MSG.958;Toast Info;Loading data;Đang tải dữ liệu...
+120;MSG.959;Toast Error;Session expired;Phiên làm việc đã hết hạn, vui lòng đăng nhập lại

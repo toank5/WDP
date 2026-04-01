@@ -1,0 +1,322 @@
+{
+  "mobileFeatures": [
+    {
+      "id": "home",
+      "screen": "HomeScreen",
+      "route": "Home",
+      "description": "Main product catalog with categories (Frames, Lenses, Services)"
+    },
+    {
+      "id": "store",
+      "screen": "StoreScreen",
+      "route": "ProductList",
+      "description": "Alternative store screen with grid layout and filters"
+    },
+    {
+      "id": "product-detail",
+      "screen": "ProductDetailScreen",
+      "route": "ProductDetail",
+      "description": "Detailed product view with variants and add to cart"
+    },
+    {
+      "id": "search",
+      "screen": "SearchScreen",
+      "route": "SearchTab",
+      "description": "Product search with filters and category selection"
+    },
+    {
+      "id": "favorites",
+      "screen": "FavoritesScreen",
+      "route": "Favorites",
+      "description": "Saved/wishlist items management"
+    },
+    {
+      "id": "cart",
+      "screen": "CartScreen",
+      "route": "CartTab",
+      "description": "Shopping cart with quantity updates and checkout"
+    },
+    {
+      "id": "checkout-address",
+      "screen": "AddressScreen",
+      "route": "CheckoutAddress",
+      "description": "Address selection/guest form for shipping"
+    },
+    {
+      "id": "checkout-payment",
+      "screen": "PaymentScreen",
+      "route": "CheckoutPayment",
+      "description": "Payment method selection (COD, VNPay, Bank Transfer, MoMo)"
+    },
+    {
+      "id": "checkout-review",
+      "screen": "ReviewScreen",
+      "route": "CheckoutReview",
+      "description": "Order review with totals and prescription selection"
+    },
+    {
+      "id": "checkout",
+      "screen": null,
+      "route": null,
+      "description": "Checkout is split into 3 separate screens (address, payment, review)"
+    },
+    {
+      "id": "order-success",
+      "screen": null,
+      "route": "CheckoutSuccess",
+      "description": "Order confirmation (route defined but no implementation found)"
+    },
+    {
+      "id": "order-failed",
+      "screen": null,
+      "route": null,
+      "description": "Failed order handling not implemented"
+    },
+    {
+      "id": "orders",
+      "screen": "OrderHistoryScreen",
+      "route": "OrderHistory",
+      "description": "User's order list with status filtering"
+    },
+    {
+      "id": "order-detail",
+      "screen": "OrderDetailScreen",
+      "route": "OrderDetail",
+      "description": "Detailed view of specific order"
+    },
+    {
+      "id": "login",
+      "screen": "LoginScreen",
+      "route": "Login",
+      "description": "User login with email/password"
+    },
+    {
+      "id": "register",
+      "screen": "RegisterScreen",
+      "route": "Register",
+      "description": "User registration with personal details"
+    },
+    {
+      "id": "forgot-password",
+      "screen": "ForgotPasswordScreen",
+      "route": "ForgotPassword",
+      "description": "Password reset initiation"
+    },
+    {
+      "id": "reset-password",
+      "screen": "ResetPasswordScreen",
+      "route": "ResetPassword",
+      "description": "Password reset with token"
+    },
+    {
+      "id": "verify-email",
+      "screen": null,
+      "route": "VerifyEmail",
+      "description": "Email verification (defined in types but no implementation found)"
+    },
+    {
+      "id": "account",
+      "screen": "AccountScreen",
+      "route": "AccountTab",
+      "description": "Main account dashboard with menu items"
+    },
+    {
+      "id": "profile",
+      "screen": "ProfileScreen",
+      "route": "ProfileSettings",
+      "description": "Profile information management"
+    },
+    {
+      "id": "profile-edit",
+      "screen": null,
+      "route": "ProfileEdit",
+      "description": "Profile editing (defined but no implementation found)"
+    },
+    {
+      "id": "addresses",
+      "screen": "AddressManagementScreen",
+      "route": "AddressManagement",
+      "description": "Saved addresses management"
+    },
+    {
+      "id": "security",
+      "screen": "SecurityScreen",
+      "route": "SecuritySettings",
+      "description": "Password change and security settings"
+    },
+    {
+      "id": "settings",
+      "screen": null,
+      "route": null,
+      "description": "Account preferences and notifications (may be part of profile/security)"
+    },
+    {
+      "id": "prescription-list",
+      "screen": "PrescriptionListScreen",
+      "route": null,
+      "description": "List of saved prescriptions with status filtering"
+    },
+    {
+      "id": "prescription-entry",
+      "screen": null,
+      "route": null,
+      "description": "Prescription entry during checkout (inline flow, not separate screen)"
+    },
+    {
+      "id": "prescription-detail",
+      "screen": "PrescriptionDetailScreen",
+      "route": null,
+      "description": "Form to view/edit prescription values (SPH, CYL, AXIS)"
+    },
+    {
+      "id": "returns",
+      "screen": null,
+      "route": null,
+      "description": "Return/exchange request flow not implemented"
+    },
+    {
+      "id": "about",
+      "screen": "AboutScreen",
+      "route": "About",
+      "description": "Company information and app details"
+    },
+    {
+      "id": "contact",
+      "screen": "ContactScreen",
+      "route": "Contact",
+      "description": "Contact form and store information"
+    },
+    {
+      "id": "virtual-tryon",
+      "screen": null,
+      "route": "VirtualTryOn",
+      "description": "Virtual try-on (defined but intentionally not implemented - web only)"
+    },
+    {
+      "id": "product-3d-viewer",
+      "screen": null,
+      "route": null,
+      "description": "3D product viewer (intentionally not implemented - web only)"
+    },
+    {
+      "id": "dashboard",
+      "screen": null,
+      "route": null,
+      "description": "Admin/staff dashboard not implemented on mobile"
+    },
+    {
+      "id": "dashboard-users",
+      "screen": null,
+      "route": null,
+      "description": "User management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-products",
+      "screen": null,
+      "route": null,
+      "description": "Product management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-orders",
+      "screen": null,
+      "route": null,
+      "description": "Order management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-prescriptions",
+      "screen": null,
+      "route": null,
+      "description": "Prescription queue not implemented on mobile"
+    },
+    {
+      "id": "dashboard-lab-jobs",
+      "screen": null,
+      "route": null,
+      "description": "Lab job queue not implemented on mobile"
+    },
+    {
+      "id": "dashboard-returns",
+      "screen": null,
+      "route": null,
+      "description": "Return management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-shipping",
+      "screen": null,
+      "route": null,
+      "description": "Shipping queue not implemented on mobile"
+    },
+    {
+      "id": "dashboard-promotions",
+      "screen": null,
+      "route": null,
+      "description": "Promotion management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-combos",
+      "screen": null,
+      "route": null,
+      "description": "Combo builder not implemented on mobile"
+    },
+    {
+      "id": "dashboard-pricing",
+      "screen": null,
+      "route": null,
+      "description": "Price management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-revenue",
+      "screen": null,
+      "route": null,
+      "description": "Revenue analytics not implemented on mobile"
+    },
+    {
+      "id": "dashboard-inventory",
+      "screen": null,
+      "route": null,
+      "description": "Inventory management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-suppliers",
+      "screen": null,
+      "route": null,
+      "description": "Supplier management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-preorders",
+      "screen": null,
+      "route": null,
+      "description": "Pre-order management not implemented on mobile"
+    },
+    {
+      "id": "dashboard-policies",
+      "screen": null,
+      "route": null,
+      "description": "Policy management not implemented on mobile"
+    },
+    {
+      "id": "policy-detail",
+      "screen": null,
+      "route": null,
+      "description": "Policy pages not implemented on mobile"
+    },
+    {
+      "id": "reviews",
+      "screen": null,
+      "route": null,
+      "description": "Product review system not found on mobile"
+    },
+    {
+      "id": "search-advanced",
+      "screen": null,
+      "route": null,
+      "description": "Advanced search filters (basic filters exist on SearchScreen)"
+    },
+    {
+      "id": "checkout-vnpay",
+      "screen": null,
+      "route": null,
+      "description": "VNPay return handling (payment integrated in checkout flow)"
+    }
+  ]
+}

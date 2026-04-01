@@ -1,0 +1,50 @@
+@startuml CreateSupplierSequence
+title Create Supplier - Sequence Diagram
+
+actor ":Manager" as manager
+participant ":SupplierController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":SupplierService" as supplierService
+participant ":SupplierRepository" as supplierRepo
+database ":Database" as db
+
+manager -> controller: POST /suppliers\n(CreateSupplierDto)
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(MANAGER)
+rbacGuard --> controller: true
+deactivate rbacGuard
+
+controller -> supplierService: createSupplier(supplierDto)
+activate supplierService
+
+supplierService -> supplierService: validateSupplierData(supplierDto)
+supplierService -> supplierRepo: checkDuplicate(supplierDto.email, supplierDto.phone)
+activate supplierRepo
+supplierRepo -> db: SELECT supplier\nWHERE email = email OR phone = phone
+db --> supplierRepo: null
+supplierRepo --> supplierService: No duplicate
+deactivate supplierRepo
+
+supplierService -> supplierRepo: create(supplierDto)
+activate supplierRepo
+supplierRepo -> db: INSERT supplier\nSET name, email, phone, address\nstatus = 'ACTIVE'
+db --> supplierRepo: Supplier
+supplierRepo --> supplierService: Supplier
+deactivate supplierRepo
+
+supplierService --> controller: 201 CREATED\n{supplierNumber, name, status}
+deactivate supplierService
+
+controller --> manager: 201 CREATED\nSupplier created
+deactivate controller
+
+@enduml

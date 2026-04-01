@@ -17,7 +17,7 @@ import {
 import { InventoryService } from './inventory.service';
 import { ComboService } from './combo.service';
 import { PolicyService } from './policy.service';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { POLICY_TYPES } from '../shared';
 
 // Type for cart document with Mongoose methods
 type CartDocument = HydratedDocument<Cart>;
@@ -215,7 +215,7 @@ export class CartService {
     const items: CartItemResponseDto[] = cartData.items.map(
       (item: AggregatedCartItem) => ({
         _id: item._id || '',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
         productId: item.productId?.toString() || '',
         variantSku: item.variantSku,
         productName: item.productName,
@@ -573,7 +573,7 @@ export class CartService {
 
     return {
       _id: cart._id || '',
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       customerId: cart.customerId?.toString() || '',
       items,
       totalItems,
@@ -606,9 +606,7 @@ export class CartService {
     }
 
     // Get all product IDs in cart
-    const productIds = cart.items.map((item) =>
-      (item.productId as mongoose.Types.ObjectId).toString(),
-    );
+    const productIds = cart.items.map((item) => item.productId.toString());
 
     // Check for combo pricing
     const comboResult = await this.comboService.getComboPrice(productIds);

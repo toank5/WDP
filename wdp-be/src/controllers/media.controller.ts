@@ -20,7 +20,8 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { MediaService } from '../commons/services/media.service';
-import { RbacGuard } from '../commons/guards/rbac.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { ErrorResponseDto } from '../commons/dtos/error-response.dto';
 
 // Upload size limits (hardcoded for webpack compatibility)
@@ -43,7 +44,8 @@ export class MediaController {
    * POST /manager/media/images2d
    */
   @Post('images2d')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: memoryStorage(),
@@ -126,23 +128,32 @@ export class MediaController {
    * POST /manager/media/images3d
    */
   @Post('images3d')
-  @UseGuards(RbacGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @UseInterceptors(
     FilesInterceptor('files', 5, {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const ext = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
-        const allowedExt = ['.glb', '.gltf', '.usdz'];
+        const allowedExt = ['.glb', '.gltf', '.obj', '.usdz'];
 
         // Check file extension for 3D models
         if (!allowedExt.includes(ext)) {
           return cb(
             new BadRequestException(
-              'Only 3D model files are allowed (.glb, .gltf, .usdz)',
+              'Only 3D model files are allowed (.glb recommended, .gltf, .obj, .usdz)',
             ),
             false,
           );
         }
+
+        // Warn if using GLTF (not self-contained)
+        if (ext === '.gltf') {
+          console.warn(`[Media Controller] GLTF file detected: ${file.originalname}. GLTF format may not work properly - please use GLB format instead.`);
+        } else if (ext === '.obj') {
+          console.log(`[Media Controller] OBJ file detected: ${file.originalname}. Note: Materials/textures may not load without MTL files.`);
+        }
+
         cb(null, true);
       },
       limits: {
@@ -154,11 +165,11 @@ export class MediaController {
   @ApiOperation({
     summary: 'Upload 3D product models',
     description:
-      'Upload up to 5 3D model files (.glb, .gltf, .usdz) and get their Cloudinary URLs.',
+      'Upload up to 5 3D model files (.glb recommended, .obj, .gltf, .usdz) and get their Cloudinary URLs. Note: GLB format is strongly recommended as it is a single self-contained file with materials and textures. OBJ files are supported but may load without materials/textures. GLTF files may not render properly because they reference external resources (.bin, textures) that cannot be loaded from Cloudinary.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'Up to 5 3D model files (.glb, .gltf, .usdz, max 10MB each)',
+    description: 'Up to 5 3D model files (.glb recommended, .obj supported, max 10MB each)',
     schema: {
       type: 'object',
       properties: {

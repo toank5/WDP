@@ -1,0 +1,94 @@
+@startuml ReturnRequestSequence
+title Return Request - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":ReturnController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":ReturnService" as returnService
+participant ":OrderService" as orderService
+participant ":PolicyService" as policyService
+participant ":ReturnRepository" as returnRepo
+participant ":OrderRepository" as orderRepo
+database ":Database" as db
+
+customer -> controller: POST /returns\n(CreateReturnRequestDto)
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> returnService: createReturn(userId, createDto)
+activate returnService
+
+returnService -> orderService: validateOrderForReturn(createDto.orderId)
+activate orderService
+orderService -> orderRepo: findOne(createDto.orderId)
+activate orderRepo
+orderRepo -> db: SELECT order\nWHERE customerId = userId
+db --> orderRepo: Order
+orderRepo --> orderService: Order
+deactivate orderRepo
+
+alt [Order not found]
+    orderService --> returnService: 404 NOT FOUND
+    returnService --> controller: 404 NOT FOUND\n(Order not found)
+else [Order not eligible for return]
+    orderService -> orderService: checkReturnEligibility(order)
+    alt [Delivered > 30 days ago]
+        orderService --> returnService: 400 BAD REQUEST\n(Return window expired)
+        returnService --> controller: 400 BAD REQUEST\n(Return window: 30 days)
+    else [Order already has active return]
+        orderService --> returnService: 409 CONFLICT\n(Return already exists)
+        returnService --> controller: 409 CONFLICT\n(Active return exists)
+    else [Order eligible]
+        orderService --> returnService: Order eligible
+    end
+end
+deactivate orderService
+
+alt [Order eligible]
+    returnService -> policyService: getReturnPolicy()
+    activate policyService
+    policyService -> db: SELECT policy\nWHERE type = 'RETURN'
+    db --> policyService: Return policy
+    policyService --> returnService: Return policy
+    deactivate policyService
+
+    returnService -> returnService: validateReturnItems(createDto.items, order.items)
+
+    returnService -> returnService: generateReturnNumber()
+    returnService -> returnService: calculateRefundAmount(createDto.items)
+
+    returnService -> db: TRANSACTION START
+    activate db
+
+    returnService -> returnRepo: create(returnData)
+    activate returnRepo
+    returnRepo -> db: INSERT return_request
+    db --> returnRepo: Return
+    returnRepo --> returnService: Return
+    deactivate returnRepo
+
+    returnService -> returnRepo: createReturnItems(returnId, createDto.items)
+    activate returnRepo
+    returnRepo -> db: INSERT return_items
+    db --> returnRepo: ReturnItems
+    returnRepo --> returnService: ReturnItems
+    deactivate returnRepo
+
+    returnService -> db: COMMIT
+    deactivate db
+
+    returnService -> returnService: generateShippingLabel(return)
+    returnService -> returnService: sendReturnConfirmationEmail(return)
+
+    returnService --> controller: 201 CREATED\n{returnNumber, shippingLabel, returnAddress}
+end
+
+controller --> customer: 201 CREATED\nReturn request submitted\nShipping label provided
+deactivate controller
+
+
+@enduml

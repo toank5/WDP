@@ -87,13 +87,11 @@ export {
   type UpdatePreferencesRequest,
 } from './user-api'
 
-// Payment API
+// Promotion API
 export {
-  getPaymentConfig,
-  getVnpayPaymentUrl,
-  verifyVnpayPayment,
-  type PaymentConfig,
-  type VnpayPaymentRequest,
-  type VnpayPaymentResponse,
-  type VnpayVerifyRequest,
-} from './payment-api'
+  validatePromotion,
+  type Promotion,
+  type PromotionType,
+  type ValidatePromotionPayload,
+  type ValidatePromotionResponse,
+} from './promotion-api'

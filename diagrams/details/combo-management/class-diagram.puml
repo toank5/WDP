@@ -1,0 +1,24 @@
+@startuml ComboManagementClassDiagram
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
+skinparam arrowColor #333
+
+class ComboController { }
+
+class ComboService { }
+class ProductService { }
+
+class ComboRepository { }
+
+class Combo { }
+
+ComboController -- ComboService
+ComboService -- ComboRepository
+ComboService -- ProductService
+ComboRepository -- Combo
+
+@enduml

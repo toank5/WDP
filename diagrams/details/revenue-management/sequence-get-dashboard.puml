@@ -1,0 +1,46 @@
+@startuml RevenueDashboardSequence
+title Get Revenue Dashboard - Sequence Diagram
+
+actor ":Manager/Admin" as admin
+participant ":RevenueController" as controller
+participant ":RevenueService" as revenueService
+participant ":RevenueRepository" as revenueRepo
+database ":Database" as db
+
+admin -> controller: GET /revenue/dashboard
+activate controller
+
+controller -> revenueService: getDashboardData()
+activate revenueService
+
+revenueService -> revenueRepo: findTodayRevenue()
+activate revenueRepo
+revenueRepo -> db: SELECT SUM(totalAmount)\nFROM orders\nWHERE DATE(createdAt) = TODAY
+db --> revenueRepo: todayRevenue
+revenueRepo --> revenueService: todayRevenue
+deactivate revenueRepo
+
+revenueService -> revenueRepo: findThisMonthRevenue()
+activate revenueRepo
+revenueRepo -> db: SELECT SUM(totalAmount)\nFROM orders\nWHERE MONTH(createdAt) = MONTH(NOW)
+db --> revenueRepo: monthRevenue
+revenueRepo --> revenueService: monthRevenue
+deactivate revenueRepo
+
+revenueService -> revenueRepo: findRevenueByPeriod('7days')
+activate revenueRepo
+revenueRepo -> db: SELECT DATE(createdAt), SUM(totalAmount)\nFROM orders\nWHERE createdAt >= NOW() - 7 DAYS\nGROUP BY DATE(createdAt)
+db --> revenueRepo: dailyRevenue[]
+revenueRepo --> revenueService: Chart data
+deactivate revenueRepo
+
+revenueService -> revenueService: calculateGrowthRate()
+revenueService -> revenueService: calculateTopProducts()
+
+revenueService --> controller: 200 OK\n{todayRevenue, monthRevenue, chartData, topProducts}
+deactivate revenueService
+
+controller --> admin: 200 OK\nDashboard data
+deactivate controller
+
+@enduml

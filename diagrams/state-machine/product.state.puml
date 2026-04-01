@@ -1,0 +1,64 @@
+@startuml Product State Machine
+title Product Lifecycle - State Machine Diagram
+left to right direction
+
+skinparam state {
+    BackgroundColor#F3E5F5
+    BorderColor#7B1FA2
+    ArrowColor#424242
+}
+
+[*] --> DRAFT : Manager/Admin creates product
+
+DRAFT --> ACTIVE : Publish product\n(Auto-activate if stock > 0)
+DRAFT --> OUT_OF_STOCK : Publish with zero stock
+
+ACTIVE --> OUT_OF_STOCK : Stock reaches 0
+ACTIVE --> INACTIVE : Manager deactivates
+ACTIVE --> DELETED : Soft delete by Admin
+
+OUT_OF_STOCK --> ACTIVE : Stock replenished
+OUT_OF_STOCK --> INACTIVE : Manager deactivates
+OUT_OF_STOCK --> DELETED : Soft delete by Admin
+
+INACTIVE --> ACTIVE : Manager activates\n(stock > 0)
+INACTIVE --> OUT_OF_STOCK : Manager activates\n(stock = 0)
+INACTIVE --> DELETED : Soft delete by Admin
+
+DELETED --> [*] : Permanent deletion\n(after 30 days)
+
+DELETED --> ACTIVE : Restore product\n(Admin only)
+
+' ════════════════════════════════════════════════════════════════════════════════════
+' NOTES
+' ════════════════════════════════════════════════════════════════════════════════════
+
+note right of ACTIVE
+  Visible in catalog
+  Available for purchase
+  Inventory tracked
+  Searchable
+end note
+
+note right of OUT_OF_STOCK
+  Visible in catalog
+  Not purchasable
+  "Out of Stock" badge
+  Notify when available
+end note
+
+note right of INACTIVE
+  Hidden from catalog
+  Not purchasable
+  Maintains history
+  Can be restored
+end note
+
+note right of DELETED
+  Soft deleted
+  Data retained 30 days
+  Can be restored
+  Hard delete after period
+end note
+
+@enduml

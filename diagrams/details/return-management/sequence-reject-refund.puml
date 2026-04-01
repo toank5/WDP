@@ -1,0 +1,65 @@
+@startuml RejectRefundSequence
+title Reject Return Refund - Sequence Diagram
+
+actor ":Sales Staff" as sales
+participant ":ReturnController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":ReturnService" as returnService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":ReturnRepository" as returnRepo
+database ":Database" as db
+
+sales -> controller: PATCH /returns/:id/process-refund\n{decision: 'REJECT', reason}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard -> rbacGuard: checkRole(SALES)
+rbacGuard --> controller: true
+deactivate rbacGuard
+
+controller -> returnService: processRefund(returnId, decisionDto, salesId)
+activate returnService
+
+returnService -> returnRepo: findOne(returnId)
+activate returnRepo
+returnRepo -> db: SELECT return WITH items
+db --> returnRepo: Return
+returnRepo --> returnService: Return
+deactivate returnRepo
+
+returnService -> returnRepo: updateStatus(returnId, REJECTED)
+activate returnRepo
+returnRepo -> db: UPDATE return_request\nSET status = 'REJECTED',\nrejectedBy = salesId,\nrejectedAt = NOW(),\nrejectionReason = decisionDto.reason
+db --> returnRepo: Updated Return
+returnRepo --> returnService: Updated Return
+deactivate returnRepo
+
+returnService -> inventoryService: returnItemsToCustomer(return.items)
+activate inventoryService
+inventoryService -> db: UPDATE inventory\n(create return shipment to customer)
+db --> inventoryService: Return shipment created
+inventoryService --> returnService: Items will be returned to customer
+deactivate inventoryService
+
+returnService -> emailService: sendRefundRejectedEmail(return)
+activate emailService
+emailService -> emailService: Build rejection email with reason
+emailService -> emailService: Send to customer
+emailService --> returnService: Sent
+deactivate emailService
+
+returnService --> controller: 200 OK\n{returnNumber, status, rejectionReason}
+deactivate returnService
+
+controller --> sales: 200 OK\nRefund rejected
+deactivate controller
+
+@enduml

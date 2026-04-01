@@ -1,0 +1,58 @@
+@startuml FulfillPreorderSequence
+title Fulfill Preorder (Stock Available) - Sequence Diagram
+
+actor ":Staff" as staff
+participant ":PreorderController" as controller
+participant ":PreorderService" as preorderService
+participant ":InventoryService" as inventoryService
+participant ":EmailService" as emailService
+participant ":PreorderRepository" as preorderRepo
+database ":Database" as db
+
+staff -> controller: POST /preorders/:id/fulfill
+activate controller
+
+controller -> preorderService: fulfillPreorder(preorderId)
+activate preorderService
+
+preorderService -> preorderRepo: findOne(preorderId)
+activate preorderRepo
+preorderRepo -> db: SELECT preorder WITH items
+db --> preorderRepo: Preorder
+preorderRepo --> preorderService: Preorder
+deactivate preorderRepo
+
+alt [Preorder not found]
+    preorderService --> controller: 404 NOT FOUND
+else [Preorder already fulfilled]
+    preorderService --> controller: 400 BAD REQUEST
+else [Ready to fulfill]
+    preorderService -> inventoryService: allocateStock(preorder)
+    activate inventoryService
+    inventoryService -> db: UPDATE inventory\nSET reservedQuantity = reservedQuantity - quantity
+    db --> inventoryService: Updated
+    inventoryService --> preorderService: Stock allocated
+    deactivate inventoryService
+
+    preorderService -> preorderRepo: updateStatus(preorderId, READY_TO_SHIP)
+    activate preorderRepo
+    preorderRepo -> db: UPDATE preorder\nSET status = 'READY_TO_SHIP',\nfulfilledAt = NOW()
+    db --> preorderRepo: Updated
+    preorderRepo --> preorderService: Updated
+    deactivate preorderRepo
+
+    preorderService -> emailService: sendPreorderReadyEmail(preorder)
+    activate emailService
+    emailService -> emailService: Build ready email
+    emailService -> emailService: Send to customer
+    emailService --> preorderService: Sent
+    deactivate emailService
+
+    preorderService --> controller: 200 OK\n{preorderNumber, status}
+end
+
+deactivate preorderService
+controller --> staff: 200 OK\nPreorder fulfilled
+deactivate controller
+
+@enduml

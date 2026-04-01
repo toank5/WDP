@@ -1,0 +1,51 @@
+@startuml CreatePurchaseOrderSequence
+title Create Purchase Order - Sequence Diagram
+
+actor ":Manager" as manager
+participant ":SupplierController" as controller
+participant ":SupplierService" as supplierService
+participant ":PurchaseOrderService" as purchaseOrderService
+participant ":EmailService" as emailService
+participant ":PurchaseOrderRepository" as purchaseOrderRepo
+database ":Database" as db
+
+manager -> controller: POST /suppliers/:supplierId/purchase-orders\n{items, expectedDate}
+activate controller
+
+controller -> supplierService: createPurchaseOrder(supplierId, orderDto)
+activate supplierService
+
+supplierService -> supplierService: validateSupplier(supplierId)
+supplierService -> supplierService: calculateTotalAmount(orderDto.items)
+
+supplierService -> purchaseOrderService: create(orderData)
+activate purchaseOrderService
+
+purchaseOrderService -> purchaseOrderRepo: save(orderData)
+activate purchaseOrderRepo
+purchaseOrderRepo -> db: TRANSACTION START
+activate db
+purchaseOrderRepo -> db: INSERT purchase_order\nSET supplierId, totalAmount, expectedDate\nstatus = 'PENDING'
+purchaseOrderRepo -> db: INSERT purchase_order_item\nFOR each item
+purchaseOrderRepo -> db: COMMIT
+deactivate db
+purchaseOrderRepo --> purchaseOrderService: PurchaseOrder
+deactivate purchaseOrderRepo
+
+purchaseOrderService --> supplierService: PurchaseOrder
+deactivate purchaseOrderService
+
+supplierService -> emailService: sendPurchaseOrderEmail(supplier, purchaseOrder)
+activate emailService
+emailService -> emailService: Build PO email with items
+emailService -> emailService: Send to supplier
+emailService --> supplierService: Sent
+deactivate emailService
+
+supplierService --> controller: 201 CREATED\n{poNumber, totalAmount, expectedDate}
+deactivate supplierService
+
+controller --> manager: 201 CREATED\nPurchase order created
+deactivate controller
+
+@enduml

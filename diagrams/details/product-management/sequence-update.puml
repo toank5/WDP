@@ -1,0 +1,94 @@
+@startuml ProductUpdateSequence
+title Product Update - Sequence Diagram
+
+actor ":Manager/Admin" as admin
+participant ":ProductController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":RbacGuard" as rbacGuard
+participant ":ProductService" as productService
+participant ":MediaService" as mediaService
+participant ":ProductRepository" as productRepo
+database ":Database" as db
+
+admin -> controller: PATCH /products/:id\n(UpdateProductDto)
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true (JWT valid)
+deactivate authGuard
+
+controller -> rbacGuard: canActivate(context)
+activate rbacGuard
+rbacGuard --> controller: true (Manager/Admin authorized)
+deactivate rbacGuard
+
+controller -> productService: update(id, updateDto, userId)
+activate productService
+
+productService -> productRepo: findOne(id)
+activate productRepo
+productRepo -> db: SELECT product WITH variants
+db --> productRepo: Product
+productRepo --> productService: Product
+deactivate productRepo
+
+alt [Product not found]
+    productService --> controller: 404 NOT FOUND
+else [Product exists]
+    productService -> productService: validateOwnership(product, userId)
+    productService -> productService: validateUpdateData(updateDto)
+
+    alt [New images provided]
+        productService -> mediaService: uploadNewImages(updateDto.images)
+        activate mediaService
+        mediaService -> mediaService: Upload to CDN
+        mediaService --> productService: New image URLs
+        deactivate mediaService
+
+        productService -> mediaService: deleteOldImages(product.images2D, product.images3D)
+        activate mediaService
+        mediaService --> productService: Deleted
+        deactivate mediaService
+    end
+
+    productService -> db: TRANSACTION START
+    activate db
+
+    productService -> productRepo: update(id, updateDto)
+    activate productRepo
+    productRepo -> db: UPDATE product\nSET fields = updateDto,\nupdatedAt = NOW(),\nupdatedBy = userId
+    db --> productRepo: Updated Product
+    productRepo --> productService: Updated Product
+    deactivate productRepo
+
+    alt [Status changed to ACTIVE]
+        productService -> productService: checkInventoryAvailability(product)
+        alt [Stock > 0]
+            productService -> productRepo: updateStatus(id, ACTIVE)
+            activate productRepo
+            productRepo -> db: UPDATE product\nSET status = 'ACTIVE'
+            db --> productRepo: Updated
+            productRepo --> productService: Activated
+            deactivate productRepo
+        else [Stock = 0]
+            productService -> productRepo: updateStatus(id, OUT_OF_STOCK)
+            activate productRepo
+            productRepo -> db: UPDATE product\nSET status = 'OUT_OF_STOCK'
+            db --> productRepo: Updated
+            productRepo --> productService: Out of stock
+            deactivate productRepo
+        end
+    end
+
+    productService -> db: COMMIT
+    deactivate db
+
+    productService --> controller: 200 OK\n{product}
+end
+
+controller --> admin: 200 OK\nProduct updated successfully
+deactivate controller
+
+
+@enduml

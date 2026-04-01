@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import {
   Text,
   Button,
@@ -13,11 +13,16 @@ import {
 } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { useCartStore, getGuestCartForCheckout, type GuestCustomerInfo } from '../../store/cart-store'
+import {
+  useCart,
+  useCartStore,
+  getGuestCartForCheckout,
+  type GuestCustomerInfo,
+} from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
-import { getPaymentConfig, getVnpayPaymentUrl, type PaymentConfig } from '../../services/payment-api'
 
 export type PaymentMethod = 'cod' | 'vnpay' | 'bank_transfer' | 'momo'
+export type ShippingMethod = 'standard' | 'express'
 
 export interface PaymentOption {
   id: PaymentMethod
@@ -38,13 +43,6 @@ interface PaymentScreenProps {
 
 const PAYMENT_OPTIONS: PaymentOption[] = [
   {
-    id: 'cod',
-    name: 'Thanh toán khi nhận hàng (COD)',
-    icon: 'cash',
-    description: 'Thanh toán bằng tiền mặt khi nhận hàng',
-    available: true,
-  },
-  {
     id: 'vnpay',
     name: 'VNPay',
     icon: 'credit-card',
@@ -52,45 +50,30 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     available: true,
     fee: 0,
   },
-  {
-    id: 'momo',
-    name: 'MoMo',
-    icon: 'wallet',
-    description: 'Thanh toán qua ví MoMo',
-    available: true,
-    fee: 0,
-  },
-  {
-    id: 'bank_transfer',
-    name: 'Chuyển khoản ngân hàng',
-    icon: 'bank',
-    description: 'Chuyển khoản qua ngân hàng',
-    available: true,
-    fee: 0,
-  },
 ]
+
+const SHIPPING_CONFIG = {
+  freeShippingMinAmount: 2000000,
+  standardFee: 30000,
+  expressFee: 50000,
+}
 
 export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const theme = useTheme()
   const navigation = useNavigation() as NativeStackNavigationProp<any>
-  const { subtotal, items } = useCartStore()
+  const { subtotal, totalAfterDiscount, discountAmount, appliedPromotion, items } = useCart()
 
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('cod')
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('vnpay')
+  const [selectedShipping, setSelectedShipping] = useState<ShippingMethod>('standard')
   const [loading, setLoading] = useState(false)
-  const [processing, setProcessing] = useState(false)
   const [customerInfo, setCustomerInfo] = useState<GuestCustomerInfo | null>(null)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Partial<GuestCustomerInfo>>({})
-  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null)
-  const [showVnpayModal, setShowVnpayModal] = useState(false)
-  const [vnpayQrCode, setVnpayQrCode] = useState<string>('')
-  const [vnpayPaymentUrl, setVnpayPaymentUrl] = useState<string>('')
 
   const selectedAddress = route.params?.address
 
   useEffect(() => {
     loadCustomerInfo()
-    loadPaymentConfig()
   }, [])
 
   const loadCustomerInfo = async () => {
@@ -102,31 +85,32 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
     }
   }
 
-  const loadPaymentConfig = async () => {
-    try {
-      const config = await getPaymentConfig()
-      setPaymentConfig(config)
-    } catch (error) {
-      console.error('Failed to load payment config:', error)
-    }
-  }
-
   const totals = React.useMemo(() => {
     const subtotalValue = subtotal
-    const taxValue = subtotalValue * 0.1
-    const shippingValue = items.length > 0 ? 30000 : 0
+    const discountedSubtotal = totalAfterDiscount
+    const shippingBase =
+      selectedShipping === 'express'
+        ? SHIPPING_CONFIG.expressFee
+        : SHIPPING_CONFIG.standardFee
+    const shippingValue =
+      items.length > 0 && discountedSubtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+        ? 0
+        : items.length > 0
+          ? shippingBase
+          : 0
     const paymentOption = PAYMENT_OPTIONS.find((opt) => opt.id === selectedPayment)
     const paymentFee = paymentOption?.fee || 0
-    const totalValue = subtotalValue + taxValue + shippingValue + paymentFee
+    const totalValue = discountedSubtotal + shippingValue + paymentFee
 
     return {
       subtotal: subtotalValue,
-      tax: taxValue,
+      discount: discountAmount,
+      discountedSubtotal,
       shipping: shippingValue,
       paymentFee,
       total: totalValue,
     }
-  }, [subtotal, items.length, selectedPayment])
+  }, [subtotal, totalAfterDiscount, discountAmount, items.length, selectedPayment, selectedShipping])
 
   const formatPrice = React.useCallback((price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -187,101 +171,17 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
       return
     }
 
-    if (!customerInfo?.phone) {
-      Alert.alert(
-        'Thông báo',
-        'Vui lòng cung cấp số điện thoại để chúng tôi có thể liên hệ.',
-        [
-          {
-            text: 'Thêm',
-            onPress: () => {
-              setEditingCustomer({ phone: '', ...customerInfo })
-              setShowCustomerForm(true)
-            },
-          },
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-        ]
-      )
-      return
-    }
-
-    if (!validatePhone(customerInfo.phone)) {
-      Alert.alert(
-        'Lỗi',
-        'Số điện thoại không hợp lệ. Vui lòng cập nhật.',
-        [
-          {
-            text: 'Cập nhật',
-            onPress: () => {
-              setEditingCustomer({ ...customerInfo })
-              setShowCustomerForm(true)
-            },
-          },
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-        ]
-      )
-      return
-    }
-
     navigation.navigate('CheckoutReview' as never, {
       address: selectedAddress,
       paymentMethod: selectedPayment,
+      shippingMethod: selectedShipping,
       totals,
-      customerInfo,
     })
-  }, [selectedAddress, selectedPayment, totals, customerInfo, validatePhone, navigation])
+  }, [selectedAddress, selectedPayment, selectedShipping, totals, navigation])
 
   const handleBack = useCallback(() => {
     navigation.goBack()
   }, [navigation])
-
-  const handleVNPay = useCallback(async () => {
-    try {
-      setProcessing(true)
-
-      // Check if VNPay is enabled
-      if (!paymentConfig?.vnpay?.enabled) {
-        Alert.alert(
-          'Thông báo',
-          'VNPay hiện đang được bảo trì. Vui lòng chọn phương thức thanh toán khác.',
-          [{ text: 'OK' }]
-        )
-        return
-      }
-
-      // Use QR code from config or backend
-      const qrCode = paymentConfig.vnpay.qrCode || process.env.VNPAY_QR_CODE || ''
-      if (!qrCode) {
-        Alert.alert(
-          'Thông báo',
-          'Không thể tạo mã QR thanh toán. Vui lòng chọn phương thức thanh toán khác.',
-          [{ text: 'OK' }]
-        )
-        return
-      }
-
-      setVnpayQrCode(qrCode)
-      setVnpayPaymentUrl(paymentConfig.vnpay.paymentUrl || '')
-      setShowVnpayModal(true)
-
-      console.log('VNPay QR code generated:', qrCode)
-    } catch (error) {
-      console.error('VNPay error:', error)
-      Alert.alert(
-        'Lỗi',
-        'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại sau.',
-        [{ text: 'OK' }]
-      )
-    } finally {
-      setProcessing(false)
-    }
-  }, [paymentConfig])
 
   if (loading) {
     return (
@@ -464,14 +364,20 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
             <Text variant="bodyMedium">{formatPrice(totals.subtotal)}</Text>
           </View>
 
-          <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Phí vận chuyển:</Text>
-            <Text variant="bodyMedium">{formatPrice(totals.shipping)}</Text>
-          </View>
+          {appliedPromotion && totals.discount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text variant="bodyMedium">Giảm giá ({appliedPromotion.code}):</Text>
+              <Text variant="bodyMedium" style={{ color: '#2e7d32' }}>
+                -{formatPrice(totals.discount)}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Thuế VAT (10%):</Text>
-            <Text variant="bodyMedium">{formatPrice(totals.tax)}</Text>
+            <Text variant="bodyMedium">Phí vận chuyển:</Text>
+            <Text variant="bodyMedium">
+              {totals.shipping === 0 ? 'Miễn phí' : formatPrice(totals.shipping)}
+            </Text>
           </View>
 
           {totals.paymentFee > 0 && (
@@ -492,6 +398,78 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
             </Text>
           </View>
         </Surface>
+
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Phương thức giao hàng
+        </Text>
+
+        <View style={styles.paymentList}>
+          <Card
+            style={[
+              styles.paymentCard,
+              selectedShipping === 'standard' && styles.selectedCard,
+            ]}
+            onPress={() => setSelectedShipping('standard')}
+          >
+            <View style={styles.paymentCardHeader}>
+              <View style={styles.paymentInfo}>
+                <RadioButton
+                  value="standard"
+                  status={selectedShipping === 'standard' ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedShipping('standard')}
+                />
+                <View style={styles.paymentDetails}>
+                  <View style={styles.paymentNameRow}>
+                    <Text variant="titleMedium" style={styles.paymentName}>
+                      Giao hàng tiêu chuẩn
+                    </Text>
+                    <Text variant="bodySmall" style={styles.feeText}>
+                      {subtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+                        ? 'Miễn phí'
+                        : formatPrice(SHIPPING_CONFIG.standardFee)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.description}>
+                    3-5 ngày làm việc
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          <Card
+            style={[
+              styles.paymentCard,
+              selectedShipping === 'express' && styles.selectedCard,
+            ]}
+            onPress={() => setSelectedShipping('express')}
+          >
+            <View style={styles.paymentCardHeader}>
+              <View style={styles.paymentInfo}>
+                <RadioButton
+                  value="express"
+                  status={selectedShipping === 'express' ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedShipping('express')}
+                />
+                <View style={styles.paymentDetails}>
+                  <View style={styles.paymentNameRow}>
+                    <Text variant="titleMedium" style={styles.paymentName}>
+                      Giao hàng nhanh
+                    </Text>
+                    <Text variant="bodySmall" style={styles.feeText}>
+                      {subtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+                        ? 'Miễn phí'
+                        : formatPrice(SHIPPING_CONFIG.expressFee)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.description}>
+                    1-2 ngày làm việc
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+        </View>
 
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Chọn phương thức thanh toán
@@ -591,103 +569,19 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           </Surface>
         )}
 
-        {selectedPayment === 'vnpay' && (
-          <Button
-            mode="contained"
-            onPress={handleVNPay}
-            loading={processing}
-            disabled={processing}
-            style={styles.vnpayButton}
-            contentStyle={styles.vnpayButtonContent}
-            icon="qrcode"
-          >
-            Thanh toán qua VNPay
-          </Button>
-        )}
       </ScrollView>
 
       <Surface style={styles.footer} elevation={3}>
         <Button
           mode="contained"
           onPress={handleContinue}
-          disabled={!selectedPayment || processing}
+          disabled={!selectedPayment}
           style={styles.continueButton}
           contentStyle={styles.continueButtonContent}
         >
           Tiếp tục
         </Button>
       </Surface>
-
-      {/* VNPay QR Code Modal */}
-      <Modal
-        visible={showVnpayModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowVnpayModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Surface style={styles.modalContent} elevation={4}>
-              <View style={styles.modalHeader}>
-                <Text variant="titleLarge" style={styles.modalTitle}>
-                  Thanh toán VNPay
-                </Text>
-                <IconButton
-                  icon="close"
-                  size={24}
-                  onPress={() => setShowVnpayModal(false)}
-                />
-              </View>
-
-              <Divider style={styles.modalDivider} />
-
-              <View style={styles.modalBody}>
-                <Text variant="bodyMedium" style={styles.modalText}>
-                  Quét mã QR bên dưới để thanh toán
-                </Text>
-
-                <View style={styles.qrCodeContainer}>
-                  <Text variant="headlineMedium" style={styles.qrCodeText}>
-                    {vnpayQrCode}
-                  </Text>
-                </View>
-
-                <Text variant="bodySmall" style={styles.modalHint}>
-                  Mã QR: {vnpayQrCode}
-                </Text>
-
-                <Text variant="bodySmall" style={styles.modalNote}>
-                  • Sử dụng app VNPay để quét mã
-                </Text>
-                <Text variant="bodySmall" style={styles.modalNote}>
-                  • Sau khi thanh toán thành công, bấm "Đã thanh toán"
-                </Text>
-
-                <View style={styles.modalActions}>
-                  <Button
-                    mode="outlined"
-                    onPress={() => setShowVnpayModal(false)}
-                    style={styles.modalButton}
-                  >
-                    Hủy
-                  </Button>
-                  <Button
-                    mode="contained"
-                    onPress={() => {
-                      setShowVnpayModal(false)
-                      handleContinue()
-                    }}
-                    style={styles.modalButton}
-                    icon="check-circle"
-                  >
-                    Đã thanh toán
-                  </Button>
-                </View>
-              </View>
-            </Surface>
-          </View>
-        </View>
-      </Modal>
     </View>
   )
 }
@@ -868,73 +762,5 @@ const styles = StyleSheet.create({
   },
   vnpayButtonContent: {
     paddingVertical: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    width: '100%',
-    maxHeight: '80%',
-  },
-  modalContent: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  modalTitle: {
-    fontWeight: 'bold',
-  },
-  modalDivider: {
-    marginVertical: 0,
-  },
-  modalBody: {
-    padding: 20,
-  },
-  modalText: {
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  qrCodeContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#1e88e5',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  qrCodeText: {
-    color: '#1e88e5',
-    fontWeight: 'bold',
-  },
-  modalHint: {
-    textAlign: 'center',
-    opacity: 0.6,
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  modalNote: {
-    opacity: 0.7,
-    marginBottom: 4,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: 8,
   },
 })

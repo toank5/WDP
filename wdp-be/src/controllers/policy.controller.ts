@@ -23,7 +23,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { PolicyService } from '../services/policy.service';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { POLICY_TYPES } from '../shared';
 import { RbacGuard, Roles, UserRole } from '../commons/guards/rbac.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
@@ -251,7 +251,7 @@ export class PolicyController {
     @Body(new ZodValidationPipe(CreatePolicySchema)) payload: CreatePolicyInput,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.policyService.create(payload, req.user!.id);
+    return this.policyService.create(payload, req.user.id);
   }
 
   @Patch(':id')

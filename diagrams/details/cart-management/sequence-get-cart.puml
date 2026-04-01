@@ -1,0 +1,51 @@
+@startuml CartGetSequence
+title Get Cart - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":CartController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":CartService" as cartService
+participant ":ProductService" as productService
+participant ":CartRepository" as cartRepo
+database ":Database" as db
+
+customer -> controller: GET /cart
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> cartService: getCart(userId)
+activate cartService
+
+cartService -> cartRepo: findCartByUserId(userId)
+activate cartRepo
+cartRepo -> db: SELECT cart WITH items\nWHERE userId = userId
+db --> cartRepo: Cart
+cartRepo --> cartService: Cart
+deactivate cartRepo
+
+alt [Cart exists]
+    cartService -> cartService: calculateTotals(cart.items)
+    cartService -> productService: enrichWithProductInfo(cart.items)
+    activate productService
+    productService --> cartService: Items with prices
+    deactivate productService
+else [Cart doesn't exist]
+    cartService -> cartRepo: create(userId)
+    activate cartRepo
+    cartRepo -> db: INSERT cart\nSET userId = userId
+    db --> cartRepo: New Cart
+    cartRepo --> cartService: Empty Cart
+    deactivate cartRepo
+end
+
+cartService --> controller: 200 OK\n{items, subtotal, itemCount}
+deactivate cartService
+
+controller --> customer: 200 OK\nCart data
+deactivate controller
+
+@enduml

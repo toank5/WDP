@@ -23,7 +23,7 @@ import {
   BRIDGE_FIT,
   LENS_TYPE,
   SERVICE_TYPE,
-} from '@eyewear/shared';
+} from '../../shared';
 import {
   CategoryRequiredFields,
   Images2DNotEmpty,
@@ -826,6 +826,15 @@ export class UpdateProductDto {
   @MinLength(3)
   @MaxLength(200)
   name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Product category',
+    enum: PRODUCT_CATEGORIES,
+    example: PRODUCT_CATEGORIES.FRAMES,
+  })
+  @IsOptional()
+  @IsEnum(PRODUCT_CATEGORIES)
+  category?: PRODUCT_CATEGORIES;
 
   @ApiPropertyOptional({
     description: 'Product description',

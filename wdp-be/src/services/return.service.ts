@@ -33,8 +33,8 @@ import { PolicyService } from './policy.service';
 import { Policy } from '../commons/schemas/policy.schema';
 import { Order } from '../commons/schemas/order.schema';
 import { User } from '../commons/schemas/user.schema';
-import { ORDER_STATUS, ORDER_TYPES, ROLES } from '@eyewear/shared';
-import { POLICY_TYPES } from '@eyewear/shared';
+import { ORDER_STATUS, ORDER_TYPES, ROLES } from '../shared';
+import { POLICY_TYPES } from '../shared';
 import {
   InventoryMovement,
   MovementType,
@@ -282,11 +282,17 @@ export class ReturnService {
     for (const item of items) {
       // Check if item belongs to this order
       // Note: OrderItem is embedded and doesn't have _id, so we match by productId and variantSku
-      const orderItem = order.items.find(
-        (oi) =>
-          oi.productId?.toString() === item.productId &&
-          oi.variantSku === item.variantId,
-      );
+      // variantSku is optional for lens and service products, so we need to handle that case
+      const orderItem = order.items.find((oi) => {
+        const productIdMatch = oi.productId?.toString() === item.productId;
+        // For items with variantSku (frames), match exactly
+        // For items without variantSku (lenses, services), match by productId only
+        if (oi.variantSku && item.variantId) {
+          return productIdMatch && oi.variantSku === item.variantId;
+        }
+        // If one or both don't have variantSku, match by productId only
+        return productIdMatch;
+      });
       if (!orderItem) {
         ineligibleItems.push({
           item,
@@ -651,10 +657,7 @@ export class ReturnService {
 
     const updateData: ReturnStatusUpdatePayload = {
       status: dto.status,
-      statusHistory: [
-        ...(returnRequest.statusHistory || []),
-        historyEntry,
-      ],
+      statusHistory: [...(returnRequest.statusHistory || []), historyEntry],
     };
 
     if (dto.rejectionReason) {
@@ -1052,9 +1055,7 @@ export class ReturnService {
     // Average processing time (from creation to completion)
     const processingTimes = completedReturns
       .filter(
-        (r) =>
-          r.refundDetails?.completedAt ||
-          r.exchangeDetails?.processedAt,
+        (r) => r.refundDetails?.completedAt || r.exchangeDetails?.processedAt,
       )
       .map((r) => {
         const created = r.createdAt

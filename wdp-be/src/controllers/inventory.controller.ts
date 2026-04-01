@@ -820,11 +820,9 @@ export class InventoryController {
   ) {
     try {
       const parsedMovementType = movementType
-        ? (Object.values(MovementType).includes(
-            movementType as MovementType,
-          )
-            ? (movementType as MovementType)
-            : undefined)
+        ? Object.values(MovementType).includes(movementType as MovementType)
+          ? (movementType as MovementType)
+          : undefined
         : undefined;
 
       const result = await this.inventoryService.getAllMovements({

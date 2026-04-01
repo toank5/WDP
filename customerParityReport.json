@@ -1,0 +1,364 @@
+{
+  "customerParityReport": [
+    {
+      "id": "auth-login",
+      "web": { "path": "/login", "type": "page" },
+      "mobile": { "screen": "LoginScreen" },
+      "status": "ok",
+      "checklist": [
+        "Can enter email and password",
+        "Form validates input",
+        "Successful login navigates to home",
+        "Error handling for invalid credentials"
+      ]
+    },
+    {
+      "id": "auth-register",
+      "web": { "path": "/register", "type": "page" },
+      "mobile": { "screen": "RegisterScreen" },
+      "status": "ok",
+      "checklist": [
+        "Can enter registration details",
+        "Password confirmation works",
+        "Form validates required fields",
+        "Successful registration logs user in"
+      ]
+    },
+    {
+      "id": "auth-verify-email",
+      "web": { "path": "/verify-email", "type": "page" },
+      "mobile": { "screen": null },
+      "status": "missing_on_mobile",
+      "checklist": []
+    },
+    {
+      "id": "auth-forgot-password",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": "ForgotPasswordScreen" },
+      "status": "ok",
+      "checklist": [
+        "Can request password reset",
+        "Email validation works",
+        "Success message displays"
+      ]
+    },
+    {
+      "id": "auth-reset-password",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": "ResetPasswordScreen" },
+      "status": "ok",
+      "checklist": [
+        "Can enter new password",
+        "Password confirmation matches",
+        "Token validation works"
+      ]
+    },
+    {
+      "id": "home",
+      "web": { "path": "/", "type": "page" },
+      "mobile": { "screen": "HomeScreen" },
+      "status": "ok",
+      "checklist": [
+        "Featured products display",
+        "Categories are accessible",
+        "Can navigate to product detail",
+        "Promotions show correctly"
+      ]
+    },
+    {
+      "id": "product-list",
+      "web": { "path": "/store, /products", "type": "page" },
+      "mobile": { "screen": "StoreScreen" },
+      "status": "ok",
+      "checklist": [
+        "Products load and display",
+        "Category filtering works",
+        "Grid layout responsive",
+        "Can tap to view product detail"
+      ]
+    },
+    {
+      "id": "product-detail",
+      "web": { "path": "/product/:slug", "type": "page" },
+      "mobile": { "screen": "ProductDetailScreen" },
+      "status": "ok",
+      "checklist": [
+        "Product images display",
+        "Can swipe through images",
+        "Variant selection works",
+        "Add to cart works",
+        "Price displays correctly"
+      ]
+    },
+    {
+      "id": "search",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": "SearchScreen" },
+      "status": "partial",
+      "checklist": [
+        "Search bar accepts input",
+        "Results display",
+        "Basic filters work",
+        "TODO: Verify advanced filters parity with web"
+      ]
+    },
+    {
+      "id": "cart",
+      "web": { "path": "/cart", "type": "page" },
+      "mobile": { "screen": "CartScreen" },
+      "status": "ok",
+      "checklist": [
+        "Cart items display",
+        "Quantity increment/decrement works",
+        "Remove item works",
+        "Total updates correctly",
+        "Checkout button works",
+        "Badge count updates"
+      ]
+    },
+    {
+      "id": "checkout",
+      "web": { "path": "/checkout", "type": "flow" },
+      "mobile": { "screen": "split" },
+      "status": "ok",
+      "checklist": [
+        "Address selection/entry works",
+        "Can add new address",
+        "Payment methods display",
+        "Can select COD, VNPay, Bank Transfer, MoMo",
+        "Order review shows items and totals",
+        "Can place order successfully"
+      ],
+      "note": "Mobile uses 3 screens (Address, Payment, Review) vs single page on web"
+    },
+    {
+      "id": "checkout-vnpay-return",
+      "web": { "path": "/checkout/vnpay-return", "type": "page" },
+      "mobile": { "screen": "integrated" },
+      "status": "ok",
+      "checklist": [
+        "VNPay payment processes",
+        "Return from payment handled",
+        "Order confirmed after payment"
+      ]
+    },
+    {
+      "id": "order-success",
+      "web": { "path": "/order/success", "type": "page" },
+      "mobile": { "screen": null },
+      "status": "partial",
+      "checklist": [
+        "TODO: Verify order confirmation displays",
+        "TODO: Verify order summary shows",
+        "TODO: Verify continue shopping option"
+      ],
+      "note": "Route exists but screen implementation needs verification"
+    },
+    {
+      "id": "order-failed",
+      "web": { "path": "/order/failed", "type": "page" },
+      "mobile": { "screen": null },
+      "status": "missing_on_mobile",
+      "checklist": []
+    },
+    {
+      "id": "orders",
+      "web": { "path": "/orders, /account/orders", "type": "page" },
+      "mobile": { "screen": "OrderHistoryScreen" },
+      "status": "ok",
+      "checklist": [
+        "Order list displays",
+        "Status badges show",
+        "Can tap to view order detail",
+        "Pull to refresh works"
+      ]
+    },
+    {
+      "id": "order-detail",
+      "web": { "path": "/orders/:id", "type": "page" },
+      "mobile": { "screen": "OrderDetailScreen" },
+      "status": "partial",
+      "checklist": [
+        "Order details display",
+        "Items show correctly",
+        "Status shows",
+        "TODO: Verify if return request option exists",
+        "TODO: Verify tracking info displays"
+      ]
+    },
+    {
+      "id": "returns",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": null },
+      "status": "missing_on_mobile",
+      "checklist": [],
+      "note": "HIGH PRIORITY - Returns are important for customer experience"
+    },
+    {
+      "id": "prescription-list",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": "PrescriptionListScreen" },
+      "status": "ok",
+      "checklist": [
+        "Saved prescriptions display",
+        "Can view prescription details",
+        "Can edit prescription",
+        "Status shows correctly"
+      ]
+    },
+    {
+      "id": "prescription-entry",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": "inline" },
+      "status": "ok",
+      "checklist": [
+        "SPH fields accept input",
+        "CYL fields accept input",
+        "AXIS fields accept input",
+        "Validation works",
+        "Can save prescription"
+      ]
+    },
+    {
+      "id": "favorites",
+      "web": { "path": "/favorites", "type": "page" },
+      "mobile": { "screen": "FavoritesScreen" },
+      "status": "ok",
+      "checklist": [
+        "Favorites list displays",
+        "Can add to favorites from product",
+        "Can remove from favorites",
+        "Can add to cart from favorites"
+      ]
+    },
+    {
+      "id": "profile",
+      "web": { "path": "/account/profile", "type": "page" },
+      "mobile": { "screen": "ProfileScreen" },
+      "status": "ok",
+      "checklist": [
+        "Profile info displays",
+        "Can edit name",
+        "Can edit phone",
+        "Changes save successfully"
+      ]
+    },
+    {
+      "id": "settings",
+      "web": { "path": "/account/settings", "type": "page" },
+      "mobile": { "screen": null },
+      "status": "partial",
+      "checklist": [
+        "TODO: Verify if settings exist in Profile/Security screens",
+        "TODO: Verify notification preferences",
+        "TODO: Verify language/currency options"
+      ]
+    },
+    {
+      "id": "addresses",
+      "web": { "path": "/account/addresses", "type": "page" },
+      "mobile": { "screen": "AddressManagementScreen" },
+      "status": "ok",
+      "checklist": [
+        "Address list displays",
+        "Can add new address",
+        "Can edit address",
+        "Can delete address",
+        "Can set default address"
+      ]
+    },
+    {
+      "id": "security",
+      "web": { "path": "/account/security", "type": "page" },
+      "mobile": { "screen": "SecurityScreen" },
+      "status": "ok",
+      "checklist": [
+        "Can change password",
+        "Current password required",
+        "New password validation works"
+      ]
+    },
+    {
+      "id": "about",
+      "web": { "path": "/about", "type": "page" },
+      "mobile": { "screen": "AboutScreen" },
+      "status": "ok",
+      "checklist": [
+        "Company info displays",
+        "App version shows"
+      ]
+    },
+    {
+      "id": "contact",
+      "web": { "path": "/contact", "type": "page" },
+      "mobile": { "screen": "ContactScreen" },
+      "status": "ok",
+      "checklist": [
+        "Contact form works",
+        "Store info displays",
+        "Can submit inquiry"
+      ]
+    },
+    {
+      "id": "policy-detail",
+      "web": { "path": "/policies/:type", "type": "page" },
+      "mobile": { "screen": null },
+      "status": "missing_on_mobile",
+      "checklist": [],
+      "note": "Legal requirement - customers need access to policies"
+    },
+    {
+      "id": "reviews",
+      "web": { "path": "inline", "type": "flow" },
+      "mobile": { "screen": null },
+      "status": "missing_on_mobile",
+      "checklist": [],
+      "note": "Social proof - increases conversion rates"
+    }
+  ],
+  "summary": {
+    "totalCustomerFeatures": 27,
+    "ok": 17,
+    "partial": 4,
+    "missing_on_mobile": 6,
+    "missingFeatures": [
+      "auth-verify-email",
+      "order-failed",
+      "returns",
+      "policy-detail",
+      "reviews"
+    ],
+    "priorityRecommendations": [
+      {
+        "priority": "HIGH",
+        "feature": "returns",
+        "reason": "Returns are essential for customer trust and post-purchase experience"
+      },
+      {
+        "priority": "HIGH",
+        "feature": "policy-detail",
+        "reason": "Legal compliance - customers must have access to return/shipping policies"
+      },
+      {
+        "priority": "MEDIUM",
+        "feature": "reviews",
+        "reason": "Social proof increases conversions and customer confidence"
+      },
+      {
+        "priority": "MEDIUM",
+        "feature": "auth-verify-email",
+        "reason": "Security best practice for account verification"
+      },
+      {
+        "priority": "LOW",
+        "feature": "order-failed",
+        "reason": "Better UX but orders can fail gracefully without dedicated screen"
+      }
+    ],
+    "needsVerification": [
+      "order-success - Route exists but screen implementation unclear",
+      "settings - May be integrated into Profile/Security screens",
+      "search-advanced - Verify filter parity with web"
+    ]
+  }
+}

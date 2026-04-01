@@ -1,0 +1,44 @@
+@startuml AdminUpdateUserSequence
+title Admin Updates User Role/Status - Sequence Diagram
+
+actor ":Admin" as admin
+participant ":UserController" as controller
+participant ":UserService" as service
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+admin -> controller: PATCH /users/:id\n(UpdateUserDto)
+activate controller
+
+controller -> service: updateUser(id, updateDto)
+activate service
+
+service -> userRepo: findOne(id)
+activate userRepo
+userRepo -> db: SELECT user
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+alt [Updating role]
+    service -> service: validateRoleChange(user, updateDto.role)
+end
+
+alt [Updating status to SUSPENDED]
+    service -> service: invalidateUserSessions(id)
+end
+
+service -> userRepo: update(id, updateDto)
+activate userRepo
+userRepo -> db: UPDATE user\nSET role, status
+db --> userRepo: Updated User
+userRepo --> service: Updated User
+deactivate userRepo
+
+service --> controller: 200 OK\n{user}
+deactivate service
+
+controller --> admin: 200 OK\nUser updated
+deactivate controller
+
+@enduml

@@ -6,6 +6,19 @@ import { useAuthStore, initializeAuthStore } from '../store/auth-store'
 import { AuthNavigator } from './AuthNavigator'
 import { MainTabNavigator } from './MainTabNavigator'
 import { CheckoutStackNavigator } from './CheckoutStackNavigator'
+import { ReturnRequestScreen } from '../screens/account/ReturnRequestScreen'
+import { SettingsScreen } from '../screens/account/SettingsScreen'
+import { PolicyDetailScreen } from '../screens/info/PolicyDetailScreen'
+import { ReviewListScreen } from '../screens/product/ReviewListScreen'
+import { OrderHistoryScreen } from '../screens/account/OrderHistoryScreen'
+import { OrderDetailScreen } from '../screens/account/OrderDetailScreen'
+import { FavoritesScreen } from '../screens/favorites/FavoritesScreen'
+import { ProfileScreen } from '../screens/account/ProfileScreen'
+import { SecurityScreen } from '../screens/account/SecurityScreen'
+import { AddressManagementScreen } from '../screens/account/AddressManagementScreen'
+import { AboutScreen } from '../screens/info/AboutScreen'
+import { ContactScreen } from '../screens/info/ContactScreen'
+import type { RootStackParamList } from './types'
 
 const Stack = createNativeStackNavigator()
 
@@ -79,6 +92,68 @@ export const RootNavigator = () => {
             options={{ headerShown: false }}
           />
         </Stack.Group>
+
+        {/* Additional screens accessible from anywhere */}
+        <Stack.Screen
+          name="ReturnRequest"
+          component={ReturnRequestScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="PolicyDetail"
+          component={PolicyDetailScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="ReviewList"
+          component={ReviewListScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="OrderHistory"
+          component={OrderHistoryScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="OrderDetail"
+          component={OrderDetailScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="Favorites"
+          component={FavoritesScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="ProfileSettings"
+          component={ProfileScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="SecuritySettings"
+          component={SecurityScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="AddressManagement"
+          component={AddressManagementScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="About"
+          component={AboutScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
+        <Stack.Screen
+          name="Contact"
+          component={ContactScreen}
+          options={{ headerShown: false, presentation: 'card' }}
+        />
 
         {/* Auth Navigator - shown only when needed */}
         {isAuthenticated ? null : (

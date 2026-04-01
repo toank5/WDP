@@ -1,0 +1,36 @@
+@startuml UpdateProfileSequence
+title Update User Profile - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":UserController" as controller
+participant ":UserService" as service
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+customer -> controller: PATCH /users/profile\n(UpdateProfileDto)
+activate controller
+
+controller -> service: updateProfile(userId, updateDto)
+activate service
+
+service -> userRepo: findOne(userId)
+activate userRepo
+userRepo -> db: SELECT user WHERE id = userId
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+service -> userRepo: update(userId, updateDto)
+activate userRepo
+userRepo -> db: UPDATE user\nSET fullName, phone, avatar
+db --> userRepo: Updated User
+userRepo --> service: Updated User
+deactivate userRepo
+
+service --> controller: 200 OK\n{user}
+deactivate service
+
+controller --> customer: 200 OK\nProfile updated
+deactivate controller
+
+@enduml

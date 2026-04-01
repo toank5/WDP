@@ -7,8 +7,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES } from '@eyewear/shared';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { ROLES } from '../../shared';
 
 interface RequestWithUser {
   user?: {
@@ -36,16 +35,6 @@ export class RbacGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-
-    // Check if route is public - skip role check
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (isPublic) {
-      return true;
-    }
 
     if (!requiredRoles) {
       return true;
@@ -81,7 +70,7 @@ export class RbacGuard implements CanActivate {
 export const Roles = (...roles: ROLES[]) => SetMetadata('roles', roles);
 
 // Re-export ROLES as UserRole for backward compatibility
-export { ROLES as UserRole } from '@eyewear/shared';
+export { ROLES as UserRole } from '../../shared';
 
 // Manager and Admin only
 export const MANAGER_OR_ADMIN = [ROLES.MANAGER, ROLES.ADMIN];

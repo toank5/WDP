@@ -1,0 +1,72 @@
+@startuml ProductCatalogSequence
+title Product Catalog - Sequence Diagram
+
+actor ":Customer/Guest" as user
+participant ":ProductController" as controller
+participant ":ProductService" as productService
+participant ":CacheService" as cacheService
+participant ":ProductRepository" as productRepo
+database ":Database" as db
+
+user -> controller: GET /products/catalog\n{category, search, filters, sort, page}
+activate controller
+
+controller -> productService: getCatalog(filters, pagination, sort)
+activate productService
+
+productService -> cacheService: get(cacheKey)
+activate cacheService
+
+alt [Cache hit]
+    cacheService --> productService: Cached products
+    productService --> controller: 200 OK\n{products, total, filters} (from cache)
+else [Cache miss]
+    cacheService --> productService: null
+    deactivate cacheService
+
+    productService -> productRepo: findWithFilters(filters, pagination, sort)
+    activate productRepo
+
+    alt [Category filter]
+        productRepo -> db: SELECT products\nWHERE category = :category\nAND status IN ('ACTIVE', 'OUT_OF_STOCK')
+    else [Search query]
+        productRepo -> db: SELECT products\nWHERE name ILIKE :query\nOR description ILIKE :query\nAND status IN ('ACTIVE', 'OUT_OF_STOCK')
+    else [Price range]
+        productRepo -> db: SELECT products\nWHERE basePrice BETWEEN :min AND :max\nAND status IN ('ACTIVE', 'OUT_OF_STOCK')
+    else [All filters]
+        productRepo -> db: SELECT products\nWHERE [dynamic conditions]\nAND status IN ('ACTIVE', 'OUT_OF_STOCK')
+    end
+
+    alt [Sorting]
+        alt [Price ASC]
+            productRepo -> db: ORDER BY basePrice ASC
+        else [Price DESC]
+            productRepo -> db: ORDER BY basePrice DESC
+        else [Newest]
+            productRepo -> db: ORDER BY createdAt DESC
+        else [Popular]
+            productRepo -> db: ORDER BY soldCount DESC
+        end
+    end
+
+    productRepo -> db: LIMIT :limit OFFSET :offset
+    db --> productRepo: Products[]
+    productRepo --> productService: Products[]
+    deactivate productRepo
+
+    productService -> productService: mapToCatalogDto(products)
+    productService -> productService: enrichWithAvailability(products)
+
+    productService -> cacheService: set(cacheKey, products, TTL)
+    activate cacheService
+    cacheService --> productService: Cached
+    deactivate cacheService
+
+    productService --> controller: 200 OK\n{products, total, page, filters}
+end
+
+controller --> user: 200 OK\nProduct catalog with pagination
+deactivate controller
+
+
+@enduml
