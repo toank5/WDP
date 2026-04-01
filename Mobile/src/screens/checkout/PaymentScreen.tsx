@@ -13,6 +13,7 @@ import {
 } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { CheckoutStepper, ScreenContainer } from '../../components'
 import {
   useCart,
   useCartStore,
@@ -171,7 +172,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
       return
     }
 
-    navigation.navigate('CheckoutReview' as never, {
+    ;(navigation as any).navigate('CheckoutReview', {
       address: selectedAddress,
       paymentMethod: selectedPayment,
       shippingMethod: selectedShipping,
@@ -194,7 +195,8 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const selectedPaymentOption = PAYMENT_OPTIONS.find((opt) => opt.id === selectedPayment)
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <CheckoutStepper currentStep={3} />
       <Surface style={styles.header} elevation={2}>
         <View style={styles.headerRow}>
           <IconButton icon="arrow-left" size={24} onPress={handleBack} />
@@ -248,7 +250,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
                 mode="outlined"
                 keyboardType="phone-pad"
                 style={styles.formInput}
-                error={editingCustomer.phone && !validatePhone(editingCustomer.phone)}
+                error={Boolean(editingCustomer.phone) && !validatePhone(editingCustomer.phone)}
               />
               <TextInput
                 label="Email"
@@ -258,7 +260,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 style={styles.formInput}
-                error={editingCustomer.email && !validateEmail(editingCustomer.email)}
+                error={Boolean(editingCustomer.email) && !validateEmail(editingCustomer.email)}
               />
               <TextInput
                 label="Địa chỉ"
@@ -582,14 +584,14 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           Tiếp tục
         </Button>
       </Surface>
-    </View>
+    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -620,7 +622,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
   },
   summaryTitle: {
@@ -692,7 +694,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   paymentCard: {
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 12,
   },
   selectedCard: {
@@ -748,10 +750,12 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
   continueButton: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   continueButtonContent: {
     paddingVertical: 12,

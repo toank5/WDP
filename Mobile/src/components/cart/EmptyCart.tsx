@@ -29,11 +29,11 @@ export const EmptyCart: React.FC<EmptyCartProps> = ({ onShopNow }) => {
         />
 
         <Text variant="headlineSmall" style={styles.title}>
-          Giỏ hàng của bạn đang trống
+          Your cart is empty
         </Text>
 
         <Text variant="bodyLarge" style={styles.message}>
-          Hãy thêm sản phẩm vào giỏ hàng để tiến hành thanh toán
+          Add products to your cart to continue checkout
         </Text>
 
         <Button
@@ -42,7 +42,7 @@ export const EmptyCart: React.FC<EmptyCartProps> = ({ onShopNow }) => {
           style={styles.button}
           contentStyle={styles.buttonContent}
         >
-          Mua sắm ngay
+          Shop now
         </Button>
       </View>
     </View>

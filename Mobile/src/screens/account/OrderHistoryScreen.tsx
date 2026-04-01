@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Image } from 'react-native'
 import {
   Text,
   Button,
@@ -31,7 +31,7 @@ export interface OrderItem {
   id: string
   orderNumber: string
   createdAt: string
-  status: OrderStatus
+  status: string
   total: number
   itemCount: number
   items: Array<{
@@ -95,12 +95,15 @@ export const OrderHistoryScreen = () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await getOrders()
-      const mapped = (Array.isArray(data) ? data : []).map((order: any) => ({
+      const response = await getOrders()
+      const mapped = response.orders.map((order: any) => ({
+        // Backend returns enums like PENDING_PAYMENT/READY_TO_SHIP; normalize for UI mapping.
+        status: String(order.status || order.orderStatus || 'pending')
+          .toLowerCase()
+          .replace('canceled', 'cancelled'),
         id: order._id,
         orderNumber: order.orderNumber,
         createdAt: order.createdAt,
-        status: (order.status || order.orderStatus || 'pending').toLowerCase(),
         total: order.total || order.totalAmount || 0,
         itemCount: Array.isArray(order.items) ? order.items.length : 0,
         items: (order.items || []).map((item: any) => ({
@@ -155,7 +158,7 @@ export const OrderHistoryScreen = () => {
 
   // Handle order press
   const handleOrderPress = useCallback((orderId: string) => {
-    navigation.navigate('OrderDetail' as never, { orderId })
+    ;(navigation as any).navigate('OrderDetail', { orderId })
   }, [navigation])
 
   // Filter and sort orders
@@ -188,17 +191,23 @@ export const OrderHistoryScreen = () => {
   }, [orders, selectedFilter, searchQuery, sortBy])
 
   // Get status display info
-  const getStatusInfo = useCallback((status: OrderStatus) => {
-    const statusMap: Record<OrderStatus, { label: string; color: string }> = {
+  const getStatusInfo = useCallback((status: string) => {
+    const statusMap: Record<string, { label: string; color: string }> = {
       pending: { label: 'Chờ xử lý', color: '#ffa726' },
+      pending_payment: { label: 'Chờ thanh toán', color: '#fb8c00' },
+      paid: { label: 'Đã thanh toán', color: '#26a69a' },
+      on_hold: { label: 'Tạm giữ', color: '#8d6e63' },
       confirmed: { label: 'Đã xác nhận', color: '#42a5f5' },
       processing: { label: 'Đang xử lý', color: '#ffa726' },
+      ready_to_ship: { label: 'Sẵn sàng giao', color: '#1e88e5' },
       shipped: { label: 'Đã gửi', color: '#29b6f6' },
       delivered: { label: 'Đã giao', color: '#2e7d32' },
+      returned: { label: 'Đã trả hàng', color: '#8e24aa' },
       cancelled: { label: 'Đã hủy', color: '#e53935' },
       refunded: { label: 'Đã hoàn', color: '#757575' },
     }
-    return statusMap[status]
+
+    return statusMap[status] || { label: status.replace(/_/g, ' ').toUpperCase(), color: '#757575' }
   }, [])
 
   // Format price
@@ -308,9 +317,8 @@ export const OrderHistoryScreen = () => {
                 leadingIcon={
                   selectedFilter === filter.id ? 'check' : undefined
                 }
-              >
-                {filter.label}
-              </Menu.Item>
+                title={filter.label}
+              />
             ))}
           </Menu>
 
@@ -335,21 +343,18 @@ export const OrderHistoryScreen = () => {
             <Menu.Item
               leadingIcon={sortBy === 'date' ? 'check' : undefined}
               onPress={() => handleSort('date')}
-            >
-              Mới nhất
-            </Menu.Item>
+              title="Mới nhất"
+            />
             <Menu.Item
               leadingIcon={sortBy === 'status' ? 'check' : undefined}
               onPress={() => handleSort('status')}
-            >
-              Trạng thái
-            </Menu.Item>
+              title="Trạng thái"
+            />
             <Menu.Item
               leadingIcon={sortBy === 'total' ? 'check' : undefined}
               onPress={() => handleSort('total')}
-            >
-              Giá trị
-            </Menu.Item>
+              title="Giá trị"
+            />
           </Menu>
         </View>
 
@@ -393,6 +398,9 @@ export const OrderHistoryScreen = () => {
               <View style={styles.orderContent}>
                 {/* Items Preview */}
                 <View style={styles.itemsPreview}>
+                  {item.items[0]?.image ? (
+                    <Image source={{ uri: item.items[0].image }} style={styles.itemThumb} />
+                  ) : null}
                   {item.items.slice(0, 3).map((orderItem, index) => (
                     <View key={index} style={styles.itemPreview}>
                       <Text variant="bodySmall" numberOfLines={1}>
@@ -422,12 +430,9 @@ export const OrderHistoryScreen = () => {
 
               {/* Footer */}
               <View style={styles.orderFooter}>
-                <IconButton
-                  icon="chevron-right"
-                  size={20}
-                  onPress={() => handleOrderPress(item.id)}
-                  style={styles.viewButton}
-                />
+                <Button mode="text" icon="chevron-right" onPress={() => handleOrderPress(item.id)}>
+                  Xem chi tiết
+                </Button>
               </View>
             </Surface>
           )
@@ -500,9 +505,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  headerTitle: {
-    fontWeight: 'bold',
-  },
   headerSpacer: {
     flex: 1,
   },
@@ -561,6 +563,13 @@ const styles = StyleSheet.create({
   itemsPreview: {
     flex: 1,
     gap: 4,
+  },
+  itemThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginBottom: 6,
+    backgroundColor: '#f1f5f9',
   },
   itemPreview: {
     backgroundColor: '#d1fae5',

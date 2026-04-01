@@ -90,12 +90,12 @@ export const SORT_OPTIONS = [
 
 // Order statuses
 export const ORDER_STATUS: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Chờ xử lý', color: COLORS.warning },
-  processing: { label: 'Đang xử lý', color: COLORS.info },
-  shipping: { label: 'Đang giao', color: COLORS.primary },
-  delivered: { label: 'Đã giao', color: COLORS.success },
-  cancelled: { label: 'Đã hủy', color: COLORS.error },
-  refunded: { label: 'Đã hoàn tiền', color: COLORS.grey[600] },
+  pending: { label: 'Pending', color: COLORS.warning },
+  processing: { label: 'Processing', color: COLORS.info },
+  shipping: { label: 'Shipping', color: COLORS.primary },
+  delivered: { label: 'Delivered', color: COLORS.success },
+  cancelled: { label: 'Cancelled', color: COLORS.error },
+  refunded: { label: 'Refunded', color: COLORS.grey[600] },
 }
 
 // Frame types

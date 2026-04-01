@@ -32,7 +32,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onSearchChange,
   onClear,
-  placeholder = 'Tìm kiếm sản phẩm...',
+  placeholder = 'Search products...',
   recentSearches = [],
   onRecentSearchPress,
   autoFocus = false,
@@ -133,7 +133,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {showRecentSearches && (
         <View style={styles.recentContainer}>
           <Text variant="bodySmall" style={styles.recentLabel}>
-            Tìm kiếm gần đây
+            Recent searches
           </Text>
           <View style={styles.recentChips}>
             {recentSearches.slice(0, 5).map((query, index) => (
@@ -156,7 +156,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {!showRecentSearches && localValue.trim() && (
         <View style={styles.tipsContainer}>
           <Text variant="bodySmall" style={styles.tipText}>
-            Nhấn Enter để tìm kiếm
+            Press Enter to search
           </Text>
         </View>
       )}

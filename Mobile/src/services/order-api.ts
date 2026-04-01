@@ -1,11 +1,38 @@
 import { API_ENDPOINTS, get, post } from './api'
 import type { Order } from '../types'
 
+export interface OrderListResponse {
+  orders: Order[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 /**
  * Get all orders for current user
  */
-export async function getOrders(): Promise<Order[]> {
-  return get<Order[]>(API_ENDPOINTS.ORDERS)
+export async function getOrders(): Promise<OrderListResponse> {
+  const response = await get<Order[] | OrderListResponse>(API_ENDPOINTS.ORDERS)
+
+  // Backward compatibility: allow either plain array or paginated object shape.
+  if (Array.isArray(response)) {
+    return {
+      orders: response,
+      total: response.length,
+      page: 1,
+      limit: response.length,
+      totalPages: 1,
+    }
+  }
+
+  return {
+    orders: Array.isArray(response.orders) ? response.orders : [],
+    total: response.total ?? 0,
+    page: response.page ?? 1,
+    limit: response.limit ?? 20,
+    totalPages: response.totalPages ?? 1,
+  }
 }
 
 /**

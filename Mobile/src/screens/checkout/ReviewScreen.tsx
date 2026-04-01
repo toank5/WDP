@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking, Image } from 'react-native'
 import {
   Text,
   Button,
@@ -16,6 +16,7 @@ import { useCart } from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
 import type { PaymentMethod, ShippingMethod } from './PaymentScreen'
 import { createCheckoutPayment } from '../../services/order-api'
+import { CheckoutStepper, ScreenContainer } from '../../components'
 
 export interface OrderTotals {
   subtotal: number
@@ -133,13 +134,13 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
 
       const checkout = await createCheckoutPayment({
         shippingAddress: {
-          fullName: shippingAddress.recipientName,
-          phone: shippingAddress.recipientPhone,
+          fullName: shippingAddress.fullName,
+          phone: shippingAddress.phone,
           address: shippingAddress.address,
-          city: shippingAddress.province,
+          city: shippingAddress.city,
           district: shippingAddress.district,
           ward: shippingAddress.ward,
-          zipCode: undefined,
+          zipCode: shippingAddress.postalCode,
         },
         shippingMethod: shippingMethod === 'express' ? 'EXPRESS' : 'STANDARD',
         promotionCode: appliedPromotion?.code,
@@ -174,11 +175,11 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
       })
     } catch (error) {
       console.error('Create order error:', error)
-      navigation.navigate('CheckoutFailed' as never, {
+      ;(navigation as any).navigate('CheckoutFailed', {
         errorCode: 'ORDER_CREATE_FAILED',
         errorMessage: error instanceof Error ? error.message : 'Không thể đặt hàng. Vui lòng thử lại sau.',
         cartItemCount: items.length,
-      } as never)
+      })
     } finally {
       setProcessing(false)
     }
@@ -220,7 +221,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
+      <CheckoutStepper currentStep={4} />
       {/* Header */}
       <Surface style={styles.header} elevation={2}>
         <View style={styles.headerRow}>
@@ -249,20 +251,15 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           {shippingAddress ? (
             <>
               <Text variant="titleSmall" style={styles.addressName}>
-                {shippingAddress.recipientName}
+                {shippingAddress.fullName}
               </Text>
               <Text variant="bodyMedium" style={styles.addressPhone}>
-                {shippingAddress.recipientPhone}
+                {shippingAddress.phone}
               </Text>
               <Text variant="bodyMedium" style={styles.addressDetail}>
-                {shippingAddress.address}, {shippingAddress.ward},{' '}
-                {shippingAddress.district}, {shippingAddress.province}
+                {shippingAddress.address}, {shippingAddress.ward ? `${shippingAddress.ward}, ` : ''}
+                {shippingAddress.district}, {shippingAddress.city}
               </Text>
-              {shippingAddress.isDefault && (
-                <Text variant="bodySmall" style={styles.defaultBadge}>
-                  Mặc định
-                </Text>
-              )}
             </>
           ) : (
             <Text variant="bodyMedium" style={styles.emptyText}>
@@ -318,6 +315,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           <View style={styles.itemsList}>
             {items.map((item) => (
               <View key={item._id} style={styles.itemRow}>
+                {item.productImage && (
+                  <Image
+                    source={{ uri: item.productImage }}
+                    style={styles.itemImage}
+                  />
+                )}
                 <View style={styles.itemInfo}>
                   <Text variant="titleSmall" style={styles.itemName}>
                     {item.productName}
@@ -407,7 +410,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
             />
             <Text variant="bodyMedium" style={styles.checkboxLabel}>
               Tôi đồng ý với{' '}
-              <Text style={styles.link} onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'terms' } as never)}>
+              <Text style={styles.link} onPress={() => (navigation as any).navigate('PolicyDetail', { type: 'terms' })}>
                 Điều khoản dịch vụ
               </Text>
             </Text>
@@ -420,7 +423,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
             />
             <Text variant="bodyMedium" style={styles.checkboxLabel}>
               Tôi đồng ý với{' '}
-              <Text style={styles.link} onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'privacy' } as never)}>
+              <Text style={styles.link} onPress={() => (navigation as any).navigate('PolicyDetail', { type: 'privacy' })}>
                 Chính sách bảo mật
               </Text>
             </Text>
@@ -429,7 +432,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           <Button
             mode="text"
             icon="truck-delivery-outline"
-            onPress={() => navigation.navigate('PolicyDetail' as never, { type: 'shipping' } as never)}
+            onPress={() => (navigation as any).navigate('PolicyDetail', { type: 'shipping' })}
             contentStyle={{ justifyContent: 'flex-start' }}
           >
             Xem chính sách vận chuyển
@@ -456,14 +459,14 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           {processing ? 'Đang xử lý...' : 'Xác nhận đặt hàng'}
         </Button>
       </Surface>
-    </View>
+    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -494,7 +497,7 @@ const styles = StyleSheet.create({
   },
   card: {
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
   },
   cardHeader: {
@@ -537,11 +540,17 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    gap: 12,
+  },
+  itemImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
   itemInfo: {
     flex: 1,
@@ -597,10 +606,12 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
   confirmButton: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   confirmButtonContent: {
     paddingVertical: 12,

@@ -15,6 +15,7 @@ import {
   Divider,
   ActivityIndicator,
   TextInput,
+  Snackbar,
 } from 'react-native-paper'
 import { CartItemSkeleton } from '../../components/Loading'
 import { useTheme } from 'react-native-paper'
@@ -88,7 +89,7 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
             <View style={styles.quantityControl}>
               <IconButton
                 icon="minus"
-                size={18}
+                size={22}
                 onPress={() => onUpdateQty(itemId, item.quantity - 1)}
                 disabled={!itemId || isUpdating || item.quantity <= 1}
                 style={styles.qtyButton}
@@ -96,7 +97,7 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
               <Text style={styles.quantityText}>{isUpdating ? '...' : item.quantity}</Text>
               <IconButton
                 icon="plus"
-                size={18}
+                size={22}
                 onPress={() => onUpdateQty(itemId, item.quantity + 1)}
                 disabled={!itemId || isUpdating}
                 style={styles.qtyButton}
@@ -108,7 +109,7 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
         {/* Remove Button */}
         <IconButton
           icon="delete-outline"
-          size={20}
+          size={24}
           onPress={() => onRemove(itemId)}
           disabled={!itemId || isUpdating}
           iconColor={theme.colors.error}
@@ -138,6 +139,15 @@ export function CartScreen({ navigation }: Props) {
   const [updating, setUpdating] = useState<Set<string>>(new Set())
   const [promoCode, setPromoCode] = useState('')
   const [validatingPromo, setValidatingPromo] = useState(false)
+  const [snackbar, setSnackbar] = useState({ visible: false, message: '' })
+
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack()
+      return
+    }
+    navigation.navigate('HomeTab' as any)
+  }, [navigation])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -252,7 +262,7 @@ export function CartScreen({ navigation }: Props) {
           discountAmount: result.discountAmount || 0,
         })
         setPromoCode(result.promotion.code)
-        Alert.alert('Thành công', `Đã áp dụng mã ${result.promotion.code}`)
+        setSnackbar({ visible: true, message: `Đã áp dụng mã ${result.promotion.code}` })
       } else {
         Alert.alert('Mã không hợp lệ', result.message || 'Không thể áp dụng mã giảm giá')
       }
@@ -267,6 +277,7 @@ export function CartScreen({ navigation }: Props) {
   const handleClearPromoCode = () => {
     clearPromotionCode()
     setPromoCode('')
+    setSnackbar({ visible: true, message: 'Đã bỏ mã khuyến mãi' })
   }
 
   const handleCheckout = () => {
@@ -290,9 +301,12 @@ export function CartScreen({ navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+          <View style={styles.headerLeft}>
+            <IconButton icon="arrow-left" size={22} onPress={handleBack} />
+            <Text style={styles.headerTitle}>Cart</Text>
+          </View>
           <Text style={styles.headerSubtitle}>
-            Đang tải giỏ hàng của bạn...
+            Loading your cart...
           </Text>
         </View>
         <View style={styles.content}>
@@ -308,11 +322,14 @@ export function CartScreen({ navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+          <View style={styles.headerLeft}>
+            <IconButton icon="arrow-left" size={22} onPress={handleBack} />
+            <Text style={styles.headerTitle}>Cart</Text>
+          </View>
         </View>
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>🛒</Text>
-          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorMessage}>{error}</Text>
           <Button
             mode="contained"
@@ -320,7 +337,7 @@ export function CartScreen({ navigation }: Props) {
             style={styles.retryButton}
             icon="refresh"
           >
-            Thử lại
+            Retry
           </Button>
         </View>
       </View>
@@ -335,10 +352,13 @@ export function CartScreen({ navigation }: Props) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Giỏ hàng</Text>
+        <View style={styles.headerLeft}>
+          <IconButton icon="arrow-left" size={22} onPress={handleBack} />
+          <Text style={styles.headerTitle}>Cart</Text>
+        </View>
         {hasItems && (
           <Button onPress={handleClearCart} mode="text" textColor={theme.colors.error}>
-            Xóa tất cả
+            Clear all
           </Button>
         )}
       </View>
@@ -468,6 +488,14 @@ export function CartScreen({ navigation }: Props) {
           </Button>
         </View>
       )}
+
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ visible: false, message: '' })}
+        duration={2200}
+      >
+        {snackbar.message}
+      </Snackbar>
     </View>
   )
 }
@@ -491,6 +519,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   headerTitle: {
     fontSize: 20,
@@ -582,6 +615,8 @@ const styles = StyleSheet.create({
   },
   qtyButton: {
     margin: 0,
+    width: 36,
+    height: 36,
   },
   quantityText: {
     fontSize: 14,

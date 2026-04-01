@@ -12,7 +12,7 @@ export const formatPrice = (price: number): string => {
 // Date formatter
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString)
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -21,7 +21,7 @@ export const formatDate = (dateString: string): string => {
 
 export const formatDateTime = (dateString: string): string => {
   const date = new Date(dateString)
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -37,16 +37,16 @@ export const formatRelativeTime = (dateString: string): string => {
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
   if (diffInSeconds < 60) {
-    return 'Vừa xong'
+    return 'Just now'
   } else if (diffInSeconds < 3600) {
     const minutes = Math.floor(diffInSeconds / 60)
-    return `${minutes} phút trước`
+    return `${minutes} minutes ago`
   } else if (diffInSeconds < 86400) {
     const hours = Math.floor(diffInSeconds / 3600)
-    return `${hours} giờ trước`
+    return `${hours} hours ago`
   } else if (diffInSeconds < 604800) {
     const days = Math.floor(diffInSeconds / 86400)
-    return `${days} ngày trước`
+    return `${days} days ago`
   } else {
     return formatDate(dateString)
   }
@@ -119,12 +119,12 @@ export const getStatusColor = (status: string): string => {
 // Get status label
 export const getStatusLabel = (status: string): string => {
   const statusLabels: Record<string, string> = {
-    pending: 'Chờ xử lý',
-    processing: 'Đang xử lý',
-    shipping: 'Đang giao',
-    delivered: 'Đã giao',
-    cancelled: 'Đã hủy',
-    refunded: 'Đã hoàn tiền',
+    pending: 'Pending',
+    processing: 'Processing',
+    shipping: 'Shipping',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
   }
   return statusLabels[status] || status
 }

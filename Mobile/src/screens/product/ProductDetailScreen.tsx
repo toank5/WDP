@@ -552,7 +552,7 @@ export function ProductDetailScreen() {
             style={styles.buyNowButton}
             contentStyle={styles.buttonContent}
           >
-            Mua ngay
+            Buy now
           </Button>
         </View>
       </View>
@@ -849,3 +849,4 @@ const styles = StyleSheet.create({
     color: '#2563eb',
   },
 })
+
