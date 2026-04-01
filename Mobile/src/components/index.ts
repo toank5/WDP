@@ -35,3 +35,4 @@ export {
   ProductCarousel,
   TrustRow,
 } from './home/HomeComponents'
+export { HeroBanner } from './home/HeroBanner'

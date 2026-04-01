@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   View,
   StyleSheet,
@@ -13,8 +13,9 @@ import {
   Text,
   HelperText,
   Checkbox,
-  IconButton,
+  Icon,
   useTheme,
+  Snackbar,
   Surface,
 } from 'react-native-paper'
 import { useAuthStore } from '../../store/auth-store'
@@ -44,6 +45,23 @@ interface RegisterErrors {
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const theme = useTheme()
   const { register, isLoading } = useAuthStore()
+  const emailInputRef = useRef<any>(null)
+  const passwordInputRef = useRef<any>(null)
+  const confirmInputRef = useRef<any>(null)
+  const lightControlTheme = {
+    ...theme,
+    dark: false,
+    colors: {
+      ...theme.colors,
+      background: '#f8fafc',
+      surface: '#ffffff',
+      onSurface: '#0f172a',
+      onSurfaceVariant: '#475569',
+      outline: '#cbd5e1',
+      primary: '#60a5fa',
+      onPrimary: '#0f172a',
+    },
+  }
 
   const [formData, setFormData] = useState<RegisterFormData>({
     fullName: '',
@@ -57,6 +75,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const [formError, setFormError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -71,31 +90,31 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
     const newErrors: RegisterErrors = {}
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Vui lòng nhập họ tên'
+      newErrors.fullName = 'Please enter your full name.'
     } else if (formData.fullName.trim().length < 2) {
-      newErrors.fullName = 'Họ tên phải có ít nhất 2 ký tự'
+      newErrors.fullName = 'Full name must be at least 2 characters.'
     }
 
     if (!formData.email) {
-      newErrors.email = 'Vui lòng nhập email'
+      newErrors.email = 'Please enter your email address.'
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email không hợp lệ'
+      newErrors.email = 'Please enter a valid email address.'
     }
 
     if (!formData.password) {
-      newErrors.password = 'Vui lòng nhập mật khẩu'
+      newErrors.password = 'Please enter a password.'
     } else if (!validatePassword(formData.password)) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự'
+      newErrors.password = 'Password must be at least 6 characters.'
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu'
+      newErrors.confirmPassword = 'Please confirm your password.'
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp'
+      newErrors.confirmPassword = 'Passwords do not match.'
     }
 
     if (!formData.agreeTerms) {
-      newErrors.agreeTerms = 'Bạn phải đồng ý với điều khoản dịch vụ'
+      newErrors.agreeTerms = 'You must accept Terms and Privacy Policy.'
     }
 
     setErrors(newErrors)
@@ -116,36 +135,34 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         password: formData.password,
       })
 
-      Alert.alert(
-        'Đăng ký thành công',
-        'Tài khoản của bạn đã được tạo. Vui lòng đăng nhập để tiếp tục.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login' as never),
-          },
-        ]
-      )
+      setShowSuccess(true)
+      Alert.alert('Account created', 'Your account has been created. Please log in to continue.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Login' as never),
+        },
+      ])
     } catch (error: any) {
       console.error('Register error:', error)
 
-      // Handle specific error messages from API
       if (error.response?.data?.message) {
-        if (error.response.data.message.includes('email')) {
+        const apiMessage = String(error.response.data.message)
+        const lower = apiMessage.toLowerCase()
+
+        if (lower.includes('email')) {
           setErrors({ email: error.response.data.message })
         } else {
-          setFormError(error.response.data.message)
+          setFormError('Unable to create account right now. Please try again.')
         }
       } else if (error.message) {
-        setFormError(error.message)
+        setFormError('Unable to create account right now. Please try again.')
       } else {
-        setFormError('Đăng ký thất bại. Vui lòng thử lại sau.')
+        setFormError('Unable to create account right now. Please try again.')
       }
     }
   }
 
-  const navigateBack = () => {
-    // Get root navigation (which has access to Main screen)
+  const navigateAsGuest = () => {
     const rootNav = navigation.getParent() as any
     if (rootNav) {
       rootNav.reset({
@@ -158,17 +175,74 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   }
 
   const navigateToLogin = () => {
-    navigation.navigate('Login')
+    navigation.navigate('Login' as never)
   }
 
   const navigateToTerms = () => {
-    // TODO: Navigate to Terms screen
-    Alert.alert('Điều khoản dịch vụ', 'Màn hình điều khoản dịch vụ đang phát triển')
+    Alert.alert('Terms of Service', 'Terms screen is under development.')
   }
 
   const navigateToPrivacy = () => {
-    // TODO: Navigate to Privacy screen
-    Alert.alert('Chính sách bảo mật', 'Màn hình chính sách bảo mật đang phát triển')
+    Alert.alert('Privacy Policy', 'Privacy screen is under development.')
+  }
+
+  const updateField = (field: keyof RegisterFormData, value: string | boolean) => {
+    setFormData({ ...formData, [field]: value })
+    if (formError) {
+      setFormError('')
+    }
+  }
+
+  const validateField = (field: keyof RegisterErrors) => {
+    const nextErrors: RegisterErrors = { ...errors }
+
+    if (field === 'fullName') {
+      if (!formData.fullName.trim()) {
+        nextErrors.fullName = 'Please enter your full name.'
+      } else if (formData.fullName.trim().length < 2) {
+        nextErrors.fullName = 'Full name must be at least 2 characters.'
+      } else {
+        nextErrors.fullName = undefined
+      }
+    }
+
+    if (field === 'email') {
+      if (!formData.email) {
+        nextErrors.email = 'Please enter your email address.'
+      } else if (!validateEmail(formData.email)) {
+        nextErrors.email = 'Please enter a valid email address.'
+      } else {
+        nextErrors.email = undefined
+      }
+    }
+
+    if (field === 'password') {
+      if (!formData.password) {
+        nextErrors.password = 'Please enter a password.'
+      } else if (!validatePassword(formData.password)) {
+        nextErrors.password = 'Password must be at least 6 characters.'
+      } else {
+        nextErrors.password = undefined
+      }
+
+      if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
+        nextErrors.confirmPassword = 'Passwords do not match.'
+      } else {
+        nextErrors.confirmPassword = undefined
+      }
+    }
+
+    if (field === 'confirmPassword') {
+      if (!formData.confirmPassword) {
+        nextErrors.confirmPassword = 'Please confirm your password.'
+      } else if (formData.password !== formData.confirmPassword) {
+        nextErrors.confirmPassword = 'Passwords do not match.'
+      } else {
+        nextErrors.confirmPassword = undefined
+      }
+    }
+
+    setErrors(nextErrors)
   }
 
   return (
@@ -178,267 +252,353 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
+        <View style={[styles.baseBackground, styles.pointerEventsNone]} />
+        <View style={[styles.backgroundCircleTop, styles.pointerEventsNone]} />
+        <View style={[styles.backgroundCircleBottom, styles.pointerEventsNone]} />
+
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          showsVerticalScrollIndicator={false}
         >
-        <View style={styles.header}>
-          <Text variant="headlineLarge" style={styles.title}>
-            {APP_CONFIG.name}
-          </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
-            Đăng ký tài khoản mới
-          </Text>
-        </View>
-
-        <Surface style={styles.form} elevation={1}>
-          {!!formError && (
-            <HelperText type="error" visible={!!formError} style={styles.formErrorText}>
-              {formError}
-            </HelperText>
-          )}
-          <TextInput
-            label="Họ tên"
-            value={formData.fullName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, fullName: text })
-              setErrors({ ...errors, fullName: undefined })
-            }}
-            autoCapitalize="words"
-            mode="outlined"
-            error={!!errors.fullName}
-            left={<TextInput.Icon icon="account" />}
-            disabled={isLoading}
-          />
-          {errors.fullName && (
-            <HelperText type="error" visible={!!errors.fullName}>
-              {errors.fullName}
-            </HelperText>
-          )}
-
-          <TextInput
-            label="Email"
-            value={formData.email}
-            onChangeText={(text) => {
-              setFormData({ ...formData, email: text })
-              setErrors({ ...errors, email: undefined })
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            mode="outlined"
-            error={!!errors.email}
-            left={<TextInput.Icon icon="email" />}
-            disabled={isLoading}
-          />
-          {errors.email && (
-            <HelperText type="error" visible={!!errors.email}>
-              {errors.email}
-            </HelperText>
-          )}
-
-          <TextInput
-            label="Mật khẩu"
-            value={formData.password}
-            onChangeText={(text) => {
-              setFormData({ ...formData, password: text })
-              setErrors({ ...errors, password: undefined, confirmPassword: undefined })
-            }}
-            secureTextEntry={!showPassword}
-            mode="outlined"
-            error={!!errors.password}
-            left={<TextInput.Icon icon="lock" />}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword(!showPassword)}
-              />
-            }
-            disabled={isLoading}
-          />
-          {errors.password && (
-            <HelperText type="error" visible={!!errors.password}>
-              {errors.password}
-            </HelperText>
-          )}
-
-          <TextInput
-            label="Xác nhận mật khẩu"
-            value={formData.confirmPassword}
-            onChangeText={(text) => {
-              setFormData({ ...formData, confirmPassword: text })
-              setErrors({ ...errors, confirmPassword: undefined })
-            }}
-            secureTextEntry={!showConfirmPassword}
-            mode="outlined"
-            error={!!errors.confirmPassword}
-            left={<TextInput.Icon icon="lock-check" />}
-            right={
-              <TextInput.Icon
-                icon={showConfirmPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              />
-            }
-            disabled={isLoading}
-          />
-          {errors.confirmPassword && (
-            <HelperText type="error" visible={!!errors.confirmPassword}>
-              {errors.confirmPassword}
-            </HelperText>
-          )}
-
-          <View style={styles.termsContainer}>
-            <View style={styles.checkboxContainer}>
-              <Checkbox.Android
-                status={formData.agreeTerms ? 'checked' : 'unchecked'}
-                onPress={() =>
-                  setFormData({ ...formData, agreeTerms: !formData.agreeTerms })
-                }
-                disabled={isLoading}
-              />
-              <Text variant="bodyMedium" style={styles.termsText}>
-                Tôi đồng ý với{' '}
-                <Text
-                  style={[styles.linkText, { color: theme.colors.primary }]}
-                  onPress={navigateToTerms}
-                >
-                  Điều khoản dịch vụ
-                </Text>{' '}
-                và{' '}
-                <Text
-                  style={[styles.linkText, { color: theme.colors.primary }]}
-                  onPress={navigateToPrivacy}
-                >
-                  Chính sách bảo mật
-                </Text>
+            <View style={styles.header}>
+              <Surface style={styles.brandMark} elevation={0}>
+                <Icon source="glasses" size={24} color={theme.colors.primary} />
+              </Surface>
+              <Text variant="headlineMedium" style={styles.title}>
+                Create account
+              </Text>
+              <Text variant="bodyMedium" style={styles.subtitle}>
+                Save your prescriptions, orders and addresses.
               </Text>
             </View>
-          </View>
-          {errors.agreeTerms && (
-            <HelperText type="error" visible={!!errors.agreeTerms}>
-              {errors.agreeTerms}
-            </HelperText>
-          )}
 
-          <Button
-            mode="contained"
-            onPress={handleRegister}
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.registerButton}
-            contentStyle={styles.registerButtonContent}
-          >
-            {isLoading ? 'Đang đăng ký...' : 'Đăng ký'}
-          </Button>
+            <Surface style={styles.form} elevation={2}>
+              {!!formError && (
+                <View
+                  style={styles.formErrorContainer}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                >
+                  <HelperText type="error" visible style={styles.formErrorText}>
+                    {formError}
+                  </HelperText>
+                </View>
+              )}
 
-          <View style={styles.loginContainer}>
-            <Text variant="bodyMedium">Đã có tài khoản? </Text>
-            <Text
-              variant="bodyMedium"
-              style={[styles.loginText, { color: theme.colors.primary }]}
-              onPress={navigateToLogin}
+              <TextInput
+                label="Full name"
+                placeholder="Your full name"
+                value={formData.fullName}
+                onChangeText={(text) => {
+                  updateField('fullName', text)
+                  if (errors.fullName) {
+                    setErrors({ ...errors, fullName: undefined })
+                  }
+                }}
+                onBlur={() => validateField('fullName')}
+                autoCapitalize="words"
+                mode="outlined"
+                returnKeyType="next"
+                autoFocus
+                error={!!errors.fullName}
+                left={<TextInput.Icon icon="account-outline" />}
+                onSubmitEditing={() => emailInputRef.current?.focus?.()}
+                disabled={isLoading}
+                theme={lightControlTheme}
+                textColor="#0f172a"
+              />
+              <HelperText type="error" visible={!!errors.fullName}>
+                {errors.fullName ?? ' '}
+              </HelperText>
+
+              <TextInput
+                ref={emailInputRef}
+                label="Email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChangeText={(text) => {
+                  updateField('email', text)
+                  if (errors.email) {
+                    setErrors({ ...errors, email: undefined })
+                  }
+                }}
+                onBlur={() => validateField('email')}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect={false}
+                mode="outlined"
+                returnKeyType="next"
+                error={!!errors.email}
+                left={<TextInput.Icon icon="email-outline" />}
+                onSubmitEditing={() => passwordInputRef.current?.focus?.()}
+                disabled={isLoading}
+                theme={lightControlTheme}
+                textColor="#0f172a"
+              />
+              <HelperText type="error" visible={!!errors.email}>
+                {errors.email ?? ' '}
+              </HelperText>
+
+              <TextInput
+                ref={passwordInputRef}
+                label="Password"
+                placeholder="Create password"
+                value={formData.password}
+                onChangeText={(text) => {
+                  updateField('password', text)
+                  if (errors.password || errors.confirmPassword) {
+                    setErrors({ ...errors, password: undefined, confirmPassword: undefined })
+                  }
+                }}
+                onBlur={() => validateField('password')}
+                secureTextEntry={!showPassword}
+                mode="outlined"
+                returnKeyType="next"
+                textContentType="newPassword"
+                autoComplete="password-new"
+                error={!!errors.password}
+                left={<TextInput.Icon icon="lock-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    onPress={() => setShowPassword(!showPassword)}
+                    forceTextInputFocus={false}
+                  />
+                }
+                onSubmitEditing={() => confirmInputRef.current?.focus?.()}
+                disabled={isLoading}
+                theme={lightControlTheme}
+                textColor="#0f172a"
+              />
+              <HelperText type="info" visible={!errors.password}>
+                Use at least 6 characters.
+              </HelperText>
+              <HelperText type="error" visible={!!errors.password}>
+                {errors.password ?? ' '}
+              </HelperText>
+
+              <TextInput
+                ref={confirmInputRef}
+                label="Confirm password"
+                placeholder="Re-enter password"
+                value={formData.confirmPassword}
+                onChangeText={(text) => {
+                  updateField('confirmPassword', text)
+                  if (errors.confirmPassword) {
+                    setErrors({ ...errors, confirmPassword: undefined })
+                  }
+                }}
+                onBlur={() => validateField('confirmPassword')}
+                secureTextEntry={!showConfirmPassword}
+                mode="outlined"
+                returnKeyType="done"
+                textContentType="newPassword"
+                autoComplete="password-new"
+                error={!!errors.confirmPassword}
+                left={<TextInput.Icon icon="lock-check-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    forceTextInputFocus={false}
+                  />
+                }
+                onSubmitEditing={handleRegister}
+                disabled={isLoading}
+                theme={lightControlTheme}
+                textColor="#0f172a"
+              />
+              <HelperText type="error" visible={!!errors.confirmPassword}>
+                {errors.confirmPassword ?? ' '}
+              </HelperText>
+
+              <View style={styles.termsContainer}>
+                <View style={styles.checkboxContainer}>
+                  <Checkbox.Android
+                    status={formData.agreeTerms ? 'checked' : 'unchecked'}
+                    onPress={() => {
+                      updateField('agreeTerms', !formData.agreeTerms)
+                      if (errors.agreeTerms) {
+                        setErrors({ ...errors, agreeTerms: undefined })
+                      }
+                    }}
+                    disabled={isLoading}
+                  />
+                  <Text variant="bodyMedium" style={styles.termsText}>
+                    I agree to the{' '}
+                    <Text style={[styles.linkText, { color: theme.colors.primary }]} onPress={navigateToTerms}>
+                      Terms of Service
+                    </Text>{' '}
+                    and{' '}
+                    <Text style={[styles.linkText, { color: theme.colors.primary }]} onPress={navigateToPrivacy}>
+                      Privacy Policy
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+              <HelperText type="error" visible={!!errors.agreeTerms}>
+                {errors.agreeTerms ?? ' '}
+              </HelperText>
+
+              <Button
+                mode="contained"
+                onPress={handleRegister}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.registerButton}
+                contentStyle={styles.registerButtonContent}
+                buttonColor="#93c5fd"
+                textColor="#172554"
+              >
+                {isLoading ? 'Creating account...' : 'Sign up'}
+              </Button>
+
+              <View style={styles.loginContainer}>
+                <Text variant="bodyMedium" style={styles.bottomText}>
+                  Already have an account?
+                </Text>
+                <Button mode="text" compact onPress={navigateToLogin} labelStyle={styles.loginText}>
+                  Log in
+                </Button>
+              </View>
+            </Surface>
+
+            <Button
+              mode="text"
+              onPress={navigateAsGuest}
+              style={styles.guestButton}
+              labelStyle={styles.guestButtonLabel}
             >
-              Đăng nhập ngay
-            </Text>
-          </View>
-        </Surface>
-
-        <View style={styles.footer}>
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            onPress={navigateBack}
-            style={styles.backButton}
-          />
-          <View style={styles.footerContent}>
-            <Text variant="bodySmall" style={styles.footerText}>
-              {APP_CONFIG.name} © {new Date().getFullYear()}
-            </Text>
-          </View>
-        </View>
+              Continue as guest
+            </Button>
         </ScrollView>
+
+        <Snackbar visible={showSuccess} onDismiss={() => setShowSuccess(false)} duration={1800}>
+          Account created successfully.
+        </Snackbar>
       </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
+  pointerEventsNone: {
+    pointerEvents: 'none',
+  },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
   },
+  baseBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f8fafc',
+  },
+  backgroundCircleTop: {
+    position: 'absolute',
+    top: -80,
+    right: -70,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+  },
+  backgroundCircleBottom: {
+    position: 'absolute',
+    bottom: -90,
+    left: -80,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingVertical: 28,
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 26,
+  },
+  brandMark: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    backgroundColor: '#e0f2fe',
   },
   title: {
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '700',
+    marginBottom: 6,
+    color: '#0f172a',
   },
   subtitle: {
-    opacity: 0.7,
+    color: '#64748b',
+    textAlign: 'center',
   },
   form: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 12,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  formErrorContainer: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 10,
+    marginBottom: 10,
+    paddingHorizontal: 6,
   },
   formErrorText: {
-    marginTop: -4,
-    marginBottom: 4,
+    marginTop: 0,
   },
   termsContainer: {
-    marginTop: 8,
+    marginTop: 2,
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    marginLeft: -8,
   },
   termsText: {
-    fontSize: 14,
+    fontSize: 13,
     flex: 1,
     flexWrap: 'wrap',
+    color: '#334155',
   },
   linkText: {
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   registerButton: {
-    marginTop: 16,
-    borderRadius: 8,
+    marginTop: 10,
+    borderRadius: 12,
   },
   registerButtonContent: {
-    paddingVertical: 8,
+    minHeight: 52,
   },
   loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 16,
+  },
+  bottomText: {
+    color: '#64748b',
   },
   loginText: {
     fontWeight: '600',
   },
-  footer: {
-    alignItems: 'center',
-    marginTop: 40,
+  guestButton: {
+    alignSelf: 'center',
+    marginTop: 14,
   },
-  backButton: {
-    position: 'absolute',
-    left: 0,
-  },
-  footerContent: {
-    paddingHorizontal: 16,
-  },
-  footerText: {
-    opacity: 0.5,
+  guestButtonLabel: {
+    color: '#475569',
   },
 })

@@ -6,6 +6,7 @@ import {
   Image,
   Text,
   Dimensions,
+  Platform,
 } from 'react-native'
 import { Card, Badge, useTheme, IconButton } from 'react-native-paper'
 
@@ -140,10 +141,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 16,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
   },
   image: {
     width: '100%',
@@ -203,9 +209,14 @@ const styles = StyleSheet.create({
     margin: 0,
     borderRadius: 8,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+    }),
   },
 })

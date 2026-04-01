@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { CartItem, CartResponse } from '../types'
 import { addToCart, updateCartItem, removeFromCart, clearCart as clearCartApi, getCart, mergeCart as mergeCartApi } from '../services'
-import { useAuthStore } from './auth-store'
 import { STORAGE_KEYS } from '../constants'
 
 export interface AppliedPromotion {
@@ -198,6 +197,11 @@ async function clearGuestCart(): Promise<void> {
   }
 }
 
+async function isUserAuthenticated(): Promise<boolean> {
+  const { useAuthStore } = await import('./auth-store')
+  return useAuthStore.getState().isAuthenticated
+}
+
 /**
  * Calculate totals from items
  */
@@ -253,7 +257,7 @@ export const useCartStore = create<CartState>(
      * - If not authenticated: load from AsyncStorage (guest cart)
      */
     loadCart: async () => {
-      const { isAuthenticated } = useAuthStore.getState()
+      const isAuthenticated = await isUserAuthenticated()
 
       set({ loading: true, error: null })
 
@@ -304,7 +308,7 @@ export const useCartStore = create<CartState>(
      * - If not authenticated: save to AsyncStorage
      */
     addItem: async (item) => {
-      const { isAuthenticated } = useAuthStore.getState()
+      const isAuthenticated = await isUserAuthenticated()
       const { items } = get()
 
       set({ loading: true, error: null })
@@ -390,7 +394,7 @@ export const useCartStore = create<CartState>(
      * - If not authenticated: update in AsyncStorage
      */
     updateQuantity: async (itemId, quantity) => {
-      const { isAuthenticated } = useAuthStore.getState()
+      const isAuthenticated = await isUserAuthenticated()
 
       set({ loading: true, error: null })
 
@@ -442,7 +446,7 @@ export const useCartStore = create<CartState>(
      * - If not authenticated: remove from AsyncStorage
      */
     removeItem: async (itemId) => {
-      const { isAuthenticated } = useAuthStore.getState()
+      const isAuthenticated = await isUserAuthenticated()
 
       set({ loading: true, error: null })
 
@@ -488,7 +492,7 @@ export const useCartStore = create<CartState>(
      * - If not authenticated: clear from AsyncStorage
      */
     clearCart: async () => {
-      const { isAuthenticated } = useAuthStore.getState()
+      const isAuthenticated = await isUserAuthenticated()
 
       set({ loading: true, error: null })
 
@@ -573,7 +577,7 @@ export async function migrateGuestCartToUserCart(): Promise<void> {
     return
   }
 
-  const { isAuthenticated } = useAuthStore.getState()
+  const isAuthenticated = await isUserAuthenticated()
   if (!isAuthenticated) {
     return
   }

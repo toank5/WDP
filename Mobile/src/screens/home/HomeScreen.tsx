@@ -15,6 +15,7 @@ import { getAllProducts } from '../../services/product-api'
 import { useAuthStore } from '../../store/auth-store'
 import { useCartStore } from '../../store/cart-store'
 import {
+  HeroBanner,
   HomeSectionHeader,
   HomeTopBar,
   ProductCarousel,
@@ -155,6 +156,8 @@ export function HomeScreen({ navigation }: Props) {
         />
 
         <SearchEntry onPress={goToSearch} />
+
+        <HeroBanner navigation={navigation} />
 
         <View style={styles.section}>
           <View style={styles.quickActionsRow}>

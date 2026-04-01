@@ -169,7 +169,7 @@ export const AddressForm: React.FC<AddressFormProps> = ({
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <Surface style={styles.container} elevation={2}>
           <Text variant="titleLarge" style={styles.title}>

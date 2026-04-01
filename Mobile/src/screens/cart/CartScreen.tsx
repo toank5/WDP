@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View,
   StyleSheet,
@@ -6,6 +6,8 @@ import {
   Image,
   Alert,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native'
 import {
   Text,
@@ -16,7 +18,9 @@ import {
   ActivityIndicator,
   TextInput,
   Snackbar,
+  Chip,
 } from 'react-native-paper'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { CartItemSkeleton } from '../../components/Loading'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
@@ -44,6 +48,9 @@ interface CartItemCardProps {
   updating: Set<string>
 }
 
+/**
+ * Improved CartItemCard with better visual hierarchy and interaction
+ */
 function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardProps) {
   const theme = useTheme()
   const itemId = item._id || item.id || `${item.productId || 'item'}-${item.variantSku || 'default'}`
@@ -52,7 +59,7 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
   return (
     <Card style={styles.itemCard}>
       <View style={styles.itemContent}>
-        {/* Product Image */}
+        {/* Product Image - Larger and more prominent */}
         <View style={styles.imageContainer}>
           {item.productImage ? (
             <Image
@@ -62,58 +69,77 @@ function CartItemCard({ item, onUpdateQty, onRemove, updating }: CartItemCardPro
             />
           ) : (
             <View style={[styles.productImage, styles.placeholderImage]}>
-              <Text style={styles.placeholderText}>📦</Text>
+              <Text style={styles.placeholderText}>👓</Text>
             </View>
           )}
         </View>
 
-        {/* Product Info */}
-        <View style={styles.productInfo}>
+        {/* Product Info - Improved layout */}
+        <View style={styles.productInfoSection}>
           <Text style={styles.productName} numberOfLines={2}>
-            {item.productName || 'Sản phẩm'}
+            {item.productName || 'Product'}
           </Text>
 
-          {/* Variant Details */}
-          {item.variantDetails && (
-            <Text style={styles.variantText}>
-              {item.variantDetails.size && `Size: ${item.variantDetails.size}`}
-              {item.variantDetails.size && item.variantDetails.color && ' | '}
-              {item.variantDetails.color && `Color: ${item.variantDetails.color}`}
-            </Text>
-          )}
-
-          {/* Price and Quantity */}
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatPrice(item.price)}</Text>
-
-            <View style={styles.quantityControl}>
-              <IconButton
-                icon="minus"
-                size={22}
-                onPress={() => onUpdateQty(itemId, item.quantity - 1)}
-                disabled={!itemId || isUpdating || item.quantity <= 1}
-                style={styles.qtyButton}
-              />
-              <Text style={styles.quantityText}>{isUpdating ? '...' : item.quantity}</Text>
-              <IconButton
-                icon="plus"
-                size={22}
-                onPress={() => onUpdateQty(itemId, item.quantity + 1)}
-                disabled={!itemId || isUpdating}
-                style={styles.qtyButton}
-              />
-            </View>
+          {/* Variant Details - More refined */}
+          <View style={styles.variantContainer}>
+            {item.variantDetails?.color && (
+              <Chip
+                mode="outlined"
+                compact
+                icon="palette"
+                style={styles.variantChip}
+                textStyle={styles.variantChipText}
+              >
+                {item.variantDetails.color}
+              </Chip>
+            )}
+            {item.variantDetails?.size && (
+              <Chip
+                mode="outlined"
+                compact
+                icon="ruler"
+                style={styles.variantChip}
+                textStyle={styles.variantChipText}
+              >
+                {item.variantDetails.size}
+              </Chip>
+            )}
           </View>
+
+          {/* Price - Bold and accessible */}
+          <Text style={styles.price}>{formatPrice(item.price)}</Text>
         </View>
 
-        {/* Remove Button */}
-        <IconButton
-          icon="delete-outline"
-          size={24}
-          onPress={() => onRemove(itemId)}
-          disabled={!itemId || isUpdating}
-          iconColor={theme.colors.error}
-        />
+        {/* Quantity & Remove - Right-aligned controls */}
+        <View style={styles.rightControls}>
+          {/* Quantity Stepper */}
+          <View style={styles.quantityControl}>
+            <IconButton
+              icon="minus-circle"
+              size={28}
+              onPress={() => onUpdateQty(itemId, item.quantity - 1)}
+              disabled={!itemId || isUpdating || item.quantity <= 1}
+              iconColor={theme.colors.primary}
+            />
+            <Text style={styles.quantityText}>{isUpdating ? '...' : item.quantity}</Text>
+            <IconButton
+              icon="plus-circle"
+              size={28}
+              onPress={() => onUpdateQty(itemId, item.quantity + 1)}
+              disabled={!itemId || isUpdating}
+              iconColor={theme.colors.primary}
+            />
+          </View>
+
+          {/* Remove Button */}
+          <IconButton
+            icon="trash-can-outline"
+            size={24}
+            onPress={() => onRemove(itemId)}
+            disabled={!itemId || isUpdating}
+            iconColor={theme.colors.error}
+          />
+        </View>
       </View>
     </Card>
   )
@@ -139,7 +165,8 @@ export function CartScreen({ navigation }: Props) {
   const [updating, setUpdating] = useState<Set<string>>(new Set())
   const [promoCode, setPromoCode] = useState('')
   const [validatingPromo, setValidatingPromo] = useState(false)
-  const [snackbar, setSnackbar] = useState({ visible: false, message: '' })
+  const [snackbar, setSnackbar] = useState({ visible: false, message: '', action: null as (() => void) | null })
+  const [removedItems, setRemovedItems] = useState<Map<string, any>>(new Map())
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -160,7 +187,7 @@ export function CartScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadCart()
-  }, [])
+  }, [loadCart])
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
@@ -173,7 +200,7 @@ export function CartScreen({ navigation }: Props) {
       await updateQuantity(itemId, newQty)
     } catch (error: any) {
       console.error('Failed to update quantity:', error)
-      Alert.alert('Lỗi', 'Không thể cập nhật số lượng')
+      Alert.alert('Error', 'Could not update quantity')
       await loadCart()
     } finally {
       setUpdating((prev) => {
@@ -185,51 +212,80 @@ export function CartScreen({ navigation }: Props) {
   }
 
   const handleRemove = async (itemId: string) => {
-    Alert.alert(
-      'Xóa sản phẩm',
-      'Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            setUpdating((prev) => new Set(prev).add(itemId))
-            try {
-              await removeItem(itemId)
-            } catch (error: any) {
-              console.error('Failed to remove item:', error)
-              Alert.alert('Lỗi', 'Không thể xóa sản phẩm')
-              await loadCart()
-            } finally {
-              setUpdating((prev) => {
-                const next = new Set(prev)
-                next.delete(itemId)
-                return next
-              })
-            }
-          },
-        },
-      ]
+    // Find the item being removed for undo
+    const itemToRemove = items.find(
+      (i) => (i._id || `${i.productId || 'item'}-${i.variantSku || 'default'}`) === itemId
     )
+
+    if (itemToRemove) {
+      setRemovedItems((prev) => new Map(prev).set(itemId, itemToRemove))
+    }
+
+    setUpdating((prev) => new Set(prev).add(itemId))
+    try {
+      await removeItem(itemId)
+      setSnackbar({
+        visible: true,
+        message: 'Item removed from cart',
+        action: () => handleUndoRemove(itemId, itemToRemove),
+      })
+    } catch (error: any) {
+      console.error('Failed to remove item:', error)
+      Alert.alert('Error', 'Could not remove item')
+      await loadCart()
+    } finally {
+      setUpdating((prev) => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
+      })
+    }
+  }
+
+  const handleUndoRemove = async (itemId: string, item: any) => {
+    if (!item) return
+
+    setSnackbar({ visible: false, message: '', action: null })
+    setUpdating((prev) => new Set(prev).add(itemId))
+
+    try {
+      // Re-add the item with its previous quantity
+      await updateQuantity(itemId, item.quantity)
+      setRemovedItems((prev) => {
+        const next = new Map(prev)
+        next.delete(itemId)
+        return next
+      })
+      setSnackbar({ visible: true, message: 'Item restored to cart', action: null })
+    } catch (error: any) {
+      console.error('Failed to restore item:', error)
+      Alert.alert('Error', 'Could not restore item')
+    } finally {
+      setUpdating((prev) => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
+      })
+    }
   }
 
   const handleClearCart = async () => {
     Alert.alert(
-      'Xóa giỏ hàng',
-      'Bạn có chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng?',
+      'Clear cart?',
+      'Remove all items from your cart?',
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Xóa tất cả',
+          text: 'Clear',
           style: 'destructive',
           onPress: async () => {
             try {
               await clearCart()
               await loadCart()
+              setSnackbar({ visible: true, message: 'Cart cleared', action: null })
             } catch (error: any) {
               console.error('Failed to clear cart:', error)
-              Alert.alert('Lỗi', 'Không thể xóa giỏ hàng')
+              Alert.alert('Error', 'Could not clear cart')
             }
           },
         },
@@ -239,7 +295,7 @@ export function CartScreen({ navigation }: Props) {
 
   const handleApplyPromoCode = async () => {
     if (!promoCode.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập mã khuyến mãi')
+      Alert.alert('Notice', 'Please enter a promo code')
       return
     }
 
@@ -262,13 +318,17 @@ export function CartScreen({ navigation }: Props) {
           discountAmount: result.discountAmount || 0,
         })
         setPromoCode(result.promotion.code)
-        setSnackbar({ visible: true, message: `Đã áp dụng mã ${result.promotion.code}` })
+        setSnackbar({
+          visible: true,
+          message: `Applied code ${result.promotion.code}`,
+          action: null,
+        })
       } else {
-        Alert.alert('Mã không hợp lệ', result.message || 'Không thể áp dụng mã giảm giá')
+        Alert.alert('Invalid code', result.message || 'This code cannot be applied')
       }
     } catch (error: any) {
       console.error('Validate promotion error:', error)
-      Alert.alert('Lỗi', error?.message || 'Không thể kiểm tra mã giảm giá')
+      Alert.alert('Error', error?.message || 'Could not validate promo code')
     } finally {
       setValidatingPromo(false)
     }
@@ -277,22 +337,19 @@ export function CartScreen({ navigation }: Props) {
   const handleClearPromoCode = () => {
     clearPromotionCode()
     setPromoCode('')
-    setSnackbar({ visible: true, message: 'Đã bỏ mã khuyến mãi' })
+    setSnackbar({ visible: true, message: 'Promo code removed', action: null })
   }
 
   const handleCheckout = () => {
     if (items.length === 0) return
-    // Navigate to Checkout (root level navigation)
-    // Try both root and nested navigation approaches
     try {
       navigation.navigate('Checkout' as any)
     } catch (e) {
-      // If root navigation fails, try via root navigator
       const rootNav = navigation.getParent?.()?.getParent?.()
       if (rootNav) {
         rootNav.navigate('Checkout' as any)
       } else {
-        Alert.alert('Lỗi', 'Không thể chuyển tới thanh toán')
+        Alert.alert('Error', 'Could not proceed to checkout')
       }
     }
   }
@@ -305,15 +362,12 @@ export function CartScreen({ navigation }: Props) {
             <IconButton icon="arrow-left" size={22} onPress={handleBack} />
             <Text style={styles.headerTitle}>Cart</Text>
           </View>
-          <Text style={styles.headerSubtitle}>
-            Loading your cart...
-          </Text>
         </View>
-        <View style={styles.content}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {Array.from({ length: 3 }).map((_, index) => (
             <CartItemSkeleton key={index} />
           ))}
-        </View>
+        </ScrollView>
       </View>
     )
   }
@@ -391,17 +445,21 @@ export function CartScreen({ navigation }: Props) {
 
           {/* Footer with Summary */}
           <View style={styles.footer}>
-            <Divider />
+            <Divider style={styles.divider} />
 
+            {/* Promo Code Section */}
             <View style={styles.promoSection}>
               <TextInput
                 mode="outlined"
-                label="Mã khuyến mãi"
+                label="Promo code (optional)"
+                placeholder="SAVE20"
                 value={promoCode}
                 onChangeText={setPromoCode}
                 autoCapitalize="characters"
                 style={styles.promoInput}
                 disabled={!!appliedPromotion}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={theme.colors.primary}
               />
               {!appliedPromotion ? (
                 <Button
@@ -409,12 +467,17 @@ export function CartScreen({ navigation }: Props) {
                   onPress={handleApplyPromoCode}
                   loading={validatingPromo}
                   disabled={validatingPromo || !promoCode.trim()}
+                  style={styles.promoButton}
                 >
-                  Áp dụng
+                  Apply
                 </Button>
               ) : (
-                <Button mode="outlined" onPress={handleClearPromoCode}>
-                  Bỏ mã
+                <Button
+                  mode="outlined"
+                  onPress={handleClearPromoCode}
+                  style={styles.promoButton}
+                >
+                  Remove
                 </Button>
               )}
             </View>
@@ -422,8 +485,9 @@ export function CartScreen({ navigation }: Props) {
             {/* Free shipping info */}
             {totalAfterDiscount < 2000000 && (
               <View style={styles.freeShippingInfo}>
+                <Text style={styles.freeShippingIcon}>🚚</Text>
                 <Text style={styles.freeShippingText}>
-                  Mua thêm {formatPrice(2000000 - totalAfterDiscount)} để được miễn phí giao hàng
+                  {formatPrice(2000000 - totalAfterDiscount)} away from free shipping
                 </Text>
               </View>
             )}
@@ -431,29 +495,36 @@ export function CartScreen({ navigation }: Props) {
             {/* Order Summary */}
             <View style={styles.summary}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Tạm tính</Text>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
               </View>
 
               {appliedPromotion && discountAmount > 0 && (
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Giảm giá ({appliedPromotion.code})</Text>
-                  <Text style={[styles.summaryValue, { color: '#2e7d32' }]}>-{formatPrice(discountAmount)}</Text>
+                  <Text style={styles.summaryLabel}>Discount ({appliedPromotion.code})</Text>
+                  <Text style={[styles.summaryValue, { color: '#10b981' }]}>
+                    −{formatPrice(discountAmount)}
+                  </Text>
                 </View>
               )}
 
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Phí vận chuyển</Text>
-                <Text style={[styles.summaryValue, styles.shippingText]}>
-                  {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
+                <Text style={styles.summaryLabel}>Shipping</Text>
+                <Text style={[styles.summaryValue, shipping === 0 && styles.freeShippingLabel]}>
+                  {shipping === 0 ? 'Free' : formatPrice(shipping)}
                 </Text>
               </View>
 
               <Divider style={styles.summaryDivider} />
 
               <View style={styles.summaryRow}>
-                <Text style={styles.totalLabel}>Tổng cộng</Text>
+                <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>{formatPrice(total)}</Text>
+              </View>
+
+              <View style={styles.trustRow}>
+                <MaterialCommunityIcons name="shield-check" size={14} color="#10b981" />
+                <Text style={styles.trustText}>Free returns within 30 days</Text>
               </View>
             </View>
 
@@ -465,7 +536,7 @@ export function CartScreen({ navigation }: Props) {
               contentStyle={styles.checkoutButtonContent}
               labelStyle={styles.checkoutButtonLabel}
             >
-              Thanh toán
+              Proceed to Checkout
             </Button>
           </View>
         </>
@@ -475,24 +546,49 @@ export function CartScreen({ navigation }: Props) {
           <View style={styles.emptyIcon}>
             <Text style={styles.emptyEmoji}>🛒</Text>
           </View>
-          <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptyText}>
-            Bạn chưa có sản phẩm nào trong giỏ hàng
+            Start shopping to add items to your cart
           </Text>
           <Button
             mode="contained"
             onPress={() => navigation.navigate('HomeTab' as any)}
             style={styles.emptyButton}
           >
-            Mua sắm ngay
+            Start Shopping
           </Button>
+
+          {/* Trust & support section */}
+          <View style={styles.trustSection}>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustItemIcon}>📞</Text>
+              <Text style={styles.trustItemText}>24/7 Support</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustItemIcon}>✓</Text>
+              <Text style={styles.trustItemText}>Secure Checkout</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustItemIcon}>🔄</Text>
+              <Text style={styles.trustItemText}>Easy Returns</Text>
+            </View>
+          </View>
         </View>
       )}
 
+      {/* Undo Snackbar */}
       <Snackbar
         visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ visible: false, message: '' })}
-        duration={2200}
+        onDismiss={() => setSnackbar({ visible: false, message: '', action: null })}
+        duration={snackbar.action ? Snackbar.DURATION_LONG : Snackbar.DURATION_SHORT}
+        action={
+          snackbar.action
+            ? {
+                label: 'Undo',
+                onPress: snackbar.action,
+              }
+            : undefined
+        }
       >
         {snackbar.message}
       </Snackbar>
@@ -504,11 +600,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -523,191 +614,232 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#0f172a',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  content: {
-    padding: 16,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
   },
+  /* Card Items */
   itemCard: {
-    marginBottom: 12,
-    borderRadius: 16,
+    marginHorizontal: 4,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     overflow: 'hidden',
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
   itemContent: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 14,
     gap: 12,
+    alignItems: 'flex-start',
   },
   imageContainer: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    backgroundColor: '#f0f4f8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   productImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
   },
   placeholderImage: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderText: {
-    fontSize: 32,
+    fontSize: 40,
   },
-  productInfo: {
+  productInfoSection: {
     flex: 1,
-    gap: 8,
+    justifyContent: 'flex-start',
+    gap: 6,
   },
   productName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#0f172a',
-    marginBottom: 4,
-    lineHeight: 22,
+    lineHeight: 20,
   },
-  variantText: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    fontWeight: '500',
-  },
-  priceRow: {
+  variantContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  variantChip: {
+    height: 28,
+    backgroundColor: '#f8fafc',
+    borderColor: '#cbd5e1',
+  },
+  variantChipText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   price: {
     fontSize: 16,
     fontWeight: '700',
     color: '#2563eb',
+    marginTop: 2,
+  },
+  rightControls: {
+    gap: 8,
+    alignItems: 'center',
   },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    gap: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  qtyButton: {
-    margin: 0,
-    width: 36,
-    height: 36,
+    borderRadius: 10,
+    paddingHorizontal: 2,
   },
   quantityText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#0f172a',
-    paddingHorizontal: 8,
-    minWidth: 24,
+    paddingHorizontal: 10,
+    minWidth: 30,
     textAlign: 'center',
   },
-  promoSection: {
-    marginTop: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  promoInput: {
-    backgroundColor: '#fff',
-  },
+  /* Footer */
   footer: {
-    backgroundColor: 'white',
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingTop: 12,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  divider: {
+    marginVertical: 12,
+  },
+  /* Promo Section */
+  promoSection: {
+    marginBottom: 12,
+    gap: 10,
+  },
+  promoInput: {
+    backgroundColor: '#f8fafc',
+    fontSize: 14,
+  },
+  promoButton: {
+    borderRadius: 10,
+  },
+  /* Free Shipping Info */
   freeShippingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     padding: 12,
     backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
     marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563eb',
+  },
+  freeShippingIcon: {
+    fontSize: 18,
   },
   freeShippingText: {
-    fontSize: 12,
-    color: '#2563eb',
-    textAlign: 'center',
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
     fontWeight: '500',
   },
+  freeShippingLabel: {
+    color: '#10b981',
+    fontWeight: '700',
+  },
+  /* Summary Section */
   summary: {
-    padding: 16,
+    padding: 14,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    marginBottom: 12,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748b',
+    fontWeight: '500',
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#0f172a',
   },
   summaryDivider: {
-    marginVertical: 12,
+    marginVertical: 10,
   },
   totalLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#0f172a',
   },
   totalValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#2563eb',
   },
-  shippingText: {
-    color: '#10b981',
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
+  trustText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  /* Checkout Button */
   checkoutButton: {
-    marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 12,
+    marginBottom: 0,
   },
   checkoutButtonContent: {
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   checkoutButtonLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontSize: 15,
+    fontWeight: '700',
   },
+  /* Empty State */
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
   },
   emptyIcon: {
     marginBottom: 16,
@@ -716,20 +848,46 @@ const styles = StyleSheet.create({
     fontSize: 80,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#0f172a',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
+    lineHeight: 20,
   },
   emptyButton: {
+    borderRadius: 12,
+    marginBottom: 32,
     paddingHorizontal: 32,
   },
+  trustSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  trustItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  trustItemIcon: {
+    fontSize: 24,
+  },
+  trustItemText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  /* Error State */
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -741,18 +899,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     marginBottom: 8,
-    color: '#000000',
+    color: '#0f172a',
+    textAlign: 'center',
   },
   errorMessage: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#64748b',
     marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 20,
   },
   retryButton: {
+    borderRadius: 12,
     paddingHorizontal: 32,
   },
 })

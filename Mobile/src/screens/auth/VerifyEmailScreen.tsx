@@ -177,7 +177,7 @@ export const VerifyEmailScreen: React.FC<VerifyEmailScreenProps> = ({
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <View style={styles.header}>
           <IconButton

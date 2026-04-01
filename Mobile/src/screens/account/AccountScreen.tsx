@@ -1,20 +1,6 @@
-import React, { useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-} from 'react-native'
-import {
-  Text,
-  Card,
-  List,
-  Divider,
-  Avatar,
-  IconButton,
-  Button,
-  Dialog,
-  Portal,
-} from 'react-native-paper'
+import React, { useMemo, useState } from 'react'
+import { View, StyleSheet, ScrollView } from 'react-native'
+import { Text, Surface, Avatar, IconButton, Button, Dialog, Portal, TouchableRipple, ActivityIndicator } from 'react-native-paper'
 import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
 import type { MainTabParamList, RootStackParamList } from '../../types'
@@ -29,129 +15,182 @@ interface MenuItem {
   title: string
   subtitle?: string
   onPress: (navigation: NavigationProp<MainTabParamList & RootStackParamList>) => void
-  showChevron?: boolean
 }
 
-const MENU_ITEMS: MenuItem[] = [
+interface MenuSection {
+  title: string
+  items: MenuItem[]
+}
+
+const MENU_SECTIONS: MenuSection[] = [
   {
-    icon: 'account-edit',
-    title: 'Profile',
-    subtitle: 'Update your name, email, and phone',
-    onPress: (nav) => (nav as any).navigate('ProfileSettings'),
-    showChevron: true,
+    title: 'Shopping',
+    items: [
+      {
+        icon: 'receipt-text-outline',
+        title: 'Orders',
+        subtitle: 'View and track your purchases',
+        onPress: (nav) => (nav as any).navigate('OrderHistory'),
+      },
+      {
+        icon: 'undo-variant',
+        title: 'Returns',
+        subtitle: 'Start return requests from order details',
+        onPress: (nav) => (nav as any).navigate('OrderHistory'),
+      },
+      {
+        icon: 'heart-outline',
+        title: 'Favorites',
+        subtitle: 'Manage your wishlist items',
+        onPress: (nav) => (nav as any).navigate('Favorites'),
+      },
+    ],
   },
   {
-    icon: 'map-marker',
-    title: 'Shipping address',
-    subtitle: 'Manage your default delivery addresses',
-    onPress: (nav) => (nav as any).navigate('AddressManagement'),
-    showChevron: true,
+    title: 'Account',
+    items: [
+      {
+        icon: 'account-circle-outline',
+        title: 'Profile & Personal Info',
+        subtitle: 'Update your name, email, and phone',
+        onPress: (nav) => (nav as any).navigate('ProfileSettings'),
+      },
+      {
+        icon: 'map-marker-outline',
+        title: 'Addresses',
+        subtitle: 'Manage your delivery addresses',
+        onPress: (nav) => (nav as any).navigate('AddressManagement'),
+      },
+      {
+        icon: 'shield-lock-outline',
+        title: 'Security',
+        subtitle: 'Password and account security',
+        onPress: (nav) => (nav as any).navigate('SecuritySettings'),
+      },
+    ],
   },
   {
-    icon: 'heart',
-    title: 'Favorites',
-    subtitle: 'View your saved products',
-    onPress: (nav) => (nav as any).navigate('Favorites'),
-    showChevron: true,
-  },
-  {
-    icon: 'receipt',
-    title: 'Order history',
-    subtitle: 'View and track your orders',
-    onPress: (nav) => (nav as any).navigate('OrderHistory'),
-    showChevron: true,
-  },
-  {
-    icon: 'shield-lock',
-    title: 'Security',
-    subtitle: 'Change password and security settings',
-    onPress: (nav) => (nav as any).navigate('SecuritySettings'),
-    showChevron: true,
-  },
-  {
-    icon: 'help-circle',
-    title: 'Help & Support',
-    subtitle: 'FAQs and contact options',
-    onPress: (nav) => (nav as any).navigate('Contact'),
-    showChevron: true,
-  },
-  {
-    icon: 'information',
-    title: 'About Us',
-    subtitle: 'Company information',
-    onPress: (nav) => (nav as any).navigate('About'),
-    showChevron: true,
+    title: 'App & Support',
+    items: [
+      {
+        icon: 'bell-outline',
+        title: 'Notifications & Settings',
+        subtitle: 'Control alerts and app preferences',
+        onPress: (nav) => (nav as any).navigate('Settings'),
+      },
+      {
+        icon: 'help-circle-outline',
+        title: 'Help / Contact Support',
+        subtitle: 'Get help from our support team',
+        onPress: (nav) => (nav as any).navigate('Contact'),
+      },
+      {
+        icon: 'information-outline',
+        title: 'About / Legal',
+        subtitle: 'App info, policies, and legal',
+        onPress: (nav) => (nav as any).navigate('About'),
+      },
+    ],
   },
 ]
 
-interface ProfileCardProps {
+interface ProfileHeaderProps {
   user: any
+  loading: boolean
+  isAuthenticated: boolean
   navigation: NavigationProp<MainTabParamList & RootStackParamList>
 }
 
-function ProfileCard({ user, navigation }: ProfileCardProps) {
+function ProfileHeader({ user, loading, isAuthenticated, navigation }: ProfileHeaderProps) {
   const theme = useTheme()
 
+  const initials = useMemo(() => {
+    const fullName = user?.fullName?.trim()
+    if (fullName) {
+      const parts = fullName.split(' ').filter(Boolean)
+      const first = parts[0]?.[0] || ''
+      const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : ''
+      return `${first}${last}`.toUpperCase() || 'U'
+    }
+    return user?.email?.[0]?.toUpperCase() || 'U'
+  }, [user])
+
   return (
-    <Card style={styles.profileCard}>
+    <Surface style={styles.profileCard} elevation={1}>
       <View style={styles.profileContent}>
         <Avatar.Text
-          size={60}
-          label={user?.fullName?.split(' ').slice(-1)[0]?.charAt(0).toUpperCase() || 'U'}
+          size={62}
+          label={initials}
           style={styles.avatar}
         />
         <View style={styles.profileInfo}>
-          <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
-          <Text style={styles.userEmail}>{user?.email || ''}</Text>
+          {loading ? (
+            <View style={styles.profileLoading}>
+              <ActivityIndicator size="small" />
+              <Text style={styles.profileLoadingText}>Loading account...</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.userName}>{user?.fullName || (isAuthenticated ? 'User' : 'Guest')}</Text>
+              <Text style={styles.userEmail}>{user?.email || (isAuthenticated ? 'No email available' : 'Please sign in to continue')}</Text>
+            </>
+          )}
         </View>
-        <IconButton
-          icon="pencil"
-          size={20}
-          onPress={() => (navigation as any).navigate('ProfileSettings')}
-          style={styles.editButton}
-          iconColor={theme.colors.primary}
-        />
+
+        {isAuthenticated ? (
+          <Button
+            mode="outlined"
+            compact
+            icon="pencil-outline"
+            style={styles.editProfileButton}
+            onPress={() => (navigation as any).navigate('ProfileSettings')}
+          >
+            Edit
+          </Button>
+        ) : null}
       </View>
-    </Card>
+    </Surface>
   )
 }
 
-function MenuItemComponent({ item, navigation }: { item: MenuItem; navigation: NavigationProp<MainTabParamList & RootStackParamList> }) {
+function SettingsRow({ item, navigation, isLast }: { item: MenuItem; navigation: NavigationProp<MainTabParamList & RootStackParamList>; isLast: boolean }) {
   const theme = useTheme()
 
   return (
-    <List.Item
-      title={item.title}
-      description={item.subtitle}
-      left={(props) => (
-        <List.Icon
-          {...props}
-          icon={item.icon}
-          color={theme.colors.primary}
-        />
-      )}
-      right={(props) =>
-        item.showChevron ? (
-          <List.Icon {...props} icon="chevron-right" />
-        ) : null
-      }
-      onPress={() => item.onPress(navigation)}
-      style={styles.menuItem}
-      titleStyle={styles.menuItemTitle}
-      descriptionStyle={styles.menuItemDescription}
-    />
+    <TouchableRipple onPress={() => item.onPress(navigation)} borderless={false}>
+      <View style={[styles.rowContainer, !isLast && styles.rowDivider]}>
+        <View style={styles.rowLeft}>
+          <View style={[styles.rowIconWrap, { backgroundColor: theme.colors.primaryContainer }]}>
+            <IconButton icon={item.icon} size={18} iconColor={theme.colors.primary} style={styles.rowIcon} />
+          </View>
+
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>{item.title}</Text>
+            {!!item.subtitle && <Text style={styles.rowSubtitle}>{item.subtitle}</Text>}
+          </View>
+        </View>
+
+        <IconButton icon="chevron-right" size={18} iconColor={theme.colors.onSurfaceDisabled} style={styles.rowChevron} />
+      </View>
+    </TouchableRipple>
   )
 }
 
 export function AccountScreen({ navigation }: Props) {
   const theme = useTheme()
-  const { user, logout } = useAuthStore()
+  const { user, logout, _hydrated, isAuthenticated } = useAuthStore()
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    setLogoutDialogVisible(false)
-    // Navigation will be handled by auth state change
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } finally {
+      setLogoutDialogVisible(false)
+      ;(navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'Auth' }],
+      })
+    }
   }
 
   return (
@@ -160,18 +199,49 @@ export function AccountScreen({ navigation }: Props) {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Profile Card */}
-      <ProfileCard user={user} navigation={navigation} />
+      <ProfileHeader user={user} loading={!_hydrated} isAuthenticated={isAuthenticated} navigation={navigation} />
 
-      {/* Menu Items */}
-      <Card style={styles.menuCard}>
-        {MENU_ITEMS.map((item, index) => (
-          <View key={index}>
-            <MenuItemComponent item={item} navigation={navigation} />
-            {index < MENU_ITEMS.length - 1 && <Divider />}
+      {isAuthenticated ? (
+        MENU_SECTIONS.map((section) => (
+          <View key={section.title} style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Surface style={styles.sectionCard} elevation={1}>
+              {section.items.map((item, index) => (
+                <SettingsRow
+                  key={item.title}
+                  item={item}
+                  navigation={navigation}
+                  isLast={index === section.items.length - 1}
+                />
+              ))}
+            </Surface>
           </View>
-        ))}
-      </Card>
+        ))
+      ) : (
+        <View style={styles.sectionWrap}>
+          <Text style={styles.sectionTitle}>Welcome</Text>
+          <Surface style={styles.guestCard} elevation={1}>
+            <Text style={styles.guestTitle}>You are signed out</Text>
+            <Text style={styles.guestSubtitle}>Sign in to view orders, addresses, favorites, and account settings.</Text>
+            <View style={styles.guestActions}>
+              <Button
+                mode="contained"
+                onPress={() => (navigation as any).reset({ index: 0, routes: [{ name: 'Auth' }] })}
+                style={styles.guestActionButton}
+              >
+                Login
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => (navigation as any).reset({ index: 0, routes: [{ name: 'Auth' }] })}
+                style={styles.guestActionButton}
+              >
+                Register
+              </Button>
+            </View>
+          </Surface>
+        </View>
+      )}
 
       {/* App Info */}
       <View style={styles.appInfo}>
@@ -179,16 +249,21 @@ export function AccountScreen({ navigation }: Props) {
         <Text style={styles.appCopyright}>© 2026 Glasses Platform</Text>
       </View>
 
-      {/* Logout Button */}
-      <Button
-        mode="outlined"
-        onPress={() => setLogoutDialogVisible(true)}
-        style={styles.logoutButton}
-        icon="logout"
-        textColor={theme.colors.error}
-      >
-        Sign out
-      </Button>
+      {isAuthenticated ? (
+        <Surface style={styles.logoutCard} elevation={1}>
+          <TouchableRipple onPress={() => setLogoutDialogVisible(true)} borderless={false}>
+            <View style={styles.logoutRow}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.rowIconWrap, styles.logoutIconWrap]}>
+                  <IconButton icon="logout" size={18} iconColor={theme.colors.error} style={styles.rowIcon} />
+                </View>
+                <Text style={styles.logoutText}>Log out</Text>
+              </View>
+              <IconButton icon="chevron-right" size={18} iconColor={theme.colors.error} style={styles.rowChevron} />
+            </View>
+          </TouchableRipple>
+        </Surface>
+      ) : null}
 
       {/* Logout Confirmation Dialog */}
       <Portal>
@@ -222,62 +297,141 @@ export function AccountScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     padding: 16,
   },
   profileCard: {
-    marginBottom: 16,
+    marginBottom: 20,
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
   },
   profileContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#d1fae5',
   },
   avatar: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2563eb',
   },
   profileInfo: {
     flex: 1,
     marginLeft: 12,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#0f172a',
     marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
     color: '#64748b',
   },
-  editButton: {
-    margin: 0,
+  editProfileButton: {
+    borderRadius: 999,
   },
-  menuCard: {
-    padding: 16,
+  profileLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profileLoadingText: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  sectionWrap: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionCard: {
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
   },
-  menuItem: {
-    paddingVertical: 4,
+  guestCard: {
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: '#ffffff',
   },
-  menuItemTitle: {
-    fontSize: 16,
+  guestTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  guestSubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 19,
+  },
+  guestActions: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  guestActionButton: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  rowContainer: {
+    minHeight: 72,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  rowIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowIcon: {
+    margin: 0,
+  },
+  rowTextWrap: {
+    flex: 1,
+  },
+  rowTitle: {
+    fontSize: 15,
     fontWeight: '600',
+    color: '#0f172a',
   },
-  menuItemDescription: {
-    fontSize: 12,
+  rowSubtitle: {
     marginTop: 2,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  rowChevron: {
+    margin: 0,
   },
   appInfo: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 14,
   },
   appVersion: {
     fontSize: 12,
@@ -288,9 +442,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
   },
-  logoutButton: {
+  logoutCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
     marginBottom: 24,
-    borderRadius: 12,
+  },
+  logoutRow: {
+    minHeight: 64,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logoutIconWrap: {
+    backgroundColor: '#fee2e2',
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#dc2626',
   },
   dialogText: {
     fontSize: 16,

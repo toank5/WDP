@@ -19,7 +19,7 @@ export const AddressScreen = () => {
     (address: Address) => {
       setLoading(true)
       try {
-        navigation.navigate('CheckoutPayment' as any, {
+        navigation.navigate('CheckoutShipping' as any, {
           address,
         })
       } catch (error) {
