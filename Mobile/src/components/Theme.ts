@@ -1,5 +1,4 @@
 import { MD3DarkTheme, MD3LightTheme, adaptNavigationTheme } from 'react-native-paper'
-import { useColorScheme } from 'react-native'
 import { colors as designColors } from '../design/tokens'
 
 // Define custom colors based on WDP FE colors - Blue-purple theme
@@ -93,9 +92,8 @@ const darkTheme = {
  * Automatically switches between light and dark mode
  */
 export function useAppTheme() {
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
-  const theme = isDark ? darkTheme : lightTheme
+  const isDark = false
+  const theme = lightTheme
 
   // Adapt theme for navigation
   const navigationTheme = adaptNavigationTheme({

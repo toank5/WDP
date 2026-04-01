@@ -115,7 +115,6 @@ export default function OrderDetailDrawer({
   const navigate = useNavigate()
   const [shippingDialogOpen, setShippingDialogOpen] = useState(false)
   const [confirmReceivedOpen, setConfirmReceivedOpen] = useState(false)
-  const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [prescriptionOpen, setPrescriptionOpen] = useState(false)
   const [proofImageDialog, setProofImageDialog] = useState({ open: false, url: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -181,12 +180,6 @@ export default function OrderDetailDrawer({
     [preorderProgress]
   )
 
-  const canAttemptApprove = Boolean(
-    isSalesMode && order && [OrderStatus.PAID, OrderStatus.CONFIRMED].includes(order.orderStatus)
-  )
-
-  const canApproveForOperations = Boolean(canAttemptApprove && !preorderWaitingStock)
-
   const isOperationsPreorderAllocation = Boolean(
     !isSalesMode &&
     order &&
@@ -202,9 +195,9 @@ export default function OrderDetailDrawer({
   )
 
   const canMarkReadyToShip = Boolean(
-    !isSalesMode &&
+    isSalesMode &&
     order &&
-    [OrderStatus.PROCESSING, OrderStatus.CONFIRMED].includes(order.orderStatus) &&
+    order.orderStatus === OrderStatus.PROCESSING &&
     !preorderWaitingStock
   )
 
@@ -289,28 +282,6 @@ export default function OrderDetailDrawer({
       toast.success(`Order ${updated.orderNumber} marked as delivered`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to confirm receipt'
-      toast.error(message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleApproveForOperations = async () => {
-    if (!order) {
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const updated = await orderApi.approveOrderForOperations(order._id, {
-        note: 'Approved by Sales and sent to Operations queue',
-      })
-
-      onOrderUpdated(updated)
-      setApproveDialogOpen(false)
-      toast.success(`Order ${updated.orderNumber} approved for operations`)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to approve order'
       toast.error(message)
     } finally {
       setSubmitting(false)
@@ -768,20 +739,6 @@ export default function OrderDetailDrawer({
                   </Button>
                 ) : null}
 
-                {canAttemptApprove ? (
-                  <Button
-                    variant="contained"
-                    color={canApproveForOperations ? 'primary' : 'warning'}
-                    startIcon={<CheckCircleIcon />}
-                    onClick={() => setApproveDialogOpen(true)}
-                    disabled={submitting || !canApproveForOperations}
-                  >
-                    {canApproveForOperations
-                      ? 'Approve for Operations'
-                      : 'Awaiting Stock Allocation'}
-                  </Button>
-                ) : null}
-
                 {canConfirmReceived ? (
                   <Button
                     variant="contained"
@@ -822,28 +779,6 @@ export default function OrderDetailDrawer({
             disabled={submitting}
           >
             Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={approveDialogOpen}
-        onClose={() => setApproveDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Approve Order for Operations</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Approve order <strong>{order?.orderNumber}</strong> and move it to operations queue?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setApproveDialogOpen(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleApproveForOperations} variant="contained" disabled={submitting}>
-            Approve
           </Button>
         </DialogActions>
       </Dialog>

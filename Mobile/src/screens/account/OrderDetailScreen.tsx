@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import {
   Text,
   Button,
@@ -28,13 +28,13 @@ interface OrderDetailScreenProps {
 }
 
 const ORDER_STEPS = [
-  { status: 'pending', label: 'Chờ xử lý', icon: 'clock-outline' },
-  { status: 'confirmed', label: 'Đã xác nhận', icon: 'check-circle-outline' },
-  { status: 'processing', label: 'Đang xử lý', icon: 'cog-outline' },
-  { status: 'shipped', label: 'Đã gửi', icon: 'truck-outline' },
-  { status: 'delivered', label: 'Đã giao', icon: 'check-circle' },
-  { status: 'cancelled', label: 'Đã hủy', icon: 'close-circle-outline' },
-  { status: 'refunded', label: 'Đã hoàn', icon: 'cash-refund' },
+  { status: 'pending', label: 'Pending', icon: 'clock-outline' },
+  { status: 'confirmed', label: 'Confirmed', icon: 'check-circle-outline' },
+  { status: 'processing', label: 'Processing', icon: 'cog-outline' },
+  { status: 'shipped', label: 'Shipped', icon: 'truck-outline' },
+  { status: 'delivered', label: 'Delivered', icon: 'check-circle' },
+  { status: 'cancelled', label: 'Cancelled', icon: 'close-circle-outline' },
+  { status: 'refunded', label: 'Refunded', icon: 'cash-refund' },
 ]
 
 /**
@@ -55,6 +55,7 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 
   const orderId = route.params?.orderId
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<OrderItem | null>(null)
   const [reorderDialogVisible, setReorderDialogVisible] = useState(false)
 
@@ -62,7 +63,9 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       if (!orderId) {
+        setError('Missing order id.')
         setOrder(null)
         return
       }
@@ -94,6 +97,7 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
       })
     } catch (error) {
       console.error('Fetch order error:', error)
+      setError('Unable to load order details. Please try again.')
       setOrder(null)
     } finally {
       setLoading(false)
@@ -124,33 +128,38 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 
   // Handle contact support
   const handleContactSupport = useCallback(() => {
-    const phoneNumber = '1900xxxx'
-    Linking.openURL(`tel:${phoneNumber}`)
-  }, [])
+    navigation.navigate('Contact' as never)
+  }, [navigation])
 
   // Handle track order
   const handleTrackOrder = useCallback(() => {
     if (!order) return
     if (order.status === 'delivered') return
     navigation.navigate('OrderHistory' as never)
-  }, [order])
+  }, [navigation, order])
 
   // Get status info
   const getStatusInfo = useCallback((status: OrderStatus) => {
     const statusMap: Record<OrderStatus, { label: string; color: string }> = {
-      pending: { label: 'Chờ xử lý', color: '#ffa726' },
-      confirmed: { label: 'Đã xác nhận', color: '#42a5f5' },
-      processing: { label: 'Đang xử lý', color: '#ffa726' },
-      shipped: { label: 'Đã gửi', color: '#29b6f6' },
-      delivered: { label: 'Đã giao', color: '#2e7d32' },
-      cancelled: { label: 'Đã hủy', color: '#e53935' },
-      refunded: { label: 'Đã hoàn', color: '#757575' },
+      pending: { label: 'Pending', color: '#ffa726' },
+      confirmed: { label: 'Confirmed', color: '#42a5f5' },
+      processing: { label: 'Processing', color: '#ffa726' },
+      shipped: { label: 'Shipped', color: '#29b6f6' },
+      delivered: { label: 'Delivered', color: '#2e7d32' },
+      cancelled: { label: 'Cancelled', color: '#e53935' },
+      refunded: { label: 'Refunded', color: '#757575' },
     }
     return statusMap[status]
   }, [])
 
   // Get active steps
   const getActiveSteps = useCallback((status: OrderStatus) => {
+    if (status === 'cancelled') {
+      return ['pending', 'cancelled']
+    }
+    if (status === 'refunded') {
+      return ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'refunded']
+    }
     const statusOrder: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
     const currentIndex = statusOrder.indexOf(status)
     return statusOrder.slice(0, currentIndex + 1)
@@ -181,10 +190,40 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
     fetchOrderDetails()
   }, [fetchOrderDetails])
 
+  const handleReturnRequest = useCallback(() => {
+    if (!order) return
+    navigation.navigate('ReturnRequest' as never, { orderId: order.id } as never)
+  }, [navigation, order])
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text variant="bodyMedium" style={styles.loadingText}>
+          Loading order details...
+        </Text>
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={styles.emptyContainer}>
+        <IconButton icon="alert-circle-outline" size={64} iconColor={theme.colors.error} />
+        <Text variant="titleMedium" style={styles.emptyTitle}>
+          Something went wrong
+        </Text>
+        <Text variant="bodyMedium" style={styles.emptySubtitle}>
+          {error}
+        </Text>
+        <View style={styles.emptyActions}>
+          <Button mode="contained" onPress={fetchOrderDetails} style={styles.backButton}>
+            Retry
+          </Button>
+          <Button mode="text" onPress={() => navigation.navigate('OrderHistory' as never)}>
+            Back to orders
+          </Button>
+        </View>
       </View>
     )
   }
@@ -199,14 +238,17 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           style={styles.emptyIcon}
         />
         <Text variant="titleMedium" style={styles.emptyTitle}>
-          Không tìm thấy đơn hàng
+          Order not found
+        </Text>
+        <Text variant="bodyMedium" style={styles.emptySubtitle}>
+          The order may have been deleted or you do not have access.
         </Text>
         <Button
           mode="contained"
           onPress={() => navigation.navigate('OrderHistory' as never)}
           style={styles.backButton}
         >
-          Quay lại
+          Back
         </Button>
       </View>
     )
@@ -214,6 +256,10 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 
   const statusInfo = getStatusInfo(order.status)
   const activeSteps = getActiveSteps(order.status)
+  const itemsSubtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const shippingFee = Math.max(0, order.total - itemsSubtotal)
+  const canTrack = order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'refunded'
+  const canReturn = order.status === 'delivered'
 
   return (
     <View style={styles.container}>
@@ -222,41 +268,26 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
         <View style={styles.headerRow}>
           <IconButton icon="arrow-left" size={24} onPress={() => navigation.goBack()} />
           <Text variant="titleLarge" style={styles.headerTitle}>
-            Chi tiết đơn hàng
+            Order details
           </Text>
           <View style={styles.headerSpacer} />
         </View>
       </Surface>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        {/* Order Info Card */}
-        <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Thông tin đơn hàng
+        <Surface style={styles.statusHeaderCard} elevation={1}>
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Order status
           </Text>
-
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
-              Mã đơn hàng:
-            </Text>
-            <Text variant="bodyMedium" style={styles.infoValue}>
-              {order.orderNumber}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
-              Ngày đặt:
-            </Text>
-            <Text variant="bodyMedium" style={styles.infoValue}>
-              {formatDateTime(order.createdAt)}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
-              Trạng thái:
-            </Text>
+          <View style={styles.statusHeaderTop}>
+            <View style={styles.statusHeaderMeta}>
+              <Text variant="titleMedium" style={styles.orderNumber}>
+                #{order.orderNumber}
+              </Text>
+              <Text variant="bodySmall" style={styles.orderDate}>
+                Placed at {formatDateTime(order.createdAt)}
+              </Text>
+            </View>
             <Chip
               mode="flat"
               style={[styles.statusChip, { backgroundColor: statusInfo.color }]}
@@ -267,10 +298,69 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           </View>
         </Surface>
 
-        {/* Order Status Timeline */}
         <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Trạng thái đơn hàng
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Quick actions
+          </Text>
+          <View style={styles.actionGrid}>
+            <Button
+              mode="contained"
+              onPress={handleTrackOrder}
+              style={styles.actionButton}
+              icon="truck-delivery-outline"
+              disabled={!canTrack}
+            >
+              Track
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => setReorderDialogVisible(true)}
+              style={styles.actionButton}
+              icon="cart-plus"
+            >
+              Reorder
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={handleReturnRequest}
+              style={styles.actionButton}
+              icon="backup-restore"
+              disabled={!canReturn}
+            >
+              Return
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={handleContactSupport}
+              style={styles.actionButton}
+              icon="headset"
+            >
+              Support
+            </Button>
+          </View>
+        </Surface>
+
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Order summary
+          </Text>
+          <View style={styles.infoRow}>
+            <Text variant="bodyMedium" style={styles.infoLabel}>Order ID:</Text>
+            <Text variant="bodyMedium" style={styles.infoValue}>{order.orderNumber}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text variant="bodyMedium" style={styles.infoLabel}>Item count:</Text>
+            <Text variant="bodyMedium" style={styles.infoValue}>{order.itemCount}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text variant="bodyMedium" style={styles.infoLabel}>Status:</Text>
+            <Text variant="bodyMedium" style={styles.infoValue}>{statusInfo.label}</Text>
+          </View>
+        </Surface>
+
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Delivery progress
           </Text>
 
           <View style={styles.timeline}>
@@ -322,38 +412,42 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           </View>
         </Surface>
 
-        {/* Order Items */}
         <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Sản phẩm ({order.itemCount})
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Items
           </Text>
 
-          {order.items.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <View style={styles.itemImageContainer}>
-                <Text variant="bodyLarge" style={styles.itemImagePlaceholder}>
-                  📦
-                </Text>
+          {order.items.length === 0 ? (
+            <Text variant="bodyMedium" style={styles.noAddress}>
+              There are no items in this order.
+            </Text>
+          ) : (
+            order.items.map((item, index) => (
+              <View key={index} style={styles.itemRow}>
+                <View style={styles.itemImageContainer}>
+                  <Text variant="bodyLarge" style={styles.itemImagePlaceholder}>
+                    📦
+                  </Text>
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text variant="titleSmall" style={styles.itemName}>
+                    {item.name}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.itemQuantity}>
+                    Qty: {item.quantity}
+                  </Text>
+                  <Text variant="titleMedium" style={styles.itemPrice}>
+                    {formatPrice(item.price * item.quantity)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.itemInfo}>
-                <Text variant="titleSmall" style={styles.itemName}>
-                  {item.name}
-                </Text>
-                <Text variant="bodySmall" style={styles.itemQuantity}>
-                  Số lượng: {item.quantity}
-                </Text>
-                <Text variant="titleMedium" style={styles.itemPrice}>
-                  {formatPrice(item.price * item.quantity)}
-                </Text>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </Surface>
 
-        {/* Shipping Address */}
         <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Địa chỉ giao hàng
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Shipping address
           </Text>
 
           {order.shippingAddress ? (
@@ -370,37 +464,31 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
             </>
           ) : (
             <Text variant="bodyMedium" style={styles.noAddress}>
-              Chưa có địa chỉ giao hàng
+              No shipping address yet
             </Text>
           )}
         </Surface>
 
-        {/* Order Summary */}
         <Surface style={styles.card} elevation={1}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Chi tiết thanh toán
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Price details
           </Text>
 
           <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Tạm tính:</Text>
-            <Text variant="bodyMedium">{formatPrice(order.total * 0.8)}</Text>
+            <Text variant="bodyMedium">Subtotal:</Text>
+            <Text variant="bodyMedium">{formatPrice(itemsSubtotal)}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Phí vận chuyển:</Text>
-            <Text variant="bodyMedium">{formatPrice(30000)}</Text>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Thuế VAT (10%):</Text>
-            <Text variant="bodyMedium">{formatPrice(order.total * 0.1)}</Text>
+            <Text variant="bodyMedium">Shipping fee:</Text>
+            <Text variant="bodyMedium">{formatPrice(shippingFee)}</Text>
           </View>
 
           <Divider style={styles.summaryDivider} />
 
           <View style={styles.summaryRow}>
             <Text variant="titleLarge" style={styles.totalLabel}>
-              Tổng cộng:
+              Total:
             </Text>
             <Text variant="headlineMedium" style={styles.totalValue}>
               {formatPrice(order.total)}
@@ -408,44 +496,15 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           </View>
         </Surface>
 
-        {/* Actions */}
-        <Surface style={styles.actionsCard} elevation={1}>
-          <Button
-            mode="contained"
-            onPress={() => setReorderDialogVisible(true)}
-            style={styles.actionButton}
-            icon="cart-plus"
-          >
-            Đặt lại đơn hàng này
-          </Button>
-
-          {order.status === 'delivered' && (
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate('ReturnRequest' as never, { orderId: order.id } as never)}
-              style={styles.actionButton}
-              icon="backup-restore"
-            >
-              Yêu cầu trả hàng
-            </Button>
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={handleTrackOrder}
-            style={styles.actionButton}
-            icon="truck"
-          >
-            Theo dõi đơn hàng
-          </Button>
-
-          <Button
-            mode="outlined"
-            onPress={handleContactSupport}
-            style={styles.actionButton}
-            icon="phone"
-          >
-            Liên hệ hỗ trợ
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleSmall" style={styles.sectionEyebrow}>
+            Support
+          </Text>
+          <Text variant="bodyMedium" style={styles.supportText}>
+            Need help with returns, status, or payment? Our support team is ready to help.
+          </Text>
+          <Button mode="outlined" onPress={handleContactSupport} icon="message-text-outline">
+            Go to support
           </Button>
         </Surface>
       </ScrollView>
@@ -456,17 +515,17 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           visible={reorderDialogVisible}
           onDismiss={() => setReorderDialogVisible(false)}
         >
-          <Dialog.Title>Đặt lại đơn hàng?</Dialog.Title>
+          <Dialog.Title>Reorder this order?</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
-              Bạn có chắc chắn muốn đặt lại tất cả sản phẩm trong đơn hàng này?
+              Are you sure you want to reorder all items in this order?
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setReorderDialogVisible(false)}>
-              Hủy
+              Cancel
             </Button>
-            <Button onPress={handleReorder}>Đồng ý</Button>
+            <Button onPress={handleReorder}>Confirm</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -477,25 +536,42 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    color: '#64748b',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 48,
+    backgroundColor: '#f8fafc',
   },
   emptyIcon: {
     marginBottom: 16,
   },
   emptyTitle: {
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    opacity: 0.7,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  emptyActions: {
+    gap: 8,
+    width: '100%',
+    alignItems: 'center',
   },
   backButton: {
     borderRadius: 8,
@@ -522,25 +598,56 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
+  statusHeaderCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
+  },
+  statusHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  statusHeaderMeta: {
+    flex: 1,
+  },
+  sectionEyebrow: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '700',
+    color: '#64748b',
+    marginBottom: 10,
+  },
+  orderNumber: {
+    fontWeight: '700',
+    marginBottom: 4,
+    color: '#0f172a',
+  },
+  orderDate: {
+    color: '#64748b',
+  },
   card: {
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
-  },
-  cardTitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
+    backgroundColor: '#ffffff',
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    gap: 8,
   },
   infoLabel: {
     opacity: 0.7,
+    flex: 1,
   },
   infoValue: {
     fontWeight: '500',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   statusChip: {
     borderRadius: 16,
@@ -587,6 +694,9 @@ const styles = StyleSheet.create({
   timelineLabelActive: {
     opacity: 1,
     fontWeight: 'bold',
+  },
+  actionGrid: {
+    gap: 10,
   },
   timelineLine: {
     width: 2,
@@ -663,12 +773,12 @@ const styles = StyleSheet.create({
     color: '#e53935',
     fontWeight: 'bold',
   },
-  actionsCard: {
-    padding: 16,
-    borderRadius: 8,
-  },
   actionButton: {
     borderRadius: 8,
-    marginBottom: 8,
+  },
+  supportText: {
+    opacity: 0.75,
+    marginBottom: 12,
+    lineHeight: 20,
   },
 })

@@ -82,8 +82,9 @@ export function DashboardLayout() {
     setMobileOpen(!mobileOpen)
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
+    setMobileOpen(false)
     navigate('/')
   }
 
@@ -314,7 +315,7 @@ export function DashboardLayout() {
   }
 
   const drawer = (
-    <Box sx={{ height: '100%', borderRight: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ height: '100%', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
       <Box
         sx={{
           p: 2,
@@ -351,7 +352,7 @@ export function DashboardLayout() {
         </Box>
       </Box>
       <Divider />
-      <Box sx={{ overflowY: 'auto', height: 'calc(100% - 120px)' }}>
+      <Box sx={{ overflowY: 'auto', flex: 1 }}>
         {menuSections.map(
           (section, sectionIndex) =>
             shouldShowSection(section) && (
@@ -410,9 +411,20 @@ export function DashboardLayout() {
         )}
       </Box>
       <Divider />
-      <List>
+      <List sx={{ py: 1 }}>
         <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout}>
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              color: 'error.main',
+              '& .MuiListItemIcon-root': {
+                color: 'error.main',
+              },
+              '&:hover': {
+                bgcolor: 'error.lighter',
+              },
+            }}
+          >
             <ListItemIcon>
               <Logout />
             </ListItemIcon>

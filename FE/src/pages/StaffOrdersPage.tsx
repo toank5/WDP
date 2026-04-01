@@ -35,7 +35,6 @@ import { useAuthStore } from '@/store/auth-store'
 
 type StatusFilter =
   | 'ALL'
-  | 'PENDING'
   | 'PROCESSING'
   | 'READY_TO_SHIP'
   | 'SHIPPED'
@@ -45,7 +44,6 @@ type TypeFilter = 'ALL' | 'PREORDER' | 'PRESCRIPTION' | 'READY'
 type SalesQueueFilter = 'ALL' | 'READY' | 'WAITING'
 
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'PENDING', label: 'Pending Action (Default)' },
   { value: 'ALL', label: 'All statuses' },
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'READY_TO_SHIP', label: 'Ready to ship' },
@@ -131,10 +129,10 @@ const getStatusColor = (
 }
 
 const isProcessingStatus = (status: OrderStatus): boolean =>
-  [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.CONFIRMED].includes(status)
+  [OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED].includes(status)
 
 const matchesStatusFilter = (orderStatus: OrderStatus, statusFilter: StatusFilter): boolean => {
-  if (statusFilter === 'ALL' || statusFilter === 'PENDING') {
+  if (statusFilter === 'ALL') {
     return true
   }
 
@@ -200,16 +198,26 @@ const toEndOfDayIso = (dateValue?: string): string | undefined => {
   return endOfDay.toISOString()
 }
 
+const isSalesRole = (role: unknown): boolean => {
+  if (typeof role === 'string') {
+    const normalized = role.trim().toUpperCase()
+    return normalized === 'SALE' || normalized === '3'
+  }
+
+  return role === 3
+}
+
 const StaffOrdersPage: React.FC = () => {
   const navigate = useNavigate()
   const userRole = useAuthStore((state) => state.user?.role)
-  const isSalesMode = Number(userRole) === 3
+  const isSalesMode = isSalesRole(userRole)
+  const defaultStatusFilter: StatusFilter = 'ALL'
 
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(defaultStatusFilter)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
   const [salesQueueFilter, setSalesQueueFilter] = useState<SalesQueueFilter>('ALL')
   const [dateFrom, setDateFrom] = useState('')
@@ -227,13 +235,12 @@ const StaffOrdersPage: React.FC = () => {
       setLoading(true)
       setError(null)
 
-      // PENDING means use default queue behavior (no params)
       // ALL means fetch all orders (showAll=true)
       // Specific status means filter by that status
       const isCancelledBucket = statusFilter === 'CANCELLED'
       const showAll = statusFilter === 'ALL' || isCancelledBucket
       const statusParam =
-        statusFilter === 'PENDING' || statusFilter === 'ALL' || isCancelledBucket
+        statusFilter === 'ALL' || isCancelledBucket
           ? undefined
           : (statusFilter as OrderStatus)
 
@@ -333,6 +340,13 @@ const StaffOrdersPage: React.FC = () => {
   const handleOrderUpdated = (nextOrder: Order) => {
     setSelectedOrder(nextOrder)
     setOrders((prev) => prev.map((order) => (order._id === nextOrder._id ? nextOrder : order)))
+
+    // Keep shipped orders visible in operations flow so staff can mark them delivered.
+    if (!isSalesMode && nextOrder.orderStatus === OrderStatus.SHIPPED) {
+      setStatusFilter('ALL')
+      void loadOrders()
+    }
+
     toast.success(`Order ${nextOrder.orderNumber} updated`)
   }
 
@@ -341,7 +355,7 @@ const StaffOrdersPage: React.FC = () => {
   }
 
   const handleResetFilters = () => {
-    setStatusFilter('PENDING')
+    setStatusFilter(defaultStatusFilter)
     setTypeFilter('ALL')
     setSalesQueueFilter('ALL')
     setDateFrom('')
@@ -361,7 +375,7 @@ const StaffOrdersPage: React.FC = () => {
               letterSpacing: '0.03em',
             }}
           >
-            {isSalesMode ? 'Sales Approval Queue' : 'Operations Order Management'}
+            {isSalesMode ? 'Sales Approval Queue' : 'Shipping & Logistics'}
           </Typography>
         </Stack>
 

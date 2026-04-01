@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button as MuiButton,
+  Chip,
   Paper,
   Stack,
   Table,
@@ -28,13 +29,17 @@ const ShippingPage: React.FC = () => {
     try {
       setLoading(true)
       const result = await orderApi.getOpsOrders({
-        status: OrderStatus.READY_TO_SHIP,
+        showAll: true,
         page: 1,
         limit: 100,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
-      setOrders(result.orders)
+      setOrders(
+        result.orders.filter((order) =>
+          [OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED].includes(order.orderStatus)
+        )
+      )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load shipping queue')
     } finally {
@@ -64,6 +69,16 @@ const ShippingPage: React.FC = () => {
     }
   }
 
+  const handleMarkDelivered = async (order: Order) => {
+    try {
+      await orderApi.confirmReceipt(order._id)
+      toast.success(`Order ${order.orderNumber} marked as delivered`)
+      await loadOrders()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark as delivered')
+    }
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -80,17 +95,13 @@ const ShippingPage: React.FC = () => {
           Shipping & Logistics
         </Typography>
       </Box>
-
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Orders appear here after operations marks them as READY_TO_SHIP.
-      </Alert>
-
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Order</TableCell>
               <TableCell>Customer</TableCell>
+              <TableCell>Status</TableCell>
               <TableCell>Tracking Number</TableCell>
               <TableCell>Carrier</TableCell>
               <TableCell align="right">Action</TableCell>
@@ -99,9 +110,9 @@ const ShippingPage: React.FC = () => {
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Typography sx={{ py: 2, textAlign: 'center' }}>
-                    {loading ? 'Loading...' : 'No orders ready to ship.'}
+                    {loading ? 'Loading...' : 'No orders in shipping queue.'}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -111,34 +122,61 @@ const ShippingPage: React.FC = () => {
                   <TableCell>{order.orderNumber}</TableCell>
                   <TableCell>{order.shippingAddress.fullName}</TableCell>
                   <TableCell>
-                    <TextField
+                    <Chip
                       size="small"
-                      placeholder="Enter tracking"
-                      value={trackingByOrder[order._id] || ''}
-                      onChange={(e) =>
-                        setTrackingByOrder((prev) => ({ ...prev, [order._id]: e.target.value }))
-                      }
+                      color={order.orderStatus === OrderStatus.SHIPPED ? 'info' : 'warning'}
+                      label={order.orderStatus}
                     />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      size="small"
-                      placeholder="Carrier"
-                      value={carrierByOrder[order._id] || 'VNPost'}
-                      onChange={(e) =>
-                        setCarrierByOrder((prev) => ({ ...prev, [order._id]: e.target.value }))
-                      }
-                    />
+                    {order.orderStatus === OrderStatus.READY_TO_SHIP ? (
+                      <TextField
+                        size="small"
+                        placeholder="Enter tracking"
+                        value={trackingByOrder[order._id] || ''}
+                        onChange={(e) =>
+                          setTrackingByOrder((prev) => ({ ...prev, [order._id]: e.target.value }))
+                        }
+                      />
+                    ) : (
+                      <Typography variant="body2">
+                        {order.tracking?.trackingNumber || '--'}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.orderStatus === OrderStatus.READY_TO_SHIP ? (
+                      <TextField
+                        size="small"
+                        placeholder="Carrier"
+                        value={carrierByOrder[order._id] || 'VNPost'}
+                        onChange={(e) =>
+                          setCarrierByOrder((prev) => ({ ...prev, [order._id]: e.target.value }))
+                        }
+                      />
+                    ) : (
+                      <Typography variant="body2">{order.tracking?.carrier || '--'}</Typography>
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" justifyContent="flex-end">
-                      <MuiButton
-                        variant="contained"
-                        startIcon={<Send />}
-                        onClick={() => handleMarkShipped(order)}
-                      >
-                        Mark as shipped
-                      </MuiButton>
+                      {order.orderStatus === OrderStatus.READY_TO_SHIP ? (
+                        <MuiButton
+                          variant="contained"
+                          startIcon={<Send />}
+                          onClick={() => handleMarkShipped(order)}
+                        >
+                          Mark as shipped
+                        </MuiButton>
+                      ) : (
+                        <MuiButton
+                          variant="contained"
+                          color="success"
+                          onClick={() => handleMarkDelivered(order)}
+                        >
+                          Mark as delivered
+                        </MuiButton>
+                      )}
                     </Stack>
                   </TableCell>
                 </TableRow>
