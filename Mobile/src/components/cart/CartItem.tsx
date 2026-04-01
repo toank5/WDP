@@ -57,7 +57,7 @@ export const CartItem: React.FC<CartItemProps> = ({
   const itemInCart = isInCart(productId, productVariantId)
 
   const formatPrice = React.useMemo(() => {
-    return new Intl.NumberFormat('vi-VN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: APP_CONFIG.currency,
     }).format(price)
@@ -103,7 +103,7 @@ export const CartItem: React.FC<CartItemProps> = ({
             </Text>
             {(variantColor || variantSize) && (
               <Text variant="bodySmall" style={styles.variant}>
-                {variantColor && `Màu: ${variantColor}`}
+                {variantColor && `Color: ${variantColor}`}
                 {variantColor && variantSize && ' | '}
                 {variantSize && `Size: ${variantSize}`}
               </Text>
@@ -145,7 +145,7 @@ export const CartItem: React.FC<CartItemProps> = ({
             style={styles.removeButton}
           >
             <Text variant="bodySmall" style={styles.removeText}>
-              Xóa
+              Remove
             </Text>
           </TouchableRipple>
         </View>
@@ -155,7 +155,7 @@ export const CartItem: React.FC<CartItemProps> = ({
       {!available && (
         <View style={styles.unavailableBadge}>
           <Text variant="bodySmall" style={styles.unavailableText}>
-            Hết hàng
+            Out of stock
           </Text>
         </View>
       )}

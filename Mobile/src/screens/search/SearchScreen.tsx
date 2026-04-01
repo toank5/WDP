@@ -127,6 +127,14 @@ function ProductCard({ product, onPress }: ProductCardProps) {
 export function SearchScreen({ navigation }: Props) {
   const theme = useTheme()
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack()
+      return
+    }
+    navigation.navigate('HomeTab')
+  }, [navigation])
+
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -274,6 +282,7 @@ export function SearchScreen({ navigation }: Props) {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
+        <IconButton icon="arrow-left" size={22} onPress={handleBack} style={styles.backButton} />
         <Searchbar
           placeholder="Tìm kiếm sản phẩm..."
           onChangeText={setSearchQuery}
@@ -494,6 +503,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  backButton: {
+    margin: 0,
   },
   searchbar: {
     flex: 1,

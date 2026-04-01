@@ -38,7 +38,7 @@ export const AppStackNavigator = ({ navigation }: RootStackNavigation) => {
         name="About"
         component={AboutScreen}
         options={{
-          title: 'Về chúng tôi',
+          title: 'About Us',
           headerLeft: ({ canGoBack }) =>
             canGoBack ? (
               <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
@@ -49,42 +49,42 @@ export const AppStackNavigator = ({ navigation }: RootStackNavigation) => {
         name="Contact"
         component={ContactScreen}
         options={{
-          title: 'Liên hệ',
+          title: 'Contact',
         }}
       />
       <Stack.Screen
         name="Favorites"
         component={FavoritesScreen}
         options={{
-          title: 'Danh sách yêu thích',
+          title: 'Favorites',
         }}
       />
       <Stack.Screen
         name="ProfileSettings"
         component={ProfileScreen}
         options={{
-          title: 'Thông tin cá nhân',
+          title: 'Profile',
         }}
       />
       <Stack.Screen
         name="ProfileEdit"
         component={ProfileScreen}
         options={{
-          title: 'Chỉnh sửa thông tin',
+          title: 'Edit Profile',
         }}
       />
       <Stack.Screen
         name="SecuritySettings"
         component={SecurityScreen}
         options={{
-          title: 'Bảo mật',
+          title: 'Security',
         }}
       />
       <Stack.Screen
         name="AddressManagement"
         component={AddressManagementScreen}
         options={{
-          title: 'Quản lý địa chỉ',
+          title: 'Address Book',
         }}
       />
     </Stack.Navigator>

@@ -15,9 +15,11 @@ import {
   Checkbox,
   IconButton,
   useTheme,
+  Surface,
 } from 'react-native-paper'
 import { useAuthStore } from '../../store/auth-store'
 import { APP_CONFIG } from '../../config'
+import { ScreenContainer } from '../../components'
 
 interface RegisterScreenProps {
   navigation: any
@@ -52,6 +54,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   })
 
   const [errors, setErrors] = useState<RegisterErrors>({})
+  const [formError, setFormError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
@@ -104,6 +107,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       return
     }
 
+    setFormError('')
+
     try {
       await register({
         fullName: formData.fullName,
@@ -129,15 +134,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         if (error.response.data.message.includes('email')) {
           setErrors({ email: error.response.data.message })
         } else {
-          Alert.alert('Đăng ký thất bại', error.response.data.message)
+          setFormError(error.response.data.message)
         }
       } else if (error.message) {
-        Alert.alert('Đăng ký thất bại', error.message)
+        setFormError(error.message)
       } else {
-        Alert.alert(
-          'Đăng ký thất bại',
-          'Đã có lỗi xảy ra. Vui lòng thử lại sau.'
-        )
+        setFormError('Đăng ký thất bại. Vui lòng thử lại sau.')
       }
     }
   }
@@ -170,15 +172,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <ScreenContainer>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <Text variant="headlineLarge" style={styles.title}>
             {APP_CONFIG.name}
@@ -188,7 +191,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
           </Text>
         </View>
 
-        <View style={styles.form}>
+        <Surface style={styles.form} elevation={1}>
+          {!!formError && (
+            <HelperText type="error" visible={!!formError} style={styles.formErrorText}>
+              {formError}
+            </HelperText>
+          )}
           <TextInput
             label="Họ tên"
             value={formData.fullName}
@@ -333,7 +341,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
               Đăng nhập ngay
             </Text>
           </View>
-        </View>
+        </Surface>
 
         <View style={styles.footer}>
           <IconButton
@@ -348,15 +356,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
             </Text>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     flexGrow: 1,
@@ -378,6 +387,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: 12,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#ffffff',
+  },
+  formErrorText: {
+    marginTop: -4,
+    marginBottom: 4,
   },
   termsContainer: {
     marginTop: 8,

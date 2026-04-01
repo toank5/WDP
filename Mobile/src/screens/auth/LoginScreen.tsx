@@ -15,9 +15,11 @@ import {
   Checkbox,
   IconButton,
   useTheme,
+  Surface,
 } from 'react-native-paper'
 import { useAuthStore } from '../../store/auth-store'
 import { APP_CONFIG } from '../../config'
+import { ScreenContainer } from '../../components'
 
 interface LoginScreenProps {
   navigation: any
@@ -45,6 +47,7 @@ const theme = useTheme()
   })
 
   const [errors, setErrors] = useState<LoginErrors>({})
+  const [formError, setFormError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -83,6 +86,7 @@ const theme = useTheme()
 
     setIsSubmitting(true)
     setErrors({})
+    setFormError('')
 
     try {
       await login({
@@ -102,15 +106,12 @@ const theme = useTheme()
         } else if (error.response.data.message.includes('password')) {
           setErrors({ password: error.response.data.message })
         } else {
-          Alert.alert('Đăng nhập thất bại', error.response.data.message)
+          setFormError(error.response.data.message)
         }
       } else if (error.message) {
-        Alert.alert('Đăng nhập thất bại', error.message)
+        setFormError(error.message)
       } else {
-        Alert.alert(
-          'Đăng nhập thất bại',
-          'Đã có lỗi xảy ra. Vui lòng thử lại sau.'
-        )
+        setFormError('Đăng nhập thất bại. Vui lòng thử lại sau.')
       }
     } finally {
       setIsSubmitting(false)
@@ -144,15 +145,16 @@ const theme = useTheme()
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <ScreenContainer>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <Text variant="headlineLarge" style={styles.title}>
             {APP_CONFIG.name}
@@ -162,7 +164,12 @@ const theme = useTheme()
           </Text>
         </View>
 
-        <View style={styles.form}>
+        <Surface style={styles.form} elevation={1}>
+          {!!formError && (
+            <HelperText type="error" visible={!!formError} style={styles.formErrorText}>
+              {formError}
+            </HelperText>
+          )}
           <TextInput
             label="Email"
             value={formData.email}
@@ -255,7 +262,7 @@ const theme = useTheme()
               Đăng ký ngay
             </Text>
           </View>
-        </View>
+        </Surface>
 
         <View style={styles.footer}>
           <IconButton
@@ -270,15 +277,16 @@ const theme = useTheme()
             </Text>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     flexGrow: 1,
@@ -303,6 +311,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: 12,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#ffffff',
+  },
+  formErrorText: {
+    marginTop: -4,
+    marginBottom: 4,
   },
   rememberContainer: {
     flexDirection: 'row',
