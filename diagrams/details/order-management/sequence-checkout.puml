@@ -112,10 +112,5 @@ end
 controller --> customer: 201 CREATED\n{orderNumber, paymentUrl}
 deactivate controller
 
-note right of customer
-  Customer redirected to VNPAY
-  After payment: callback handled
-  by /orders/:id/vnpay-callback
-end note
 
 @enduml

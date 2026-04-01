@@ -1,266 +1,36 @@
 @startuml ProductManagementClassDiagram
-title Product Management - Class Diagram
 !theme plain
-skinparam classBackgroundColor #F3E5F5
-skinparam classBorderColor #7B1FA2
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
 skinparam arrowColor #333
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' CONTROLLER LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class ProductController { }
 
-class ProductController {
-    -productService: ProductService
-    --
-    +create(@Body() dto: CreateProductDto): Promise<Response>
-    +findAll(@Query() filters: ProductFiltersDto): Promise<Response>
-    +findOne(@Param('id') id: string): Promise<ProductResponseDto>
-    +update(@Param('id') id: string, @Body() dto: UpdateProductDto): Promise<Response>
-    +remove(@Param('id') id: string): Promise<Response>
-    +restore(@Param('id') id: string): Promise<Response>
-    +getCatalog(@Query() filters: CatalogFiltersDto): Promise<Response>
-}
+class ProductService { }
+class MediaService { }
+class InventoryService { }
+class CacheService { }
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' SERVICE LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class ProductRepository { }
+class VariantRepository { }
 
-class ProductService {
-    -productRepository: ProductRepository
-    -variantRepository: VariantRepository
-    -mediaService: MediaService
-    -inventoryService: InventoryService
-    -cacheService: CacheService
-    --
-    +create(createDto: CreateProductDto, userId: string): Promise<Product>
-    +findAll(filters: ProductFiltersDto): Promise<ProductResponseDto[]>
-    +findOne(id: string): Promise<Product>
-    +update(id: string, updateDto: UpdateProductDto, userId: string): Promise<Product>
-    +remove(id: string): Promise<void>
-    +restore(id: string): Promise<Product>
-    +getCatalog(filters: CatalogFiltersDto, pagination: PaginationDto): Promise<CatalogResponse>
-    -validateFrameProperties(dto: CreateProductDto): void
-    -validateLensProperties(dto: CreateProductDto): void
-    -validateServiceProperties(dto: CreateProductDto): void
-    -updateProductStatus(productId: string): Promise<void>
-}
+class Product { }
+class ProductVariant { }
 
-class MediaService {
-    -cloudinary: CloudinaryService
-    --
-    +uploadImages2D(files: File[]): Promise<string[]>
-    +uploadImages3D(files: File[]): Promise<string[]>
-    +deleteImages(urls: string[]): Promise<void>
-    -validateImageType(file: File): boolean
-    -validate3DModel(file: File): boolean
-}
+ProductController -- ProductService
 
-class CacheService {
-    -cacheManager: Cache
-    --
-    +get(key: string): Promise<any>
-    +set(key: string, value: any, ttl: number): Promise<void>
-    +delete(key: string): Promise<void>
-    -generateCacheKey(prefix: string, params: any): string
-}
+ProductService -- ProductRepository
+ProductService -- VariantRepository
+ProductService -- MediaService
+ProductService -- InventoryService
+ProductService -- CacheService
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' REPOSITORY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+ProductRepository -- Product
+VariantRepository -- ProductVariant
 
-class ProductRepository {
-    --
-    +findOne(id: string): Promise<Product>
-    +findWithFilters(filters: ProductFiltersDto, options: FindOptions): Promise<Product[]>
-    +findBySlug(slug: string): Promise<Product>
-    +findByCategory(category: ProductCategory): Promise<Product[]>
-    +create(productData: CreateProductDto): Promise<Product>
-    +update(id: string, data: UpdateProductDto): Promise<Product>
-    +softDelete(id: string): Promise<void>
-    +restore(id: string): Promise<Product>
-}
-
-class VariantRepository {
-    --
-    +findByProductId(productId: string): Promise<ProductVariant[]>
-    +findById(id: string): Promise<ProductVariant>
-    +create(variantData: CreateVariantDto): Promise<ProductVariant>
-    +update(id: string, data: UpdateVariantDto): Promise<ProductVariant>
-    +updateStock(id: string, quantity: number): Promise<void>
-    +delete(id: string): Promise<void>
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENTITY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class Product {
-    -id: string
-    -name: string
-    -slug: string
-    -category: ProductCategory
-    -description: string
-    -basePrice: number
-    -images2D: string[]
-    -images3D: string[]
-    -status: ProductStatus
-    -variants: ProductVariant[]
-    -frameType?: string
-    -shape?: string
-    -material?: string
-    -gender?: string
-    -lensType?: string
-    -index?: string
-    -coatings?: string[]
-    -serviceType?: string
-    -durationMinutes?: number
-    -soldCount: number
-    -viewCount: number
-    -createdBy: string
-    -updatedBy: string
-    -createdAt: Date
-    -updatedAt: Date
-    -deletedAt: Date
-}
-
-class ProductVariant {
-    -id: string
-    -productId: string
-    -sku: string
-    -name: string
-    -attributes: VariantAttributes
-    -price: number
-    -compareAtPrice: number
-    -stock: number
-    -image?: string
-    -isDefault: boolean
-}
-
-class VariantAttributes {
-    +color?: string
-    +size?: string
-    +frameWidth?: string
-    +bridgeWidth?: string
-    +templeLength?: string
-    +lensColor?: string
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' DTOs
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class CreateProductDto {
-    +name: string
-    +category: ProductCategory
-    +description: string
-    +basePrice: number
-    +images2D?: File[]
-    +images3D?: File[]
-    +variants: CreateVariantDto[]
-    +frameType?: string
-    +shape?: string
-    +material?: string
-}
-
-class UpdateProductDto {
-    +name?: string
-    +description?: string
-    +basePrice?: number
-    +images2D?: File[]
-    +images3D?: File[]
-    +status?: ProductStatus
-    +variants?: UpdateVariantDto[]
-}
-
-class ProductResponseDto {
-    +id: string
-    +name: string
-    +slug: string
-    +category: ProductCategory
-    +basePrice: number
-    +images2D: string[]
-    +images3D: string[]
-    +status: ProductStatus
-    +variants: ProductVariantResponseDto[]
-}
-
-class CatalogFiltersDto {
-    +category?: ProductCategory
-    +search?: string
-    +minPrice?: number
-    +maxPrice?: number
-    +frameType?: string
-    +shape?: string
-    +sortBy?: string
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENUMS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-enum ProductCategory {
-    FRAMES
-    LENSES
-    SERVICES
-}
-
-enum ProductStatus {
-    DRAFT
-    ACTIVE
-    OUT_OF_STOCK
-    INACTIVE
-    DELETED
-}
-
-enum FrameType {
-    FULL_RIM
-    HALF_RIM
-    RLESS
-    BROWLINE
-    CAT_EYE
-    ROUND
-    SQUARE
-    RECTANGULAR
-    OVAL
-}
-
-enum LensType {
-    SINGLE_VISION
-    BIFOCAL
-    PROGRESSIVE
-    READING
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' SECURITY
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class RbacGuard {
-    -reflector: Reflector
-    --
-    +canActivate(context): Promise<boolean>
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' RELATIONSHIPS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-ProductController --> ProductService: delegates
-ProductController --> RbacGuard: authorizes
-
-ProductService --> ProductRepository: persists
-ProductService --> VariantRepository: persists
-ProductService --> MediaService: uploads
-ProductService --> InventoryService: initializes
-ProductService --> CacheService: caches
-
-ProductRepository --> Product: maps
-VariantRepository --> ProductVariant: maps
-
-Product "1" *-- "many" ProductVariant: has
-
-CreateProductDto ..> Product: maps to
-UpdateProductDto ..> Product: updates
-ProductResponseDto ..> Product: maps from
+Product "1" *-- "many" ProductVariant
 
 @enduml

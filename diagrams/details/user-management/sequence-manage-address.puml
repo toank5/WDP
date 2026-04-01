@@ -1,0 +1,46 @@
+@startuml ManageAddressSequence
+title Manage Addresses - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":UserController" as controller
+participant ":UserService" as service
+participant ":UserRepository" as userRepo
+database ":Database" as db
+
+customer -> controller: POST /users/addresses\n(CreateAddressDto)
+activate controller
+
+controller -> service: addAddress(userId, addressDto)
+activate service
+
+service -> userRepo: findOne(userId)
+activate userRepo
+userRepo -> db: SELECT user WITH addresses
+db --> userRepo: User
+userRepo --> service: User
+deactivate userRepo
+
+alt [Setting as default]
+    service -> service: clearDefaultAddresses(userId)
+    service -> userRepo: updateAddresses(userId, addresses)
+    activate userRepo
+    userRepo -> db: UPDATE addresses\nSET isDefault = false
+    db --> userRepo: Updated
+    userRepo --> service: Done
+    deactivate userRepo
+end
+
+service -> userRepo: addAddress(userId, addressDto)
+activate userRepo
+userRepo -> db: INSERT address\nSET userId, address, isDefault
+db --> userRepo: Address
+userRepo --> service: Address
+deactivate userRepo
+
+service --> controller: 201 CREATED\n{address}
+deactivate service
+
+controller --> customer: 201 CREATED\nAddress added
+deactivate controller
+
+@enduml

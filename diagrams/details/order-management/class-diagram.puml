@@ -1,305 +1,52 @@
 @startuml OrderManagementClassDiagram
-title Order Management - Class Diagram
 !theme plain
-skinparam classBackgroundColor #E3F2FD
-skinparam classBorderColor #1976D2
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+skinparam classBackgroundColor #f5f5f5
+skinparam classBorderColor #666666
 skinparam arrowColor #333
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' CONTROLLER LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class OrderController { }
 
-class OrderController {
-    -checkoutService: CheckoutService
-    -orderService: OrderService
-    --
-    +checkout(@Body() dto: CheckoutRequestDto): Promise<Response>
-    +findAll(@Query() pagination: PaginationDto): Promise<Response>
-    +findOne(@Param('id') id: string): Promise<OrderResponseDto>
-    +approve(@Param('id') id: string): Promise<Response>
-    +cancel(@Param('id') id: string, @Body() dto: CancelDto): Promise<Response>
-    +updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto): Promise<Response>
-    +handleVnpayCallback(@Param('id') id: string, @Body() callback: VnpayCallback): Promise<Response>
-}
+class CheckoutService { }
+class OrderService { }
+class CartService { }
+class InventoryService { }
+class VNPayService { }
+class EmailService { }
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' SERVICE LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
+class OrderRepository { }
+class CartRepository { }
+class InventoryRepository { }
 
-class CheckoutService {
-    -orderService: OrderService
-    -cartService: CartService
-    -inventoryService: InventoryService
-    -vnpayService: VNPayService
-    --
-    +checkout(userId: string, dto: CheckoutRequestDto): Promise<CheckoutResponse>
-    -validateCart(cart: Cart): void
-    -reserveInventory(items: CartItem[]): Promise<void>
-    -calculateTotal(items: CartItem[]): number
-    -determineOrderType(items: CartItem[]): OrderType
-    -processPayment(order: Order): Promise<string>
-}
+class Order { }
+class OrderItem { }
+class Cart { }
+class CartItem { }
+class Inventory { }
 
-class OrderService {
-    -orderRepository: OrderRepository
-    -inventoryService: InventoryService
-    -emailService: EmailService
-    -vnpayService: VNPayService
-    --
-    +findAll(userId: string, options: FindOptions): Promise<OrderResponseDto[]>
-    +findOne(id: string): Promise<Order>
-    +approveOrder(orderId: string): Promise<void>
-    +cancelOrder(orderId: string, userId: string, reason: string): Promise<void>
-    +updateStatus(orderId: string, status: OrderStatus): Promise<void>
-    -validateOwnership(order: Order, userId: string): boolean
-    -validateCancellableStatus(status: OrderStatus): boolean
-    -processRefund(order: Order): Promise<void>
-}
+OrderController -- CheckoutService
+OrderController -- OrderService
 
-class CartService {
-    -cartRepository: CartRepository
-    --
-    +getCart(userId: string): Promise<Cart>
-    +clearCart(userId: string): Promise<void>
-}
+CheckoutService -- OrderService
+CheckoutService -- CartService
+CheckoutService -- InventoryService
+CheckoutService -- VNPayService
 
-class InventoryService {
-    -inventoryRepository: InventoryRepository
-    --
-    +reserveItems(items: CartItem[]): Promise<ReservationResult>
-    +confirmReservation(orderId: string): Promise<void>
-    +releaseReservation(orderId: string): Promise<void>
-    -checkStockAvailability(items: CartItem[]): boolean
-    -createMovementRecords(items: CartItem[], type: MovementType): Promise<void>
-}
+OrderService -- OrderRepository
+OrderService -- InventoryService
+OrderService -- EmailService
+OrderService -- VNPayService
 
-class VNPayService {
-    -config: VnpayConfig
-    --
-    +createPaymentUrl(order: Order): Promise<string>
-    +processCallback(callback: VnpayCallback): Promise<PaymentResult>
-    +initiateRefund(order: Order, amount: number): Promise<string>
-    -buildPaymentParams(order: Order): VnpayParams
-    -generateSignature(params: VnpayParams): string
-}
+CartService -- CartRepository
+InventoryService -- InventoryRepository
 
-class EmailService {
-    -mailer: MailerService
-    --
-    +sendOrderConfirmation(order: Order): Promise<void>
-    +sendOrderCancelled(order: Order, reason: string): Promise<void>
-    +sendPreorderNotification(order: Order): Promise<void>
-}
+OrderRepository -- Order
+CartRepository -- Cart
+InventoryRepository -- Inventory
 
-' ════════════════════════════════════════════════════════════════════════════════════
-' REPOSITORY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class OrderRepository {
-    --
-    +findOne(id: string): Promise<Order>
-    +findCustomerOrders(userId: string, options: FindOptions): Promise<Order[]>
-    +findWithFilters(filters: OrderFilters, options: FindOptions): Promise<Order[]>
-    +create(orderData: CreateOrderDto): Promise<Order>
-    +updateStatus(id: string, status: OrderStatus): Promise<Order>
-    +update(id: string, data: UpdateOrderDto): Promise<Order>
-}
-
-class CartRepository {
-    --
-    +findByUserId(userId: string): Promise<Cart>
-    +clear(userId: string): Promise<void>
-}
-
-class InventoryRepository {
-    --
-    +findByVariantId(variantId: string): Promise<Inventory[]>
-    +updateReservedQuantity(id: string, quantity: number): Promise<void>
-    +createMovement(movement: CreateMovementDto): Promise<void>
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENTITY LAYER
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class Order {
-    -id: string
-    -orderNumber: string
-    -customerId: string
-    -orderType: OrderType
-    -orderStatus: OrderStatus
-    -items: OrderItem[]
-    -totalAmount: number
-    -shippingAddress: Address
-    -payment: PaymentInfo
-    -tracking: TrackingInfo
-    -createdAt: Date
-    -updatedAt: Date
-    --
-    +canBeCancelled(): boolean
-    +isPaid(): boolean
-}
-
-class OrderItem {
-    -id: string
-    -orderId: string
-    -productVariantId: string
-    -productName: string
-    -quantity: number
-    -unitPrice: number
-    -totalPrice: number
-}
-
-class Cart {
-    -id: string
-    -userId: string
-    -items: CartItem[]
-    -createdAt: Date
-    -updatedAt: Date
-}
-
-class CartItem {
-    -id: string
-    -cartId: string
-    -productVariantId: string
-    -quantity: number
-    -product: ProductVariant
-}
-
-class Inventory {
-    -id: string
-    -productVariantId: string
-    -availableQuantity: number
-    -reservedQuantity: number
-    -soldQuantity: number
-    -movements: InventoryMovement[]
-}
-
-class InventoryMovement {
-    -id: string
-    -inventoryId: string
-    -type: MovementType
-    -quantity: number
-    -orderId?: string
-    -reason: string
-    -createdAt: Date
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' DTOs
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class CheckoutRequestDto {
-    +shippingAddress: AddressDto
-    +paymentMethod: PaymentMethod
-    +note?: string
-}
-
-class OrderResponseDto {
-    +id: string
-    +orderNumber: string
-    +orderStatus: OrderStatus
-    +totalAmount: number
-    +items: OrderItemResponseDto[]
-    +createdAt: Date
-}
-
-class CancelDto {
-    +reason: string
-}
-
-class VnpayCallback {
-    +vnp_TxnRef: string
-    +vnp_ResponseCode: string
-    +vnp_SecureHash: string
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' ENUMS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-enum OrderType {
-    READY
-    PREORDER
-    EXCHANGE
-}
-
-enum OrderStatus {
-    PENDING
-    PAID
-    PROCESSING
-    SHIPPED
-    DELIVERED
-    CANCELLED
-    REFUNDED
-}
-
-enum MovementType {
-    RESERVATION
-    SALE
-    RESTOCK
-    RETURN
-    CANCELLATION
-}
-
-enum PaymentMethod {
-    VNPAY
-    CASH_ON_DELIVERY
-    BANK_TRANSFER
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' SECURITY
-' ════════════════════════════════════════════════════════════════════════════════════
-
-class JwtAuthGuard {
-    -jwtService: JwtService
-    --
-    +canActivate(context): Promise<boolean>
-    -extractToken(request): string
-    -validateToken(token): Promise<Payload>
-}
-
-class RbacGuard {
-    -reflector: Reflector
-    --
-    +canActivate(context): Promise<boolean>
-    -checkRole(user: User, requiredRole: UserRole): boolean
-    -checkPermission(user: User, permission: string): boolean
-}
-
-' ════════════════════════════════════════════════════════════════════════════════════
-' RELATIONSHIPS
-' ════════════════════════════════════════════════════════════════════════════════════
-
-OrderController --> CheckoutService: delegates
-OrderController --> OrderService: queries
-OrderController --> JwtAuthGuard: validates
-OrderController --> RbacGuard: authorizes
-
-CheckoutService --> OrderService: creates
-CheckoutService --> CartService: reads
-CheckoutService --> InventoryService: reserves
-CheckoutService --> VNPayService: processes
-
-OrderService --> OrderRepository: persists
-OrderService --> InventoryService: updates
-OrderService --> EmailService: notifies
-OrderService --> VNPayService: refunds
-
-CartService --> CartRepository: persists
-InventoryService --> InventoryRepository: persists
-
-OrderRepository --> Order: maps
-CartRepository --> Cart: maps
-InventoryRepository --> Inventory: maps
-
-Order "1" *-- "many" OrderItem: contains
-Cart "1" *-- "many" CartItem: contains
-Inventory "1" *-- "many" InventoryMovement: tracks
-
-CheckoutRequestDto ..> Order: maps to
-OrderResponseDto ..> Order: maps from
-VnpayCallback ..> Order: updates
+Order "1" *-- "many" OrderItem
+Cart "1" *-- "many" CartItem
 
 @enduml

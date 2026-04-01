@@ -78,10 +78,5 @@ end
 controller --> user: 200 OK\nLogin successful\nJWT tokens returned
 deactivate controller
 
-note right of user
-  Access token: 15 min expiry
-  Refresh token: 7 days expiry
-  Tokens stored in localStorage/cookie
-end note
 
 @enduml

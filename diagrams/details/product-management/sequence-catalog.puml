@@ -68,11 +68,5 @@ end
 controller --> user: 200 OK\nProduct catalog with pagination
 deactivate controller
 
-note right of user
-  Public endpoint (no auth required)
-  Cached for performance
-  Filters: category, price, frameType, lensType
-  Sort: price, newest, popularity
-end note
 
 @enduml

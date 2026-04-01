@@ -1,0 +1,51 @@
+@startuml ToggleFavoriteSequence
+title Toggle Favorite - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":FavoriteController" as controller
+participant ":JwtAuthGuard" as authGuard
+participant ":FavoriteService" as service
+participant ":FavoriteRepository" as favoriteRepo
+database ":Database" as db
+
+customer -> controller: POST /favorites/toggle\n{productId}
+activate controller
+
+controller -> authGuard: canActivate(context)
+activate authGuard
+authGuard --> controller: true
+deactivate authGuard
+
+controller -> service: toggleFavorite(userId, productId)
+activate service
+
+service -> favoriteRepo: findByUserAndProduct(userId, productId)
+activate favoriteRepo
+favoriteRepo -> db: SELECT favorite\nWHERE userId = userId AND productId = productId
+db --> favoriteRepo: Favorite or null
+favoriteRepo --> service: result
+deactivate favoriteRepo
+
+alt [Favorite exists]
+    service -> favoriteRepo: remove(favoriteId)
+    activate favoriteRepo
+    favoriteRepo -> db: DELETE favorite WHERE id = favoriteId
+    db --> favoriteRepo: Deleted
+    favoriteRepo --> service: Removed
+    deactivate favoriteRepo
+    service --> controller: 200 OK\n{favorited: false}
+else [Not favorited]
+    service -> favoriteRepo: create(userId, productId)
+    activate favoriteRepo
+    favoriteRepo -> db: INSERT favorite\nSET userId, productId
+    db --> favoriteRepo: Favorite
+    favoriteRepo --> service: Created
+    deactivate favoriteRepo
+    service --> controller: 201 CREATED\n{favorited: true}
+end
+
+deactivate service
+controller --> customer: Response
+deactivate controller
+
+@enduml

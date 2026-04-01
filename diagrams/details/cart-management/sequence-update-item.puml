@@ -1,0 +1,56 @@
+@startuml CartUpdateItemSequence
+title Update Cart Item - Sequence Diagram
+
+actor ":Customer" as customer
+participant ":CartController" as controller
+participant ":CartService" as cartService
+participant ":ProductService" as productService
+participant ":CartRepository" as cartRepo
+database ":Database" as db
+
+customer -> controller: PUT /cart/items/:itemId\n{quantity}
+activate controller
+
+controller -> cartService: updateItem(userId, itemId, quantity)
+activate cartService
+
+cartService -> cartRepo: findCartItemById(itemId)
+activate cartRepo
+cartRepo -> db: SELECT cart_item\nWITH cart
+db --> cartRepo: CartItem
+cartRepo --> cartService: CartItem
+deactivate cartRepo
+
+alt [Item not found]
+    cartService --> controller: 404 NOT FOUND
+else [Item belongs to different user]
+    cartService --> controller: 403 FORBIDDEN
+else [Valid request]
+    alt [Quantity = 0]
+        cartService -> cartRepo: removeItem(itemId)
+        activate cartRepo
+        cartRepo -> db: DELETE cart_item\nWHERE id = itemId
+        db --> cartRepo: Deleted
+        cartRepo --> cartService: Done
+        deactivate cartRepo
+    else [Quantity > 0]
+        cartService -> productService: checkStock(variantId, quantity)
+        activate productService
+        productService --> cartService: In stock
+        deactivate productService
+
+        cartService -> cartRepo: updateItemQuantity(itemId, quantity)
+        activate cartRepo
+        cartRepo -> db: UPDATE cart_item\nSET quantity = quantity
+        db --> cartRepo: Updated
+        cartRepo --> cartService: Updated
+        deactivate cartRepo
+    end
+
+    cartService --> controller: 200 OK\n{cart}
+end
+
+controller --> customer: 200 OK\nCart updated
+deactivate controller
+
+@enduml

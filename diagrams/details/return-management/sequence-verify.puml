@@ -104,11 +104,5 @@ end
 controller --> warehouse: 200 OK\nReturn verified\nSent to sales for review
 deactivate controller
 
-note right of warehouse
-  Status: AWAITING_ITEMS → IN_REVIEW
-  Items received and condition checked
-  Sales team notified for final decision
-  Inventory updated accordingly
-end note
 
 @enduml

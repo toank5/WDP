@@ -1,0 +1,29 @@
+@startuml InventoryLowStockSequence
+title Low Stock Alert - Sequence Diagram
+
+actor ":Staff" as staff
+participant ":InventoryController" as controller
+participant ":InventoryService" as inventoryService
+participant ":InventoryRepository" as inventoryRepo
+database ":Database" as db
+
+staff -> controller: GET /inventory/low-stock?threshold=10
+activate controller
+
+controller -> inventoryService: getLowStockItems(threshold)
+activate inventoryService
+
+inventoryService -> inventoryRepo: findLowStock(threshold)
+activate inventoryRepo
+inventoryRepo -> db: SELECT i WITH variant\nWHERE availableQuantity <= threshold\nORDER BY availableQuantity ASC
+db --> inventoryRepo: Inventory[]
+inventoryRepo --> inventoryService: Low stock items
+deactivate inventoryRepo
+
+inventoryService --> controller: 200 OK\n{items: [{variantId, availableQuantity, threshold}]}
+deactivate inventoryService
+
+controller --> staff: 200 OK\nLow stock report
+deactivate controller
+
+@enduml
