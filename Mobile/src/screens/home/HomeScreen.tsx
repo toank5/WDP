@@ -37,6 +37,7 @@ export function HomeScreen({ navigation }: Props) {
   const theme = useTheme()
   const { isAuthenticated } = useAuthStore()
   const cartCount = useCartStore((state) => state.totalItems || 0)
+  const loadCart = useCartStore((state) => state.loadCart)
 
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,6 +62,10 @@ export function HomeScreen({ navigation }: Props) {
   useEffect(() => {
     loadProducts()
   }, [loadProducts])
+
+  useEffect(() => {
+    loadCart()
+  }, [isAuthenticated, loadCart])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -127,6 +132,20 @@ export function HomeScreen({ navigation }: Props) {
     [navigation]
   )
 
+  const handleLoginPress = useCallback(() => {
+    const rootNav = navigation.getParent()
+    if (rootNav) {
+      rootNav.navigate('Auth' as never)
+    }
+  }, [navigation])
+
+  const handleRegisterPress = useCallback(() => {
+    const rootNav = navigation.getParent()
+    if (rootNav) {
+      rootNav.navigate('Auth' as never)
+    }
+  }, [navigation])
+
   const handleRetry = useCallback(() => {
     loadProducts().catch(() => {
       Alert.alert('Error', 'Unable to reload data.')
@@ -169,6 +188,24 @@ export function HomeScreen({ navigation }: Props) {
             </Button>
           </View>
         </View>
+
+        {!isAuthenticated && (
+          <View style={styles.authSection}>
+            <Text style={styles.authText}>Chào mừng bạn đến với {APP_CONFIG.name}</Text>
+            <View style={styles.authButtonsRow}>
+              <View style={styles.authButtonWrapper}>
+                <Button mode='outlined' icon='login' onPress={handleLoginPress} style={styles.authButton}>
+                  Login
+                </Button>
+              </View>
+              <View style={styles.authButtonWrapper}>
+                <Button mode='contained' icon='account-plus' onPress={handleRegisterPress} style={styles.authButton}>
+                  Register
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <HomeSectionHeader title='New arrivals' actionLabel='See all' onActionPress={goToSearch} />
@@ -221,6 +258,33 @@ const styles = StyleSheet.create({
   quickActionsRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  authSection: {
+    marginTop: 12,
+    marginHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  authText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  authButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  authButtonWrapper: {
+    flex: 1,
+  },
+  authButton: {
+    borderRadius: 8,
   },
   emptyState: {
     marginTop: 22,

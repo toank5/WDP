@@ -24,7 +24,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigation/types'
 import type { Product, ProductVariant } from '../../types'
 import { getProductById } from '../../services/product-api'
-import { addToCart } from '../../services/cart-api'
+import { useCartStore } from '../../store/cart-store'
 import { Loading } from '../../components/Loading'
 import { useAuthStore } from '../../store/auth-store'
 
@@ -243,6 +243,7 @@ export function ProductDetailScreen() {
   const navigation = useNavigation<Props['navigation']>()
   const { productId } = route.params as { productId: string; slug?: string }
   const { isAuthenticated } = useAuthStore()
+  const { addItem } = useCartStore()
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -285,13 +286,23 @@ export function ProductDetailScreen() {
 
     setAddingToCart(true)
     try {
-      await addToCart({
+      const result = await addItem({
         productId: product._id,
         variantSku: selectedVariant?.sku,
         quantity,
+        productData: {
+          name: product.name,
+          image: product.images2D?.[0],
+          price: selectedVariant?.price || product.basePrice,
+          variantName: selectedVariant ? `${selectedVariant.color} - ${selectedVariant.size}` : undefined,
+        },
       })
-      Alert.alert('Thành công', 'Đã thêm sản phẩm vào giỏ hàng')
-      navigation.navigate('Cart')
+      if (result.success) {
+        Alert.alert('Thành công', 'Đã thêm sản phẩm vào giỏ hàng')
+        navigation.navigate('Cart')
+      } else {
+        Alert.alert('Lỗi', result.message || 'Không thể thêm sản phẩm vào giỏ hàng')
+      }
     } catch (error: any) {
       console.error('Failed to add to cart:', error)
       Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ hàng')

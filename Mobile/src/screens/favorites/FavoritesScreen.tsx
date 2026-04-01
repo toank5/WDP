@@ -20,7 +20,7 @@ import { useTheme } from 'react-native-paper'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList, Product } from '../../types'
 import { getWishlist, removeFromWishlist } from '../../services/wishlist-api'
-import { addToCart } from '../../services/cart-api'
+import { useCartStore } from '../../store/cart-store'
 import { Loading, ProductCardSkeleton } from '../../components/Loading'
 
 type Props = NativeStackScreenProps<RootStackParamList, any>
@@ -128,6 +128,7 @@ export function FavoritesScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [addingToCartIds, setAddingToCartIds] = useState<Set<string>>(new Set())
+  const { addItem } = useCartStore()
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -196,11 +197,20 @@ export function FavoritesScreen({ navigation }: Props) {
 
     setAddingToCartIds((prev) => new Set(prev).add(productId))
     try {
-      await addToCart({
+      const result = await addItem({
         productId: productId,
         quantity: 1,
+        productData: {
+          name: product.name,
+          image: product.images2D?.[0],
+          price: product.basePrice,
+        },
       })
-      Alert.alert('Thành công', 'Đã thêm sản phẩm vào giỏ hàng')
+      if (result.success) {
+        Alert.alert('Thành công', 'Đã thêm sản phẩm vào giỏ hàng')
+      } else {
+        Alert.alert('Lỗi', result.message || 'Không thể thêm sản phẩm vào giỏ hàng')
+      }
     } catch (error) {
       console.error('Failed to add to cart:', error)
       Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ hàng')

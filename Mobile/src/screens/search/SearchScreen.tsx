@@ -228,13 +228,10 @@ export function SearchScreen({ navigation }: Props) {
   }, [products, filters, searchQuery, sortBy])
 
   const handleProductPress = (product: Product) => {
-    navigation.navigate('Main', {
-      screen: 'ProductDetail',
-      params: {
-        slug: product.slug,
-        productId: product._id,
-      },
-    })
+    navigation.navigate('ProductDetail' as never, {
+      slug: product.slug,
+      productId: product._id,
+    } as never)
   }
 
   const openFilterModal = () => {

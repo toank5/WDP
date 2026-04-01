@@ -22,6 +22,7 @@ import { useTheme } from 'react-native-paper'
 import type { NavigationProp } from '@react-navigation/native'
 import type { MainTabParamList, RootStackParamList } from '../../types'
 import { useCartStore, useCart } from '../../store/cart-store'
+import { useAuthStore } from '../../store/auth-store'
 import { validatePromotion } from '../../services/promotion-api'
 
 type Props = {
@@ -134,6 +135,7 @@ export function CartScreen({ navigation }: Props) {
     clearPromotionCode,
   } = useCartStore()
   const { discountAmount, totalAfterDiscount, appliedPromotion } = useCart()
+  const { isAuthenticated } = useAuthStore()
 
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
@@ -160,7 +162,7 @@ export function CartScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadCart()
-  }, [])
+  }, [isAuthenticated, loadCart])
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     if (newQty < 1) {
