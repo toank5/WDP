@@ -513,7 +513,7 @@ export function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   content: {
     padding: 16,
@@ -522,32 +522,36 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     padding: 24,
+    backgroundColor: '#eff6ff',
   },
   heroImage: {
-    opacity: 0.3,
+    opacity: 0.15,
   },
   heroContent: {
     flex: 1,
     justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0f172a',
     marginBottom: 4,
+    lineHeight: 38,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#1f2937',
+    color: '#64748b',
     marginBottom: 16,
+    lineHeight: 22,
   },
   heroButton: {
     alignSelf: 'flex-start',
     marginHorizontal: 0,
+    borderRadius: 12,
   },
   heroButtonContent: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
   },
   section: {
     marginTop: 24,
@@ -558,8 +562,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 8,
   },
   categoriesContainer: {
     flexDirection: 'row',
@@ -590,21 +595,22 @@ const styles = StyleSheet.create({
   featureIcon: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#eff6ff',
   },
   featureText: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 2,
   },
   featureDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748b',
   },
   productsScrollView: {
@@ -620,13 +626,19 @@ const styles = StyleSheet.create({
   productCard: {
     width: SCREEN_WIDTH / 2 - 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   productImageContainer: {
     position: 'relative',
     height: 140,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#f8fafc',
   },
   productImage: {
     width: '100%',
@@ -656,13 +668,14 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
     marginBottom: 4,
+    lineHeight: 20,
   },
   productPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6366f1',
+    fontWeight: '700',
+    color: '#2563eb',
   },
   variantInfo: {
     position: 'absolute',

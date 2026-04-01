@@ -1,42 +1,59 @@
-// Colors (MUI Primary Colors from FE)
+// Colors (Matching FE Web UI Design)
 export const COLORS = {
-  // Brand colors
-  primary: '#1976d2',
-  primaryDark: '#115293',
-  primaryLight: '#63a4ff',
-  secondary: '#9c27b0',
-  secondaryDark: '#6a0080',
-  secondaryLight: '#d05ce3',
+  // Brand colors (from FE theme.ts)
+  primary: '#2563eb',
+  primaryDark: '#1d4ed8',
+  primaryLight: '#3b82f6',
+  primaryContainer: '#eff6ff',
+  secondary: '#8b5cf6',
+  secondaryDark: '#7c3aed',
+  secondaryLight: '#a78bfa',
+  secondaryContainer: '#f3e8ff',
 
-  // Status colors
-  success: '#4caf50',
-  successDark: '#1b5e20',
-  successLight: '#81c784',
-  error: '#f44336',
-  errorDark: '#b71c1c',
-  errorLight: '#e57373',
-  warning: '#ff9800',
-  warningDark: '#e65100',
-  warningLight: '#ffb74d',
-  info: '#2196f3',
-  infoDark: '#0d47a1',
-  infoLight: '#64b5f6',
+  // Status colors (from FE theme.ts)
+  success: '#10b981',
+  successDark: '#059669',
+  successLight: '#34d399',
+  successContainer: '#f0fdf4',
+  error: '#ef4444',
+  errorDark: '#dc2626',
+  errorLight: '#f87171',
+  errorContainer: '#fef2f2',
+  warning: '#f59e0b',
+  warningDark: '#d97706',
+  warningLight: '#fbbf24',
+  warningContainer: '#fffbeb',
+  info: '#0ea5e9',
+  infoDark: '#0284c7',
+  infoLight: '#38bdf8',
+  infoContainer: '#f0f9ff',
 
-  // Neutral colors
+  // Neutral colors (from FE theme.ts)
   white: '#ffffff',
   black: '#000000',
+  background: '#f8fafc',
+  paper: '#ffffff',
   grey: {
-    50: '#fafafa',
-    100: '#f5f5f5',
-    200: '#eeeeee',
-    300: '#e0e0e0',
-    400: '#bdbdbd',
-    500: '#9e9e9e',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
+    50: '#f8fafc',
+    100: '#f1f5f9',
+    200: '#e2e8f0',
+    300: '#cbd5e1',
+    400: '#94a3b8',
+    500: '#64748b',
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',
+    900: '#0f172a',
   },
+  // Text colors (from FE theme.ts)
+  text: {
+    primary: '#0f172a',
+    secondary: '#64748b',
+    disabled: '#94a3b8',
+  },
+  // Border colors (from FE theme.ts)
+  border: '#e2e8f0',
+  divider: '#e2e8f0',
 }
 
 // Color options for filtering (from FE)
