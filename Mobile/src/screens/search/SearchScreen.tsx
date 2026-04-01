@@ -383,7 +383,7 @@ export function SearchScreen({ navigation }: Props) {
             <IconButton icon="close" onPress={() => setFilterModalVisible(false)} />
           </View>
 
-          <ScrollView style={styles.filterModalScrollView}>
+          <View style={styles.filterModalScrollView}>
             {/* Category */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Danh mục</Text>
@@ -462,7 +462,7 @@ export function SearchScreen({ navigation }: Props) {
                 />
               </View>
             </View>
-          </ScrollView>
+          </View>
 
           <Divider />
 
