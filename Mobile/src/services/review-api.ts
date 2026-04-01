@@ -4,8 +4,22 @@ import type { Review, ReviewStats } from '../types'
 /**
  * Get reviews for a product
  */
-export async function getProductReviews(productId: string): Promise<Review[]> {
-  return get<Review[]>(API_ENDPOINTS.REVIEWS_PRODUCT(productId))
+export async function getProductReviews(
+  productId: string,
+  sort?: 'newest' | 'oldest' | 'highest' | 'lowest',
+  rating?: number
+): Promise<Review[]> {
+  let url = API_ENDPOINTS.REVIEWS_PRODUCT(productId)
+  const params = new URLSearchParams()
+
+  if (sort) params.append('sort', sort)
+  if (rating) params.append('rating', rating.toString())
+
+  if (params.toString()) {
+    url += `?${params.toString()}`
+  }
+
+  return get<Review[]>(url)
 }
 
 /**
@@ -27,6 +41,13 @@ export interface CreateReviewPayload {
 
 export async function createReview(payload: CreateReviewPayload): Promise<Review> {
   return post<Review>(API_ENDPOINTS.REVIEWS, payload)
+}
+
+/**
+ * Submit review (alias for createReview)
+ */
+export async function submitReview(payload: CreateReviewPayload): Promise<Review> {
+  return post<Review>(API_ENDPOINTS.REVIEW_SUBMIT, payload)
 }
 
 /**

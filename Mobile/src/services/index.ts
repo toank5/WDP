@@ -86,3 +86,12 @@ export {
   type UserPreferences,
   type UpdatePreferencesRequest,
 } from './user-api'
+
+// Promotion API
+export {
+  validatePromotion,
+  type Promotion,
+  type PromotionType,
+  type ValidatePromotionPayload,
+  type ValidatePromotionResponse,
+} from './promotion-api'

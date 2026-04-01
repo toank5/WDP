@@ -15,6 +15,9 @@ import {
 import { APP_CONFIG } from '../../config'
 import type { OrderStatus, OrderItem } from './OrderHistoryScreen'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { useNavigation } from '@react-navigation/native'
+import { getOrderById } from '../../services/order-api'
+import { bulkAddCartItems } from '../../services/cart-api'
 
 interface OrderDetailScreenProps {
   route: {
@@ -55,61 +58,68 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
   const [order, setOrder] = useState<OrderItem | null>(null)
   const [reorderDialogVisible, setReorderDialogVisible] = useState(false)
 
-  // Mock order data (replace with API call)
-  const mockOrder: OrderItem = React.useMemo(() => {
-    return {
-      id: '1',
-      orderNumber: 'ORD-2024-001',
-      createdAt: new Date(2024, 2, 15, 10, 30, 0).toISOString(),
-      status: 'delivered',
-      total: 1500000,
-      itemCount: 2,
-      items: [
-        {
-          name: 'Gọng kính thời trang 01',
-          quantity: 1,
-          price: 800000,
-          image: 'https://via.placeholder.com/200x200',
-        },
-        {
-          name: 'Tròng chống tia UV',
-          quantity: 1,
-          price: 700000,
-          image: 'https://via.placeholder.com/200x200',
-        },
-      ],
-      shippingAddress: {
-        name: 'Nguyễn Văn A',
-        phone: '0123456789',
-        address: '123 Đường ABC, Phường XYZ',
-        city: 'Hồ Chí Minh',
-      },
-    }
-  }, [])
-
   // Fetch order details
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true)
-      // TODO: Call API to get order details
-      setOrder(mockOrder)
+      if (!orderId) {
+        setOrder(null)
+        return
+      }
+
+      const data: any = await getOrderById(orderId)
+      setOrder({
+        id: data._id,
+        orderNumber: data.orderNumber,
+        createdAt: data.createdAt,
+        status: (data.status || data.orderStatus || 'pending').toLowerCase(),
+        total: data.total || data.totalAmount || 0,
+        itemCount: Array.isArray(data.items) ? data.items.length : 0,
+        items: (data.items || []).map((item: any) => ({
+          productId: item.productId,
+          variantSku: item.variantSku,
+          name: item.productName || 'Sản phẩm',
+          quantity: item.quantity || 0,
+          price: item.price || item.priceAtOrder || 0,
+          image: item.productImage || '',
+        })),
+        shippingAddress: data.shippingAddress
+          ? {
+              name: data.shippingAddress.fullName || '',
+              phone: data.shippingAddress.phone || '',
+              address: data.shippingAddress.address || data.shippingAddress.street || '',
+              city: data.shippingAddress.city || '',
+            }
+          : undefined,
+      })
     } catch (error) {
       console.error('Fetch order error:', error)
+      setOrder(null)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [orderId])
 
   // Handle re-order
   const handleReorder = useCallback(() => {
     if (!order) return
 
-    // TODO: Add all items to cart
-    console.log('Re-order items:', order.items)
-
-    // Navigate to cart
-    navigation.navigate('Cart' as never)
-    setReorderDialogVisible(false)
+    ;(async () => {
+      try {
+        await bulkAddCartItems(
+          order.items.map((item: any) => ({
+            productId: item.productId,
+            variantSku: item.variantSku,
+            quantity: item.quantity,
+          }))
+        )
+        navigation.navigate('Cart' as never)
+      } catch (error) {
+        console.error('Reorder error:', error)
+      } finally {
+        setReorderDialogVisible(false)
+      }
+    })()
   }, [order, navigation])
 
   // Handle contact support
@@ -120,8 +130,9 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
 
   // Handle track order
   const handleTrackOrder = useCallback(() => {
-    // TODO: Open tracking page
-    console.log('Track order:', order?.orderNumber)
+    if (!order) return
+    if (order.status === 'delivered') return
+    navigation.navigate('OrderHistory' as never)
   }, [order])
 
   // Get status info
@@ -407,6 +418,17 @@ export const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ route }) =
           >
             Đặt lại đơn hàng này
           </Button>
+
+          {order.status === 'delivered' && (
+            <Button
+              mode="outlined"
+              onPress={() => navigation.navigate('ReturnRequest' as never, { orderId: order.id } as never)}
+              style={styles.actionButton}
+              icon="backup-restore"
+            >
+              Yêu cầu trả hàng
+            </Button>
+          )}
 
           <Button
             mode="outlined"

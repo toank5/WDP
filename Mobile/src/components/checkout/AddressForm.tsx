@@ -1,91 +1,127 @@
-import React, { useCallback, useEffect } from 'react'
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import React, { useCallback, useEffect, useState } from 'react'
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  TouchableOpacity,
+  FlatList,
+} from 'react-native'
 import {
   Text,
   TextInput,
   Button,
   Surface,
   useTheme,
-  Checkbox,
+  Divider,
 } from 'react-native-paper'
-import { useCartStore } from '../../store/cart-store'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 export interface Address {
-  id: string
-  recipientName: string
-  recipientPhone: string
+  fullName: string
+  phone: string
   address: string
-  ward: string
   district: string
-  province: string
-  isDefault: boolean
+  city: string
+  ward?: string
+  postalCode?: string
 }
 
 interface AddressFormProps {
   initialAddress?: Address
-  onSubmit: (address: Omit<Address, 'id'>) => void
+  onSubmit: (address: Address) => void
   loading?: boolean
-  submitLabel?: string
 }
 
 const PROVINCES = [
   'Hà Nội',
   'TP. Hồ Chí Minh',
   'Đà Nẵng',
-  'Cần Thơ',
   'Hải Phòng',
-  'Nghe An',
-  'Thừa Thiên Huế',
-  'Khánh Hòa',
-  'Lâm Đồng',
+  'Cần Thơ',
+  'An Giang',
   'Bà Rịa - Vũng Tàu',
+  'Bạc Liêu',
+  'Bắc Ninh',
+  'Bến Tre',
+  'Bình Dương',
+  'Bình Phước',
+  'Bình Thuận',
+  'Cà Mau',
+  'Cao Bằng',
+  'Đắk Lắk',
+  'Đồng Nai',
+  'Đồng Tháp',
+  'Gia Lai',
+  'Hà Giang',
+  'Hà Nam',
+  'Hà Tĩnh',
+  'Hải Dương',
+  'Hậu Giang',
+  'Hòa Bình',
+  'Hưng Yên',
+  'Khánh Hòa',
+  'Kiên Giang',
+  'Kon Tum',
+  'Lai Châu',
+  'Lâm Đồng',
+  'Lạng Sơn',
+  'Lào Cai',
+  'Long An',
+  'Nam Định',
+  'Nghệ An',
+  'Ninh Bình',
+  'Ninh Thuận',
+  'Phú Thọ',
+  'Phú Yên',
+  'Quảng Bình',
+  'Quảng Nam',
+  'Quảng Ngãi',
+  'Quảng Ninh',
+  'Quảng Trị',
+  'Sóc Trăng',
+  'Sơn La',
+  'Tây Ninh',
+  'Thái Bình',
+  'Thái Nguyên',
+  'Thanh Hóa',
+  'Thừa Thiên Huế',
+  'Tiền Giang',
+  'Trà Vinh',
+  'Tuyên Quang',
+  'Vĩnh Long',
+  'Vĩnh Phúc',
+  'Yên Bái',
 ]
 
 /**
- * AddressForm - Form để nhập thông tin giao hàng
+ * AddressForm - Checkout shipping address form matching FE exactly
  *
- * Features:
- * - Full name input
- * - Phone number input
- * - Address input
- * - Ward/District/Province dropdowns
- * - Set as default checkbox
- * - Form validation
- * - Save address option
+ * Fields: Full Name, Phone, Address, City, District, Ward (optional), Postal Code (optional)
  */
 export const AddressForm: React.FC<AddressFormProps> = ({
   initialAddress,
   onSubmit,
   loading = false,
-  submitLabel = 'Lưu địa chỉ',
 }) => {
   const theme = useTheme()
-  const { saveGuestAddress } = useCartStore()
 
-  const [formData, setFormData] = React.useState<Omit<Address, 'id'>>({
-    recipientName: initialAddress?.recipientName || '',
-    recipientPhone: initialAddress?.recipientPhone || '',
+  const [formData, setFormData] = React.useState<Address>({
+    fullName: initialAddress?.fullName || '',
+    phone: initialAddress?.phone || '',
     address: initialAddress?.address || '',
-    ward: initialAddress?.ward || '',
+    city: initialAddress?.city || 'Hà Nội',
     district: initialAddress?.district || '',
-    province: initialAddress?.province || 'Hà Nội',
-    isDefault: initialAddress?.isDefault || false,
+    ward: initialAddress?.ward || '',
+    postalCode: initialAddress?.postalCode || '',
   })
 
   const [errors, setErrors] = React.useState<Partial<Record<keyof Address, string>>>({})
+  const [showCityModal, setShowCityModal] = useState(false)
 
-  // Auto-save to guest cart when fields change
-  useEffect(() => {
-    if (formData.recipientName && formData.recipientPhone) {
-      saveGuestAddress({
-        fullName: formData.recipientName,
-        phone: formData.recipientPhone,
-        address: `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.province}`,
-      })
-    }
-  }, [formData, saveGuestAddress])
-
-  const handleFieldChange = useCallback((field: keyof Address, value: string | boolean) => {
+  const handleFieldChange = useCallback((field: keyof Address, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
   }, [])
@@ -93,30 +129,26 @@ export const AddressForm: React.FC<AddressFormProps> = ({
   const validate = useCallback(() => {
     const newErrors: Partial<Record<keyof Address, string>> = {}
 
-    if (!formData.recipientName.trim()) {
-      newErrors.recipientName = 'Vui lòng nhập họ tên'
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required'
     }
 
-    if (!formData.recipientPhone.trim()) {
-      newErrors.recipientPhone = 'Vui lòng nhập số điện thoại'
-    } else if (!/^0\d{9,10}$/.test(formData.recipientPhone)) {
-      newErrors.recipientPhone = 'Số điện thoại không hợp lệ'
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required'
+    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Invalid phone number'
     }
 
     if (!formData.address.trim()) {
-      newErrors.address = 'Vui lòng nhập địa chỉ'
+      newErrors.address = 'Address is required'
     }
 
-    if (!formData.ward.trim()) {
-      newErrors.ward = 'Vui lòng nhập phường/xã'
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required'
     }
 
     if (!formData.district.trim()) {
-      newErrors.district = 'Vui lòng nhập quận/huyện'
-    }
-
-    if (!formData.province.trim()) {
-      newErrors.province = 'Vui lòng chọn tỉnh/thành phố'
+      newErrors.district = 'District is required'
     }
 
     setErrors(newErrors)
@@ -141,52 +173,52 @@ export const AddressForm: React.FC<AddressFormProps> = ({
       >
         <Surface style={styles.container} elevation={2}>
           <Text variant="titleLarge" style={styles.title}>
-            Thông tin giao hàng
+            Shipping Address
           </Text>
 
-          {/* Recipient Name */}
+          {/* Full Name */}
           <View style={styles.fieldContainer}>
             <TextInput
-              label="Họ tên người nhận *"
-              value={formData.recipientName}
-              onChangeText={(text) => handleFieldChange('recipientName', text)}
-              error={!!errors.recipientName}
+              label="Full Name *"
+              value={formData.fullName}
+              onChangeText={(text) => handleFieldChange('fullName', text)}
+              error={!!errors.fullName}
               mode="outlined"
               dense
-              placeholder="Nhập họ tên người nhận"
+              placeholder="Enter your full name"
             />
-            {errors.recipientName && (
-              <Text style={styles.errorText}>{errors.recipientName}</Text>
+            {errors.fullName && (
+              <Text style={styles.errorText}>{errors.fullName}</Text>
             )}
           </View>
 
-          {/* Recipient Phone */}
+          {/* Phone */}
           <View style={styles.fieldContainer}>
             <TextInput
-              label="Số điện thoại *"
-              value={formData.recipientPhone}
-              onChangeText={(text) => handleFieldChange('recipientPhone', text)}
-              error={!!errors.recipientPhone}
+              label="Phone Number *"
+              value={formData.phone}
+              onChangeText={(text) => handleFieldChange('phone', text)}
+              error={!!errors.phone}
               mode="outlined"
               dense
               keyboardType="phone-pad"
-              placeholder="Nhập số điện thoại"
+              placeholder="e.g., 0912345678"
             />
-            {errors.recipientPhone && (
-              <Text style={styles.errorText}>{errors.recipientPhone}</Text>
+            {errors.phone && (
+              <Text style={styles.errorText}>{errors.phone}</Text>
             )}
           </View>
 
           {/* Address */}
           <View style={styles.fieldContainer}>
             <TextInput
-              label="Địa chỉ chi tiết *"
+              label="Address *"
               value={formData.address}
               onChangeText={(text) => handleFieldChange('address', text)}
               error={!!errors.address}
               mode="outlined"
               dense
-              placeholder="Số nhà, tên đường"
+              placeholder="Street address, house number, etc."
               multiline
               numberOfLines={2}
             />
@@ -195,72 +227,72 @@ export const AddressForm: React.FC<AddressFormProps> = ({
             )}
           </View>
 
-          {/* Ward */}
+          {/* City/Province Dropdown */}
           <View style={styles.fieldContainer}>
-            <TextInput
-              label="Phường/Xã *"
-              value={formData.ward}
-              onChangeText={(text) => handleFieldChange('ward', text)}
-              error={!!errors.ward}
-              mode="outlined"
-              dense
-              placeholder="Nhập phường/xã"
-            />
-            {errors.ward && (
-              <Text style={styles.errorText}>{errors.ward}</Text>
+            <Text variant="bodyMedium" style={styles.label}>
+              City/Province *
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.cityPickerButton,
+                errors.city && styles.cityPickerButtonError,
+              ]}
+              onPress={() => setShowCityModal(true)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.cityPickerText,
+                  !formData.city && styles.cityPickerPlaceholder,
+                ]}
+              >
+                {formData.city || 'Select city/province'}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
+            {errors.city && (
+              <Text style={styles.errorText}>{errors.city}</Text>
             )}
           </View>
 
           {/* District */}
           <View style={styles.fieldContainer}>
             <TextInput
-              label="Quận/Huyện *"
+              label="District *"
               value={formData.district}
               onChangeText={(text) => handleFieldChange('district', text)}
               error={!!errors.district}
               mode="outlined"
               dense
-              placeholder="Nhập quận/huyện"
+              placeholder="Enter district"
             />
             {errors.district && (
               <Text style={styles.errorText}>{errors.district}</Text>
             )}
           </View>
 
-          {/* Province */}
+          {/* Ward (Optional) */}
           <View style={styles.fieldContainer}>
-            <Text variant="bodyMedium" style={styles.label}>
-              Tỉnh/Thành phố *
-            </Text>
-            <View style={styles.provinceButtons}>
-              {PROVINCES.map((province) => (
-                <Button
-                  key={province}
-                  mode={formData.province === province ? 'contained' : 'outlined'}
-                  onPress={() => handleFieldChange('province', province)}
-                  style={styles.provinceButton}
-                  compact
-                >
-                  {province}
-                </Button>
-              ))}
-            </View>
-            {errors.province && (
-              <Text style={styles.errorText}>{errors.province}</Text>
-            )}
+            <TextInput
+              label="Ward (Optional)"
+              value={formData.ward}
+              onChangeText={(text) => handleFieldChange('ward', text)}
+              mode="outlined"
+              dense
+              placeholder="Enter ward"
+            />
           </View>
 
-          {/* Set as Default */}
+          {/* Postal Code (Optional) */}
           <View style={styles.fieldContainer}>
-            <View style={styles.checkboxContainer}>
-              <Checkbox
-                status={formData.isDefault ? 'checked' : 'unchecked'}
-                onPress={() => handleFieldChange('isDefault', !formData.isDefault)}
-              />
-              <Text variant="bodyMedium" style={styles.checkboxLabel}>
-                Đặt làm địa chỉ mặc định
-              </Text>
-            </View>
+            <TextInput
+              label="Postal Code (Optional)"
+              value={formData.postalCode}
+              onChangeText={(text) => handleFieldChange('postalCode', text)}
+              mode="outlined"
+              dense
+              placeholder="Enter postal code"
+            />
           </View>
 
           {/* Submit Button */}
@@ -273,9 +305,64 @@ export const AddressForm: React.FC<AddressFormProps> = ({
               style={styles.submitButton}
               contentStyle={styles.submitButtonContent}
             >
-              {submitLabel}
+              Continue to Payment
             </Button>
           </View>
+
+          {/* City Modal Picker */}
+          <Modal
+            visible={showCityModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCityModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                {/* Modal Header */}
+                <View style={styles.modalHeader}>
+                  <Text variant="titleMedium" style={styles.modalTitle}>
+                    Select City/Province
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowCityModal(false)}>
+                    <MaterialCommunityIcons name="close" size={24} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+                <Divider />
+
+                {/* City List */}
+                <FlatList
+                  data={PROVINCES}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item: city }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.cityOption,
+                        formData.city === city && styles.cityOptionSelected,
+                      ]}
+                      onPress={() => {
+                        handleFieldChange('city', city)
+                        setShowCityModal(false)
+                      }}
+                      activeOpacity={0.6}
+                    >
+                      <Text
+                        style={[
+                          styles.cityOptionText,
+                          formData.city === city && styles.cityOptionTextSelected,
+                        ]}
+                      >
+                        {city}
+                      </Text>
+                      {formData.city === city && (
+                        <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  ItemSeparatorComponent={() => <Divider />}
+                />
+              </View>
+            </View>
+          </Modal>
         </Surface>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -307,21 +394,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '500',
   },
-  provinceButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  provinceButton: {
-    marginRight: 0,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkboxLabel: {
-    marginLeft: 8,
-  },
   errorText: {
     color: '#d32f2f',
     fontSize: 12,
@@ -335,5 +407,66 @@ const styles = StyleSheet.create({
   },
   submitButtonContent: {
     paddingVertical: 8,
+  },
+  cityPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#bdbdbd',
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+  },
+  cityPickerButtonError: {
+    borderColor: '#d32f2f',
+  },
+  cityPickerText: {
+    fontSize: 16,
+    color: '#212121',
+  },
+  cityPickerPlaceholder: {
+    color: '#9e9e9e',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalTitle: {
+    fontWeight: '600',
+  },
+  cityOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  cityOptionSelected: {
+    backgroundColor: '#e3f2fd',
+  },
+  cityOptionText: {
+    fontSize: 16,
+    color: '#212121',
+    flex: 1,
+  },
+  cityOptionTextSelected: {
+    fontWeight: '600',
+    color: '#1976d2',
   },
 })

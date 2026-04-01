@@ -15,6 +15,8 @@ import {
 import { APP_CONFIG } from '../../config'
 import { OrderCardSkeleton } from '../../components/Loading'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { getOrders } from '../../services/order-api'
+import { useNavigation } from '@react-navigation/native'
 
 export type OrderStatus =
   | 'pending'
@@ -33,6 +35,8 @@ export interface OrderItem {
   total: number
   itemCount: number
   items: Array<{
+    productId?: string
+    variantSku?: string
     name: string
     quantity: number
     price: number
@@ -86,102 +90,37 @@ export const OrderHistoryScreen = () => {
   const [sortMenuVisible, setSortMenuVisible] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'total'>('date')
 
-  // Mock orders (replace with API call)
-  const mockOrders: OrderItem[] = React.useMemo(() => {
-    return [
-      {
-        id: '1',
-        orderNumber: 'ORD-2024-001',
-        createdAt: new Date(2024, 2, 15).toISOString(),
-        status: 'delivered',
-        total: 1500000,
-        itemCount: 2,
-        items: [
-          {
-            name: 'Gọng kính thời trang 01',
-            quantity: 1,
-            price: 800000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-          {
-            name: 'Tròng chống tia UV',
-            quantity: 1,
-            price: 700000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-        ],
-        shippingAddress: {
-          name: 'Nguyễn Văn A',
-          phone: '0123456789',
-          address: '123 Đường ABC',
-          city: 'Hồ Chí Minh',
-        },
-      },
-      {
-        id: '2',
-        orderNumber: 'ORD-2024-002',
-        createdAt: new Date(2024, 2, 10).toISOString(),
-        status: 'shipped',
-        total: 2500000,
-        itemCount: 1,
-        items: [
-          {
-            name: 'Gọng kính mát 02',
-            quantity: 1,
-            price: 2500000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-        ],
-      },
-      {
-        id: '3',
-        orderNumber: 'ORD-2024-003',
-        createdAt: new Date(2024, 2, 5).toISOString(),
-        status: 'processing',
-        total: 1200000,
-        itemCount: 3,
-        items: [
-          {
-            name: 'Gọng kính trẻ em',
-            quantity: 2,
-            price: 400000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-          {
-            name: 'Khăn lau kính',
-            quantity: 1,
-            price: 50000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-        ],
-      },
-      {
-        id: '4',
-        orderNumber: 'ORD-2024-004',
-        createdAt: new Date(2024, 1, 28).toISOString(),
-        status: 'pending',
-        total: 5000000,
-        itemCount: 1,
-        items: [
-          {
-            name: 'Gọng kính cao cấp 01',
-            quantity: 1,
-            price: 5000000,
-            image: 'https://via.placeholder.com/80x80',
-          },
-        ],
-      },
-    ]
-  }, [])
-
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      // TODO: Call API to get orders
-      // For now, use mock data
-      setOrders(mockOrders)
+      const data = await getOrders()
+      const mapped = (Array.isArray(data) ? data : []).map((order: any) => ({
+        id: order._id,
+        orderNumber: order.orderNumber,
+        createdAt: order.createdAt,
+        status: (order.status || order.orderStatus || 'pending').toLowerCase(),
+        total: order.total || order.totalAmount || 0,
+        itemCount: Array.isArray(order.items) ? order.items.length : 0,
+        items: (order.items || []).map((item: any) => ({
+          productId: item.productId,
+          variantSku: item.variantSku,
+          name: item.productName || 'Sản phẩm',
+          quantity: item.quantity || 0,
+          price: item.price || item.priceAtOrder || 0,
+          image: item.productImage || '',
+        })),
+        shippingAddress: order.shippingAddress
+          ? {
+              name: order.shippingAddress.fullName || '',
+              phone: order.shippingAddress.phone || '',
+              address: order.shippingAddress.address || order.shippingAddress.street || '',
+              city: order.shippingAddress.city || '',
+            }
+          : undefined,
+      }))
+      setOrders(mapped)
     } catch (error) {
       console.error('Fetch orders error:', error)
       setError('Không thể tải lịch sử đơn hàng. Vui lòng thử lại.')

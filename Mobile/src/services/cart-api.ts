@@ -1,4 +1,4 @@
-import { API_ENDPOINTS, get, post, put, del } from './api'
+import { API_ENDPOINTS, get, post, patch, del } from './api'
 import type { CartItem, CartResponse, ProductData } from '../types'
 
 /**
@@ -39,7 +39,7 @@ export async function updateCartItem(
   itemId: string,
   payload: UpdateCartItemPayload
 ): Promise<CartResponse> {
-  return put<CartResponse>(API_ENDPOINTS.CART_ITEM(itemId), payload)
+  return patch<CartResponse>(API_ENDPOINTS.CART_ITEM(itemId), payload)
 }
 
 /**
