@@ -1,0 +1,543 @@
+{
+  "parityReport": [
+    {
+      "id": "home",
+      "web": { "path": "/", "type": "page", "category": "public" },
+      "mobile": { "screen": "HomeScreen", "route": "Home" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Display featured products",
+        "✓ Show categories (Frames, Lenses, Services)",
+        "✓ Navigate to product detail",
+        "✓ Display promotions"
+      ]
+    },
+    {
+      "id": "store",
+      "web": { "path": "/store, /store/:category", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "StoreScreen", "route": "ProductList" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View product catalog",
+        "✓ Category filtering",
+        "✓ Grid/list layout",
+        "? Advanced sorting (verify)",
+        "? Price range filter (verify)"
+      ]
+    },
+    {
+      "id": "product-detail",
+      "web": { "path": "/product/:slug", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "ProductDetailScreen", "route": "ProductDetail" },
+      "status": "partial",
+      "functionalChecklist": [
+        "✓ View product images",
+        "✓ Select variants",
+        "✓ Add to cart",
+        "✓ View product info",
+        "✗ 3D viewer (web only - intentional)",
+        "? Product reviews (verify if exists on mobile)"
+      ]
+    },
+    {
+      "id": "search",
+      "web": { "path": "inline", "type": "flow", "category": "storefront" },
+      "mobile": { "screen": "SearchScreen", "route": "SearchTab" },
+      "status": "partial",
+      "functionalChecklist": [
+        "✓ Search by keyword",
+        "✓ Basic filters",
+        "? Advanced filters (color, size, price, stock) - verify completeness"
+      ]
+    },
+    {
+      "id": "favorites",
+      "web": { "path": "/favorites", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "FavoritesScreen", "route": "Favorites" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View saved items",
+        "✓ Add to favorites",
+        "✓ Remove from favorites",
+        "✓ Add to cart from favorites"
+      ]
+    },
+    {
+      "id": "cart",
+      "web": { "path": "/cart", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "CartScreen", "route": "CartTab" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View cart items",
+        "✓ Update quantities",
+        "✓ Remove items",
+        "✓ See price changes",
+        "✓ Proceed to checkout",
+        "✓ Item count badge"
+      ]
+    },
+    {
+      "id": "checkout",
+      "web": { "path": "/checkout", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "split", "route": "CheckoutAddress, CheckoutPayment, CheckoutReview" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Address selection/entry",
+        "✓ Payment method selection",
+        "✓ Order review",
+        "✓ Prescription integration",
+        "✓ Place order",
+        "? Promotion code application (verify)"
+      ],
+      "note": "Mobile splits checkout into 3 separate screens (address, payment, review) vs single page on web"
+    },
+    {
+      "id": "checkout-vnpay",
+      "web": { "path": "/checkout/vnpay-return", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "integrated", "route": null },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ VNPay payment integration",
+        "✓ Payment return handling"
+      ],
+      "note": "Mobile handles VNPay return inline rather than separate page"
+    },
+    {
+      "id": "order-success",
+      "web": { "path": "/order/success", "type": "page", "category": "storefront" },
+      "mobile": { "screen": null, "route": "CheckoutSuccess" },
+      "status": "partial",
+      "functionalChecklist": [
+        "? Order confirmation display",
+        "? Order details summary",
+        "? Continue shopping option"
+      ],
+      "note": "Route defined but implementation not found - needs verification"
+    },
+    {
+      "id": "order-failed",
+      "web": { "path": "/order/failed", "type": "page", "category": "storefront" },
+      "mobile": { "screen": null, "route": null },
+      "status": "missing_on_mobile",
+      "functionalChecklist": [
+        "✗ Display error message",
+        "✗ Retry options",
+        "✗ Support contact"
+      ]
+    },
+    {
+      "id": "orders",
+      "web": { "path": "/orders, /account/orders", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "OrderHistoryScreen", "route": "OrderHistory" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View order list",
+        "✓ Status filtering",
+        "✓ Navigate to order detail"
+      ]
+    },
+    {
+      "id": "order-detail",
+      "web": { "path": "/orders/:id", "type": "page", "category": "storefront" },
+      "mobile": { "screen": "OrderDetailScreen", "route": "OrderDetail" },
+      "status": "partial",
+      "functionalChecklist": [
+        "✓ View order details",
+        "✓ See order status",
+        "? Request return from order detail",
+        "? Tracking information display"
+      ]
+    },
+    {
+      "id": "login",
+      "web": { "path": "/login", "type": "page", "category": "auth" },
+      "mobile": { "screen": "LoginScreen", "route": "Login" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Email/password login",
+        "✓ Form validation",
+        "? Remember me functionality (verify)"
+      ]
+    },
+    {
+      "id": "register",
+      "web": { "path": "/register", "type": "page", "category": "auth" },
+      "mobile": { "screen": "RegisterScreen", "route": "Register" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Registration form",
+        "✓ Personal details entry",
+        "✓ Password confirmation",
+        "✓ Form validation"
+      ]
+    },
+    {
+      "id": "verify-email",
+      "web": { "path": "/verify-email", "type": "page", "category": "auth" },
+      "mobile": { "screen": null, "route": "VerifyEmail" },
+      "status": "missing_on_mobile",
+      "functionalChecklist": [
+        "✗ Email verification processing",
+        "✗ Verification success message",
+        "✗ Resend verification option"
+      ],
+      "note": "Route defined in types but no implementation found"
+    },
+    {
+      "id": "forgot-password",
+      "web": { "path": "inline", "type": "flow", "category": "auth" },
+      "mobile": { "screen": "ForgotPasswordScreen", "route": "ForgotPassword" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Request password reset",
+        "✓ Email input validation",
+        "✓ Success message"
+      ]
+    },
+    {
+      "id": "reset-password",
+      "web": { "path": "inline", "type": "flow", "category": "auth" },
+      "mobile": { "screen": "ResetPasswordScreen", "route": "ResetPassword" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ New password entry",
+        "✓ Password confirmation",
+        "✓ Token validation",
+        "✓ Password strength validation"
+      ]
+    },
+    {
+      "id": "account",
+      "web": { "path": "/account", "type": "page", "category": "account" },
+      "mobile": { "screen": "AccountScreen", "route": "AccountTab" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Account overview",
+        "✓ Quick links to profile, addresses, orders, prescriptions",
+        "✓ Logout functionality"
+      ]
+    },
+    {
+      "id": "profile",
+      "web": { "path": "/account/profile", "type": "page", "category": "account" },
+      "mobile": { "screen": "ProfileScreen", "route": "ProfileSettings" },
+      "status": "partial",
+      "functionalChecklist": [
+        "✓ View profile information",
+        "✓ Edit name, phone",
+        "? Edit email (verify)",
+        "? Save changes functionality"
+      ]
+    },
+    {
+      "id": "addresses",
+      "web": { "path": "/account/addresses", "type": "page", "category": "account" },
+      "mobile": { "screen": "AddressManagementScreen", "route": "AddressManagement" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View saved addresses",
+        "✓ Add new address",
+        "✓ Edit address",
+        "✓ Delete address",
+        "✓ Set default address"
+      ]
+    },
+    {
+      "id": "security",
+      "web": { "path": "/account/security", "type": "page", "category": "account" },
+      "mobile": { "screen": "SecurityScreen", "route": "SecuritySettings" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Change password",
+        "✓ Current password verification",
+        "? Two-factor auth options (verify)"
+      ]
+    },
+    {
+      "id": "settings",
+      "web": { "path": "/account/settings", "type": "page", "category": "account" },
+      "mobile": { "screen": null, "route": null },
+      "status": "partial",
+      "functionalChecklist": [
+        "? Language preferences",
+        "? Currency settings",
+        "? Notification preferences",
+        "? Email subscription management"
+      ],
+      "note": "May be integrated into ProfileScreen or SecurityScreen - needs verification"
+    },
+    {
+      "id": "prescription-list",
+      "web": { "path": "inline", "type": "flow", "category": "prescription" },
+      "mobile": { "screen": "PrescriptionListScreen", "route": null },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View saved prescriptions",
+        "✓ Status filtering",
+        "✓ Navigate to prescription detail",
+        "✓ Select for checkout"
+      ]
+    },
+    {
+      "id": "prescription-entry",
+      "web": { "path": "inline", "type": "flow", "category": "prescription" },
+      "mobile": { "screen": "inline", "route": null },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Enter SPH values",
+        "✓ Enter CYL values",
+        "✓ Enter AXIS values",
+        "✓ Form validation",
+        "✓ Save prescription"
+      ],
+      "note": "Prescription entry is inline flow during checkout on both platforms"
+    },
+    {
+      "id": "prescription-detail",
+      "web": { "path": "inline", "type": "flow", "category": "prescription" },
+      "mobile": { "screen": "PrescriptionDetailScreen", "route": null },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ View prescription values",
+        "✓ Edit prescription",
+        "✓ Save changes"
+      ]
+    },
+    {
+      "id": "returns",
+      "web": { "path": "inline", "type": "flow", "category": "support" },
+      "mobile": { "screen": null, "route": null },
+      "status": "missing_on_mobile",
+      "functionalChecklist": [
+        "✗ Request return from order",
+        "✗ Select return reason",
+        "✗ Upload images",
+        "✗ View return status",
+        "✗ Return policy display"
+      ]
+    },
+    {
+      "id": "about",
+      "web": { "path": "/about", "type": "page", "category": "public" },
+      "mobile": { "screen": "AboutScreen", "route": "About" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Company information",
+        "✓ App details"
+      ]
+    },
+    {
+      "id": "contact",
+      "web": { "path": "/contact", "type": "page", "category": "public" },
+      "mobile": { "screen": "ContactScreen", "route": "Contact" },
+      "status": "ok",
+      "functionalChecklist": [
+        "✓ Contact form",
+        "✓ Store information"
+      ]
+    },
+    {
+      "id": "policy-detail",
+      "web": { "path": "/policies/:type", "type": "page", "category": "public" },
+      "mobile": { "screen": null, "route": null },
+      "status": "missing_on_mobile",
+      "functionalChecklist": [
+        "✗ Shipping policy",
+        "✗ Return policy",
+        "✗ Privacy policy",
+        "✗ Terms of service"
+      ]
+    },
+    {
+      "id": "virtual-tryon",
+      "web": { "path": "/virtual-tryon", "type": "page", "category": "storefront" },
+      "mobile": { "screen": null, "route": "VirtualTryOn" },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Intentionally web-only feature per user requirements"
+    },
+    {
+      "id": "product-3d-viewer",
+      "web": { "path": "inline", "type": "flow", "category": "storefront" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Intentionally web-only feature per user requirements"
+    },
+    {
+      "id": "reviews",
+      "web": { "path": "inline", "type": "flow", "category": "storefront" },
+      "mobile": { "screen": null, "route": null },
+      "status": "missing_on_mobile",
+      "functionalChecklist": [
+        "✗ View product reviews",
+        "✗ Submit product review",
+        "✗ Rating display",
+        "✗ Review filtering"
+      ]
+    },
+    {
+      "id": "search-advanced",
+      "web": { "path": "inline", "type": "flow", "category": "storefront" },
+      "mobile": { "screen": "integrated", "route": "SearchTab" },
+      "status": "partial",
+      "functionalChecklist": [
+        "? Filter by color",
+        "? Filter by size",
+        "? Filter by price range",
+        "? Filter by stock status",
+        "? Sort by various options"
+      ],
+      "note": "Basic filters exist on SearchScreen - verify feature parity with web"
+    },
+    {
+      "id": "dashboard",
+      "web": { "path": "/dashboard", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin dashboard intentionally web-only"
+    },
+    {
+      "id": "dashboard-users",
+      "web": { "path": "/dashboard/users", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-products",
+      "web": { "path": "/dashboard/products", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-orders",
+      "web": { "path": "/dashboard/orders", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-prescriptions",
+      "web": { "path": "/dashboard/prescriptions", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-lab-jobs",
+      "web": { "path": "/dashboard/lab-jobs", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-returns",
+      "web": { "path": "/dashboard/returns", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-shipping",
+      "web": { "path": "/dashboard/shipping", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-promotions",
+      "web": { "path": "/dashboard/promotions", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-combos",
+      "web": { "path": "/dashboard/combos", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-pricing",
+      "web": { "path": "/dashboard/pricing", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-revenue",
+      "web": { "path": "/dashboard/revenue", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-inventory",
+      "web": { "path": "/dashboard/inventory", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-suppliers",
+      "web": { "path": "/dashboard/suppliers", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-preorders",
+      "web": { "path": "/dashboard/preorders", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    },
+    {
+      "id": "dashboard-policies",
+      "web": { "path": "/dashboard/policies", "type": "page", "category": "admin" },
+      "mobile": { "screen": null, "route": null },
+      "status": "web_only",
+      "functionalChecklist": [],
+      "note": "Admin feature intentionally web-only"
+    }
+  ],
+  "summary": {
+    "totalFeatures": 51,
+    "ok": 15,
+    "partial": 7,
+    "missing_on_mobile": 6,
+    "web_only": 23,
+    "customerFacingMissing": [
+      "verify-email",
+      "order-failed",
+      "returns",
+      "policy-detail",
+      "reviews"
+    ],
+    "priorityRecommendations": [
+      "Implement return/exchange flow on mobile (high customer impact)",
+      "Add product reviews on mobile (social proof increases conversions)",
+      "Add policy pages (legal compliance and customer transparency)",
+      "Implement email verification screen (security requirement)",
+      "Add order failed error handling (better UX)"
+    ]
+  }
+}

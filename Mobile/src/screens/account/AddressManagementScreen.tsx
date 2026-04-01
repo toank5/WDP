@@ -18,6 +18,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../types'
 import { Loading } from '../../components/Loading'
+import { getMyProfile, updateMyProfile } from '../../services/user-api'
 
 type Props = NativeStackScreenProps<RootStackParamList, any>
 
@@ -73,10 +74,20 @@ export function AddressManagementScreen({ navigation }: Props) {
   const loadAddresses = async () => {
     try {
       setLoading(true)
-      // TODO: Call actual API to get addresses
-      // Simulating for now
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setAddresses([])
+      const profile = await getMyProfile()
+      const rawAddresses = Array.isArray((profile as any).addresses)
+        ? ((profile as any).addresses as Array<any>)
+        : []
+      const mapped = rawAddresses.map((item, index) => ({
+        id: String(item._id || item.id || index + 1),
+        type: item.type || 'SHIPPING',
+        isDefault: Boolean(item.isDefault),
+        street: item.street || item.address || '',
+        city: item.city || '',
+        zipCode: item.zipCode || '',
+        phone: item.phone || '',
+      }))
+      setAddresses(mapped)
     } catch (error) {
       console.error('Failed to load addresses:', error)
       Alert.alert('Lỗi', 'Không thể tải danh sách địa chỉ')
@@ -115,19 +126,38 @@ export function AddressManagementScreen({ navigation }: Props) {
 
     setLoading(true)
     try {
-      // TODO: Call actual API to save address
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const profile = await getMyProfile()
+      const rawAddresses = Array.isArray((profile as any).addresses)
+        ? ((profile as any).addresses as Array<any>)
+        : []
 
-      if (editingAddress) {
-        // Update existing address
-        Alert.alert('Thành công', 'Đã cập nhật địa chỉ')
-      } else {
-        // Add new address
-        Alert.alert('Thành công', 'Đã thêm địa chỉ mới')
+      const nextAddress = {
+        type: formData.type,
+        isDefault: isDefaultAddress,
+        street: formData.street,
+        city: formData.city,
+        zipCode: formData.zipCode,
+        phone: formData.phone,
       }
+
+      const nextAddresses = editingAddress
+        ? rawAddresses.map((item: any, index: number) => {
+            const id = String(item._id || item.id || index + 1)
+            return id === editingAddress.id ? { ...item, ...nextAddress } : item
+          })
+        : [...rawAddresses, nextAddress]
+
+      const normalized = isDefaultAddress
+        ? nextAddresses.map((item: any) => ({ ...item, isDefault: false })).map((item: any, idx: number) =>
+            idx === nextAddresses.length - 1 && !editingAddress ? { ...item, isDefault: true } : item
+          )
+        : nextAddresses
+
+      await updateMyProfile({ addresses: normalized } as any)
 
       handleCloseDialog()
       await loadAddresses()
+      Alert.alert('Thành công', editingAddress ? 'Đã cập nhật địa chỉ' : 'Đã thêm địa chỉ mới')
     } catch (error) {
       console.error('Failed to save address:', error)
       Alert.alert('Lỗi', 'Không thể lưu địa chỉ')
@@ -156,8 +186,24 @@ export function AddressManagementScreen({ navigation }: Props) {
   }
 
   const handleSetDefault = (_address: Address) => {
-    // TODO: Call API to set default address
-    Alert.alert('Thành công', 'Đã đặt làm địa chỉ mặc định')
+    ;(async () => {
+      try {
+        const profile = await getMyProfile()
+        const rawAddresses = Array.isArray((profile as any).addresses)
+          ? ((profile as any).addresses as Array<any>)
+          : []
+        const nextAddresses = rawAddresses.map((item: any, index: number) => {
+          const id = String(item._id || item.id || index + 1)
+          return { ...item, isDefault: id === _address.id }
+        })
+        await updateMyProfile({ addresses: nextAddresses } as any)
+        await loadAddresses()
+        Alert.alert('Thành công', 'Đã đặt làm địa chỉ mặc định')
+      } catch (error) {
+        console.error('Set default address error:', error)
+        Alert.alert('Lỗi', 'Không thể cập nhật địa chỉ mặc định')
+      }
+    })()
   }
 
   const handleDelete = (_address: Address) => {
@@ -171,8 +217,15 @@ export function AddressManagementScreen({ navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Call actual API to delete address
-              await new Promise((resolve) => setTimeout(resolve, 500))
+              const profile = await getMyProfile()
+              const rawAddresses = Array.isArray((profile as any).addresses)
+                ? ((profile as any).addresses as Array<any>)
+                : []
+              const nextAddresses = rawAddresses.filter((item: any, index: number) => {
+                const id = String(item._id || item.id || index + 1)
+                return id !== _address.id
+              })
+              await updateMyProfile({ addresses: nextAddresses } as any)
               await loadAddresses()
               Alert.alert('Thành công', 'Đã xóa địa chỉ')
             } catch (error) {

@@ -23,6 +23,7 @@ export interface CreateOrderPayload {
     productId: string
     variantSku?: string
     quantity: number
+    priceAtOrder?: number
   }>
   shippingAddress: {
     fullName: string
@@ -32,14 +33,48 @@ export interface CreateOrderPayload {
     district?: string
     ward?: string
   }
+  shippingMethod?: 'STANDARD' | 'EXPRESS'
+  payment?: {
+    method: string
+  }
   paymentMethod: string
   orderType: 'in-stock' | 'pre-order' | 'prescription'
   prescriptionId?: string
   notes?: string
+  promotionCode?: string
 }
 
 export async function createOrder(payload: CreateOrderPayload): Promise<Order> {
   return post<Order>(API_ENDPOINTS.ORDERS, payload)
+}
+
+export interface CheckoutCreatePaymentPayload {
+  shippingAddress: {
+    fullName: string
+    phone: string
+    address: string
+    city: string
+    district: string
+    ward?: string
+    zipCode?: string
+  }
+  notes?: string
+  promotionCode?: string
+  shippingMethod?: 'STANDARD' | 'EXPRESS'
+}
+
+export interface CheckoutCreatePaymentResponse {
+  paymentUrl: string
+  orderId: string
+  orderNumber: string
+  txnRef: string
+  amount: number
+}
+
+export async function createCheckoutPayment(
+  payload: CheckoutCreatePaymentPayload
+): Promise<CheckoutCreatePaymentResponse> {
+  return post<CheckoutCreatePaymentResponse>(API_ENDPOINTS.CHECKOUT_CREATE_PAYMENT, payload)
 }
 
 /**

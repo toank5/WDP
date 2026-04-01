@@ -32,6 +32,14 @@ export const API_ENDPOINTS = {
   // Orders
   ORDERS: '/orders',
   ORDER_DETAIL: (id: string) => `/orders/${id}`,
+  ORDER_CANCEL: (id: string) => `/orders/${id}/cancel`,
+  CHECKOUT_CREATE_PAYMENT: '/checkout/create-payment',
+
+  // Returns
+  RETURNS: '/returns',
+  RETURN_REQUEST: '/returns/request',
+  RETURN_DETAIL: (id: string) => `/returns/${id}`,
+  ORDER_RETURNS: (orderId: string) => `/orders/${orderId}/returns`,
 
   // Prescriptions
   PRESCRIPTIONS: '/prescriptions',
@@ -45,6 +53,15 @@ export const API_ENDPOINTS = {
   // Reviews
   REVIEWS: '/reviews',
   REVIEWS_PRODUCT: (productId: string) => `/reviews/product/${productId}`,
+  REVIEW_SUBMIT: '/reviews/submit',
+
+  // Policies
+  POLICIES: '/policies',
+  POLICY_TYPE: (type: string) => `/policies/${type}`,
+
+  // Promotions
+  PROMOTIONS_VALIDATE: '/promotions/validate',
+  PROMOTIONS_ACTIVE: '/promotions/active',
 
   // Inventory
   INVENTORY_CHECK: (sku: string) => `/inventory/${sku}`,
@@ -55,4 +72,5 @@ export const API_ENDPOINTS = {
   ACCOUNT_PREFERENCES: '/account/preferences',
   ACCOUNT_CHANGE_PASSWORD: '/account/change-password',
   ACCOUNT_DELETE: '/account',
+  ACCOUNT_SETTINGS: '/account/settings',
 }

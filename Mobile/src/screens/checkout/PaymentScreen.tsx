@@ -13,10 +13,16 @@ import {
 } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { useCartStore, getGuestCartForCheckout, type GuestCustomerInfo } from '../../store/cart-store'
+import {
+  useCart,
+  useCartStore,
+  getGuestCartForCheckout,
+  type GuestCustomerInfo,
+} from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
 
 export type PaymentMethod = 'cod' | 'vnpay' | 'bank_transfer' | 'momo'
+export type ShippingMethod = 'standard' | 'express'
 
 export interface PaymentOption {
   id: PaymentMethod
@@ -37,13 +43,6 @@ interface PaymentScreenProps {
 
 const PAYMENT_OPTIONS: PaymentOption[] = [
   {
-    id: 'cod',
-    name: 'Thanh toán khi nhận hàng (COD)',
-    icon: 'cash',
-    description: 'Thanh toán bằng tiền mặt khi nhận hàng',
-    available: true,
-  },
-  {
     id: 'vnpay',
     name: 'VNPay',
     icon: 'credit-card',
@@ -51,32 +50,22 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     available: true,
     fee: 0,
   },
-  {
-    id: 'momo',
-    name: 'MoMo',
-    icon: 'wallet',
-    description: 'Thanh toán qua ví MoMo',
-    available: true,
-    fee: 0,
-  },
-  {
-    id: 'bank_transfer',
-    name: 'Chuyển khoản ngân hàng',
-    icon: 'bank',
-    description: 'Chuyển khoản qua ngân hàng',
-    available: true,
-    fee: 0,
-  },
 ]
+
+const SHIPPING_CONFIG = {
+  freeShippingMinAmount: 2000000,
+  standardFee: 30000,
+  expressFee: 50000,
+}
 
 export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const theme = useTheme()
   const navigation = useNavigation() as NativeStackNavigationProp<any>
-  const { subtotal, items } = useCartStore()
+  const { subtotal, totalAfterDiscount, discountAmount, appliedPromotion, items } = useCart()
 
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('cod')
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('vnpay')
+  const [selectedShipping, setSelectedShipping] = useState<ShippingMethod>('standard')
   const [loading, setLoading] = useState(false)
-  const [processing, setProcessing] = useState(false)
   const [customerInfo, setCustomerInfo] = useState<GuestCustomerInfo | null>(null)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Partial<GuestCustomerInfo>>({})
@@ -98,20 +87,30 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
 
   const totals = React.useMemo(() => {
     const subtotalValue = subtotal
-    const taxValue = subtotalValue * 0.1
-    const shippingValue = items.length > 0 ? 30000 : 0
+    const discountedSubtotal = totalAfterDiscount
+    const shippingBase =
+      selectedShipping === 'express'
+        ? SHIPPING_CONFIG.expressFee
+        : SHIPPING_CONFIG.standardFee
+    const shippingValue =
+      items.length > 0 && discountedSubtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+        ? 0
+        : items.length > 0
+          ? shippingBase
+          : 0
     const paymentOption = PAYMENT_OPTIONS.find((opt) => opt.id === selectedPayment)
     const paymentFee = paymentOption?.fee || 0
-    const totalValue = subtotalValue + taxValue + shippingValue + paymentFee
+    const totalValue = discountedSubtotal + shippingValue + paymentFee
 
     return {
       subtotal: subtotalValue,
-      tax: taxValue,
+      discount: discountAmount,
+      discountedSubtotal,
       shipping: shippingValue,
       paymentFee,
       total: totalValue,
     }
-  }, [subtotal, items.length, selectedPayment])
+  }, [subtotal, totalAfterDiscount, discountAmount, items.length, selectedPayment, selectedShipping])
 
   const formatPrice = React.useCallback((price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -172,86 +171,17 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
       return
     }
 
-    if (!customerInfo?.phone) {
-      Alert.alert(
-        'Thông báo',
-        'Vui lòng cung cấp số điện thoại để chúng tôi có thể liên hệ.',
-        [
-          {
-            text: 'Thêm',
-            onPress: () => {
-              setEditingCustomer({ phone: '', ...customerInfo })
-              setShowCustomerForm(true)
-            },
-          },
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-        ]
-      )
-      return
-    }
-
-    if (!validatePhone(customerInfo.phone)) {
-      Alert.alert(
-        'Lỗi',
-        'Số điện thoại không hợp lệ. Vui lòng cập nhật.',
-        [
-          {
-            text: 'Cập nhật',
-            onPress: () => {
-              setEditingCustomer({ ...customerInfo })
-              setShowCustomerForm(true)
-            },
-          },
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-        ]
-      )
-      return
-    }
-
     navigation.navigate('CheckoutReview' as never, {
       address: selectedAddress,
       paymentMethod: selectedPayment,
+      shippingMethod: selectedShipping,
       totals,
-      customerInfo,
     })
-  }, [selectedAddress, selectedPayment, totals, customerInfo, validatePhone, navigation])
+  }, [selectedAddress, selectedPayment, selectedShipping, totals, navigation])
 
   const handleBack = useCallback(() => {
     navigation.goBack()
   }, [navigation])
-
-  const handleVNPay = useCallback(async () => {
-    try {
-      setProcessing(true)
-
-      console.log('Initiating VNPay payment...')
-
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      console.log('VNPay payment initiated')
-
-      Alert.alert(
-        'Thông báo',
-        'Chức năng thanh toán VNPay đang được phát triển. Vui lòng chọn phương thức thanh toán khác.',
-        [{ text: 'OK' }]
-      )
-    } catch (error) {
-      console.error('VNPay error:', error)
-      Alert.alert(
-        'Lỗi',
-        'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại sau.',
-        [{ text: 'OK' }]
-      )
-    } finally {
-      setProcessing(false)
-    }
-  }, [])
 
   if (loading) {
     return (
@@ -434,14 +364,20 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
             <Text variant="bodyMedium">{formatPrice(totals.subtotal)}</Text>
           </View>
 
-          <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Phí vận chuyển:</Text>
-            <Text variant="bodyMedium">{formatPrice(totals.shipping)}</Text>
-          </View>
+          {appliedPromotion && totals.discount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text variant="bodyMedium">Giảm giá ({appliedPromotion.code}):</Text>
+              <Text variant="bodyMedium" style={{ color: '#2e7d32' }}>
+                -{formatPrice(totals.discount)}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.summaryRow}>
-            <Text variant="bodyMedium">Thuế VAT (10%):</Text>
-            <Text variant="bodyMedium">{formatPrice(totals.tax)}</Text>
+            <Text variant="bodyMedium">Phí vận chuyển:</Text>
+            <Text variant="bodyMedium">
+              {totals.shipping === 0 ? 'Miễn phí' : formatPrice(totals.shipping)}
+            </Text>
           </View>
 
           {totals.paymentFee > 0 && (
@@ -462,6 +398,78 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
             </Text>
           </View>
         </Surface>
+
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Phương thức giao hàng
+        </Text>
+
+        <View style={styles.paymentList}>
+          <Card
+            style={[
+              styles.paymentCard,
+              selectedShipping === 'standard' && styles.selectedCard,
+            ]}
+            onPress={() => setSelectedShipping('standard')}
+          >
+            <View style={styles.paymentCardHeader}>
+              <View style={styles.paymentInfo}>
+                <RadioButton
+                  value="standard"
+                  status={selectedShipping === 'standard' ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedShipping('standard')}
+                />
+                <View style={styles.paymentDetails}>
+                  <View style={styles.paymentNameRow}>
+                    <Text variant="titleMedium" style={styles.paymentName}>
+                      Giao hàng tiêu chuẩn
+                    </Text>
+                    <Text variant="bodySmall" style={styles.feeText}>
+                      {subtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+                        ? 'Miễn phí'
+                        : formatPrice(SHIPPING_CONFIG.standardFee)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.description}>
+                    3-5 ngày làm việc
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          <Card
+            style={[
+              styles.paymentCard,
+              selectedShipping === 'express' && styles.selectedCard,
+            ]}
+            onPress={() => setSelectedShipping('express')}
+          >
+            <View style={styles.paymentCardHeader}>
+              <View style={styles.paymentInfo}>
+                <RadioButton
+                  value="express"
+                  status={selectedShipping === 'express' ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedShipping('express')}
+                />
+                <View style={styles.paymentDetails}>
+                  <View style={styles.paymentNameRow}>
+                    <Text variant="titleMedium" style={styles.paymentName}>
+                      Giao hàng nhanh
+                    </Text>
+                    <Text variant="bodySmall" style={styles.feeText}>
+                      {subtotal >= SHIPPING_CONFIG.freeShippingMinAmount
+                        ? 'Miễn phí'
+                        : formatPrice(SHIPPING_CONFIG.expressFee)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.description}>
+                    1-2 ngày làm việc
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+        </View>
 
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Chọn phương thức thanh toán
@@ -561,26 +569,13 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           </Surface>
         )}
 
-        {selectedPayment === 'vnpay' && (
-          <Button
-            mode="contained"
-            onPress={handleVNPay}
-            loading={processing}
-            disabled={processing}
-            style={styles.vnpayButton}
-            contentStyle={styles.vnpayButtonContent}
-            icon="qrcode"
-          >
-            Thanh toán qua VNPay
-          </Button>
-        )}
       </ScrollView>
 
       <Surface style={styles.footer} elevation={3}>
         <Button
           mode="contained"
           onPress={handleContinue}
-          disabled={!selectedPayment || processing}
+          disabled={!selectedPayment}
           style={styles.continueButton}
           contentStyle={styles.continueButtonContent}
         >
