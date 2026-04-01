@@ -17,6 +17,7 @@ export type MainTabParamList = {
   HomeTab: undefined
   SearchTab: undefined
   CartTab: undefined
+  OrdersTab: undefined
   AccountTab: undefined
 }
 

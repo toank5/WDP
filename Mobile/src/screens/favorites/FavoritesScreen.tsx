@@ -129,6 +129,14 @@ export function FavoritesScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false)
   const [addingToCartIds, setAddingToCartIds] = useState<Set<string>>(new Set())
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack()
+      return
+    }
+    navigation.navigate('HomeTab' as any)
+  }, [navigation])
+
   useEffect(() => {
     loadFavorites()
   }, [])
@@ -242,6 +250,7 @@ export function FavoritesScreen({ navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
+          <IconButton icon="arrow-left" size={22} onPress={handleBack} />
           <View>
             <Text style={styles.headerTitle}>My Favorites</Text>
             <Text style={styles.headerSubtitle}>
@@ -264,6 +273,7 @@ export function FavoritesScreen({ navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
+          <IconButton icon="arrow-left" size={22} onPress={handleBack} />
           <View>
             <Text style={styles.headerTitle}>My Favorites</Text>
             <Text style={styles.headerSubtitle}>Lỗi xảy ra</Text>
@@ -290,6 +300,7 @@ export function FavoritesScreen({ navigation }: Props) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <IconButton icon="arrow-left" size={22} onPress={handleBack} />
         <View>
           <Text style={styles.headerTitle}>My Favorites</Text>
           <Text style={styles.headerSubtitle}>

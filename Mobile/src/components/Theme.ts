@@ -1,29 +1,31 @@
 import { MD3DarkTheme, MD3LightTheme, adaptNavigationTheme } from 'react-native-paper'
 import { useColorScheme } from 'react-native'
+import { colors as designColors } from '../design/tokens'
 
 // Define custom colors based on WDP FE colors - Blue-purple theme
 export const COLORS = {
-  primary: '#6366f1', // Indigo blue-purple
-  primaryDark: '#4f46e5',
-  primaryLight: '#818cf8',
-  secondary: '#8b5cf6', // Violet purple
-  secondaryDark: '#7c3aed',
-  secondaryLight: '#a78bfa',
-  success: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-  surface: '#ffffff',
-  onSurface: '#000000',
-  onSurfaceDisabled: '#9e9e9e',
-  background: '#f8fafc',
-  border: '#e2e8f0',
+  primary: designColors.primary,
+  primaryDark: '#1d4ed8',
+  primaryLight: '#93c5fd',
+  secondary: designColors.secondary,
+  secondaryDark: '#6d28d9',
+  secondaryLight: '#c4b5fd',
+  success: designColors.success,
+  error: designColors.error,
+  warning: designColors.warning,
+  info: designColors.info,
+  surface: designColors.surface,
+  onSurface: designColors.text,
+  onSurfaceDisabled: designColors.textMuted,
+  background: designColors.background,
+  border: designColors.border,
   skeleton: '#f1f5f9',
 }
 
 // Light theme
 const lightTheme = {
   ...MD3LightTheme,
+  roundness: 12,
   colors: {
     ...MD3LightTheme.colors,
     primary: COLORS.primary,
@@ -41,11 +43,22 @@ const lightTheme = {
     outline: COLORS.border,
     skeleton: COLORS.skeleton,
   },
+  fonts: {
+    ...MD3LightTheme.fonts,
+    displayLarge: { ...MD3LightTheme.fonts.displayLarge, fontWeight: '700' },
+    headlineLarge: { ...MD3LightTheme.fonts.headlineLarge, fontWeight: '700' },
+    titleLarge: { ...MD3LightTheme.fonts.titleLarge, fontWeight: '700' },
+    titleMedium: { ...MD3LightTheme.fonts.titleMedium, fontWeight: '600' },
+    bodyLarge: { ...MD3LightTheme.fonts.bodyLarge, fontSize: 15, lineHeight: 22 },
+    bodyMedium: { ...MD3LightTheme.fonts.bodyMedium, fontSize: 14, lineHeight: 20 },
+    labelLarge: { ...MD3LightTheme.fonts.labelLarge, fontWeight: '600' },
+  },
 }
 
 // Dark theme
 const darkTheme = {
   ...MD3DarkTheme,
+  roundness: 12,
   colors: {
     ...MD3DarkTheme.colors,
     primary: COLORS.primaryLight,
@@ -62,6 +75,16 @@ const darkTheme = {
     background: '#121212',
     outline: '#424242',
     skeleton: '#2d2d2d',
+  },
+  fonts: {
+    ...MD3DarkTheme.fonts,
+    displayLarge: { ...MD3DarkTheme.fonts.displayLarge, fontWeight: '700' },
+    headlineLarge: { ...MD3DarkTheme.fonts.headlineLarge, fontWeight: '700' },
+    titleLarge: { ...MD3DarkTheme.fonts.titleLarge, fontWeight: '700' },
+    titleMedium: { ...MD3DarkTheme.fonts.titleMedium, fontWeight: '600' },
+    bodyLarge: { ...MD3DarkTheme.fonts.bodyLarge, fontSize: 15, lineHeight: 22 },
+    bodyMedium: { ...MD3DarkTheme.fonts.bodyMedium, fontSize: 14, lineHeight: 20 },
+    labelLarge: { ...MD3DarkTheme.fonts.labelLarge, fontWeight: '600' },
   },
 }
 

@@ -69,7 +69,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
 
   // Format price helper
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: APP_CONFIG.currency,
     }).format(price)
@@ -78,12 +78,12 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   return (
     <Surface style={styles.container} elevation={2}>
       <Text variant="titleMedium" style={styles.title}>
-        Tóm tắt
+        Summary
       </Text>
 
       {/* Subtotal */}
       <View style={styles.row}>
-        <Text variant="bodyMedium">Tạm tính:</Text>
+        <Text variant="bodyMedium">Subtotal:</Text>
         <Text variant="bodyMedium" style={styles.value}>
           {formatPrice(calculatedTotals.subtotal)}
         </Text>
@@ -93,7 +93,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       {calculatedTotals.discount && calculatedTotals.discount > 0 && (
         <View style={styles.row}>
           <Text variant="bodyMedium" style={styles.discountLabel}>
-            Giảm giá:
+            Discount:
           </Text>
           <Text variant="bodyMedium" style={styles.discountValue}>
             -{formatPrice(calculatedTotals.discount)}
@@ -105,7 +105,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       {showTax && (
         <View style={styles.row}>
           <Text variant="bodyMedium">
-            Thuế VAT ({(taxRate * 100).toFixed(0)}%):
+            VAT ({(taxRate * 100).toFixed(0)}%):
           </Text>
           <Text variant="bodyMedium" style={styles.value}>
             {formatPrice(calculatedTotals.tax)}
@@ -117,12 +117,12 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       {showShipping && (
         <View style={styles.row}>
           <Text variant="bodyMedium">
-            Phí vận chuyển:
+            Shipping fee:
           </Text>
           <Text variant="bodyMedium" style={styles.value}>
             {itemCount > 0
               ? formatPrice(calculatedTotals.shipping)
-              : 'Miễn phí'}
+              : 'Free'}
           </Text>
         </View>
       )}
@@ -132,7 +132,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       {/* Total */}
       <View style={styles.totalRow}>
         <Text variant="titleLarge" style={styles.totalLabel}>
-          Tổng cộng:
+          Total:
         </Text>
         <Text variant="headlineLarge" style={styles.totalValue}>
           {formatPrice(calculatedTotals.total)}
@@ -142,14 +142,14 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       {/* Tax Note */}
       {showTax && (
         <Text variant="bodySmall" style={styles.note}>
-          * Đã bao gồm thuế VAT ({(taxRate * 100).toFixed(0)}%)
+          * VAT ({(taxRate * 100).toFixed(0)}%) included
         </Text>
       )}
 
       {/* Shipping Note */}
       {showShipping && (
         <Text variant="bodySmall" style={styles.note}>
-          * Phí vận chuyển cố định {formatPrice(shippingRate)}
+          * Flat shipping fee {formatPrice(shippingRate)}
         </Text>
       )}
     </Surface>

@@ -7,10 +7,10 @@ export const API_BASE_URL =
 
 // App Configuration
 export const APP_CONFIG = {
-  name: process.env.APP_NAME || 'WDP Glasses Shop',
+  name: process.env.APP_NAME || 'EYEWEAR',
   version: process.env.APP_VERSION || '1.0.0',
   currency: process.env.APP_CURRENCY || 'VND',
-  locale: process.env.APP_LOCALE || 'vi-VN',
+  locale: process.env.APP_LOCALE || 'en-US',
 }
 
 // Development mode check

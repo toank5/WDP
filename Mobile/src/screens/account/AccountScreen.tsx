@@ -35,51 +35,51 @@ interface MenuItem {
 const MENU_ITEMS: MenuItem[] = [
   {
     icon: 'account-edit',
-    title: 'Thông tin cá nhân',
-    subtitle: 'Cập nhật tên, email, số điện thoại',
-    onPress: (nav) => nav.navigate('ProfileSettings'),
+    title: 'Profile',
+    subtitle: 'Update your name, email, and phone',
+    onPress: (nav) => (nav as any).navigate('ProfileSettings'),
     showChevron: true,
   },
   {
     icon: 'map-marker',
-    title: 'Địa chỉ giao hàng',
-    subtitle: 'Quản lý địa chỉ giao hàng mặc định',
-    onPress: (nav) => nav.navigate('AddressManagement'),
+    title: 'Shipping address',
+    subtitle: 'Manage your default delivery addresses',
+    onPress: (nav) => (nav as any).navigate('AddressManagement'),
     showChevron: true,
   },
   {
     icon: 'heart',
-    title: 'Danh sách yêu thích',
-    subtitle: 'Xem các sản phẩm đã lưu',
-    onPress: (nav) => nav.navigate('Favorites'),
+    title: 'Favorites',
+    subtitle: 'View your saved products',
+    onPress: (nav) => (nav as any).navigate('Favorites'),
     showChevron: true,
   },
   {
     icon: 'receipt',
-    title: 'Lịch sử đơn hàng',
-    subtitle: 'Xem và theo dõi đơn hàng',
-    onPress: (nav) => nav.navigate('OrderHistory'),
+    title: 'Order history',
+    subtitle: 'View and track your orders',
+    onPress: (nav) => (nav as any).navigate('OrderHistory'),
     showChevron: true,
   },
   {
     icon: 'shield-lock',
-    title: 'Bảo mật',
-    subtitle: 'Thay đổi mật khẩu và cài đặt bảo mật',
-    onPress: (nav) => nav.navigate('SecuritySettings'),
+    title: 'Security',
+    subtitle: 'Change password and security settings',
+    onPress: (nav) => (nav as any).navigate('SecuritySettings'),
     showChevron: true,
   },
   {
     icon: 'help-circle',
-    title: 'Trợ giúp & Hỗ trợ',
-    subtitle: 'Câu hỏi thường gặp và liên hệ',
-    onPress: (nav) => nav.navigate('Contact'),
+    title: 'Help & Support',
+    subtitle: 'FAQs and contact options',
+    onPress: (nav) => (nav as any).navigate('Contact'),
     showChevron: true,
   },
   {
     icon: 'information',
-    title: 'Về chúng tôi',
-    subtitle: 'Thông tin về công ty',
-    onPress: (nav) => nav.navigate('About'),
+    title: 'About Us',
+    subtitle: 'Company information',
+    onPress: (nav) => (nav as any).navigate('About'),
     showChevron: true,
   },
 ]
@@ -101,13 +101,13 @@ function ProfileCard({ user, navigation }: ProfileCardProps) {
           style={styles.avatar}
         />
         <View style={styles.profileInfo}>
-          <Text style={styles.userName}>{user?.fullName || 'Người dùng'}</Text>
+          <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
         </View>
         <IconButton
           icon="pencil"
           size={20}
-          onPress={() => navigation.navigate('ProfileSettings')}
+          onPress={() => (navigation as any).navigate('ProfileSettings')}
           style={styles.editButton}
           iconColor={theme.colors.primary}
         />
@@ -175,7 +175,7 @@ export function AccountScreen({ navigation }: Props) {
 
       {/* App Info */}
       <View style={styles.appInfo}>
-        <Text style={styles.appVersion}>Phiên bản 1.0.0</Text>
+        <Text style={styles.appVersion}>Version 1.0.0</Text>
         <Text style={styles.appCopyright}>© 2026 Glasses Platform</Text>
       </View>
 
@@ -187,7 +187,7 @@ export function AccountScreen({ navigation }: Props) {
         icon="logout"
         textColor={theme.colors.error}
       >
-        Đăng xuất
+        Sign out
       </Button>
 
       {/* Logout Confirmation Dialog */}
@@ -196,21 +196,21 @@ export function AccountScreen({ navigation }: Props) {
           visible={logoutDialogVisible}
           onDismiss={() => setLogoutDialogVisible(false)}
         >
-          <Dialog.Title>Xác nhận đăng xuất</Dialog.Title>
+          <Dialog.Title>Confirm sign out</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
-              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+              Are you sure you want to sign out of your account?
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setLogoutDialogVisible(false)}>
-              Hủy
+              Cancel
             </Button>
             <Button
               onPress={handleLogout}
               textColor={theme.colors.error}
             >
-              Đăng xuất
+              Sign out
             </Button>
           </Dialog.Actions>
         </Dialog>

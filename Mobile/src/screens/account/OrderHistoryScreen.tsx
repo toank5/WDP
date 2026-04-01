@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Image } from 'react-native'
 import {
   Text,
   Button,
@@ -398,6 +398,9 @@ export const OrderHistoryScreen = () => {
               <View style={styles.orderContent}>
                 {/* Items Preview */}
                 <View style={styles.itemsPreview}>
+                  {item.items[0]?.image ? (
+                    <Image source={{ uri: item.items[0].image }} style={styles.itemThumb} />
+                  ) : null}
                   {item.items.slice(0, 3).map((orderItem, index) => (
                     <View key={index} style={styles.itemPreview}>
                       <Text variant="bodySmall" numberOfLines={1}>
@@ -427,12 +430,9 @@ export const OrderHistoryScreen = () => {
 
               {/* Footer */}
               <View style={styles.orderFooter}>
-                <IconButton
-                  icon="chevron-right"
-                  size={20}
-                  onPress={() => handleOrderPress(item.id)}
-                  style={styles.viewButton}
-                />
+                <Button mode="text" icon="chevron-right" onPress={() => handleOrderPress(item.id)}>
+                  Xem chi tiết
+                </Button>
               </View>
             </Surface>
           )
@@ -563,6 +563,13 @@ const styles = StyleSheet.create({
   itemsPreview: {
     flex: 1,
     gap: 4,
+  },
+  itemThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginBottom: 6,
+    backgroundColor: '#f1f5f9',
   },
   itemPreview: {
     backgroundColor: '#d1fae5',

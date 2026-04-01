@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useTheme, IconButton, Badge } from 'react-native-paper'
 import type { MainTabParamList } from './types'
-import { SearchScreen, CartScreen, AccountScreen } from '../screens'
+import { SearchScreen, CartScreen, AccountScreen, OrderHistoryScreen } from '../screens'
 import { HomeStackNavigator } from './HomeStackNavigator'
 import { useCartStore } from '../store/cart-store'
 
@@ -37,7 +37,7 @@ export const MainTabNavigator = () => {
         name="HomeTab"
         component={HomeStackNavigator}
         options={{
-          tabBarLabel: 'Cửa hàng',
+          tabBarLabel: 'Shop',
           tabBarIcon: ({ color, size }) => (
             <IconButton icon="store" size={size} iconColor={color} />
           ),
@@ -47,17 +47,17 @@ export const MainTabNavigator = () => {
         name="SearchTab"
         component={SearchScreen}
         options={{
-          tabBarLabel: 'Tìm kiếm',
+          tabBarLabel: 'Search',
           tabBarIcon: ({ color, size }) => (
             <IconButton icon="magnify" size={size} iconColor={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Cart"
+        name="CartTab"
         component={CartScreen}
         options={{
-          tabBarLabel: 'Giỏ hàng',
+          tabBarLabel: 'Cart',
           tabBarIcon: ({ color, size }) => (
             <View>
               <IconButton icon="cart" size={size} iconColor={color} />
@@ -74,10 +74,20 @@ export const MainTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Account"
+        name="OrdersTab"
+        component={OrderHistoryScreen}
+        options={{
+          tabBarLabel: 'Orders',
+          tabBarIcon: ({ color, size }) => (
+            <IconButton icon="clipboard-text" size={size} iconColor={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AccountTab"
         component={AccountScreen}
         options={{
-          tabBarLabel: 'Tài khoản',
+          tabBarLabel: 'Account',
           tabBarIcon: ({ color, size }) => (
             <IconButton icon="account" size={size} iconColor={color} />
           ),

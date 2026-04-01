@@ -187,10 +187,10 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   HomeTab: undefined
-  Store: undefined
-  Search: undefined
-  Cart: undefined
-  Account: undefined
+  SearchTab: undefined
+  CartTab: undefined
+  OrdersTab: undefined
+  AccountTab: undefined
 }
 
 export type AuthStackParamList = {
