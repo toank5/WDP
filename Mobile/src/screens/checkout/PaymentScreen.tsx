@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native'
 import {
   Text,
   Button,
@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useCartStore, getGuestCartForCheckout, type GuestCustomerInfo } from '../../store/cart-store'
 import type { Address } from '../../components/checkout/AddressForm'
+import { getPaymentConfig, getVnpayPaymentUrl, type PaymentConfig } from '../../services/payment-api'
 
 export type PaymentMethod = 'cod' | 'vnpay' | 'bank_transfer' | 'momo'
 
@@ -80,11 +81,16 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
   const [customerInfo, setCustomerInfo] = useState<GuestCustomerInfo | null>(null)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Partial<GuestCustomerInfo>>({})
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null)
+  const [showVnpayModal, setShowVnpayModal] = useState(false)
+  const [vnpayQrCode, setVnpayQrCode] = useState<string>('')
+  const [vnpayPaymentUrl, setVnpayPaymentUrl] = useState<string>('')
 
   const selectedAddress = route.params?.address
 
   useEffect(() => {
     loadCustomerInfo()
+    loadPaymentConfig()
   }, [])
 
   const loadCustomerInfo = async () => {
@@ -93,6 +99,15 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
       setCustomerInfo(data.customerInfo)
     } catch (error) {
       console.error('Failed to load customer info:', error)
+    }
+  }
+
+  const loadPaymentConfig = async () => {
+    try {
+      const config = await getPaymentConfig()
+      setPaymentConfig(config)
+    } catch (error) {
+      console.error('Failed to load payment config:', error)
     }
   }
 
@@ -230,17 +245,32 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
     try {
       setProcessing(true)
 
-      console.log('Initiating VNPay payment...')
+      // Check if VNPay is enabled
+      if (!paymentConfig?.vnpay?.enabled) {
+        Alert.alert(
+          'Thông báo',
+          'VNPay hiện đang được bảo trì. Vui lòng chọn phương thức thanh toán khác.',
+          [{ text: 'OK' }]
+        )
+        return
+      }
 
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Use QR code from config or backend
+      const qrCode = paymentConfig.vnpay.qrCode || process.env.VNPAY_QR_CODE || ''
+      if (!qrCode) {
+        Alert.alert(
+          'Thông báo',
+          'Không thể tạo mã QR thanh toán. Vui lòng chọn phương thức thanh toán khác.',
+          [{ text: 'OK' }]
+        )
+        return
+      }
 
-      console.log('VNPay payment initiated')
+      setVnpayQrCode(qrCode)
+      setVnpayPaymentUrl(paymentConfig.vnpay.paymentUrl || '')
+      setShowVnpayModal(true)
 
-      Alert.alert(
-        'Thông báo',
-        'Chức năng thanh toán VNPay đang được phát triển. Vui lòng chọn phương thức thanh toán khác.',
-        [{ text: 'OK' }]
-      )
+      console.log('VNPay QR code generated:', qrCode)
     } catch (error) {
       console.error('VNPay error:', error)
       Alert.alert(
@@ -251,7 +281,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
     } finally {
       setProcessing(false)
     }
-  }, [])
+  }, [paymentConfig])
 
   if (loading) {
     return (
@@ -587,6 +617,77 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({ route }) => {
           Tiếp tục
         </Button>
       </Surface>
+
+      {/* VNPay QR Code Modal */}
+      <Modal
+        visible={showVnpayModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowVnpayModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Surface style={styles.modalContent} elevation={4}>
+              <View style={styles.modalHeader}>
+                <Text variant="titleLarge" style={styles.modalTitle}>
+                  Thanh toán VNPay
+                </Text>
+                <IconButton
+                  icon="close"
+                  size={24}
+                  onPress={() => setShowVnpayModal(false)}
+                />
+              </View>
+
+              <Divider style={styles.modalDivider} />
+
+              <View style={styles.modalBody}>
+                <Text variant="bodyMedium" style={styles.modalText}>
+                  Quét mã QR bên dưới để thanh toán
+                </Text>
+
+                <View style={styles.qrCodeContainer}>
+                  <Text variant="headlineMedium" style={styles.qrCodeText}>
+                    {vnpayQrCode}
+                  </Text>
+                </View>
+
+                <Text variant="bodySmall" style={styles.modalHint}>
+                  Mã QR: {vnpayQrCode}
+                </Text>
+
+                <Text variant="bodySmall" style={styles.modalNote}>
+                  • Sử dụng app VNPay để quét mã
+                </Text>
+                <Text variant="bodySmall" style={styles.modalNote}>
+                  • Sau khi thanh toán thành công, bấm "Đã thanh toán"
+                </Text>
+
+                <View style={styles.modalActions}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setShowVnpayModal(false)}
+                    style={styles.modalButton}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      setShowVnpayModal(false)
+                      handleContinue()
+                    }}
+                    style={styles.modalButton}
+                    icon="check-circle"
+                  >
+                    Đã thanh toán
+                  </Button>
+                </View>
+              </View>
+            </Surface>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -767,5 +868,73 @@ const styles = StyleSheet.create({
   },
   vnpayButtonContent: {
     paddingVertical: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    maxHeight: '80%',
+  },
+  modalContent: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+  },
+  modalDivider: {
+    marginVertical: 0,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalText: {
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  qrCodeContainer: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#1e88e5',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  qrCodeText: {
+    color: '#1e88e5',
+    fontWeight: 'bold',
+  },
+  modalHint: {
+    textAlign: 'center',
+    opacity: 0.6,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  modalNote: {
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 8,
   },
 })

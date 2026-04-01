@@ -55,4 +55,11 @@ export const API_ENDPOINTS = {
   ACCOUNT_PREFERENCES: '/account/preferences',
   ACCOUNT_CHANGE_PASSWORD: '/account/change-password',
   ACCOUNT_DELETE: '/account',
+
+  // Payment
+  PAYMENT_CONFIG: '/payment/config',
+  VNPAY_CREATE: '/payment/vnpay/create',
+  VNPAY_VERIFY: '/payment/vnpay/verify',
+  MOMO_CREATE: '/payment/momo/create',
+  MOMO_VERIFY: '/payment/momo/verify',
 }

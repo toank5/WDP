@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   View,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Dimensions,
   Image,
   TextInput,
@@ -270,77 +270,6 @@ export function SearchScreen({ navigation }: Props) {
     filters.inStockOnly
   )
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="Tìm sản phẩm..."
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={styles.searchbar}
-          />
-          <IconButton
-            icon="tune"
-            onPress={() => setFilterModalVisible(true)}
-            size={20}
-          />
-        </View>
-        <View style={styles.filtersContainer}>
-          <SegmentedButtons
-            value={selectedCategory}
-            onValueChange={setSelectedCategory}
-            buttons={[
-              { value: null, label: 'Tất cả' },
-              ...CATEGORIES.map((cat) => ({ value: cat.id, label: cat.name })),
-            ]}
-            style={styles.categoryButtons}
-            density="small"
-          />
-        </View>
-        <View style={styles.productsGrid}>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <ProductCardSkeleton key={index} />
-          ))}
-        </View>
-      </View>
-    )
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="Tìm kiếm sản phẩm..."
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={styles.searchBar}
-          />
-          <IconButton
-            icon="filter-variant"
-            size={24}
-            onPress={openFilterModal}
-            style={styles.filterButton}
-          />
-        </View>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>🛍</Text>
-          <Text style={styles.errorTitle}>Có lỗi xảy ra</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <Button
-            mode="contained"
-            onPress={() => loadProducts()}
-            style={styles.retryButton}
-            icon="refresh"
-          >
-            Thử lại
-          </Button>
-        </View>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.container}>
       {/* Search Bar */}
@@ -378,9 +307,57 @@ export function SearchScreen({ navigation }: Props) {
       </View>
 
       {/* Products Grid */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      <FlatList
+        data={
+          error
+            ? [{ _id: 'error', isError: true }]
+            : loading
+            ? Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}`, isSkeleton: true }))
+            : filteredProducts
+        }
+        renderItem={({ item }) => {
+          if ((item as any).isError) {
+            return (
+              <View style={styles.emptyContainer}>
+                <IconButton
+                  icon="shopping"
+                  size={64}
+                  iconColor={theme.colors.onSurfaceDisabled}
+                  style={styles.emptyIcon}
+                />
+                <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
+                <Text style={styles.emptyText}>
+                  Không thể tải danh sách sản phẩm
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={() => loadProducts()}
+                  style={styles.emptyButton}
+                  icon="refresh"
+                >
+                  Thử lại
+                </Button>
+              </View>
+            )
+          }
+
+          if ((item as any).isSkeleton) {
+            return <ProductCardSkeleton />
+          }
+
+          const product = item as Product
+          return (
+            <ProductCard
+              product={product}
+              onPress={() => handleProductPress(product)}
+            />
+          )
+        }
+        }
+        keyExtractor={(item) => item._id}
+        numColumns={2}
+        contentContainerStyle={styles.listContent}
+        columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -389,78 +366,10 @@ export function SearchScreen({ navigation }: Props) {
             tintColor={theme.colors.primary}
           />
         }
-      >
-        {error ? (
-          <View style={styles.emptyContainer}>
-            <IconButton
-              icon="shopping"
-              size={64}
-              iconColor={theme.colors.onSurfaceDisabled}
-              style={styles.emptyIcon}
-            />
-            <Text style={styles.emptyTitle}>Có lỗi xảy ra</Text>
-            <Text style={styles.emptyText}>
-              Không thể tải danh sách sản phẩm
-            </Text>
-            <Button
-              mode="contained"
-              onPress={() => loadProducts()}
-              style={styles.emptyButton}
-              icon="refresh"
-            >
-              Thử lại
-            </Button>
-          </View>
-        ) : loading ? (
-          <View style={styles.productsGrid}>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <ProductCardSkeleton key={index} />
-            ))}
-          </View>
-        ) : filteredProducts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <IconButton
-              icon="magnify"
-              size={64}
-              iconColor={theme.colors.onSurfaceDisabled}
-              style={styles.emptyIcon}
-            />
-            <Text style={styles.emptyTitle}>Không tìm thấy sản phẩm nào</Text>
-            <Text style={styles.emptyText}>
-              Thử thay đổi bộ lọc hoặc tìm kiếm với từ khóa khác
-            </Text>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setFilters({ ...DEFAULT_FILTERS, maxPrice })
-                setSearchQuery('')
-              }}
-              style={styles.emptyButton}
-              icon="filter-remove"
-            >
-              Xóa bộ lọc
-            </Button>
-            <Button
-              mode="contained"
-              onPress={() => navigation.navigate('Main', { screen: 'Store' })}
-              style={styles.emptyButton}
-              icon="shopping"
-            >
-              Xem tất cả sản phẩm
-            </Button>
-          </View>
-        ) : (
-          <View style={styles.productsGrid}>
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product._id}
-                product={product}
-                onPress={() => handleProductPress(product)}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+        ListFooterComponent={
+          <View style={styles.listFooter} />
+        }
+      />
 
       {/* Filter Modal */}
       <Portal>
@@ -474,7 +383,7 @@ export function SearchScreen({ navigation }: Props) {
             <IconButton icon="close" onPress={() => setFilterModalVisible(false)} />
           </View>
 
-          <ScrollView style={styles.filterScrollView}>
+          <ScrollView style={styles.filterModalScrollView}>
             {/* Category */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Danh mục</Text>
@@ -574,13 +483,17 @@ export function SearchScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
+    paddingBottom: 12,
     gap: 8,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   searchbar: {
     flex: 1,
@@ -588,7 +501,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flex: 1,
     elevation: 0,
-    backgroundColor: 'white',
+    backgroundColor: '#f8fafc',
   },
   filtersContainer: {
     paddingHorizontal: 12,
@@ -600,10 +513,10 @@ const styles = StyleSheet.create({
   filterButton: {
     flex: 1,
     elevation: 0,
-    backgroundColor: 'white',
+    backgroundColor: '#f8fafc',
   },
-  filterButton: {
-    backgroundColor: 'white',
+  filterButtonActive: {
+    backgroundColor: '#ffffff',
   },
   headerRow: {
     flexDirection: 'row',
@@ -611,19 +524,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
   },
   resultsText: {
     fontSize: 14,
     color: '#64748b',
+    fontWeight: '500',
   },
   sortButtons: {
     height: 32,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
+    backgroundColor: '#f8fafc',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -633,36 +543,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     marginBottom: 16,
+    textAlign: 'center',
   },
   emptyIcon: {
     marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 8,
-    color: '#000000',
+    color: '#0f172a',
   },
   emptyButton: {
     marginBottom: 8,
     paddingHorizontal: 20,
-  },
-  productsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    borderRadius: 12,
   },
   productCard: {
     width: SCREEN_WIDTH / 2 - 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   productImageContainer: {
     position: 'relative',
     height: 140,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f8fafc',
   },
   productImage: {
     width: '100%',
@@ -671,7 +582,7 @@ const styles = StyleSheet.create({
   placeholderImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   placeholderText: {
     fontSize: 48,
@@ -680,12 +591,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     right: 8,
-    height: 20,
-    backgroundColor: '#6366f1',
+    height: 24,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 8,
   },
   threeDChipText: {
     color: 'white',
     fontSize: 10,
+    fontWeight: '600',
   },
   productContent: {
     padding: 12,
@@ -693,19 +606,25 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
     marginBottom: 4,
+    lineHeight: 20,
   },
   productPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6366f1',
+    fontWeight: '700',
+    color: '#2563eb',
   },
   filterModal: {
     margin: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     maxHeight: '80%',
     overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   filterHeader: {
     flexDirection: 'row',
@@ -714,24 +633,26 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   filterTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-  },
-  filterScrollView: {
-    maxHeight: 400,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   filterSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#d1fae5',
+    borderBottomColor: '#e2e8f0',
+  },
+  filterModalScrollView: {
+    maxHeight: 400,
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#000000',
+    color: '#0f172a',
   },
   chipContainer: {
     flexDirection: 'row',
@@ -767,14 +688,18 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 16,
+    color: '#0f172a',
+    fontWeight: '500',
   },
   filterActions: {
     flexDirection: 'row',
     padding: 16,
     gap: 12,
+    backgroundColor: '#ffffff',
   },
   filterAction: {
     flex: 1,
+    borderRadius: 12,
   },
   errorContainer: {
     flex: 1,
@@ -788,7 +713,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 8,
     color: '#ef4444',
   },
@@ -797,6 +722,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 22,
   },
   retryButton: {
     paddingHorizontal: 32,

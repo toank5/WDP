@@ -563,19 +563,19 @@ export function ProductDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
   },
   imageGallery: {
-    backgroundColor: '#a7f3d0',
+    backgroundColor: '#ffffff',
   },
   mainImageContainer: {
     position: 'relative',
     width: SCREEN_WIDTH,
     aspectRatio: 1,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f8fafc',
   },
   mainImage: {
     width: '100%',
@@ -644,18 +644,19 @@ const styles = StyleSheet.create({
   categoryBadge: {
     alignSelf: 'flex-start',
     marginBottom: 12,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#eff6ff',
   },
   categoryBadgeText: {
-    color: '#4338ca',
+    color: '#2563eb',
     fontSize: 12,
     fontWeight: '600',
   },
   productName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
     marginBottom: 12,
+    lineHeight: 32,
   },
   priceRow: {
     flexDirection: 'row',
@@ -665,8 +666,8 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#6366f1',
+    fontWeight: '800',
+    color: '#2563eb',
   },
   stockStatus: {
     backgroundColor: 'transparent',
@@ -680,13 +681,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
     marginBottom: 12,
   },
   description: {
     fontSize: 14,
-    color: '#1f2937',
+    color: '#64748b',
     lineHeight: 22,
     marginBottom: 16,
   },
@@ -723,7 +724,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f8fafc',
     borderRadius: 12,
   },
   specIcon: {
@@ -735,13 +736,13 @@ const styles = StyleSheet.create({
   },
   specLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#64748b',
     marginBottom: 2,
   },
   specValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
   },
   reassuranceContainer: {
     gap: 12,
@@ -750,7 +751,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#a7f3d0',
+    backgroundColor: '#eff6ff',
     borderRadius: 12,
   },
   reassuranceIcon: {
@@ -759,7 +760,7 @@ const styles = StyleSheet.create({
   },
   reassuranceText: {
     fontSize: 14,
-    color: '#4c1d95',
+    color: '#64748b',
     flex: 1,
     fontWeight: '500',
   },
@@ -780,8 +781,9 @@ const styles = StyleSheet.create({
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d1fae5',
-    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 4,
   },
   quantityText: {
     fontSize: 16,
@@ -796,10 +798,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addToCartButton: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   buyNowButton: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   buttonContent: {
     paddingVertical: 10,
@@ -840,10 +842,10 @@ const styles = StyleSheet.create({
   },
   tagChip: {
     height: 28,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   tagChipText: {
     fontSize: 12,
-    color: '#4338ca',
+    color: '#2563eb',
   },
 })

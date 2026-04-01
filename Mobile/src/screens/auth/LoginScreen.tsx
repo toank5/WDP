@@ -278,23 +278,26 @@ const theme = useTheme()
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingVertical: 32,
+    backgroundColor: '#f8fafc',
   },
   header: {
     alignItems: 'center',
     marginBottom: 40,
   },
   title: {
-    fontWeight: 'bold',
+    fontWeight: '800',
     marginBottom: 8,
+    color: '#0f172a',
   },
   subtitle: {
     opacity: 0.7,
+    color: '#64748b',
   },
   form: {
     flex: 1,

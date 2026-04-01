@@ -407,7 +407,7 @@ export function CartScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -420,14 +420,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#c7d2fe',
+    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
   },
   headerSubtitle: {
     fontSize: 14,
@@ -444,8 +444,13 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   itemContent: {
     flexDirection: 'row',
@@ -462,7 +467,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   placeholderImage: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -476,14 +481,16 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
     marginBottom: 4,
+    lineHeight: 22,
   },
   variantText: {
     fontSize: 12,
     color: '#64748b',
     marginBottom: 4,
     textTransform: 'uppercase',
+    fontWeight: '500',
   },
   priceRow: {
     flexDirection: 'row',
@@ -493,14 +500,14 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6366f1',
+    fontWeight: '700',
+    color: '#2563eb',
   },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d1fae5',
-    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
     gap: 8,
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -511,7 +518,7 @@ const styles = StyleSheet.create({
   quantityText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
     paddingHorizontal: 8,
     minWidth: 24,
     textAlign: 'center',
@@ -529,15 +536,16 @@ const styles = StyleSheet.create({
   },
   freeShippingInfo: {
     padding: 12,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#eff6ff',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 12,
   },
   freeShippingText: {
     fontSize: 12,
-    color: '#6366f1',
+    color: '#2563eb',
     textAlign: 'center',
+    fontWeight: '500',
   },
   summary: {
     padding: 16,
@@ -554,27 +562,27 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#0f172a',
   },
   summaryDivider: {
     marginVertical: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
   },
   totalValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#6366f1',
+    fontWeight: '800',
+    color: '#2563eb',
   },
   shippingText: {
     color: '#10b981',
   },
   checkoutButton: {
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   checkoutButtonContent: {
     paddingVertical: 12,
@@ -598,8 +606,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#0f172a',
     marginBottom: 8,
   },
   emptyText: {
