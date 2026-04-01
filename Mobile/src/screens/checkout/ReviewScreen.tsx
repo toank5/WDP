@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native'
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking, Image } from 'react-native'
 import {
   Text,
   Button,
@@ -318,6 +318,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ route }) => {
           <View style={styles.itemsList}>
             {items.map((item) => (
               <View key={item._id} style={styles.itemRow}>
+                {item.image && (
+                  <Image
+                    source={{ uri: item.image }}
+                    style={styles.itemImage}
+                  />
+                )}
                 <View style={styles.itemInfo}>
                   <Text variant="titleSmall" style={styles.itemName}>
                     {item.productName}
@@ -537,11 +543,17 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    gap: 12,
+  },
+  itemImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 4,
+    backgroundColor: '#f0f0f0',
   },
   itemInfo: {
     flex: 1,
