@@ -35,7 +35,18 @@
       "Bash(pkill -f \"node.*wdp-be\")",
       "Bash(curl -s http://10.0.2.2:8386/products)",
       "Bash(npx expo:*)",
-      "Bash(curl -v http://localhost:8386/products)"
+      "Bash(curl -v http://localhost:8386/products)",
+      "Bash(curl -s \"https://wdp-be-prod-2.up.railway.app/products\")",
+      "Bash(curl -s \"https://wdp-be-prod-2.up.railway.app\")",
+      "Bash(curl -s \"https://wdp-be-prod-2.up.railway.app/health\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s https://wdp-be-prod-2.up.railway.app/products)",
+      "Bash(curl -s \"https://wdp-be-prod-2.up.railway.app/products/69a559ddb06eb721c00c68d2\")",
+      "Bash(curl -s https://wdp-be-prod-2.up.railway.app/products/69a559ddb06eb721c00c68d2)",
+      "Bash(\"D:\\\\WDP-Mobile\\\\WDP\\\\Mobile\\\\.env\")",
+      "Bash(\"VNPAY_QR_CODE=WDP_QR_20240408\")",
+      "Read(//d/WDP-Mobile/WWDP/Mobile/**)",
+      "Read(//d/WDP-Mobile/**)"
     ],
     "additionalDirectories": [
       "d:\\Code\\Project\\WDP\\packages\\shared\\src",
