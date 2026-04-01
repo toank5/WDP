@@ -322,10 +322,11 @@ export const useCartStore = create<CartState>(
           if (result.items && result.items.length >= 0) {
             // Reload cart to get updated state
             await get().loadCart()
+            return { success: true, message: 'Đã thêm vào giỏ hàng thành công' }
           } else {
             set({ error: result.message || 'Thêm vào giỏ hàng thất bại', loading: false })
+            return { success: false, message: result.message || 'Thêm vào giỏ hàng thất bại' }
           }
-          return result
         } else {
           // Guest user: add to AsyncStorage
           const cartItemId = item.variantSku
@@ -372,15 +373,15 @@ export const useCartStore = create<CartState>(
             loading: false,
           })
 
-          return { success: true, message: 'Added to cart' }
+          return { success: true, message: 'Đã thêm vào giỏ hàng thành công' }
         }
       } catch (error) {
         console.error('Failed to add item to cart:', error)
         set({
-          error: 'Failed to add item to cart',
+          error: 'Không thể thêm vào giỏ hàng',
           loading: false,
         })
-        return { success: false, message: 'Failed to add item to cart' }
+        return { success: false, message: 'Không thể thêm vào giỏ hàng' }
       }
     },
 
