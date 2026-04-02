@@ -1,0 +1,231 @@
+@startuml BackendSchemasERD
+title WDP Backend ERD (from wdp-be/src/commons/schemas)
+
+left to right direction
+hide circle
+skinparam backgroundColor #F7F7F7
+skinparam linetype ortho
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam entity {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontColor #111111
+}
+
+entity "User" as User {
+  * _id : ObjectId
+  --
+  fullName : string
+  email : string (unique)
+  role : enum
+  phone : string?
+  emailVerified : boolean
+  isDeleted : boolean
+}
+
+entity "Address (embedded)" as Address {
+  * type : enum
+  * street : string
+  * city : string
+  * zipCode : string
+}
+
+entity "Product" as Product {
+  * _id : ObjectId
+  --
+  name : string
+  slug : string (unique)
+  category : enum
+  basePrice : number
+  isActive : boolean
+  isDeleted : boolean
+}
+
+entity "ProductVariant (embedded)" as ProductVariant {
+  * sku : string
+  * size : string
+  * color : string
+  * price : number
+  weight : number?
+}
+
+entity "Cart" as Cart {
+  * _id : ObjectId
+  --
+  customerId : ObjectId
+}
+
+entity "CartItem (embedded)" as CartItem {
+  * productId : ObjectId
+  variantSku : string
+  quantity : number
+  requiresPrescription : boolean
+}
+
+entity "Order" as Order {
+  * _id : ObjectId
+  --
+  orderNumber : string (unique)
+  customerId : ObjectId
+  orderType : enum
+  orderStatus : enum
+  totalAmount : number
+  assignedStaffId : ObjectId?
+  promotionId : ObjectId?
+}
+
+entity "OrderItem (embedded)" as OrderItem {
+  * itemId : string
+  * productId : ObjectId
+  variantSku : string
+  quantity : number
+  priceAtOrder : number
+  isPreorder : boolean
+}
+
+entity "Review" as Review {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  productId : ObjectId
+  orderId : ObjectId
+  rating : number
+  comment : string
+}
+
+entity "Favorite" as Favorite {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  productId : ObjectId
+  variantId : ObjectId?
+  variantSku : string?
+}
+
+entity "Inventory" as Inventory {
+  * _id : ObjectId
+  --
+  sku : string (unique)
+  stockQuantity : number
+  reservedQuantity : number
+  availableQuantity : number
+  reorderLevel : number
+}
+
+entity "InventoryMovement" as InventoryMovement {
+  * _id : ObjectId
+  --
+  sku : string
+  movementType : enum
+  quantity : number
+  orderId : ObjectId?
+  productId : ObjectId?
+  performedBy : ObjectId?
+}
+
+entity "Promotion" as Promotion {
+  * _id : ObjectId
+  --
+  code : string (unique)
+  type : enum
+  scope : enum
+  applicableProductIds : string[]
+  status : enum
+}
+
+entity "Combo" as Combo {
+  * _id : ObjectId
+  --
+  frameProductId : ObjectId
+  lensProductId : ObjectId
+  comboPrice : number
+  status : enum
+}
+
+entity "Supplier" as Supplier {
+  * _id : ObjectId
+  --
+  code : string (unique)
+  name : string
+  linkedProductIds : ObjectId[]
+  status : enum
+}
+
+entity "Policy" as Policy {
+  * _id : ObjectId
+  --
+  type : enum
+  version : number
+  isActive : boolean
+  createdBy : ObjectId
+}
+
+entity "ReturnRequest" as ReturnRequest {
+  * _id : ObjectId
+  --
+  returnNumber : string (unique)
+  orderId : string
+  userId : string
+  status : enum
+  returnType : enum
+}
+
+entity "ReturnLineItem (embedded)" as ReturnLineItem {
+  * orderItemId : string
+  * productId : string
+  variantId : string
+  quantity : number
+  unitPrice : number
+}
+
+entity "WorkOrder" as WorkOrder {
+  * _id : ObjectId
+  --
+  orderId : ObjectId
+  orderItemId : string
+  status : enum
+}
+
+User ||--o{ Cart : owns
+Cart ||--o{ CartItem : embeds
+CartItem }o--|| Product : references
+
+User ||--o{ Order : places
+Order ||--o{ OrderItem : embeds
+OrderItem }o--|| Product : references
+Order }o--|| Promotion : applies
+Order }o--|| User : assignedStaff
+
+User ||--o{ Review : writes
+Product ||--o{ Review : receives
+Order ||--o{ Review : verifies
+
+User ||--o{ Favorite : marks
+Product ||--o{ Favorite : bookmarked
+
+Product ||--o{ ProductVariant : embeds
+ProductVariant ||--|| Inventory : trackedBySku
+
+Inventory ||--o{ InventoryMovement : logs
+Product ||--o{ InventoryMovement : affects
+Order ||--o{ InventoryMovement : fromOrder
+User ||--o{ InventoryMovement : performedBy
+
+Product ||--o{ Combo : asFrame
+Product ||--o{ Combo : asLens
+
+Supplier }o--o{ Product : linkedProducts
+
+User ||--o{ Policy : createdBy
+
+User ||--o{ ReturnRequest : requester (logical)
+Order ||--o{ ReturnRequest : sourceOrder (logical)
+ReturnRequest ||--o{ ReturnLineItem : embeds
+
+Order ||--o{ WorkOrder : creates
+
+User ||--o{ Address : embeds
+
+@enduml

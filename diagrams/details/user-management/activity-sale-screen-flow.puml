@@ -1,0 +1,42 @@
+@startuml SaleStaffScreenFlow
+title Sale Staff Website Screen Flow
+
+left to right direction
+skinparam backgroundColor #F0F2F5
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontColor #111111
+}
+
+rectangle "Login\n/login" as S_Login
+rectangle "Dashboard\n/dashboard" as S_Dashboard
+rectangle "Orders\n/dashboard/orders" as S_Orders
+rectangle "Order Detail\n/dashboard/orders/:id" as S_OrderDetail
+rectangle "Approve Order" as S_Approve
+rectangle "Prescriptions\n/dashboard/prescriptions" as S_Prescriptions
+rectangle "Returns\n/dashboard/returns" as S_Returns
+rectangle "Refund Decision" as S_RefundDecision
+rectangle "Process Refund" as S_ProcessRefund
+rectangle "Settings\n/dashboard/settings" as S_Settings
+
+S_Login --> S_Dashboard : login success
+S_Dashboard --> S_Orders : press
+S_Orders --> S_OrderDetail : press view detail
+S_OrderDetail --> S_Approve : press approve
+S_Approve --> S_Orders : confirm
+
+S_Dashboard --> S_Prescriptions : press
+S_Prescriptions --> S_Dashboard : back
+
+S_Dashboard --> S_Returns : press
+S_Returns --> S_RefundDecision : press review
+S_RefundDecision --> S_ProcessRefund : approve
+S_ProcessRefund --> S_Returns : confirm
+
+S_Dashboard --> S_Settings : press
+
+@enduml

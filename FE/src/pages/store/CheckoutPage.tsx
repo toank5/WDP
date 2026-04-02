@@ -16,10 +16,18 @@ import {
 } from 'react-icons/fi'
 import { cartApi, normalizeCartItemPrice } from '@/lib/cart-api'
 import { useCart, useCartStore } from '@/store/cart.store'
-import { orderApi, CheckoutRequest, OrderType, PaymentMethod, ShippingMethod } from '@/lib/order-api'
+import {
+  orderApi,
+  CheckoutRequest,
+  OrderType,
+  PaymentMethod,
+  ShippingMethod,
+} from '@/lib/order-api'
 import { formatImageUrl } from '@/lib/product-api'
 import { useAuthStore } from '@/store/auth-store'
 import { getPrescriptionLensFee, getShippingPolicyPricing } from '@/lib/policy-api'
+import { getActiveCombos, type Combo } from '@/lib/combo-api'
+import { findMatchingCombo } from '@/lib/combo-utils'
 import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
 
 // VND Price formatter
@@ -141,7 +149,8 @@ const CheckoutPage: React.FC = () => {
   // Use useCart() hook for reactive cart state and dynamic discount calculation
   const cartState = useCart()
   // Destructure what we need
-  const { items, totalItems, subtotal, appliedPromotion, discountAmount, totalAfterDiscount } = cartState
+  const { items, totalItems, subtotal, appliedPromotion, discountAmount, totalAfterDiscount } =
+    cartState
 
   // Form state
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -159,7 +168,8 @@ const CheckoutPage: React.FC = () => {
   // Payment
   const [paymentMethod] = useState<PaymentMethod>(PaymentMethod.VNPAY) // Only VNPAY for now
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(ShippingMethod.STANDARD)
-  const [shippingPricing, setShippingPricing] = useState<ShippingPricingState>(DEFAULT_SHIPPING_PRICING)
+  const [shippingPricing, setShippingPricing] =
+    useState<ShippingPricingState>(DEFAULT_SHIPPING_PRICING)
 
   // Order type (default to READY)
   const [orderType] = useState<OrderType>(OrderType.READY)
@@ -167,6 +177,10 @@ const CheckoutPage: React.FC = () => {
   // Notes
   const [notes, setNotes] = useState('')
   const [prescriptionLensFee, setPrescriptionLensFee] = useState(0)
+  const [detectedCombo, setDetectedCombo] = useState<Combo | null>(null)
+  const [appliedCombo, setAppliedCombo] = useState<{ name: string; discountAmount: number } | null>(
+    null
+  )
 
   // Load cart on mount - only if authenticated
   useEffect(() => {
@@ -204,6 +218,26 @@ const CheckoutPage: React.FC = () => {
     fetchShippingPolicy()
   }, [])
 
+  useEffect(() => {
+    const detectCombo = async () => {
+      if (items.length < 2) {
+        setDetectedCombo(null)
+        return
+      }
+
+      try {
+        const allCombos = await getActiveCombos()
+        const productIds = items.map((item) => item.productId)
+        setDetectedCombo(findMatchingCombo(productIds, allCombos))
+      } catch (err) {
+        console.error('Failed to detect combo on checkout:', err)
+        setDetectedCombo(null)
+      }
+    }
+
+    detectCombo()
+  }, [items])
+
   const loadCart = async () => {
     try {
       // The cart store automatically handles migration from localStorage to backend
@@ -238,7 +272,7 @@ const CheckoutPage: React.FC = () => {
       let attempts = 0
       let currentStore = useCartStore.getState()
       while (!currentStore._hydrated && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 50))
+        await new Promise((resolve) => setTimeout(resolve, 50))
         currentStore = useCartStore.getState()
         attempts++
       }
@@ -317,7 +351,10 @@ const CheckoutPage: React.FC = () => {
   }
 
   const calculateShippingFee = () => {
-    if (shippingPricing.freeShippingMinAmount > 0 && totalAfterDiscount >= shippingPricing.freeShippingMinAmount) {
+    if (
+      shippingPricing.freeShippingMinAmount > 0 &&
+      totalAfterDiscount >= shippingPricing.freeShippingMinAmount
+    ) {
       return 0
     }
 
@@ -392,9 +429,19 @@ const CheckoutPage: React.FC = () => {
         promotionId: response.order.promotionId,
         promotionCode: response.order.promotionCode,
         promotionDiscount: response.order.promotionDiscount,
+        comboId: response.order.comboId,
+        comboDiscount: response.order.comboDiscount,
         totalAmount: response.order.totalAmount,
         subtotal: response.order.subtotal,
       })
+
+      // Track applied combo if present
+      if (response.order.comboDiscount && response.order.comboDiscount > 0) {
+        setAppliedCombo({
+          name: 'Combo Offer',
+          discountAmount: response.order.comboDiscount,
+        })
+      }
 
       // If VNPAY, redirect to payment
       if (response.paymentUrl) {
@@ -447,9 +494,10 @@ const CheckoutPage: React.FC = () => {
     0
   )
   const prescriptionLensFeeTotal = prescriptionItemsCount * prescriptionLensFee
+  const comboDiscountAmount = detectedCombo?.discountAmount ?? appliedCombo?.discountAmount ?? 0
   // Use the dynamically calculated discount from useCart() hook
   // This automatically recalculates based on promotion type (percentage or fixed)
-  const total = totalAfterDiscount + shippingFee
+  const total = Math.max(0, totalAfterDiscount - comboDiscountAmount) + shippingFee
 
   // Step indicator
   const steps: { key: CheckoutStep; label: string; icon: React.ReactNode }[] = [
@@ -472,9 +520,7 @@ const CheckoutPage: React.FC = () => {
           >
             <FiArrowLeft /> Back to Cart
           </Link>
-          <h1 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-            Checkout
-          </h1>
+          <h1 className="text-sm font-bold uppercase tracking-widest text-slate-500">Checkout</h1>
         </div>
       </div>
 
@@ -718,19 +764,27 @@ const CheckoutPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            shippingMethod === ShippingMethod.STANDARD
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-slate-400 bg-white'
-                          }`}>
-                            {shippingMethod === ShippingMethod.STANDARD ? <FiCheck size={12} className="text-white" /> : null}
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              shippingMethod === ShippingMethod.STANDARD
+                                ? 'border-blue-600 bg-blue-600'
+                                : 'border-slate-400 bg-white'
+                            }`}
+                          >
+                            {shippingMethod === ShippingMethod.STANDARD ? (
+                              <FiCheck size={12} className="text-white" />
+                            ) : null}
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">Standard Delivery</p>
-                            <p className="text-sm text-slate-500">{shippingPricing.standardDaysLabel}</p>
+                            <p className="text-sm text-slate-500">
+                              {shippingPricing.standardDaysLabel}
+                            </p>
                           </div>
                         </div>
-                        <p className="font-bold text-slate-900">{formatPrice(shippingPricing.standardShippingFee)}</p>
+                        <p className="font-bold text-slate-900">
+                          {formatPrice(shippingPricing.standardShippingFee)}
+                        </p>
                       </div>
                     </div>
 
@@ -751,26 +805,35 @@ const CheckoutPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            shippingMethod === ShippingMethod.EXPRESS
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-slate-400 bg-white'
-                          }`}>
-                            {shippingMethod === ShippingMethod.EXPRESS ? <FiCheck size={12} className="text-white" /> : null}
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              shippingMethod === ShippingMethod.EXPRESS
+                                ? 'border-blue-600 bg-blue-600'
+                                : 'border-slate-400 bg-white'
+                            }`}
+                          >
+                            {shippingMethod === ShippingMethod.EXPRESS ? (
+                              <FiCheck size={12} className="text-white" />
+                            ) : null}
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">Express Delivery</p>
-                            <p className="text-sm text-slate-500">{shippingPricing.expressDaysLabel}</p>
+                            <p className="text-sm text-slate-500">
+                              {shippingPricing.expressDaysLabel}
+                            </p>
                           </div>
                         </div>
-                        <p className="font-bold text-slate-900">{formatPrice(shippingPricing.expressShippingFee)}</p>
+                        <p className="font-bold text-slate-900">
+                          {formatPrice(shippingPricing.expressShippingFee)}
+                        </p>
                       </div>
                     </div>
 
                     {shippingPricing.freeShippingMinAmount > 0 && (
                       <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
                         <p className="text-xs text-emerald-800">
-                          Free shipping for orders from {formatPrice(shippingPricing.freeShippingMinAmount)}.
+                          Free shipping for orders from{' '}
+                          {formatPrice(shippingPricing.freeShippingMinAmount)}.
                         </p>
                       </div>
                     )}
@@ -800,9 +863,9 @@ const CheckoutPage: React.FC = () => {
 
                   <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
                     <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> You will be redirected to VNPay secure payment
-                      gateway after completing your order. Multiple payment options are available
-                      including Internet Banking, Credit/Debit Cards, and Mobile Wallets.
+                      <strong>Note:</strong> You will be redirected to VNPay secure payment gateway
+                      after completing your order. Multiple payment options are available including
+                      Internet Banking, Credit/Debit Cards, and Mobile Wallets.
                     </p>
                   </div>
 
@@ -830,7 +893,9 @@ const CheckoutPage: React.FC = () => {
                 {/* Order Items - Detailed List */}
                 <div className="bg-white border border-slate-300 rounded-[2px] shadow-sm overflow-hidden">
                   <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
-                    <h2 className="text-lg font-bold text-slate-900">Order Items ({items.length})</h2>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Order Items ({items.length})
+                    </h2>
                   </div>
                   <div className="divide-y divide-slate-200">
                     {items.map((item) => {
@@ -877,26 +942,50 @@ const CheckoutPage: React.FC = () => {
                                   {item.variantDetails && (
                                     <div className="text-sm text-slate-600 space-y-1">
                                       {item.variantDetails.size && (
-                                        <p>Size: <span className="font-medium text-slate-800">{item.variantDetails.size}</span></p>
+                                        <p>
+                                          Size:{' '}
+                                          <span className="font-medium text-slate-800">
+                                            {item.variantDetails.size}
+                                          </span>
+                                        </p>
                                       )}
                                       {item.variantDetails.color && (
-                                        <p>Color: <span className="font-medium text-slate-800">{item.variantDetails.color}</span></p>
+                                        <p>
+                                          Color:{' '}
+                                          <span className="font-medium text-slate-800">
+                                            {item.variantDetails.color}
+                                          </span>
+                                        </p>
                                       )}
                                     </div>
                                   )}
 
                                   {item.requiresPrescription && item.typedPrescription && (
                                     <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-slate-700">
-                                      <p className="mb-1 font-semibold text-blue-900">Typed prescription</p>
-                                      <p>
-                                        OD: SPH {item.typedPrescription.rightEye.sph}, CYL {item.typedPrescription.rightEye.cyl}, AXIS {item.typedPrescription.rightEye.axis}, ADD {item.typedPrescription.rightEye.add}
+                                      <p className="mb-1 font-semibold text-blue-900">
+                                        Typed prescription
                                       </p>
                                       <p>
-                                        OS: SPH {item.typedPrescription.leftEye.sph}, CYL {item.typedPrescription.leftEye.cyl}, AXIS {item.typedPrescription.leftEye.axis}, ADD {item.typedPrescription.leftEye.add}
+                                        OD: SPH {item.typedPrescription.rightEye.sph}, CYL{' '}
+                                        {item.typedPrescription.rightEye.cyl}, AXIS{' '}
+                                        {item.typedPrescription.rightEye.axis}, ADD{' '}
+                                        {item.typedPrescription.rightEye.add}
                                       </p>
-                                      {item.typedPrescription.pd !== undefined && <p>PD: {item.typedPrescription.pd}</p>}
-                                      {item.typedPrescription.pdRight !== undefined && <p>PD Right: {item.typedPrescription.pdRight}</p>}
-                                      {item.typedPrescription.pdLeft !== undefined && <p>PD Left: {item.typedPrescription.pdLeft}</p>}
+                                      <p>
+                                        OS: SPH {item.typedPrescription.leftEye.sph}, CYL{' '}
+                                        {item.typedPrescription.leftEye.cyl}, AXIS{' '}
+                                        {item.typedPrescription.leftEye.axis}, ADD{' '}
+                                        {item.typedPrescription.leftEye.add}
+                                      </p>
+                                      {item.typedPrescription.pd !== undefined && (
+                                        <p>PD: {item.typedPrescription.pd}</p>
+                                      )}
+                                      {item.typedPrescription.pdRight !== undefined && (
+                                        <p>PD Right: {item.typedPrescription.pdRight}</p>
+                                      )}
+                                      {item.typedPrescription.pdLeft !== undefined && (
+                                        <p>PD Left: {item.typedPrescription.pdLeft}</p>
+                                      )}
                                       {item.typedPrescription.notesFromCustomer && (
                                         <p>Note: {item.typedPrescription.notesFromCustomer}</p>
                                       )}
@@ -934,7 +1023,8 @@ const CheckoutPage: React.FC = () => {
                     <p className="font-bold text-slate-900">{shippingAddress.fullName}</p>
                     <p className="text-sm text-slate-600">{shippingAddress.phone}</p>
                     <p className="text-sm text-slate-600 mt-2">
-                      {shippingAddress.address}, {shippingAddress.ward ? `${shippingAddress.ward}, ` : ''}
+                      {shippingAddress.address},{' '}
+                      {shippingAddress.ward ? `${shippingAddress.ward}, ` : ''}
                       {shippingAddress.district}, {shippingAddress.city}
                       {shippingAddress.postalCode && ` (${shippingAddress.postalCode})`}
                     </p>
@@ -951,10 +1041,14 @@ const CheckoutPage: React.FC = () => {
                       <FiTruck className="text-slate-400" />
                       <div>
                         <p className="font-bold text-slate-900">
-                          {shippingMethod === ShippingMethod.EXPRESS ? 'Express Delivery' : 'Standard Delivery'}
+                          {shippingMethod === ShippingMethod.EXPRESS
+                            ? 'Express Delivery'
+                            : 'Standard Delivery'}
                         </p>
                         <p className="text-sm text-slate-500">
-                          {shippingMethod === ShippingMethod.EXPRESS ? shippingPricing.expressDaysLabel : shippingPricing.standardDaysLabel}
+                          {shippingMethod === ShippingMethod.EXPRESS
+                            ? shippingPricing.expressDaysLabel
+                            : shippingPricing.standardDaysLabel}
                         </p>
                       </div>
                     </div>
@@ -1023,17 +1117,23 @@ const CheckoutPage: React.FC = () => {
                   <span className="uppercase">Subtotal ({totalItems} items)</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {comboDiscountAmount > 0 && currentStep === 'review' && (
+                  <div className="flex justify-between text-xs font-semibold text-orange-600">
+                    <span className="uppercase">Combo discount</span>
+                    <span>-{formatPrice(comboDiscountAmount)}</span>
+                  </div>
+                )}
                 {appliedPromotion && (
                   <div className="flex justify-between text-xs font-semibold text-green-600">
-                    <span className="uppercase">
-                      Discount ({appliedPromotion.code})
-                    </span>
+                    <span className="uppercase">Discount ({appliedPromotion.code})</span>
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
-                  <span className={shippingFee === 0 ? 'text-green-600 font-medium' : 'text-slate-700'}>
+                  <span
+                    className={shippingFee === 0 ? 'text-green-600 font-medium' : 'text-slate-700'}
+                  >
                     {shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}
                   </span>
                 </div>

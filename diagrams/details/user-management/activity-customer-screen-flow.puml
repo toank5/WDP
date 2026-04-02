@@ -1,0 +1,47 @@
+@startuml CustomerScreenFlow
+title Customer Website Screen Flow
+
+left to right direction
+skinparam backgroundColor #F0F2F5
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontColor #111111
+}
+
+rectangle "Home\n/" as C_Home
+rectangle "Store\n/store, /products" as C_Store
+rectangle "Product Detail\n/product/:slug" as C_ProductDetail
+rectangle "Cart\n/cart" as C_Cart
+rectangle "Checkout\n/checkout" as C_Checkout
+rectangle "VNPay Return\n/checkout/vnpay-return" as C_VnPay
+rectangle "Order Success\n/order/success" as C_OrderSuccess
+rectangle "Order Failed\n/order/failed" as C_OrderFailed
+rectangle "Order History\n/orders" as C_OrderHistory
+rectangle "Order Detail\n/orders/:id" as C_OrderDetail
+rectangle "Account\n/account/*" as C_Account
+rectangle "Favorites\n/favorites" as C_Favorites
+rectangle "Virtual Try-On\n/virtual-tryon" as C_TryOn
+
+C_Home --> C_Store : press
+C_Store --> C_ProductDetail : press
+C_ProductDetail --> C_Cart : press add to cart
+
+C_Cart --> C_Checkout : press checkout
+C_Checkout --> C_VnPay : press pay
+
+C_VnPay --> C_OrderSuccess : payment success
+C_VnPay --> C_OrderFailed : payment fail
+C_OrderFailed --> C_Checkout : retry
+
+C_OrderSuccess --> C_OrderHistory : press view orders
+C_OrderHistory --> C_OrderDetail : press view detail
+
+C_Home --> C_Favorites : press
+C_Home --> C_TryOn : press
+C_Home --> C_Account : press
+
+@enduml

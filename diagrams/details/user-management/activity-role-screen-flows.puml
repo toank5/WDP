@@ -1,0 +1,122 @@
+@startuml RoleScreenFlows
+!theme plain
+skinparam backgroundColor white
+skinparam activity {
+  BackgroundColor #F8F9FA
+  BorderColor #2F3B52
+  StartColor #2F9E44
+  EndColor #E03131
+  FontColor #1F2937
+}
+skinparam shadowing false
+
+title Website Screen Flows by Role (Customer, Sale, Operation, Admin)
+
+legend right
+  This diagram maps primary website screen journeys by role.
+  Routes align with FE/src/App.tsx and role permissions.
+endlegend
+
+partition "Customer" {
+  start
+  :Home (/);
+  :Store / Product List (/store, /products);
+  :Product Detail (/product/:slug);
+
+  if (Add to cart?) then (yes)
+    :Cart (/cart);
+    :Checkout (/checkout);
+    :VNPay Return (/checkout/vnpay-return);
+
+    if (Payment success?) then (yes)
+      :Order Success (/order/success);
+      :Order Detail (/orders/:id);
+    else (no)
+      :Order Failed (/order/failed);
+      :Retry checkout;
+    endif
+  else (no)
+    :Continue browsing;
+  endif
+
+  :Order History (/orders);
+  :Account (/account/profile, /account/addresses, /account/security);
+  :Favorites (/favorites) and Virtual Try-On (/virtual-tryon);
+  stop
+}
+
+newpage
+
+partition "Sale Staff" {
+  start
+  :Login (/login);
+  :Dashboard Overview (/dashboard);
+  :Orders Queue (/dashboard/orders);
+
+  if (Order needs approval?) then (yes)
+    :Approve or update order status;
+  else (no)
+    :Monitor order queue;
+  endif
+
+  :Prescription Queue (/dashboard/prescriptions);
+  :Returns Queue (/dashboard/returns);
+
+  if (Refund decision required?) then (yes)
+    :Approve or reject refund;
+    :Process refund;
+  else (no)
+    :Wait for next request;
+  endif
+
+  :Account Settings (/dashboard/settings);
+  stop
+}
+
+newpage
+
+partition "Operation Staff" {
+  start
+  :Login (/login);
+  :Dashboard Overview (/dashboard);
+  :Lab Jobs (/dashboard/lab-jobs);
+  :Shipping Queue (/dashboard/shipping);
+  :Inventory (/dashboard/inventory);
+  :Inventory Detail (/dashboard/inventory/:sku);
+
+  if (Stock adjustment needed?) then (yes)
+    :Adjust stock and movement records;
+  else (no)
+    :Track current levels;
+  endif
+
+  :Return Verification (/dashboard/returns);
+  :Account Settings (/dashboard/settings);
+  stop
+}
+
+newpage
+
+partition "Admin" {
+  start
+  :Login (/login);
+  :Dashboard Overview (/dashboard);
+  :User Management (/dashboard/users);
+
+  :Product Management (/dashboard/products);
+  :Catalog (/dashboard/all-products);
+  :Orders (/dashboard/orders);
+  :Inventory (/dashboard/inventory);
+  :Returns (/dashboard/returns);
+  :Promotions (/dashboard/promotions);
+  :Pricing (/dashboard/pricing);
+  :Combos (/dashboard/combos);
+  :Suppliers (/dashboard/suppliers);
+  :Revenue (/dashboard/revenue);
+  :Policies (/dashboard/policies);
+
+  :Account Settings (/dashboard/settings);
+  stop
+}
+
+@enduml

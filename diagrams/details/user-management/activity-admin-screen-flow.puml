@@ -1,0 +1,57 @@
+@startuml AdminScreenFlow
+title Admin Website Screen Flow
+
+left to right direction
+skinparam backgroundColor #F0F2F5
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontColor #111111
+}
+
+rectangle "Login\n/login" as A_Login
+rectangle "Dashboard\n/dashboard" as A_Dashboard
+rectangle "Users\n/dashboard/users" as A_Users
+rectangle "Products\n/dashboard/products" as A_Products
+rectangle "Catalog\n/dashboard/all-products" as A_Catalog
+rectangle "Orders\n/dashboard/orders" as A_Orders
+rectangle "Inventory\n/dashboard/inventory" as A_Inventory
+rectangle "Returns\n/dashboard/returns" as A_Returns
+rectangle "Promotions\n/dashboard/promotions" as A_Promotions
+rectangle "Pricing\n/dashboard/pricing" as A_Pricing
+rectangle "Combos\n/dashboard/combos" as A_Combos
+rectangle "Suppliers\n/dashboard/suppliers" as A_Suppliers
+rectangle "Revenue\n/dashboard/revenue" as A_Revenue
+rectangle "Policies\n/dashboard/policies" as A_Policies
+rectangle "Settings\n/dashboard/settings" as A_Settings
+
+A_Login --> A_Dashboard : login success
+
+A_Dashboard --> A_Users : press
+A_Users --> A_Dashboard : back
+
+A_Dashboard --> A_Products : press
+A_Products --> A_Catalog : view catalog
+A_Catalog --> A_Products : edit product
+
+A_Dashboard --> A_Orders : press
+A_Orders --> A_Dashboard : back
+
+A_Dashboard --> A_Inventory : press
+A_Inventory --> A_Dashboard : back
+
+A_Dashboard --> A_Returns : press
+A_Returns --> A_Dashboard : back
+
+A_Dashboard --> A_Promotions : press
+A_Dashboard --> A_Pricing : press
+A_Dashboard --> A_Combos : press
+A_Dashboard --> A_Suppliers : press
+A_Dashboard --> A_Revenue : press
+A_Dashboard --> A_Policies : press
+A_Dashboard --> A_Settings : press
+
+@enduml

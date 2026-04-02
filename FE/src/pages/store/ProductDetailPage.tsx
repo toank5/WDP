@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
 import { useCartStore } from '@/store/cart.store'
-import { getAllProducts, checkInventoryAvailability, type Product, type ProductVariant, type FrameProduct, formatImageUrl } from '@/lib/product-api'
+import { getAllProducts, checkInventoryAvailability, type Product, type ProductVariant, type FrameProduct, formatImageUrl, getProductById } from '@/lib/product-api'
 import { cartApi } from '@/lib/cart-api'
 
 import { wishlistApi } from '@/lib/wishlist-api'
@@ -937,6 +937,10 @@ export function ProductDetailPage() {
   const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
   const [combosLoading, setCombosLoading] = useState(false)
   const [promotionsLoading, setPromotionsLoading] = useState(false)
+  
+  // Compatible products state (for combo pairs)
+  const [compatibleProducts, setCompatibleProducts] = useState<Product[]>([])
+  const [loadingCompatible, setLoadingCompatible] = useState(false)
 
   // Promo code input state
   const [promoCode, setPromoCode] = useState('')
@@ -1500,10 +1504,25 @@ export function ProductDetailPage() {
               combo.frameProductId === product._id || combo.lensProductId === product._id
           )
           setApplicableCombos(applicable)
+          
+          // Load compatible products (frames for lens, lenses for frame)
+          setLoadingCompatible(true)
+          const compatibleIds = applicable.map((combo) => 
+            combo.frameProductId === product._id 
+              ? combo.lensProductId 
+              : combo.frameProductId
+          )
+          
+          const uniqueIds = [...new Set(compatibleIds)]
+          const compatible = await Promise.all(
+            uniqueIds.map((id) => getProductById(id).catch(() => null))
+          )
+          setCompatibleProducts(compatible.filter((p) => p !== null) as Product[])
         } catch (err) {
           console.error('Failed to fetch combos:', err)
         } finally {
           setCombosLoading(false)
+          setLoadingCompatible(false)
         }
       }
 
@@ -1732,6 +1751,45 @@ export function ProductDetailPage() {
     await handleAddToCart()
     navigate('/checkout')
   }
+
+    // Add compatible product to cart (for combo pairs)
+    const handleAddCompatibleToCart = async (compatibleProduct: Product) => {
+      const authState = useAuthStore.getState()
+      if (!authState.isAuthenticated) {
+        setSnackbarState({
+          open: true,
+          message: 'Please login to add items to cart',
+          severity: 'warning',
+        })
+        setTimeout(() => {
+          navigate('/login')
+        }, 1500)
+        return
+      }
+
+      try {
+        let variantSku: string | undefined = undefined
+      
+        // For frame products with variants, use the first variant
+        if (isFrameProduct(compatibleProduct) && compatibleProduct.variants?.length > 0) {
+          variantSku = compatibleProduct.variants[0].sku
+        }
+      
+        const result = await cartApi.addItem({
+          variantSku,
+          productId: compatibleProduct._id,
+          quantity: 1,
+        })
+
+        setSnackbarState({
+          open: true,
+          message: result.success ? `${compatibleProduct.name} added to cart` : result.message,
+          severity: result.success ? ('success' as const) : ('error' as const),
+        })
+      } catch (err) {
+        setSnackbarState({ open: true, message: 'Failed to add to cart', severity: 'error' as const })
+      }
+    }
 
   // Toggle wishlist
   const toggleWishlist = async () => {
@@ -3082,6 +3140,150 @@ export function ProductDetailPage() {
             </Box>
           </Paper>
         </Stack>
+
+          {/* Compatible Products for Combos */}
+          {compatibleProducts.length > 0 && (
+            <Box sx={{ mt: 5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 2.5 }}>
+                <AutoAwesome sx={{ color: 'info.main', fontSize: 22 }} />
+                <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.15rem' }}>
+                  Perfect with this {product?.category === 'frame' ? 'Frame' : 'Lens'}
+                </Typography>
+                <Chip
+                  label={`${compatibleProducts.length} products`}
+                  size="small"
+                  color="info"
+                  sx={{ ml: 'auto', fontWeight: 600, fontSize: '0.7rem', height: 20 }}
+                />
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr' }, gap: 2 }}>
+                {compatibleProducts.map((compatProduct) => {
+                  const compatImage = formatImageUrl(compatProduct.images2D?.[0])
+                  const comboForThisProduct = applicableCombos.find(
+                    (c) => (product?.category === 'frame' 
+                      ? c.lensProductId === compatProduct._id 
+                      : c.frameProductId === compatProduct._id)
+                  )
+                
+                  return (
+                    <Paper
+                      key={compatProduct._id}
+                      elevation={1}
+                      sx={{
+                        p: 2,
+                        border: '1px solid',
+                        borderColor: 'info.100',
+                        borderRadius: 2.5,
+                        background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.03) 0%, rgba(255, 255, 255, 1) 100%)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 4px 12px rgba(33, 150, 243, 0.15)',
+                        },
+                      }}
+                    >
+                      {/* Product Image */}
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mb: 1.5,
+                          height: 140,
+                          bgcolor: 'grey.50',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {compatImage ? (
+                          <Box
+                            component="img"
+                            src={compatImage}
+                            alt={compatProduct.name}
+                            sx={{
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain',
+                            }}
+                          />
+                        ) : (
+                          <Typography color="text.secondary" variant="body2">👓</Typography>
+                        )}
+                      </Box>
+
+                      {/* Product Info */}
+                      <Box sx={{ mb: 1.5 }}>
+                        <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.95rem', mb: 0.25 }}>
+                          {compatProduct.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
+                          {compatProduct.category === 'frame' ? `${compatProduct.frameType || 'N/A'} - ${compatProduct.shape || 'N/A'}` : `${compatProduct.lensType || 'N/A'} - Index ${compatProduct.index || 'N/A'}`}
+                        </Typography>
+                      </Box>
+
+                      {/* Pricing */}
+                      <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            Price
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.9rem' }}>
+                            {formatPrice(compatProduct.basePrice)}
+                          </Typography>
+                        </Box>
+                        {comboForThisProduct && (
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="caption" color="success.main" sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                              Combo
+                            </Typography>
+                            <Typography variant="body2" color="success.main" fontWeight={700} sx={{ fontSize: '0.9rem' }}>
+                              {formatPrice(comboForThisProduct.comboPrice)}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+
+                      {/* Combo Savings */}
+                      {comboForThisProduct && (
+                        <Chip
+                          label={`Save ${formatPrice(comboForThisProduct.discountAmount)}`}
+                          color="success"
+                          size="small"
+                          sx={{
+                            width: '100%',
+                            mb: 1.5,
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 24,
+                            bgcolor: 'success.50',
+                            color: 'success.dark',
+                          }}
+                        />
+                      )}
+
+                      {/* Add Button */}
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="info"
+                        size="small"
+                        startIcon={<ShoppingCartOutlined />}
+                        onClick={() => handleAddCompatibleToCart(compatProduct)}
+                        sx={{
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          fontSize: '0.85rem',
+                          borderRadius: 1,
+                        }}
+                      >
+                        Add to Cart
+                      </Button>
+                    </Paper>
+                  )
+                })}
+              </Box>
+            </Box>
+          )}
 
         {/* Combos & Deals Section */}
         {applicableCombos.length > 0 && (

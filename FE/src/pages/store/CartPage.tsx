@@ -16,6 +16,8 @@ import type { CartItem } from '@/lib/cart-api'
 import { normalizeCartItemPrice } from '@/lib/cart-api'
 import { getPrescriptionLensFee } from '@/lib/policy-api'
 import { ShippingPolicySection } from '@/components/policy/ShippingPolicySection'
+import { getActiveCombos, type Combo } from '@/lib/combo-api'
+import { findMatchingCombo } from '@/lib/combo-utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +61,9 @@ const CartPage: React.FC = () => {
   const [prescriptionLensFee, setPrescriptionLensFee] = React.useState(0)
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
+    const [detectedCombo, setDetectedCombo] = useState<Combo | null>(null)
+    const [loadingCombos, setLoadingCombos] = useState(false)
+
   const navigate = useNavigate()
 
   // Load cart on mount
@@ -97,6 +102,34 @@ const CartPage: React.FC = () => {
 
     fetchPrescriptionPolicy()
   }, [])
+
+    // Load combos and detect if cart has frame + lens combo
+    useEffect(() => {
+      const detectCombos = async () => {
+        if (items.length === 0) {
+          setDetectedCombo(null)
+          return
+        }
+
+        setLoadingCombos(true)
+        try {
+          const allCombos = await getActiveCombos()
+
+          // Extract product IDs from cart items
+          const cartProductIds = items.map((item) => item.productId)
+          setDetectedCombo(findMatchingCombo(cartProductIds, allCombos))
+        } catch (err) {
+          console.error('Failed to load combos:', err)
+        } finally {
+          setLoadingCombos(false)
+        }
+      }
+
+      detectCombos()
+    }, [items])
+
+  const comboDiscountAmount = detectedCombo?.discountAmount ?? 0
+  const totalAfterCombo = Math.max(0, totalAfterDiscount - comboDiscountAmount)
 
   const prescriptionItemsCount = items.reduce(
     (sum, item) => sum + (item.requiresPrescription ? item.quantity : 0),
@@ -217,6 +250,22 @@ const CartPage: React.FC = () => {
                   <FiShoppingCart className="text-slate-400" /> Items in Cart ({items.length})
                 </h2>
               </div>
+
+                {/* Combo Offer Banner */}
+                {detectedCombo && !loadingCombos && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200 px-6 py-4 flex items-start gap-3">
+                    <div className="text-2xl">🎁</div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-green-900 mb-1">🎉 Great Deal Available!</h3>
+                      <p className="text-xs text-green-800 mb-2">
+                        You have a <strong>{detectedCombo.name}</strong> available!
+                      </p>
+                      <p className="text-xs text-green-700 font-semibold">
+                        The combo discount is applied to your cart total below.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
               {items.length === 0 ? (
                 <div className="p-16 text-center space-y-4">
@@ -389,6 +438,12 @@ const CartPage: React.FC = () => {
                   <span className="uppercase">Subtotal</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {comboDiscountAmount > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-orange-600">
+                    <span className="uppercase">Combo discount</span>
+                    <span>-{formatPrice(comboDiscountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span className="uppercase">Shipping</span>
                   <span className="text-emerald-600">FREE</span>
@@ -412,7 +467,7 @@ const CartPage: React.FC = () => {
                     Total
                   </span>
                   <span className="text-xl font-bold text-blue-700">
-                    {formatPrice(totalAfterDiscount)}
+                    {formatPrice(totalAfterCombo)}
                   </span>
                 </div>
 

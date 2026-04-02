@@ -1,0 +1,45 @@
+@startuml OperationStaffScreenFlow
+title Operation Staff Website Screen Flow
+
+left to right direction
+skinparam backgroundColor #F0F2F5
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontColor #111111
+}
+
+rectangle "Login\n/login" as O_Login
+rectangle "Dashboard\n/dashboard" as O_Dashboard
+rectangle "Lab Jobs\n/dashboard/lab-jobs" as O_LabJobs
+rectangle "Shipping\n/dashboard/shipping" as O_Shipping
+rectangle "Inventory\n/dashboard/inventory" as O_Inventory
+rectangle "Inventory Detail\n/dashboard/inventory/:sku" as O_InventoryDetail
+rectangle "Adjust Stock" as O_AdjustStock
+rectangle "Returns\n/dashboard/returns" as O_Returns
+rectangle "Verify Return" as O_VerifyReturn
+rectangle "Settings\n/dashboard/settings" as O_Settings
+
+O_Login --> O_Dashboard : login success
+
+O_Dashboard --> O_LabJobs : press
+O_LabJobs --> O_Dashboard : back
+
+O_Dashboard --> O_Shipping : press
+O_Shipping --> O_Dashboard : back
+
+O_Dashboard --> O_Inventory : press
+O_Inventory --> O_InventoryDetail : press view detail
+O_InventoryDetail --> O_AdjustStock : press adjust
+O_AdjustStock --> O_Inventory : confirm
+
+O_Dashboard --> O_Returns : press
+O_Returns --> O_VerifyReturn : press verify
+O_VerifyReturn --> O_Returns : confirm
+
+O_Dashboard --> O_Settings : press
+
+@enduml
