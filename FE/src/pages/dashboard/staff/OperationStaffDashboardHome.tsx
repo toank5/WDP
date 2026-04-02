@@ -295,7 +295,7 @@ export function OperationStaffDashboardHome() {
 
       {/* Lab Jobs Section */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -396,7 +396,7 @@ export function OperationStaffDashboardHome() {
         </Grid>
 
         {/* Orders Ready to Ship */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

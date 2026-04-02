@@ -146,119 +146,130 @@ export function ManagerDashboardHome() {
       </Grid>
 
       {/* Charts Section */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Revenue Trend Chart */}
-        <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    Revenue Overview
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Last 7 days performance
-                  </Typography>
-                </Box>
-                <Button
-                  component={Link}
-                  to="/dashboard/revenue"
-                  size="small"
-                  variant="outlined"
-                >
-                  View Details
-                </Button>
+      <Box sx={{ mb: 4 }}>
+        {/* Revenue Trend Chart - Full Width */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={600}>
+                  Revenue Overview
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Last 7 days performance
+                </Typography>
               </Box>
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={revenueTimeData}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0088FE" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#0088FE" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value: number) => [`₫${value.toLocaleString()}`, 'Revenue']}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 8,
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#0088FE"
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+              <Button
+                component={Link}
+                to="/dashboard/revenue"
+                size="small"
+                variant="outlined"
+              >
+                View Details
+              </Button>
+            </Box>
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={revenueTimeData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0088FE" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#0088FE" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value: number) => [`₫${value.toLocaleString()}`, 'Revenue']}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 8,
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#0088FE"
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         {/* Order Status Distribution */}
-        <Grid item xs={12} lg={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Order Status
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-                Current distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={orderStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {orderStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [value, name]}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 8,
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {orderStatusData.map((item) => (
-                  <Chip
-                    key={item.name}
-                    label={`${item.name}: ${item.value}`}
-                    size="small"
-                    sx={{
-                      bgcolor: item.color,
-                      color: 'white',
-                      fontWeight: 600,
-                    }}
-                  />
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Order Status
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                  Current distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={orderStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {orderStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number, name: string) => [value, name]}
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {orderStatusData.map((item) => (
+                    <Chip
+                      key={item.name}
+                      label={`${item.name}: ${item.value}`}
+                      size="small"
+                      sx={{
+                        bgcolor: item.color,
+                        color: 'white',
+                        fontWeight: 600,
+                      }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Placeholder for future content */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CardContent sx={{ textAlign: 'center', width: '100%' }}>
+                <Typography variant="body2" color="text.secondary">
+                  More insights coming soon
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
 
       {/* Alerts and Quick Actions */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Alerts */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12}>
           <Card
             sx={{
               bgcolor: lowStockCount > 0 ? 'warning.lighter' : 'success.lighter',
@@ -306,7 +317,7 @@ export function ManagerDashboardHome() {
         </Grid>
 
         {/* Quick Actions */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>

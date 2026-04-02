@@ -55,7 +55,6 @@ import { SupplierFormPage } from './pages/manager/SupplierFormPage'
 import PreorderManagementPage from './pages/manager/PreorderManagementPage'
 import PreorderDetailPage from './pages/manager/PreorderDetailPage'
 import ComboBuilderPage from './pages/manager/ComboBuilderPage'
-import PriceManagementPage from './pages/manager/PriceManagementPage'
 import RevenueDashboardPage from './pages/manager/RevenueDashboardPage'
 
 // Components
@@ -172,7 +171,6 @@ function App() {
             <Route path="shipping" element={<ShippingPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="combos" element={<ComboBuilderPage />} />
-            <Route path="pricing" element={<PriceManagementPage />} />
             <Route path="revenue" element={<RevenueDashboardPage />} />
             <Route path="inventory" element={<InventoryManagementPage />} />
             <Route path="suppliers/new" element={<SupplierFormPage />} />
